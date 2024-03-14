@@ -19,7 +19,7 @@ jobs:
           go-version-file: "go.mod"
 
       - name: Build
-        run: go build cmd/gocert.go
+        run: go build ./...
 
   go-vet:
     runs-on: ubuntu-latest

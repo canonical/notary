@@ -28,9 +28,8 @@ assignees: ''
 
 #### Environment
 
-- Software version(if relevant): <!-- e.g. 1.2 -->
-- Cloud Environment: <!-- e.g. GKE -->
-- Kubernetes version (output from `kubectl version --short`):
+- Software version: <!-- e.g. 1.2.1 -->
+- Environment information: <!-- e.g. Ubuntu 24.04 -->
 
 #### Additional context
 

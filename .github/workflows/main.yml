@@ -1,0 +1,78 @@
+name: Main workflow
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+
+      - name: Build
+        run: go build ./...
+
+  go-vet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+
+      - name: Go vet
+        run: go vet ./...
+  
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.54
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+
+      - name: Unit tests
+        run: go test -cover ./...
+
+  rock-build:
+    needs: 
+      - build
+      - go-vet
+      - lint
+      - unit-tests
+    uses: ./.github/workflows/build-rock.yaml
+  
+  rock-scan:
+    if: github.ref_name == 'main'
+    needs: rock-build
+    uses: ./.github/workflows/scan-rock.yaml
+
+  publish:
+    if: github.ref_name == 'main'
+    needs: [rock-build]
+    uses: ./.github/workflows/publish-rock.yaml

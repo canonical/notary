@@ -1,0 +1,39 @@
+name: Publish ROCK
+
+on:
+  workflow_call:
+
+jobs:
+  publish-rock:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3.0.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install skopeo
+        run: |
+          sudo snap install --devmode --channel edge skopeo
+      - uses: actions/download-artifact@v4
+        with:
+          name: rock
+
+      - name: Import and push to github package
+        run: |
+          image_name="$(yq '.name' rockcraft.yaml)"
+          version="$(yq '.version' rockcraft.yaml)"
+          rock_file=$(ls *.rock | tail -n 1)
+          sudo skopeo \
+            --insecure-policy \
+            copy \
+            oci-archive:"${rock_file}" \
+            docker-daemon:"ghcr.io/canonical/${image_name}:${version}"
+          docker tag ghcr.io/canonical/${image_name}:${version} ghcr.io/canonical/${image_name}:latest
+          docker push ghcr.io/canonical/${image_name}:${version}
+          docker push ghcr.io/canonical/${image_name}:latest

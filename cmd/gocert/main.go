@@ -1,17 +1,19 @@
 package main
 
 import (
-	"log"
+	"fmt"
 
 	"github.com/canonical/gocert/internal/certdb"
 )
 
+var db *certdb.CertificateRequests
+
 func main() {
-	db := new(certdb.CertificateRequests)
-	if err := db.Connect(); err != nil {
-		log.Fatal(err)
+	db = new(certdb.CertificateRequests)
+	if err := db.Connect("./certs.db", "CertificateRequests"); err != nil {
+		fmt.Println(err)
 	}
 	defer db.Disconnect()
 
-	// Serve server
+	// ListenAndServe
 }

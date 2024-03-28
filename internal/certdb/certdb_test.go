@@ -108,7 +108,7 @@ func TestRetrieve(t *testing.T) {
 
 }
 
-func ExampleConnection() {
+func Example() {
 	db := new(certdb.CertificateRequests)
 	if err := db.Connect("./certs.db", "CertificateReq"); err != nil {
 		log.Fatalln(err)

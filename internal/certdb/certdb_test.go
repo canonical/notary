@@ -1,6 +1,7 @@
 package certdb_test
 
 import (
+	"log"
 	"strings"
 	"testing"
 
@@ -105,4 +106,12 @@ func TestRetrieve(t *testing.T) {
 		t.Fatalf("Expected failure looking for nonexistent CSR")
 	}
 
+}
+
+func ExampleConnection() {
+	db := new(certdb.CertificateRequests)
+	if err := db.Connect("./certs.db", "CertificateReq"); err != nil {
+		log.Fatalln(err)
+	}
+	defer db.Disconnect()
 }

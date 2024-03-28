@@ -10,7 +10,7 @@ var db *certdb.CertificateRequests
 
 func main() {
 	db = new(certdb.CertificateRequests)
-	if err := db.Connect("./certs.db", "CertificateRequests"); err != nil {
+	if err := db.Connect("./certs.db", "CertificateReq"); err != nil {
 		fmt.Println(err)
 	}
 	defer db.Disconnect()

@@ -32,13 +32,16 @@ func ValidateCertificate(certString *string, csrString *string) error {
 	if certBlock == nil {
 		return errors.New("PEM Certificate string not found or malformed")
 	}
+	if certBlock.Type != "CERTIFICATE" {
+		return errors.New("given PEM string not a certificate")
+	}
 	cert, err := x509.ParseCertificate(certBlock.Bytes)
 	if err != nil {
 		return err
 	}
 	certKey := cert.PublicKey.(*rsa.PublicKey)
 	csrKey := csr.PublicKey.(*rsa.PublicKey)
-	if csrKey.Equal(*certKey) {
+	if !csrKey.Equal(certKey) {
 		return errors.New("certificate does not match CSR")
 	}
 	return nil

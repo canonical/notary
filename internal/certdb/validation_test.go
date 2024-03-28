@@ -87,35 +87,35 @@ Mvo/+PAJHkBciR5Xn+Wg2a+7vrZvT6CBoRSOTozlLSM=
 -----END CERTIFICATE-----`
 
 func TestCSRValidationSuccess(t *testing.T) {
-	if err := certdb.ValidateCertificateRequest(&ValidCSR1); err != nil {
+	if err := certdb.ValidateCertificateRequest(ValidCSR1); err != nil {
 		t.Fatalf("Couldn't verify valid CSR: %s", err)
 	}
-	if err := certdb.ValidateCertificateRequest(&ValidCSR2); err != nil {
+	if err := certdb.ValidateCertificateRequest(ValidCSR2); err != nil {
 		t.Fatalf("Couldn't verify valid CSR: %s", err)
 	}
-	if err := certdb.ValidateCertificateRequest(&ValidCSR3); err != nil {
+	if err := certdb.ValidateCertificateRequest(ValidCSR3); err != nil {
 		t.Fatalf("Couldn't verify valid CSR: %s", err)
 	}
 }
 
 func TestCSRValidationFail(t *testing.T) {
 	var wrongString string = "this is a real csr!!!"
-	err := certdb.ValidateCertificateRequest(&wrongString)
+	err := certdb.ValidateCertificateRequest(wrongString)
 	if err.Error() != "PEM Certificate Request string not found or malformed" {
 		t.Fatalf("Expected error not found:\nReceived: %s", err)
 	}
 	var ValidCSRWithoutWhitespace = strings.ReplaceAll(ValidCSR1, "\n", "")
-	err = certdb.ValidateCertificateRequest(&ValidCSRWithoutWhitespace)
+	err = certdb.ValidateCertificateRequest(ValidCSRWithoutWhitespace)
 	if err.Error() != "PEM Certificate Request string not found or malformed" {
 		t.Fatalf("Expected error not found:\nReceived: %s", err)
 	}
 	var wrongPemType string = strings.ReplaceAll(ValidCSR1, "CERTIFICATE REQUEST", "SOME RANDOM PEM TYPE")
-	err = certdb.ValidateCertificateRequest(&wrongPemType)
+	err = certdb.ValidateCertificateRequest(wrongPemType)
 	if err.Error() != "given PEM string not a certificate request" {
 		t.Fatalf("Expected error not found:\nReceived: %s", err)
 	}
 	var InvalidCSR = strings.ReplaceAll(ValidCSR1, "/", "p")
-	err = certdb.ValidateCertificateRequest(&InvalidCSR)
+	err = certdb.ValidateCertificateRequest(InvalidCSR)
 	if err == nil {
 		t.Fatalf("Expected CSR to fail validation")
 	}
@@ -124,33 +124,33 @@ func TestCSRValidationFail(t *testing.T) {
 // Fuzz test
 
 func TestCertValidationSuccess(t *testing.T) {
-	if err := certdb.ValidateCertificate(&ValidCert2, &ValidCSR2); err != nil {
+	if err := certdb.ValidateCertificate(ValidCert2, ValidCSR2); err != nil {
 		t.Fatalf("Expected cert to be valid")
 	}
 }
 
 func TestCertValidationFail(t *testing.T) {
 	var wrongString string = "this is a real cert!!!"
-	err := certdb.ValidateCertificate(&wrongString, &ValidCSR2)
+	err := certdb.ValidateCertificate(wrongString, ValidCSR2)
 	if err.Error() != "PEM Certificate string not found or malformed" {
 		t.Fatalf("Expected error not found:\nReceived: %s", err)
 	}
 	var ValidCertWithoutWhitespace = strings.ReplaceAll(ValidCert2, "\n", "")
-	err = certdb.ValidateCertificate(&ValidCertWithoutWhitespace, &ValidCSR2)
+	err = certdb.ValidateCertificate(ValidCertWithoutWhitespace, ValidCSR2)
 	if err.Error() != "PEM Certificate string not found or malformed" {
 		t.Fatalf("Expected error not found:\nReceived: %s", err)
 	}
 	var wrongPemType string = strings.ReplaceAll(ValidCert2, "CERTIFICATE", "SOME RANDOM PEM TYPE")
-	err = certdb.ValidateCertificate(&wrongPemType, &ValidCSR2)
+	err = certdb.ValidateCertificate(wrongPemType, ValidCSR2)
 	if err.Error() != "given PEM string not a certificate" {
 		t.Fatalf("Expected error not found:\nReceived: %s", err)
 	}
 	var InvalidCert = strings.ReplaceAll(ValidCert2, "M", "i")
-	err = certdb.ValidateCertificate(&InvalidCert, &ValidCSR2)
+	err = certdb.ValidateCertificate(InvalidCert, ValidCSR2)
 	if err == nil {
 		t.Fatalf("Expected cert to fail validation")
 	}
-	err = certdb.ValidateCertificate(&ValidCert2, &ValidCSR1)
+	err = certdb.ValidateCertificate(ValidCert2, ValidCSR1)
 	if err == nil || err.Error() != "certificate does not match CSR" {
 		t.Fatalf("Expected cert to not match CSR")
 	}

@@ -26,25 +26,25 @@ type CertificateRequest struct {
 	Certificate *string
 }
 
-func (db *CertificateRequests) RetrieveAll() ([]*CertificateRequest, error) {
+func (db *CertificateRequests) RetrieveAll() ([]CertificateRequest, error) {
 	rows, err := db.conn.Query(fmt.Sprintf(queryGetAllCSRs, db.table))
 	if err != nil {
 		return nil, err
 	}
 
-	var allCsrs []*CertificateRequest
+	var allCsrs []CertificateRequest
 	defer rows.Close()
 	for rows.Next() {
 		var csr CertificateRequest
 		if err := rows.Scan(&csr.ID, &csr.CSR, &csr.Certificate); err != nil {
 			return nil, err
 		}
-		allCsrs = append(allCsrs, &csr)
+		allCsrs = append(allCsrs, csr)
 	}
 	return allCsrs, nil
 }
 
-func (db *CertificateRequests) Retrieve(csr *string) (*CertificateRequest, error) {
+func (db *CertificateRequests) Retrieve(csr string) (*CertificateRequest, error) {
 	var newCSR CertificateRequest
 	row := db.conn.QueryRow(fmt.Sprintf(queryGetCSR, db.table), csr)
 	if err := row.Scan(&newCSR.ID, &newCSR.CSR, &newCSR.Certificate); err != nil {
@@ -53,7 +53,7 @@ func (db *CertificateRequests) Retrieve(csr *string) (*CertificateRequest, error
 	return &newCSR, nil
 }
 
-func (db *CertificateRequests) Create(csr *string) (int64, error) {
+func (db *CertificateRequests) Create(csr string) (int64, error) {
 	if err := ValidateCertificateRequest(csr); err != nil {
 		return 0, err
 	}
@@ -68,7 +68,7 @@ func (db *CertificateRequests) Create(csr *string) (int64, error) {
 	return id, nil
 }
 
-func (db *CertificateRequests) Update(csr *string, cert *string) (int64, error) {
+func (db *CertificateRequests) Update(csr string, cert string) (int64, error) {
 	if err := ValidateCertificate(cert, csr); err != nil {
 		return 0, err
 	}
@@ -83,7 +83,7 @@ func (db *CertificateRequests) Update(csr *string, cert *string) (int64, error) 
 	return id, nil
 }
 
-func (db *CertificateRequests) Delete(csr *string) error {
+func (db *CertificateRequests) Delete(csr string) error {
 	_, err := db.conn.Exec(fmt.Sprintf(queryDeleteCSR, db.table), csr)
 	if err != nil {
 		return err

@@ -7,8 +7,8 @@ import (
 	"errors"
 )
 
-func ValidateCertificateRequest(csrString *string) error {
-	block, _ := pem.Decode([]byte(*csrString))
+func ValidateCertificateRequest(csrString string) error {
+	block, _ := pem.Decode([]byte(csrString))
 	if block == nil {
 		return errors.New("PEM Certificate Request string not found or malformed")
 	}
@@ -22,13 +22,13 @@ func ValidateCertificateRequest(csrString *string) error {
 	return nil
 }
 
-func ValidateCertificate(certString *string, csrString *string) error {
+func ValidateCertificate(certString string, csrString string) error {
 	if err := ValidateCertificateRequest(csrString); err != nil {
 		return err
 	}
-	csrBlock, _ := pem.Decode([]byte(*csrString))
+	csrBlock, _ := pem.Decode([]byte(csrString))
 	csr, _ := x509.ParseCertificateRequest(csrBlock.Bytes)
-	certBlock, _ := pem.Decode([]byte(*certString))
+	certBlock, _ := pem.Decode([]byte(certString))
 	if certBlock == nil {
 		return errors.New("PEM Certificate string not found or malformed")
 	}

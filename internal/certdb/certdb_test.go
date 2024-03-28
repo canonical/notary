@@ -1,12 +1,13 @@
 package certdb_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/canonical/gocert/internal/certdb"
 )
 
-func TestConnection(t *testing.T) {
+func TestConnect(t *testing.T) {
 	db := new(certdb.CertificateRequests)
 	defer db.Disconnect()
 	if err := db.Connect(":memory:", "CertificateReqs"); err != nil {
@@ -14,7 +15,7 @@ func TestConnection(t *testing.T) {
 	}
 }
 
-func TestDatabase(t *testing.T) {
+func TestEndToEnd(t *testing.T) {
 	db := new(certdb.CertificateRequests)
 	defer db.Disconnect()
 	db.Connect(":memory:", "CertificateRequests")
@@ -34,7 +35,7 @@ func TestDatabase(t *testing.T) {
 		t.Fatalf("Couldn't complete RetrieveAll: %s", err)
 	}
 	if len(res) != 3 {
-		t.Fatalf("One or more CSR's weren't found in DB")
+		t.Fatalf("One or more CSRs weren't found in DB")
 	}
 	retrievedCSR, err := db.Retrieve(&ValidCSR1)
 	if err != nil {
@@ -60,4 +61,48 @@ func TestDatabase(t *testing.T) {
 	if *retrievedCSR.Certificate != ValidCert2 {
 		t.Fatalf("The certificate that was uploaded does not match the certificate that was given: Retrieved: %s\nGiven: %s", *retrievedCSR.Certificate, ValidCert2)
 	}
+}
+
+func TestCreateFails(t *testing.T) {
+	db := new(certdb.CertificateRequests)
+	db.Connect(":memory:", "CertificateReqs")
+	defer db.Disconnect()
+
+	InvalidCSR := strings.ReplaceAll(ValidCSR1, "/", "+")
+	if _, err := db.Create(&InvalidCSR); err == nil {
+		t.Fatalf("Expected error due to invalid CSR")
+	}
+
+	db.Create(&ValidCSR1)
+	if _, err := db.Create(&ValidCSR1); err == nil {
+		t.Fatalf("Expected error due to duplicate CSR")
+	}
+}
+
+func TestUpdateFails(t *testing.T) {
+	db := new(certdb.CertificateRequests)
+	defer db.Disconnect()
+	db.Connect(":memory:", "CertificateRequests")
+
+	db.Create(&ValidCSR1)
+	db.Create(&ValidCSR2)
+	InvalidCert := strings.ReplaceAll(ValidCert2, "/", "+")
+	if _, err := db.Update(&ValidCSR2, &InvalidCert); err == nil {
+		t.Fatalf("Expected updating with invalid cert to fail")
+	}
+	if _, err := db.Update(&ValidCSR1, &ValidCert2); err == nil {
+		t.Fatalf("Expected updating with mismatched cert to fail")
+	}
+}
+
+func TestRetrieve(t *testing.T) {
+	db := new(certdb.CertificateRequests)
+	defer db.Disconnect()
+	db.Connect(":memory:", "CertificateRequests")
+
+	db.Create(&ValidCSR1)
+	if _, err := db.Retrieve(&ValidCSR2); err == nil {
+		t.Fatalf("Expected failure looking for nonexistent CSR")
+	}
+
 }

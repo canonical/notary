@@ -7,6 +7,9 @@ import (
 	"errors"
 )
 
+// ValidateCertificateRequest validates the given CSR string to the following:
+// The string must be a valid PEM string, and should be of type CERTIFICATE REQUEST
+// The PEM string should be able to be parsed into a x509 Certificate Request
 func ValidateCertificateRequest(csrString string) error {
 	block, _ := pem.Decode([]byte(csrString))
 	if block == nil {
@@ -22,6 +25,11 @@ func ValidateCertificateRequest(csrString string) error {
 	return nil
 }
 
+// ValidateCertificate validates the given Cert string to the following:
+// The given CSR must pass the validation provided by ValidateCertificateRequest
+// The cert string must be a valid PEM string, and should be of type CERTIFICATE
+// The PEM string should be able to be parsed into a x509 Certificate
+// The given cert and CSR must share the same public key
 func ValidateCertificate(certString string, csrString string) error {
 	if err := ValidateCertificateRequest(csrString); err != nil {
 		return err

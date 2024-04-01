@@ -22,12 +22,15 @@ type CertificateRequestsRepository struct {
 	conn  *sql.DB
 }
 
+// A CertificateRequest struct represents an entry in the database.
+// The object contains a Certificate Request, its matching Certificate if any, and the row ID.
 type CertificateRequest struct {
 	ID          int
 	CSR         string
 	Certificate string
 }
 
+// RetrieveAll gets every CertificateRequest entry in the table.
 func (db *CertificateRequestsRepository) RetrieveAll() ([]CertificateRequest, error) {
 	rows, err := db.conn.Query(fmt.Sprintf(queryGetAllCSRs, db.table))
 	if err != nil {
@@ -46,6 +49,8 @@ func (db *CertificateRequestsRepository) RetrieveAll() ([]CertificateRequest, er
 	return allCsrs, nil
 }
 
+// Retrieve gets a given CSR from the repository.
+// It returns the row id and matching certificate alongside the CSR in a CertificateRequest object.
 func (db *CertificateRequestsRepository) Retrieve(csr string) (*CertificateRequest, error) {
 	var newCSR CertificateRequest
 	row := db.conn.QueryRow(fmt.Sprintf(queryGetCSR, db.table), csr)
@@ -55,6 +60,8 @@ func (db *CertificateRequestsRepository) Retrieve(csr string) (*CertificateReque
 	return &newCSR, nil
 }
 
+// Create creates a new entry in the repository.
+// The given CSR must be valid and unique
 func (db *CertificateRequestsRepository) Create(csr string) (int64, error) {
 	if err := ValidateCertificateRequest(csr); err != nil {
 		return 0, err
@@ -70,6 +77,8 @@ func (db *CertificateRequestsRepository) Create(csr string) (int64, error) {
 	return id, nil
 }
 
+// Update adds a new cert to the given CSR in the repository.
+// The given certificate must share the public key of the CSR and must be valid.
 func (db *CertificateRequestsRepository) Update(csr string, cert string) (int64, error) {
 	if err := ValidateCertificate(cert, csr); err != nil {
 		return 0, err
@@ -85,6 +94,7 @@ func (db *CertificateRequestsRepository) Update(csr string, cert string) (int64,
 	return id, nil
 }
 
+// Delete removes a CSR from the database alongside the certificate that may have been generated for it.
 func (db *CertificateRequestsRepository) Delete(csr string) error {
 	_, err := db.conn.Exec(fmt.Sprintf(queryDeleteCSR, db.table), csr)
 	if err != nil {
@@ -93,6 +103,7 @@ func (db *CertificateRequestsRepository) Delete(csr string) error {
 	return nil
 }
 
+// Close closes the connection to the repository cleanly.
 func (db *CertificateRequestsRepository) Close() error {
 	if db.conn == nil {
 		return nil
@@ -103,6 +114,10 @@ func (db *CertificateRequestsRepository) Close() error {
 	return nil
 }
 
+// NewCertificateRequestsRepository connects to a given table in a given database,
+// stores the connection information and returns an object containing the information.
+// The database path must be a valid file path or ":memory:".
+// The table will be created if it doesn't exist in the format expected by the package.
 func NewCertificateRequestsRepository(databasePath string, tableName string) (*CertificateRequestsRepository, error) {
 	conn, err := sql.Open("sqlite3", databasePath)
 	if err != nil {

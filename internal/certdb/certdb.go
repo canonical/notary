@@ -1,3 +1,4 @@
+// Package certdb provides a simplistic ORM to communicate with an SQL database for storage
 package certdb
 
 import (
@@ -15,6 +16,7 @@ const queryCreateCSR = "INSERT INTO %s (CSR) VALUES (?)"
 const queryUpdateCSR = "UPDATE %s SET Certificate=? WHERE CSR=?"
 const queryDeleteCSR = "DELETE FROM %s WHERE CSR=?"
 
+// CertificateRequestRepository is the object used to communicate with the established repository.
 type CertificateRequestsRepository struct {
 	table string
 	conn  *sql.DB
@@ -91,19 +93,6 @@ func (db *CertificateRequestsRepository) Delete(csr string) error {
 	return nil
 }
 
-func (db *CertificateRequestsRepository) Connect(databasePath string, tableName string) error {
-	conn, err := sql.Open("sqlite3", databasePath)
-	if err != nil {
-		return err
-	}
-	db.table = tableName
-	db.conn = conn
-	if _, err := db.conn.Exec(fmt.Sprintf(queryCreateTable, db.table)); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (db *CertificateRequestsRepository) Close() error {
 	if db.conn == nil {
 		return nil
@@ -112,4 +101,18 @@ func (db *CertificateRequestsRepository) Close() error {
 		return err
 	}
 	return nil
+}
+
+func NewCertificateRequestsRepository(databasePath string, tableName string) (*CertificateRequestsRepository, error) {
+	conn, err := sql.Open("sqlite3", databasePath)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := conn.Exec(fmt.Sprintf(queryCreateTable, tableName)); err != nil {
+		return nil, err
+	}
+	db := new(CertificateRequestsRepository)
+	db.conn = conn
+	db.table = tableName
+	return db, nil
 }

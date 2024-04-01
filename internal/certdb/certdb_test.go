@@ -9,17 +9,19 @@ import (
 )
 
 func TestConnect(t *testing.T) {
-	db := new(certdb.CertificateRequestsRepository)
-	defer db.Close()
-	if err := db.Connect(":memory:", "CertificateReqs"); err != nil {
+	db, err := certdb.NewCertificateRequestsRepository(":memory:", "CertificateReqs")
+	if err != nil {
 		t.Fatalf("Can't connect to SQLite: %s", err)
 	}
+	db.Close()
 }
 
 func TestEndToEnd(t *testing.T) {
-	db := new(certdb.CertificateRequestsRepository)
+	db, err := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests") //nolint:errcheck
+	if err != nil {
+		t.Fatalf("Couldn't complete NewCertificateRequestsRepository: %s", err)
+	}
 	defer db.Close()
-	db.Connect(":memory:", "CertificateRequests") //nolint:errcheck
 
 	if _, err := db.Create(ValidCSR1); err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
@@ -65,8 +67,7 @@ func TestEndToEnd(t *testing.T) {
 }
 
 func TestCreateFails(t *testing.T) {
-	db := new(certdb.CertificateRequestsRepository)
-	db.Connect(":memory:", "CertificateReqs") //nolint:errcheck
+	db, _ := certdb.NewCertificateRequestsRepository(":memory:", "CertificateReqs") //nolint:errcheck
 	defer db.Close()
 
 	InvalidCSR := strings.ReplaceAll(ValidCSR1, "/", "+")
@@ -81,9 +82,8 @@ func TestCreateFails(t *testing.T) {
 }
 
 func TestUpdateFails(t *testing.T) {
-	db := new(certdb.CertificateRequestsRepository)
+	db, _ := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests") //nolint:errcheck
 	defer db.Close()
-	db.Connect(":memory:", "CertificateRequests") //nolint:errcheck
 
 	db.Create(ValidCSR1) //nolint:errcheck
 	db.Create(ValidCSR2) //nolint:errcheck
@@ -97,9 +97,8 @@ func TestUpdateFails(t *testing.T) {
 }
 
 func TestRetrieve(t *testing.T) {
-	db := new(certdb.CertificateRequestsRepository)
+	db, _ := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests") //nolint:errcheck
 	defer db.Close()
-	db.Connect(":memory:", "CertificateRequests") //nolint:errcheck
 
 	db.Create(ValidCSR1) //nolint:errcheck
 	if _, err := db.Retrieve(ValidCSR2); err == nil {
@@ -109,9 +108,24 @@ func TestRetrieve(t *testing.T) {
 }
 
 func Example() {
-	db := new(certdb.CertificateRequestsRepository)
-	if err := db.Connect("./certs.db", "CertificateReq"); err != nil {
+	db, err := certdb.NewCertificateRequestsRepository("./certs.db", "CertificateReq")
+	if err != nil {
 		log.Fatalln(err)
+	}
+	_, err = db.Create(ValidCSR2)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	_, err = db.Update(ValidCSR2, ValidCert2)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	entry, err := db.Retrieve(ValidCSR2)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	if entry.Certificate != ValidCert2 {
+		log.Fatalln("Retrieved Certificate doesn't match Stored Certificate")
 	}
 	defer db.Close()
 }

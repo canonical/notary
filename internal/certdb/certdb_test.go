@@ -127,5 +127,8 @@ func Example() {
 	if entry.Certificate != ValidCert2 {
 		log.Fatalln("Retrieved Certificate doesn't match Stored Certificate")
 	}
-	defer db.Close()
+	err = db.Close()
+	if err != nil {
+		log.Fatalln(err)
+	}
 }

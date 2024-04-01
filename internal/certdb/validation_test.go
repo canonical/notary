@@ -1,6 +1,7 @@
 package certdb_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -87,74 +88,120 @@ Mvo/+PAJHkBciR5Xn+Wg2a+7vrZvT6CBoRSOTozlLSM=
 -----END CERTIFICATE-----`
 
 func TestCSRValidationSuccess(t *testing.T) {
-	if err := certdb.ValidateCertificateRequest(ValidCSR1); err != nil {
-		t.Fatalf("Couldn't verify valid CSR: %s", err)
-	}
-	if err := certdb.ValidateCertificateRequest(ValidCSR2); err != nil {
-		t.Fatalf("Couldn't verify valid CSR: %s", err)
-	}
-	if err := certdb.ValidateCertificateRequest(ValidCSR3); err != nil {
-		t.Fatalf("Couldn't verify valid CSR: %s", err)
+	cases := []string{ValidCSR1, ValidCSR2, ValidCSR3}
+
+	for i, c := range cases {
+		t.Run(fmt.Sprintf("ValidCSR%d", i), func(t *testing.T) {
+			if err := certdb.ValidateCertificateRequest(c); err != nil {
+				t.Fatalf("Couldn't verify valid CSR: %s", err)
+			}
+		})
 	}
 }
 
 func TestCSRValidationFail(t *testing.T) {
-	var wrongString string = "this is a real csr!!!"
-	err := certdb.ValidateCertificateRequest(wrongString)
-	if err.Error() != "PEM Certificate Request string not found or malformed" {
-		t.Fatalf("Expected error not found:\nReceived: %s", err)
-	}
+	var wrongString = "this is a real csr!!!"
+	var wrongStringErr = "PEM Certificate Request string not found or malformed"
 	var ValidCSRWithoutWhitespace = strings.ReplaceAll(ValidCSR1, "\n", "")
-	err = certdb.ValidateCertificateRequest(ValidCSRWithoutWhitespace)
-	if err.Error() != "PEM Certificate Request string not found or malformed" {
-		t.Fatalf("Expected error not found:\nReceived: %s", err)
-	}
-	var wrongPemType string = strings.ReplaceAll(ValidCSR1, "CERTIFICATE REQUEST", "SOME RANDOM PEM TYPE")
-	err = certdb.ValidateCertificateRequest(wrongPemType)
-	if err.Error() != "given PEM string not a certificate request" {
-		t.Fatalf("Expected error not found:\nReceived: %s", err)
-	}
+	var ValidCSRWithoutWhitespaceErr = "PEM Certificate Request string not found or malformed"
+	var wrongPemType = strings.ReplaceAll(ValidCSR1, "CERTIFICATE REQUEST", "SOME RANDOM PEM TYPE")
+	var wrongPemTypeErr = "given PEM string not a certificate request"
 	var InvalidCSR = strings.ReplaceAll(ValidCSR1, "/", "p")
-	err = certdb.ValidateCertificateRequest(InvalidCSR)
-	if err == nil {
-		t.Fatalf("Expected CSR to fail validation")
+	var InvalidCSRErr = "asn1: syntax error: invalid boolean"
+
+	cases := []struct {
+		input       string
+		expectedErr string
+	}{
+		{
+			input:       wrongString,
+			expectedErr: wrongStringErr,
+		},
+		{
+			input:       ValidCSRWithoutWhitespace,
+			expectedErr: ValidCSRWithoutWhitespaceErr,
+		},
+		{
+			input:       wrongPemType,
+			expectedErr: wrongPemTypeErr,
+		},
+		{
+			input:       InvalidCSR,
+			expectedErr: InvalidCSRErr,
+		},
+	}
+
+	for i, c := range cases {
+		t.Run(fmt.Sprintf("InvalidCSR%d", i), func(t *testing.T) {
+			err := certdb.ValidateCertificateRequest(c.input)
+			if err.Error() != c.expectedErr {
+				t.Fatalf("Expected error not found:\nReceived: %s\nExpected: %s", err, c.expectedErr)
+			}
+		})
 	}
 }
 
-// Fuzz test
-
 func TestCertValidationSuccess(t *testing.T) {
-	if err := certdb.ValidateCertificate(ValidCert2, ValidCSR2); err != nil {
-		t.Fatalf("Expected cert to be valid")
+	cases := []string{ValidCert2}
+
+	for i, c := range cases {
+		t.Run(fmt.Sprintf("ValidCert%d", i), func(t *testing.T) {
+			if err := certdb.ValidateCertificate(c, ValidCSR2); err != nil {
+				t.Fatalf("Couldn't verify valid Cert: %s", err)
+			}
+		})
 	}
 }
 
 func TestCertValidationFail(t *testing.T) {
-	var wrongString string = "this is a real cert!!!"
-	err := certdb.ValidateCertificate(wrongString, ValidCSR2)
-	if err.Error() != "PEM Certificate string not found or malformed" {
-		t.Fatalf("Expected error not found:\nReceived: %s", err)
-	}
+	var wrongCertString = "this is a real cert!!!"
+	var wrongCertStringErr = "PEM Certificate string not found or malformed"
 	var ValidCertWithoutWhitespace = strings.ReplaceAll(ValidCert2, "\n", "")
-	err = certdb.ValidateCertificate(ValidCertWithoutWhitespace, ValidCSR2)
-	if err.Error() != "PEM Certificate string not found or malformed" {
-		t.Fatalf("Expected error not found:\nReceived: %s", err)
-	}
-	var wrongPemType string = strings.ReplaceAll(ValidCert2, "CERTIFICATE", "SOME RANDOM PEM TYPE")
-	err = certdb.ValidateCertificate(wrongPemType, ValidCSR2)
-	if err.Error() != "given PEM string not a certificate" {
-		t.Fatalf("Expected error not found:\nReceived: %s", err)
-	}
+	var ValidCertWithoutWhitespaceErr = "PEM Certificate string not found or malformed"
+	var wrongPemType = strings.ReplaceAll(ValidCert2, "CERTIFICATE", "SOME RANDOM PEM TYPE")
+	var wrongPemTypeErr = "given PEM string not a certificate"
 	var InvalidCert = strings.ReplaceAll(ValidCert2, "M", "i")
-	err = certdb.ValidateCertificate(InvalidCert, ValidCSR2)
-	if err == nil {
-		t.Fatalf("Expected cert to fail validation")
+	var InvalidCertErr = "x509: malformed certificate"
+	var certificateDoesNotMatchErr = "certificate does not match CSR"
+
+	cases := []struct {
+		inputCSR    string
+		inputCert   string
+		expectedErr string
+	}{
+		{
+			inputCSR:    ValidCSR2,
+			inputCert:   wrongCertString,
+			expectedErr: wrongCertStringErr,
+		},
+		{
+			inputCSR:    ValidCSR2,
+			inputCert:   ValidCertWithoutWhitespace,
+			expectedErr: ValidCertWithoutWhitespaceErr,
+		},
+		{
+			inputCSR:    ValidCSR2,
+			inputCert:   wrongPemType,
+			expectedErr: wrongPemTypeErr,
+		},
+		{
+			inputCSR:    ValidCSR2,
+			inputCert:   InvalidCert,
+			expectedErr: InvalidCertErr,
+		},
+		{
+			inputCSR:    ValidCSR1,
+			inputCert:   ValidCert2,
+			expectedErr: certificateDoesNotMatchErr,
+		},
 	}
-	err = certdb.ValidateCertificate(ValidCert2, ValidCSR1)
-	if err == nil || err.Error() != "certificate does not match CSR" {
-		t.Fatalf("Expected cert to not match CSR")
+
+	for i, c := range cases {
+		t.Run(fmt.Sprintf("InvalidCert%d", i), func(t *testing.T) {
+			err := certdb.ValidateCertificate(c.inputCert, c.inputCSR)
+			if err.Error() != c.expectedErr {
+				t.Fatalf("Expected error not found:\nReceived: %s\n Expected: %s", err, c.expectedErr)
+			}
+		})
 	}
 }
-
-// Fuzz test
-// Examples

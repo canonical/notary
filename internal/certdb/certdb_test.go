@@ -9,17 +9,17 @@ import (
 )
 
 func TestConnect(t *testing.T) {
-	db := new(certdb.CertificateRequests)
-	defer db.Disconnect()
+	db := new(certdb.CertificateRequestsRepository)
+	defer db.Close()
 	if err := db.Connect(":memory:", "CertificateReqs"); err != nil {
 		t.Fatalf("Can't connect to SQLite: %s", err)
 	}
 }
 
 func TestEndToEnd(t *testing.T) {
-	db := new(certdb.CertificateRequests)
-	defer db.Disconnect()
-	db.Connect(":memory:", "CertificateRequests")
+	db := new(certdb.CertificateRequestsRepository)
+	defer db.Close()
+	db.Connect(":memory:", "CertificateRequests") //nolint:errcheck
 
 	if _, err := db.Create(ValidCSR1); err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
@@ -59,34 +59,34 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatalf("Couldn't complete Update: %s", err)
 	}
 	retrievedCSR, _ = db.Retrieve(ValidCSR2)
-	if *retrievedCSR.Certificate != ValidCert2 {
-		t.Fatalf("The certificate that was uploaded does not match the certificate that was given: Retrieved: %s\nGiven: %s", *retrievedCSR.Certificate, ValidCert2)
+	if retrievedCSR.Certificate != ValidCert2 {
+		t.Fatalf("The certificate that was uploaded does not match the certificate that was given: Retrieved: %s\nGiven: %s", retrievedCSR.Certificate, ValidCert2)
 	}
 }
 
 func TestCreateFails(t *testing.T) {
-	db := new(certdb.CertificateRequests)
-	db.Connect(":memory:", "CertificateReqs")
-	defer db.Disconnect()
+	db := new(certdb.CertificateRequestsRepository)
+	db.Connect(":memory:", "CertificateReqs") //nolint:errcheck
+	defer db.Close()
 
 	InvalidCSR := strings.ReplaceAll(ValidCSR1, "/", "+")
 	if _, err := db.Create(InvalidCSR); err == nil {
 		t.Fatalf("Expected error due to invalid CSR")
 	}
 
-	db.Create(ValidCSR1)
+	db.Create(ValidCSR1) //nolint:errcheck
 	if _, err := db.Create(ValidCSR1); err == nil {
 		t.Fatalf("Expected error due to duplicate CSR")
 	}
 }
 
 func TestUpdateFails(t *testing.T) {
-	db := new(certdb.CertificateRequests)
-	defer db.Disconnect()
-	db.Connect(":memory:", "CertificateRequests")
+	db := new(certdb.CertificateRequestsRepository)
+	defer db.Close()
+	db.Connect(":memory:", "CertificateRequests") //nolint:errcheck
 
-	db.Create(ValidCSR1)
-	db.Create(ValidCSR2)
+	db.Create(ValidCSR1) //nolint:errcheck
+	db.Create(ValidCSR2) //nolint:errcheck
 	InvalidCert := strings.ReplaceAll(ValidCert2, "/", "+")
 	if _, err := db.Update(ValidCSR2, InvalidCert); err == nil {
 		t.Fatalf("Expected updating with invalid cert to fail")
@@ -97,11 +97,11 @@ func TestUpdateFails(t *testing.T) {
 }
 
 func TestRetrieve(t *testing.T) {
-	db := new(certdb.CertificateRequests)
-	defer db.Disconnect()
-	db.Connect(":memory:", "CertificateRequests")
+	db := new(certdb.CertificateRequestsRepository)
+	defer db.Close()
+	db.Connect(":memory:", "CertificateRequests") //nolint:errcheck
 
-	db.Create(ValidCSR1)
+	db.Create(ValidCSR1) //nolint:errcheck
 	if _, err := db.Retrieve(ValidCSR2); err == nil {
 		t.Fatalf("Expected failure looking for nonexistent CSR")
 	}
@@ -109,9 +109,9 @@ func TestRetrieve(t *testing.T) {
 }
 
 func Example() {
-	db := new(certdb.CertificateRequests)
+	db := new(certdb.CertificateRequestsRepository)
 	if err := db.Connect("./certs.db", "CertificateReq"); err != nil {
 		log.Fatalln(err)
 	}
-	defer db.Disconnect()
+	defer db.Close()
 }

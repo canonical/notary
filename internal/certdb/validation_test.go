@@ -93,7 +93,7 @@ func TestCSRValidationSuccess(t *testing.T) {
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("ValidCSR%d", i), func(t *testing.T) {
 			if err := certdb.ValidateCertificateRequest(c); err != nil {
-				t.Fatalf("Couldn't verify valid CSR: %s", err)
+				t.Errorf("Couldn't verify valid CSR: %s", err)
 			}
 		})
 	}
@@ -135,7 +135,7 @@ func TestCSRValidationFail(t *testing.T) {
 		t.Run(fmt.Sprintf("InvalidCSR%d", i), func(t *testing.T) {
 			err := certdb.ValidateCertificateRequest(c.input)
 			if err.Error() != c.expectedErr {
-				t.Fatalf("Expected error not found:\nReceived: %s\nExpected: %s", err, c.expectedErr)
+				t.Errorf("Expected error not found:\nReceived: %s\nExpected: %s", err, c.expectedErr)
 			}
 		})
 	}
@@ -147,7 +147,7 @@ func TestCertValidationSuccess(t *testing.T) {
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("ValidCert%d", i), func(t *testing.T) {
 			if err := certdb.ValidateCertificate(c, ValidCSR2); err != nil {
-				t.Fatalf("Couldn't verify valid Cert: %s", err)
+				t.Errorf("Couldn't verify valid Cert: %s", err)
 			}
 		})
 	}
@@ -200,7 +200,7 @@ func TestCertValidationFail(t *testing.T) {
 		t.Run(fmt.Sprintf("InvalidCert%d", i), func(t *testing.T) {
 			err := certdb.ValidateCertificate(c.inputCert, c.inputCSR)
 			if err.Error() != c.expectedErr {
-				t.Fatalf("Expected error not found:\nReceived: %s\n Expected: %s", err, c.expectedErr)
+				t.Errorf("Expected error not found:\nReceived: %s\n Expected: %s", err, c.expectedErr)
 			}
 		})
 	}

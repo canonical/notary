@@ -51,13 +51,16 @@ func (db *CertificateRequestsRepository) RetrieveAll() ([]CertificateRequest, er
 
 // Retrieve gets a given CSR from the repository.
 // It returns the row id and matching certificate alongside the CSR in a CertificateRequest object.
-func (db *CertificateRequestsRepository) Retrieve(csr string) (*CertificateRequest, error) {
+func (db *CertificateRequestsRepository) Retrieve(csr string) (CertificateRequest, error) {
 	var newCSR CertificateRequest
 	row := db.conn.QueryRow(fmt.Sprintf(queryGetCSR, db.table), csr)
 	if err := row.Scan(&newCSR.ID, &newCSR.CSR, &newCSR.Certificate); err != nil {
-		return nil, err
+		newCSR.ID = -1
+		newCSR.Certificate = ""
+		newCSR.CSR = ""
+		return newCSR, err
 	}
-	return &newCSR, nil
+	return newCSR, nil
 }
 
 // Create creates a new entry in the repository.

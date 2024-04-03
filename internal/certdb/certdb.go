@@ -80,7 +80,10 @@ func (db *CertificateRequestsRepository) Create(csr string) (int64, error) {
 // Update adds a new cert to the given CSR in the repository.
 // The given certificate must share the public key of the CSR and must be valid.
 func (db *CertificateRequestsRepository) Update(csr string, cert string) (int64, error) {
-	if err := ValidateCertificate(cert, csr); err != nil {
+	if err := ValidateCertificate(cert); err != nil {
+		return 0, err
+	}
+	if err := CertificateMatchesCSR(cert, csr); err != nil {
 		return 0, err
 	}
 	result, err := db.conn.Exec(fmt.Sprintf(queryUpdateCSR, db.table), cert, csr)

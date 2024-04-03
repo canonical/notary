@@ -146,7 +146,7 @@ func TestCertValidationSuccess(t *testing.T) {
 
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("ValidCert%d", i), func(t *testing.T) {
-			if err := certdb.ValidateCertificate(c, ValidCSR2); err != nil {
+			if err := certdb.ValidateCertificate(c); err != nil {
 				t.Errorf("Couldn't verify valid Cert: %s", err)
 			}
 		})
@@ -162,6 +162,61 @@ func TestCertValidationFail(t *testing.T) {
 	var wrongPemTypeErr = "given PEM string not a certificate"
 	var InvalidCert = strings.ReplaceAll(ValidCert2, "M", "i")
 	var InvalidCertErr = "x509: malformed certificate"
+
+	cases := []struct {
+		inputCert   string
+		expectedErr string
+	}{
+		{
+			inputCert:   wrongCertString,
+			expectedErr: wrongCertStringErr,
+		},
+		{
+			inputCert:   ValidCertWithoutWhitespace,
+			expectedErr: ValidCertWithoutWhitespaceErr,
+		},
+		{
+			inputCert:   wrongPemType,
+			expectedErr: wrongPemTypeErr,
+		},
+		{
+			inputCert:   InvalidCert,
+			expectedErr: InvalidCertErr,
+		},
+	}
+
+	for i, c := range cases {
+		t.Run(fmt.Sprintf("InvalidCert%d", i), func(t *testing.T) {
+			err := certdb.ValidateCertificate(c.inputCert)
+			if err.Error() != c.expectedErr {
+				t.Errorf("Expected error not found:\nReceived: %s\n Expected: %s", err, c.expectedErr)
+			}
+		})
+	}
+}
+
+func TestCertificateMatchesCSRSuccess(t *testing.T) {
+	cases := []struct {
+		inputCSR  string
+		inputCert string
+	}{
+		{
+			inputCSR:  ValidCSR2,
+			inputCert: ValidCert2,
+		},
+	}
+
+	for i, c := range cases {
+		t.Run(fmt.Sprintf("InvalidCert%d", i), func(t *testing.T) {
+			err := certdb.CertificateMatchesCSR(c.inputCert, c.inputCSR)
+			if err != nil {
+				t.Errorf("Certificate did not match when it should have")
+			}
+		})
+	}
+}
+
+func TestCertificateMatchesCSRFail(t *testing.T) {
 	var certificateDoesNotMatchErr = "certificate does not match CSR"
 
 	cases := []struct {
@@ -169,26 +224,6 @@ func TestCertValidationFail(t *testing.T) {
 		inputCert   string
 		expectedErr string
 	}{
-		{
-			inputCSR:    ValidCSR2,
-			inputCert:   wrongCertString,
-			expectedErr: wrongCertStringErr,
-		},
-		{
-			inputCSR:    ValidCSR2,
-			inputCert:   ValidCertWithoutWhitespace,
-			expectedErr: ValidCertWithoutWhitespaceErr,
-		},
-		{
-			inputCSR:    ValidCSR2,
-			inputCert:   wrongPemType,
-			expectedErr: wrongPemTypeErr,
-		},
-		{
-			inputCSR:    ValidCSR2,
-			inputCert:   InvalidCert,
-			expectedErr: InvalidCertErr,
-		},
 		{
 			inputCSR:    ValidCSR1,
 			inputCert:   ValidCert2,
@@ -198,7 +233,7 @@ func TestCertValidationFail(t *testing.T) {
 
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("InvalidCert%d", i), func(t *testing.T) {
-			err := certdb.ValidateCertificate(c.inputCert, c.inputCSR)
+			err := certdb.CertificateMatchesCSR(c.inputCert, c.inputCSR)
 			if err.Error() != c.expectedErr {
 				t.Errorf("Expected error not found:\nReceived: %s\n Expected: %s", err, c.expectedErr)
 			}

@@ -55,9 +55,6 @@ func (db *CertificateRequestsRepository) Retrieve(csr string) (CertificateReques
 	var newCSR CertificateRequest
 	row := db.conn.QueryRow(fmt.Sprintf(queryGetCSR, db.table), csr)
 	if err := row.Scan(&newCSR.ID, &newCSR.CSR, &newCSR.Certificate); err != nil {
-		newCSR.ID = -1
-		newCSR.Certificate = ""
-		newCSR.CSR = ""
 		return newCSR, err
 	}
 	return newCSR, nil

@@ -11,6 +11,28 @@ import (
 	"github.com/canonical/gocert/internal/certificates"
 )
 
+// decodeCertificateAndPK takes in two PEM strings and decodes them into bytes
+func decodeCertificateAndPK(certificate, key string) ([]byte, []byte, error) {
+	block, _ := pem.Decode([]byte(certificate))
+	if block == nil {
+		return nil, nil, errors.New("PEM Certificate string not found or malformed")
+	}
+	if block.Type != "CERTIFICATE" {
+		return nil, nil, errors.New("given PEM string not a certificate")
+	}
+	certBytes := block.Bytes
+
+	block, _ = pem.Decode([]byte(key))
+	if block == nil {
+		return nil, nil, errors.New("PEM Private Key string not found or malformed")
+	}
+	if block.Type != "RSA PRIVATE KEY" {
+		return nil, nil, errors.New("given PEM string not a private key")
+	}
+	pkBytes := block.Bytes
+	return certBytes, pkBytes, nil
+}
+
 // formatServerCertificates takes in a certificate and a private key and converts it into a
 // format usable by net/http
 func formatServerCertificates(certificate, key string) (tls.Certificate, error) {
@@ -19,24 +41,19 @@ func formatServerCertificates(certificate, key string) (tls.Certificate, error) 
 	var serverPK []byte
 	var err error
 	if certificate != "" && key != "" {
-		block, _ := pem.Decode([]byte(certificate))
-		if block == nil {
-			return serverCerts, errors.New("PEM Certificate string not found or malformed")
+		serverCert, serverPK, err = decodeCertificateAndPK(certificate, key)
+		if err != nil {
+			return serverCerts, err
 		}
-		if block.Type != "CERTIFICATE" {
-			return serverCerts, errors.New("given PEM string not a certificate")
-		}
-		serverCert = block.Bytes
-		block, _ = pem.Decode([]byte(key))
-		if block == nil {
-			return serverCerts, errors.New("PEM Private Key string not found or malformed")
-		}
-		if block.Type != "PRIVATE KEY" {
-			return serverCerts, errors.New("given PEM string not a private key")
-		}
-		serverPK = block.Bytes
 	} else {
-		serverCert, serverPK, err = certificates.GenerateSelfSignedCertificate()
+		caCert, caPK, err := certificates.GenerateCACertificate()
+		if err != nil {
+			return serverCerts, err
+		}
+		serverCert, serverPK, err = certificates.GenerateSelfSignedCertificate(caCert, caPK)
+		if err != nil {
+			return serverCerts, err
+		}
 	}
 	serverCerts, err = tls.X509KeyPair(serverCert, serverPK)
 	if err != nil {

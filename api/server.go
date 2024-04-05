@@ -38,7 +38,10 @@ func NewServer(certificate, key string) (*http.Server, error) {
 	}
 	m := http.NewServeMux()
 	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello World"))
+		_, err := w.Write([]byte("Hello World"))
+		if err != nil {
+			return
+		}
 	})
 	s := &http.Server{
 		Addr: ":8080",

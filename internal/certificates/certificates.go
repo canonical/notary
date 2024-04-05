@@ -39,16 +39,22 @@ func GenerateCACertificate() (string, string, error) {
 	}
 
 	caCertPEM := new(bytes.Buffer)
-	pem.Encode(caCertPEM, &pem.Block{
+	err = pem.Encode(caCertPEM, &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: caBytes,
 	})
+	if err != nil {
+		return "", "", err
+	}
 
 	caPrivateKeyPEM := new(bytes.Buffer)
-	pem.Encode(caPrivateKeyPEM, &pem.Block{
+	err = pem.Encode(caPrivateKeyPEM, &pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(caPrivateKey),
 	})
+	if err != nil {
+		return "", "", err
+	}
 	return caCertPEM.String(), caPrivateKeyPEM.String(), nil
 }
 
@@ -87,16 +93,21 @@ func GenerateSelfSignedCertificate(caCertPEM, caPrivateKeyPEM string) (string, s
 		return "", "", err
 	}
 	certPEM := new(bytes.Buffer)
-	pem.Encode(certPEM, &pem.Block{
+	err = pem.Encode(certPEM, &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: certBytes,
 	})
-
+	if err != nil {
+		return "", "", err
+	}
 	certPrivateKeyPEM := new(bytes.Buffer)
-	pem.Encode(certPrivateKeyPEM, &pem.Block{
+	err = pem.Encode(certPrivateKeyPEM, &pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(certPrivateKey),
 	})
+	if err != nil {
+		return "", "", err
+	}
 	return certPEM.String(), certPrivateKeyPEM.String(), nil
 }
 

@@ -151,11 +151,3 @@ func TestNewServerFail(t *testing.T) {
 		})
 	}
 }
-
-func Example() {
-	ts, err := server.NewServer(ValidCert, ValidPK)
-	if err != nil {
-		return
-	}
-	ts.ListenAndServeTLS("", "")
-}

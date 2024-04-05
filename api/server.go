@@ -31,7 +31,7 @@ func loadServerCertificates(certificate, key string) (*tls.Certificate, error) {
 }
 
 // NewServer creates a new http server with handlers that Go can start listening to
-func NewServer(version int, certificate, key string) (*http.Server, error) {
+func NewServer(certificate, key string) (*http.Server, error) {
 	serverCerts, err := loadServerCertificates(certificate, key)
 	if err != nil {
 		return nil, err
@@ -47,7 +47,7 @@ func NewServer(version int, certificate, key string) (*http.Server, error) {
 		},
 	}
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello world"))
+		w.Write([]byte("Hello World"))
 	})
 	return s, nil
 }

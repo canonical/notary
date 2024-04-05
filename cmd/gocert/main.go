@@ -12,21 +12,18 @@ import (
 func main() {
 	certPathPtr := flag.String("cert", "", "A path for a certificate file to be used by the webserver")
 	keyPathPtr := flag.String("key", "", "The path for a private key for the given certificate")
-	dbPathPtr := flag.String("db", ":memory:", "The path of the SQLite database for the repository")
+	dbPathPtr := flag.String("db", "./certs.db", "The path of the SQLite database for the repository")
 	flag.Parse()
 
 	if *certPathPtr == "" || *keyPathPtr == "" {
-		fmt.Fprintf(os.Stderr, "Usage: --cert <path/to/certificate> --key <path/to/key>")
-		os.Exit(1)
+		fmt.Fprintf(os.Stderr, "Providing a certificate and matching private key is extremely highly recommended. To do so, run: --cert <path/to/certificate> --key <path/to/key>. Using self signed certificates.")
 	}
 	_, err := certdb.NewCertificateRequestsRepository(*dbPathPtr, "CertificateRequests")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Couldn't connect to database: %s", err)
 		os.Exit(1)
 	}
-
-	// actually read the strings in the file here
-	srv, err := server.NewServer(0, "", "")
+	srv, err := server.NewServer(*certPathPtr, *keyPathPtr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Couldn't create server: %s", err)
 		os.Exit(1)

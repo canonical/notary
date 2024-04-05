@@ -4,9 +4,9 @@ import (
 	"testing"
 )
 
-func TestGoCert(t *testing.T) {
+func TestGoCertCLI(t *testing.T) {
 	// os.Args = []string{"gocert"}
-	// main()
+	// go main()
 	// run gocert
 	// run gocert --cert openable path
 	// run gocert --key openable path

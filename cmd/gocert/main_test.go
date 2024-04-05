@@ -1,8 +1,12 @@
 package main
 
-import "testing"
+import (
+	"testing"
+)
 
-func TestMain(t *testing.T) {
+func TestGoCert(t *testing.T) {
+	// os.Args = []string{"gocert"}
+	// main()
 	// run gocert
 	// run gocert --cert openable path
 	// run gocert --key openable path

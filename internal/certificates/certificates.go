@@ -1,17 +1,20 @@
 package certificates
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/pem"
+	"errors"
 	"math/big"
 	"net"
 	"time"
 )
 
 // GenerateCACertificate generates a one time discardable root CA for the running GoCert webserver
-func GenerateCACertificate() (*x509.Certificate, *rsa.PrivateKey, error) {
+func GenerateCACertificate() (string, string, error) {
 	caCert := &x509.Certificate{
 		SerialNumber: big.NewInt(2019),
 		Subject: pkix.Name{
@@ -27,16 +30,42 @@ func GenerateCACertificate() (*x509.Certificate, *rsa.PrivateKey, error) {
 	}
 	caPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return nil, nil, err
+		return "", "", err
 	}
-	return caCert, caPrivateKey, nil
+
+	caBytes, err := x509.CreateCertificate(rand.Reader, caCert, caCert, &caPrivateKey.PublicKey, caPrivateKey)
+	if err != nil {
+		return "", "", err
+	}
+
+	caCertPEM := new(bytes.Buffer)
+	pem.Encode(caCertPEM, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: caBytes,
+	})
+
+	caPrivateKeyPEM := new(bytes.Buffer)
+	pem.Encode(caPrivateKeyPEM, &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(caPrivateKey),
+	})
+	return caCertPEM.String(), caPrivateKeyPEM.String(), nil
 }
 
 // GenerateSelfSignedCertificate will create a certificate and pk for GoCert coming from a rootCA
 // This certificate and PK is not saved anywhere.
 // This certificate and PK should either be saved somewhere, or a real certificate should be provided to GoCert
-func GenerateSelfSignedCertificate(caCert *x509.Certificate, caPrivateKey *rsa.PrivateKey) ([]byte, []byte, error) {
-	cert := &x509.Certificate{
+func GenerateSelfSignedCertificate(caCertPEM, caPrivateKeyPEM string) (string, string, error) {
+	caCert, err := ParseCertificate(caCertPEM)
+	if err != nil {
+		return "", "", nil
+	}
+	caPrivateKey, err := ParsePKCS1PrivateKey(caPrivateKeyPEM)
+	if err != nil {
+		return "", "", nil
+	}
+
+	certTemplate := &x509.Certificate{
 		SerialNumber: big.NewInt(1658),
 		Subject: pkix.Name{
 			Organization: []string{"Canonical, INC."},
@@ -51,11 +80,56 @@ func GenerateSelfSignedCertificate(caCert *x509.Certificate, caPrivateKey *rsa.P
 	}
 	certPrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
-		return nil, nil, err
+		return "", "", err
 	}
-	certBytes, err := x509.CreateCertificate(rand.Reader, cert, caCert, &certPrivateKey.PublicKey, caPrivateKey)
+	certBytes, err := x509.CreateCertificate(rand.Reader, certTemplate, &caCert, &certPrivateKey.PublicKey, &caPrivateKey)
 	if err != nil {
-		return nil, nil, err
+		return "", "", err
 	}
-	return certBytes, x509.MarshalPKCS1PrivateKey(certPrivateKey), nil
+	certPEM := new(bytes.Buffer)
+	pem.Encode(certPEM, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: certBytes,
+	})
+
+	certPrivateKeyPEM := new(bytes.Buffer)
+	pem.Encode(certPrivateKeyPEM, &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(certPrivateKey),
+	})
+	return certPEM.String(), certPrivateKeyPEM.String(), nil
+}
+
+// ParseCertificate parses a PEM string into a native x509.Certificate object
+func ParseCertificate(certPEM string) (x509.Certificate, error) {
+	cert := &x509.Certificate{}
+	block, _ := pem.Decode([]byte(certPEM))
+	if block == nil {
+		return *cert, errors.New("PEM Certificate string not found or malformed")
+	}
+	if block.Type != "CERTIFICATE" {
+		return *cert, errors.New("given PEM string not a certificate")
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return *cert, err
+	}
+	return *cert, nil
+}
+
+// ParsePrivateKey parses a PEM private key string into a native rsa.PrivateKey object
+func ParsePKCS1PrivateKey(pkPEM string) (rsa.PrivateKey, error) {
+	pk := &rsa.PrivateKey{}
+	block, _ := pem.Decode([]byte(pkPEM))
+	if block == nil {
+		return *pk, errors.New("PEM private key string not found or malformed")
+	}
+	if block.Type != "RSA PRIVATE KEY" {
+		return *pk, errors.New("given PEM string not an rsa private key")
+	}
+	pk, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		return *pk, err
+	}
+	return *pk, nil
 }

@@ -3,68 +3,36 @@ package server
 
 import (
 	"crypto/tls"
-	"encoding/pem"
-	"errors"
 	"net/http"
 	"time"
 
 	"github.com/canonical/gocert/internal/certificates"
 )
 
-// decodeCertificateAndPK takes in two PEM strings and decodes them into bytes
-func decodeCertificateAndPK(certificate, key string) ([]byte, []byte, error) {
-	block, _ := pem.Decode([]byte(certificate))
-	if block == nil {
-		return nil, nil, errors.New("PEM Certificate string not found or malformed")
-	}
-	if block.Type != "CERTIFICATE" {
-		return nil, nil, errors.New("given PEM string not a certificate")
-	}
-	certBytes := block.Bytes
-
-	block, _ = pem.Decode([]byte(key))
-	if block == nil {
-		return nil, nil, errors.New("PEM Private Key string not found or malformed")
-	}
-	if block.Type != "RSA PRIVATE KEY" {
-		return nil, nil, errors.New("given PEM string not a private key")
-	}
-	pkBytes := block.Bytes
-	return certBytes, pkBytes, nil
-}
-
-// formatServerCertificates takes in a certificate and a private key and converts it into a
-// format usable by net/http
-func formatServerCertificates(certificate, key string) (tls.Certificate, error) {
-	var serverCerts tls.Certificate
-	var serverCert []byte
-	var serverPK []byte
-	var err error
-	if certificate != "" && key != "" {
-		serverCert, serverPK, err = decodeCertificateAndPK(certificate, key)
+// loadServerCertificates takes in a certificate and a private key and determines
+// whether to use self signed or given certificates, then returns it in a format
+// expected by the server
+func loadServerCertificates(certificate, key string) (*tls.Certificate, error) {
+	if certificate == "" || key == "" {
+		caCertPEM, caPrivateKeyPEM, err := certificates.GenerateCACertificate()
 		if err != nil {
-			return serverCerts, err
+			return nil, err
 		}
-	} else {
-		caCert, caPK, err := certificates.GenerateCACertificate()
+		certificate, key, err = certificates.GenerateSelfSignedCertificate(caCertPEM, caPrivateKeyPEM)
 		if err != nil {
-			return serverCerts, err
-		}
-		serverCert, serverPK, err = certificates.GenerateSelfSignedCertificate(caCert, caPK)
-		if err != nil {
-			return serverCerts, err
+			return nil, err
 		}
 	}
-	serverCerts, err = tls.X509KeyPair(serverCert, serverPK)
+	serverCerts, err := tls.X509KeyPair([]byte(certificate), []byte(key))
 	if err != nil {
-		return serverCerts, err
+		return nil, err
 	}
-	return serverCerts, nil
+	return &serverCerts, nil
 }
 
 // NewServer creates a new http server with handlers that Go can start listening to
 func NewServer(version int, certificate, key string) (*http.Server, error) {
-	serverCerts, err := formatServerCertificates(certificate, key)
+	serverCerts, err := loadServerCertificates(certificate, key)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +43,7 @@ func NewServer(version int, certificate, key string) (*http.Server, error) {
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 		TLSConfig: &tls.Config{
-			Certificates: []tls.Certificate{serverCerts},
+			Certificates: []tls.Certificate{*serverCerts},
 		},
 	}
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

@@ -32,7 +32,7 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Fprintf(os.Stdout, "Starting server at %s", srv.Addr)
-	if err := srv.ListenAndServe(); err != nil {
+	if err := srv.ListenAndServeTLS("", ""); err != nil {
 		fmt.Fprintf(os.Stderr, "Server ran into error: %s", err)
 		os.Exit(1)
 	}

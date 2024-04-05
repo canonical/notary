@@ -36,18 +36,21 @@ func NewServer(certificate, key string) (*http.Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	m := http.NewServeMux()
+	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Hello World"))
+	})
 	s := &http.Server{
 		Addr: ":8080",
 
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
+		Handler:        m,
 		MaxHeaderBytes: 1 << 20,
 		TLSConfig: &tls.Config{
 			Certificates: []tls.Certificate{*serverCerts},
 		},
 	}
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello World"))
-	})
+
 	return s, nil
 }

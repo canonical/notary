@@ -4,6 +4,7 @@ package server
 import (
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -15,12 +16,14 @@ type ConfigYAML struct {
 	KeyPath  string
 	CertPath string
 	DBPath   string
+	Port     int
 }
 
 type Config struct {
 	Key    []byte
 	Cert   []byte
 	DBPath string
+	Port   int
 }
 
 func ValidateConfigFile(filePath string) (Config, error) {
@@ -48,23 +51,24 @@ func ValidateConfigFile(filePath string) (Config, error) {
 	config.Cert = cert
 	config.Key = key
 	config.DBPath = c.DBPath
+	config.Port = c.Port
 	return config, nil
 }
 
 // NewServer creates a new http server with handlers that Go can start listening to
-func NewServer(certificate, key []byte) (*http.Server, error) {
+func NewServer(certificate, key []byte, port int) (*http.Server, error) {
 	serverCerts, err := tls.X509KeyPair(certificate, key)
 	if err != nil {
 		return nil, err
 	}
 	router := http.NewServeMux()
-	router.HandleFunc("/", HelloWorld)
+	router.HandleFunc("GET /", HelloWorld)
 
 	v1 := http.NewServeMux()
 	v1.Handle("/v1/", http.StripPrefix("/v1", router))
 
 	s := &http.Server{
-		Addr: ":8080",
+		Addr: fmt.Sprintf(":%d", port),
 
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,

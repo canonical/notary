@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	"log"
 	"os"
 
 	server "github.com/canonical/gocert/api"
@@ -10,29 +10,27 @@ import (
 )
 
 func main() {
+	log.SetOutput(os.Stderr)
 	configFilePtr := flag.String("config", "", "The config file to be provided to the server")
 	flag.Parse()
 
 	if *configFilePtr == "" {
-		fmt.Fprintf(os.Stderr, "Providing a valid config file is required.")
+		log.Fatalf("Providing a valid config file is required.")
 	}
 	config, err := server.ValidateConfigFile(*configFilePtr)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Config file validation failed: %s.", err)
+		log.Fatalf("Config file validation failed: %s.", err)
 	}
 	_, err = certdb.NewCertificateRequestsRepository(config.DBPath, "CertificateRequests")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Couldn't connect to database: %s", err)
-		os.Exit(1)
+		log.Fatalf("Couldn't connect to database: %s", err)
 	}
-	srv, err := server.NewServer(config.Cert, config.Key)
+	srv, err := server.NewServer(config.Cert, config.Key, config.Port)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Couldn't create server: %s", err)
-		os.Exit(1)
+		log.Fatalf("Couldn't create server: %s", err)
 	}
-	fmt.Fprintf(os.Stdout, "Starting server at %s", srv.Addr)
+	log.Printf("Starting server at %s", srv.Addr)
 	if err := srv.ListenAndServeTLS("", ""); err != nil {
-		fmt.Fprintf(os.Stderr, "Server ran into error: %s", err)
-		os.Exit(1)
+		log.Fatalf("Server ran into error: %s", err)
 	}
 }

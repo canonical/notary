@@ -87,12 +87,14 @@ D7DC34n8CH9+avz9sCRwxpjxKnYW/BeyK0c4n9uZpjI8N4sOVqy6yWBUseww
 -----END RSA PRIVATE KEY-----`
 	validConfig = `keypath:  "./key_test.pem"
 certpath: "./cert_test.pem"
-dbpath: "./certs.db"`
+dbpath: "./certs.db"
+port: 8000`
 	invalidYAMLConfig = `wrong: fields
 every: where`
 	invalidFileConfig = `keypath:  "./nokeyfile.pem"
 certpath: "./nocertfile.pem"
-dbpath: "./certs.db"`
+dbpath: "./certs.db"
+port: 8000`
 )
 
 func TestMain(m *testing.M) {
@@ -122,7 +124,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestNewServerSuccess(t *testing.T) {
-	s, err := server.NewServer([]byte(validCert), []byte(validPK))
+	s, err := server.NewServer([]byte(validCert), []byte(validPK), 8000)
 	if err != nil {
 		t.Errorf("Error occured: %s", err)
 	}
@@ -150,7 +152,7 @@ func TestNewServerFail(t *testing.T) {
 	}
 	for _, tC := range testCases {
 		t.Run(tC.desc, func(t *testing.T) {
-			_, err := server.NewServer([]byte(tC.cert), []byte(tC.key))
+			_, err := server.NewServer([]byte(tC.cert), []byte(tC.key), 8000)
 			if err == nil {
 				t.Errorf("Expected error")
 			}

@@ -3,57 +3,84 @@ package server
 
 import (
 	"crypto/tls"
+	"errors"
 	"net/http"
+	"os"
 	"time"
 
-	"github.com/canonical/gocert/internal/certificates"
+	"gopkg.in/yaml.v3"
 )
 
-// loadServerCertificates takes in a certificate and a private key and determines
-// whether to use self signed or given certificates, then returns it in a format
-// expected by the server
-func loadServerCertificates(certificate, key string) (*tls.Certificate, error) {
-	if certificate == "" || key == "" {
-		caCertPEM, caPrivateKeyPEM, err := certificates.GenerateCACertificate()
-		if err != nil {
-			return nil, err
-		}
-		certificate, key, err = certificates.GenerateSelfSignedCertificate(caCertPEM, caPrivateKeyPEM)
-		if err != nil {
-			return nil, err
-		}
-	}
-	serverCerts, err := tls.X509KeyPair([]byte(certificate), []byte(key))
+type ConfigYAML struct {
+	KeyPath  string
+	CertPath string
+	DBPath   string
+}
+
+type Config struct {
+	Key    []byte
+	Cert   []byte
+	DBPath string
+}
+
+func ValidateConfigFile(filePath string) (Config, error) {
+	validationErr := errors.New("config file validation failed: ")
+	config := Config{}
+	configYaml, err := os.ReadFile(filePath)
 	if err != nil {
-		return nil, err
+		return config, errors.Join(validationErr, err)
 	}
-	return &serverCerts, nil
+	c := ConfigYAML{}
+	if err := yaml.Unmarshal(configYaml, &c); err != nil {
+		return config, errors.Join(validationErr, err)
+	}
+	cert, err := os.ReadFile(c.CertPath)
+	if err != nil {
+		return config, errors.Join(validationErr, err)
+	}
+	key, err := os.ReadFile(c.KeyPath)
+	if err != nil {
+		return config, errors.Join(validationErr, err)
+	}
+	if _, err := os.OpenFile(c.DBPath, os.O_CREATE|os.O_RDONLY, 0644); err != nil {
+		return config, errors.Join(validationErr, err)
+	}
+	config.Cert = cert
+	config.Key = key
+	config.DBPath = c.DBPath
+	return config, nil
 }
 
 // NewServer creates a new http server with handlers that Go can start listening to
-func NewServer(certificate, key string) (*http.Server, error) {
-	serverCerts, err := loadServerCertificates(certificate, key)
+func NewServer(certificate, key []byte) (*http.Server, error) {
+	serverCerts, err := tls.X509KeyPair(certificate, key)
 	if err != nil {
 		return nil, err
 	}
-	m := http.NewServeMux()
-	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		_, err := w.Write([]byte("Hello World"))
-		if err != nil {
-			return
-		}
-	})
+	router := http.NewServeMux()
+	router.HandleFunc("/", HelloWorld)
+
+	v1 := http.NewServeMux()
+	v1.Handle("/v1/", http.StripPrefix("/v1", router))
+
 	s := &http.Server{
 		Addr: ":8080",
 
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
-		Handler:        m,
+		Handler:        v1,
 		MaxHeaderBytes: 1 << 20,
 		TLSConfig: &tls.Config{
-			Certificates: []tls.Certificate{*serverCerts},
+			Certificates: []tls.Certificate{serverCerts},
 		},
 	}
 
 	return s, nil
+}
+
+func HelloWorld(w http.ResponseWriter, r *http.Request) {
+	_, err := w.Write([]byte("Hello World"))
+	if err != nil {
+		return
+	}
 }

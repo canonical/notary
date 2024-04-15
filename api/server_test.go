@@ -1,13 +1,15 @@
 package server_test
 
 import (
+	"log"
+	"os"
 	"testing"
 
 	server "github.com/canonical/gocert/api"
 )
 
 const (
-	ValidCert = `-----BEGIN CERTIFICATE-----
+	validCert = `-----BEGIN CERTIFICATE-----
 MIIELjCCAxagAwIBAgICBnowDQYJKoZIhvcNAQELBQAwJzELMAkGA1UEBhMCVVMx
 GDAWBgNVBAoTD0Nhbm9uaWNhbCwgSU5DLjAeFw0yNDA0MDUxMDAzMjhaFw0zNDA0
 MDUxMDAzMjhaMCcxCzAJBgNVBAYTAlVTMRgwFgYDVQQKEw9DYW5vbmljYWwsIElO
@@ -32,7 +34,7 @@ IaRnPI0zEGbg2v340jMbB26FiyaFKyHEc24nnq3suZFmbslXzRE2Ebut+Qtft8he
 W7GwJ5qPjnm6EMe8da55m8Q0hZchwGZreXNG7iCaw98pACBNgOOxh4LOhEZy25Bv
 ayrvWnmPfg1u47sduuhHeUid
 -----END CERTIFICATE-----`
-	ValidPK = `-----BEGIN RSA PRIVATE KEY-----
+	validPK = `-----BEGIN RSA PRIVATE KEY-----
 MIIJKQIBAAKCAgEAwD/fI3HzcONB20tcUelKUkE6eABpXRVkGQThWlcw/noe7GDP
 wRXU9HWURxo18S++3sA28HcABSec7saPrvP1YChkaSuigpymopZla3UQ4QOOWoqz
 EUDekF7qzeDWYF3AhyVhgECgPVyc3MBiRZeS8aBWOfMAr9HdST/H4Jm3ICEUEwiL
@@ -83,45 +85,49 @@ Q53tuiWQeoxNOjHiWstBPELxGbW6447JyVVbNYGUk+VFU7okzA6sRTJ/5Ysda4Sf
 auNQc2hruhr/2plhFUYoZHPzGz7d5zUGKymhCoS8BsFVtD0WDL4srdtY/W2Us7TD
 D7DC34n8CH9+avz9sCRwxpjxKnYW/BeyK0c4n9uZpjI8N4sOVqy6yWBUseww
 -----END RSA PRIVATE KEY-----`
+	validConfig = `keypath:  "./key_test.pem"
+certpath: "./cert_test.pem"
+dbpath: "./certs.db"`
+	invalidYAMLConfig = `wrong: fields
+every: where`
+	invalidFileConfig = `keypath:  "./nokeyfile.pem"
+certpath: "./nocertfile.pem"
+dbpath: "./certs.db"`
 )
 
-func TestNewServerSuccess(t *testing.T) {
-	testCases := []struct {
-		desc string
-		cert string
-		key  string
-	}{
-		{
-			desc: "correct certificate and key",
-			cert: ValidCert,
-			key:  ValidPK,
-		},
-		{
-			desc: "empty certificate",
-			cert: "",
-			key:  ValidPK,
-		},
-		{
-			desc: "empty key",
-			cert: ValidCert,
-			key:  "",
-		},
-		{
-			desc: "empty certificate and key",
-			cert: "",
-			key:  "",
-		},
+func TestMain(m *testing.M) {
+	testfolder, err := os.MkdirTemp("./", "configtest-")
+	if err != nil {
+		log.Fatalf("couldn't create temp directory")
 	}
-	for _, tC := range testCases {
-		t.Run(tC.desc, func(t *testing.T) {
-			s, err := server.NewServer(tC.cert, tC.key)
-			if err != nil {
-				t.Errorf("Error occured: %s", err)
-			}
-			if s.TLSConfig.Certificates == nil {
-				t.Errorf("No certificates were configured for server")
-			}
-		})
+	writeConfigErr := os.WriteFile(testfolder+"/config.yaml", []byte(validConfig), 0644)
+	writeCertErr := os.WriteFile(testfolder+"/cert_test.pem", []byte(validCert), 0644)
+	writeKeyErr := os.WriteFile(testfolder+"/key_test.pem", []byte(validPK), 0644)
+	if writeConfigErr != nil || writeCertErr != nil || writeKeyErr != nil {
+		log.Fatalf("couldn't create temp testing file")
+	}
+	if err := os.Chdir(testfolder); err != nil {
+		log.Fatalf("couldn't enter testing directory")
+	}
+
+	exitval := m.Run()
+
+	if err := os.Chdir("../"); err != nil {
+		log.Fatalf("couldn't change back to parent directory")
+	}
+	if err := os.RemoveAll(testfolder); err != nil {
+		log.Fatalf("couldn't remove temp testing directory")
+	}
+	os.Exit(exitval)
+}
+
+func TestNewServerSuccess(t *testing.T) {
+	s, err := server.NewServer([]byte(validCert), []byte(validPK))
+	if err != nil {
+		t.Errorf("Error occured: %s", err)
+	}
+	if s.TLSConfig.Certificates == nil {
+		t.Errorf("No certificates were configured for server")
 	}
 }
 
@@ -134,20 +140,45 @@ func TestNewServerFail(t *testing.T) {
 		{
 			desc: "wrong certificate",
 			cert: "some cert",
-			key:  ValidPK,
+			key:  validPK,
 		},
 		{
 			desc: "wrong key",
-			cert: ValidCert,
+			cert: validCert,
 			key:  "some pk",
 		},
 	}
 	for _, tC := range testCases {
 		t.Run(tC.desc, func(t *testing.T) {
-			_, err := server.NewServer(tC.cert, tC.key)
+			_, err := server.NewServer([]byte(tC.cert), []byte(tC.key))
 			if err == nil {
 				t.Errorf("Expected error")
 			}
+		})
+	}
+}
+
+func TestConfigFileSuccess(t *testing.T) {
+	config, err := server.ValidateConfigFile("./config.yaml")
+	if err != nil {
+		t.Errorf("Error occured: %s", err)
+	}
+	if config.Cert == nil || config.Key == nil || config.DBPath == "" {
+		t.Errorf("Expected values were not read: %s", err)
+	}
+}
+
+func TestConfigFileFail(t *testing.T) {
+	testCases := []struct {
+		desc string
+	}{
+		{
+			desc: "",
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+
 		})
 	}
 }

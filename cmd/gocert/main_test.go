@@ -146,12 +146,16 @@ func TestGoCertFail(t *testing.T) {
 		cmd := exec.Command("gocert", tc.Args...)
 		stderr, _ := cmd.StderrPipe()
 
-		cmd.Start()
+		if err := cmd.Start(); err != nil {
+			t.Errorf("Failed running command")
+		}
 
 		slurp, _ := io.ReadAll(stderr)
 
-		cmd.Wait()
-		if !strings.HasPrefix(string(slurp), tc.ExpectedOutput) {
+		if err := cmd.Wait(); err == nil {
+			t.Errorf("Command did not fail")
+		}
+		if !strings.Contains(string(slurp), tc.ExpectedOutput) {
 			t.Errorf("%s: Expected error not found: %s", tc.Name, slurp)
 		}
 	}

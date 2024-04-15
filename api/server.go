@@ -62,7 +62,7 @@ func NewServer(certificate, key []byte, port int) (*http.Server, error) {
 		return nil, err
 	}
 	router := http.NewServeMux()
-	router.HandleFunc("GET /", HelloWorld)
+	router.HandleFunc("GET /", HealthCheck)
 
 	v1 := http.NewServeMux()
 	v1.Handle("/v1/", http.StripPrefix("/v1", router))
@@ -82,8 +82,8 @@ func NewServer(certificate, key []byte, port int) (*http.Server, error) {
 	return s, nil
 }
 
-func HelloWorld(w http.ResponseWriter, r *http.Request) {
-	_, err := w.Write([]byte("Hello World"))
+func HealthCheck(w http.ResponseWriter, r *http.Request) {
+	_, err := w.Write([]byte("Server Alive"))
 	if err != nil {
 		return
 	}

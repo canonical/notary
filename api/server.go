@@ -83,8 +83,5 @@ func NewServer(certificate, key []byte, port int) (*http.Server, error) {
 }
 
 func HealthCheck(w http.ResponseWriter, r *http.Request) {
-	_, err := w.Write([]byte("Server Alive"))
-	if err != nil {
-		return
-	}
+	w.Write([]byte("Server Alive")) //nolint:errcheck
 }

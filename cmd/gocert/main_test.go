@@ -100,6 +100,11 @@ port: 8000`
 )
 
 func TestMain(m *testing.M) {
+	cmd := exec.Command("go", "install", "./...")
+	if err := cmd.Run(); err != nil {
+		log.Fatalf("couldn't install the gocert CLI")
+	}
+
 	testfolder, err := os.MkdirTemp("./", "configtest-")
 	if err != nil {
 		log.Fatalf("couldn't create temp directory")

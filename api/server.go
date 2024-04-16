@@ -28,8 +28,8 @@ type Config struct {
 	Port   int
 }
 
-type environment struct {
-	db *certdb.CertificateRequestsRepository
+type Environment struct {
+	DB *certdb.CertificateRequestsRepository
 }
 
 // validateConfigFile opens and processes the given yaml file, and catches errors in the process
@@ -83,8 +83,8 @@ func NewServer(configFile string) (*http.Server, error) {
 		log.Fatalf("Couldn't connect to database: %s", err)
 	}
 
-	env := &environment{}
-	env.db = db
+	env := &Environment{}
+	env.DB = db
 	router := GoCertRouter(env)
 
 	s := &http.Server{

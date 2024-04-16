@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -11,7 +12,7 @@ import (
 
 // GoCertRouter takes in an environment struct, passes it along to any handlers that will need
 // access to it, then builds and returns it for a server to consume
-func GoCertRouter(env *environment) http.Handler {
+func GoCertRouter(env *Environment) http.Handler {
 	router := http.NewServeMux()
 	router.HandleFunc("GET /certificate_requests", GetCertificateRequests(env))
 	router.HandleFunc("POST /certificate_requests", PostCertificateRequest(env))
@@ -23,7 +24,7 @@ func GoCertRouter(env *environment) http.Handler {
 	v1.HandleFunc("GET /status", HealthCheck)
 	v1.Handle("/api/v1/", http.StripPrefix("/api/v1", router))
 
-	return Logging(v1)
+	return logging(v1)
 }
 
 // the health check endpoint simply returns a 200
@@ -32,9 +33,9 @@ func HealthCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetCertificateRequests returns all of the Certificate Requests
-func GetCertificateRequests(env *environment) http.HandlerFunc {
+func GetCertificateRequests(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		certs, err := env.db.RetrieveAll()
+		certs, err := env.DB.RetrieveAll()
 		if err != nil {
 			logError(err.Error(), 500, w)
 			return
@@ -49,25 +50,20 @@ func GetCertificateRequests(env *environment) http.HandlerFunc {
 }
 
 // PostCertificateRequest creates a new Certificate Request, and returns the id of the created row
-func PostCertificateRequest(env *environment) http.HandlerFunc {
+func PostCertificateRequest(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		csr := make([]byte, r.ContentLength)
-		bytesRead, err := r.Body.Read(csr)
-		if bytesRead != int(r.ContentLength) {
-			logError("couldn't read the body completely", 400, w)
-			return
-		}
-		if err.Error() != "EOF" {
+		csr, err := io.ReadAll(r.Body)
+		if err != nil {
 			logError(err.Error(), 500, w)
 			return
 		}
-		id, err := env.db.Create(string(csr))
+		id, err := env.DB.Create(string(csr))
 		if err != nil {
 			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 				logError("given csr already recorded", 400, w)
 				return
 			} else {
-				logError(err.Error(), 500, w)
+				logError(err.Error(), 400, w)
 				return
 			}
 		}
@@ -78,11 +74,15 @@ func PostCertificateRequest(env *environment) http.HandlerFunc {
 
 // GetCertificateRequests receives an id as a path parameter, and
 // returns the corresponding Certificate Request
-func GetCertificateRequest(env *environment) http.HandlerFunc {
+func GetCertificateRequest(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		cert, err := env.db.Retrieve(id)
+		cert, err := env.DB.Retrieve(id)
 		if err != nil {
+			if err.Error() == "sql: no rows in result set" {
+				logError(err.Error(), 400, w)
+				return
+			}
 			logError(err.Error(), 500, w)
 			return
 		}
@@ -97,10 +97,10 @@ func GetCertificateRequest(env *environment) http.HandlerFunc {
 
 // DeleteCertificateRequest handler receives an id as a path parameter,
 // deletes the corresponding Certificate Request, and returns a 204 on success
-func DeleteCertificateRequest(env *environment) http.HandlerFunc {
+func DeleteCertificateRequest(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		err := env.db.Delete(id)
+		err := env.DB.Delete(id)
 		if err != nil {
 			logError(err.Error(), 500, w)
 			return
@@ -111,22 +111,17 @@ func DeleteCertificateRequest(env *environment) http.HandlerFunc {
 
 // PostCertificate handler receives an id as a path parameter,
 // and attempts to add a given certificate to the corresponding certificate request
-func PostCertificate(env *environment) http.HandlerFunc {
+func PostCertificate(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		cert := make([]byte, r.ContentLength)
-		bytesRead, err := r.Body.Read(cert)
-		if bytesRead != int(r.ContentLength) {
-			logError("couldn't read the body completely", 400, w)
-			return
-		}
-		if err.Error() != "EOF" {
-			logError(err.Error(), 500, w)
+		cert, err := io.ReadAll(r.Body)
+		if err != nil {
+			logError(err.Error(), 400, w)
 			return
 		}
 		id := r.PathValue("id")
-		insertId, err := env.db.Update(id, string(cert))
+		insertId, err := env.DB.Update(id, string(cert))
 		if err != nil {
-			logError(err.Error(), 500, w)
+			logError(err.Error(), 400, w)
 			return
 		}
 		w.WriteHeader(201)
@@ -134,8 +129,8 @@ func PostCertificate(env *environment) http.HandlerFunc {
 	}
 }
 
-// The Logging middleware captures any http request coming through, and logs it
-func Logging(next http.Handler) http.Handler {
+// The logging middleware captures any http request coming through, and logs it
+func logging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		next.ServeHTTP(w, r)
 		log.Println(r.Method, r.URL.Path)

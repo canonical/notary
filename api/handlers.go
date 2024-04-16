@@ -45,7 +45,9 @@ func GetCertificateRequests(env *Environment) http.HandlerFunc {
 			logError(err.Error(), 500, w)
 			return
 		}
-		w.Write(body)
+		if _, err := w.Write(body); err != nil {
+			logError(err.Error(), 500, w)
+		}
 	}
 }
 
@@ -68,7 +70,9 @@ func PostCertificateRequest(env *Environment) http.HandlerFunc {
 			}
 		}
 		w.WriteHeader(201)
-		w.Write([]byte(strconv.FormatInt(id, 10)))
+		if _, err := w.Write([]byte(strconv.FormatInt(id, 10))); err != nil {
+			logError(err.Error(), 500, w)
+		}
 	}
 }
 
@@ -91,7 +95,9 @@ func GetCertificateRequest(env *Environment) http.HandlerFunc {
 			logError(err.Error(), 500, w)
 			return
 		}
-		w.Write(body)
+		if _, err := w.Write(body); err != nil {
+			logError(err.Error(), 500, w)
+		}
 	}
 }
 
@@ -125,7 +131,9 @@ func PostCertificate(env *Environment) http.HandlerFunc {
 			return
 		}
 		w.WriteHeader(201)
-		w.Write([]byte(strconv.FormatInt(insertId, 10)))
+		if _, err := w.Write([]byte(strconv.FormatInt(insertId, 10))); err != nil {
+			logError(err.Error(), 500, w)
+		}
 	}
 }
 
@@ -142,5 +150,7 @@ func logError(msg string, status int, w http.ResponseWriter) {
 	errMsg := fmt.Sprintf("error: %s", msg)
 	log.Println(errMsg)
 	w.WriteHeader(status)
-	w.Write([]byte(errMsg))
+	if _, err := w.Write([]byte(errMsg)); err != nil {
+		logError(err.Error(), 500, w)
+	}
 }

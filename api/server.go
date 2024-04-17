@@ -45,9 +45,15 @@ func ValidateConfigFile(filePath string) (Config, error) {
 	if err != nil {
 		return config, errors.Join(validationErr, err)
 	}
-	if _, err := os.OpenFile(c.DBPath, os.O_CREATE|os.O_RDONLY, 0644); err != nil {
+	dbfile, err := os.OpenFile(c.DBPath, os.O_CREATE|os.O_RDONLY, 0644)
+	if err != nil {
 		return config, errors.Join(validationErr, err)
 	}
+	err = dbfile.Close()
+	if err != nil {
+		return config, errors.Join(validationErr, err)
+	}
+
 	config.Cert = cert
 	config.Key = key
 	config.DBPath = c.DBPath

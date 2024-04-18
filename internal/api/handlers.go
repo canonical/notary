@@ -83,7 +83,7 @@ func GetCertificateRequest(env *Environment) http.HandlerFunc {
 		id := r.PathValue("id")
 		cert, err := env.DB.Retrieve(id)
 		if err != nil {
-			if err.Error() == "sql: no rows in result set" {
+			if err.Error() == "csr id not found" {
 				logError(err.Error(), http.StatusBadRequest, w)
 				return
 			}
@@ -127,6 +127,14 @@ func PostCertificate(env *Environment) http.HandlerFunc {
 		id := r.PathValue("id")
 		insertId, err := env.DB.Update(id, string(cert))
 		if err != nil {
+			if err.Error() == "csr id not found" {
+				logError(err.Error(), http.StatusBadRequest, w)
+				return
+			}
+			if err.Error() == "certificate does not match CSR" {
+				logError(err.Error(), http.StatusBadRequest, w)
+				return
+			}
 			logError(err.Error(), http.StatusInternalServerError, w)
 			return
 		}

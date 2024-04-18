@@ -195,7 +195,7 @@ func TestGoCertRouter(t *testing.T) {
 			method:   "GET",
 			path:     "/api/v1/certificate_requests/1",
 			data:     "",
-			response: "error: sql: no rows in result set",
+			response: "error: csr id not found",
 			status:   http.StatusBadRequest,
 		},
 		{

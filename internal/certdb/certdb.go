@@ -56,6 +56,9 @@ func (db *CertificateRequestsRepository) Retrieve(id string) (CertificateRequest
 	var newCSR CertificateRequest
 	row := db.conn.QueryRow(fmt.Sprintf(queryGetCSR, db.table), id)
 	if err := row.Scan(&newCSR.ID, &newCSR.CSR, &newCSR.Certificate); err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			return newCSR, errors.New("csr id not found")
+		}
 		return newCSR, err
 	}
 	return newCSR, nil
@@ -86,7 +89,7 @@ func (db *CertificateRequestsRepository) Update(id string, cert string) (int64, 
 	}
 	csr, err := db.Retrieve(id)
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 	if err := CertificateMatchesCSR(cert, csr.CSR); err != nil {
 		return 0, err
@@ -98,9 +101,6 @@ func (db *CertificateRequestsRepository) Update(id string, cert string) (int64, 
 	insertId, err := result.LastInsertId()
 	if err != nil {
 		return 0, err
-	}
-	if insertId == 0 {
-		return 0, errors.New("column not found")
 	}
 	return insertId, nil
 }

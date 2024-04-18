@@ -37,16 +37,16 @@ func GetCertificateRequests(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		certs, err := env.DB.RetrieveAll()
 		if err != nil {
-			logError(err.Error(), http.StatusInternalServerError, w)
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
 		body, err := json.Marshal(certs)
 		if err != nil {
-			logError(err.Error(), http.StatusInternalServerError, w)
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
 		if _, err := w.Write(body); err != nil {
-			logError(err.Error(), http.StatusInternalServerError, w)
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 		}
 	}
 }
@@ -56,25 +56,25 @@ func PostCertificateRequest(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		csr, err := io.ReadAll(r.Body)
 		if err != nil {
-			logError(err.Error(), http.StatusInternalServerError, w)
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
 		id, err := env.DB.Create(string(csr))
 		if err != nil {
 			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
-				logError("given csr already recorded", http.StatusBadRequest, w)
+				logErrorAndWriteResponse("given csr already recorded", http.StatusBadRequest, w)
 				return
 			}
 			if strings.Contains(err.Error(), "csr validation failed") {
-				logError(err.Error(), http.StatusBadRequest, w)
+				logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)
 				return
 			}
-			logError(err.Error(), http.StatusInternalServerError, w)
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
 		w.WriteHeader(http.StatusCreated)
 		if _, err := w.Write([]byte(strconv.FormatInt(id, 10))); err != nil {
-			logError(err.Error(), http.StatusInternalServerError, w)
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 		}
 	}
 }
@@ -87,19 +87,19 @@ func GetCertificateRequest(env *Environment) http.HandlerFunc {
 		cert, err := env.DB.Retrieve(id)
 		if err != nil {
 			if err.Error() == "csr id not found" {
-				logError(err.Error(), http.StatusBadRequest, w)
+				logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)
 				return
 			}
-			logError(err.Error(), http.StatusInternalServerError, w)
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
 		body, err := json.Marshal(cert)
 		if err != nil {
-			logError(err.Error(), http.StatusInternalServerError, w)
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
 		if _, err := w.Write(body); err != nil {
-			logError(err.Error(), http.StatusInternalServerError, w)
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 		}
 	}
 }
@@ -112,15 +112,15 @@ func DeleteCertificateRequest(env *Environment) http.HandlerFunc {
 		insertId, err := env.DB.Delete(id)
 		if err != nil {
 			if err.Error() == "csr id not found" {
-				logError(err.Error(), http.StatusBadRequest, w)
+				logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)
 				return
 			}
-			logError(err.Error(), http.StatusInternalServerError, w)
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
 		w.WriteHeader(http.StatusAccepted)
 		if _, err := w.Write([]byte(strconv.FormatInt(insertId, 10))); err != nil {
-			logError(err.Error(), http.StatusInternalServerError, w)
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 		}
 	}
 }
@@ -131,7 +131,7 @@ func PostCertificate(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cert, err := io.ReadAll(r.Body)
 		if err != nil {
-			logError(err.Error(), http.StatusBadRequest, w)
+			logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)
 			return
 		}
 		id := r.PathValue("id")
@@ -140,15 +140,15 @@ func PostCertificate(env *Environment) http.HandlerFunc {
 			if err.Error() == "csr id not found" ||
 				err.Error() == "certificate does not match CSR" ||
 				strings.Contains(err.Error(), "cert validation failed") {
-				logError(err.Error(), http.StatusBadRequest, w)
+				logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)
 				return
 			}
-			logError(err.Error(), http.StatusInternalServerError, w)
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
 		w.WriteHeader(http.StatusCreated)
 		if _, err := w.Write([]byte(strconv.FormatInt(insertId, 10))); err != nil {
-			logError(err.Error(), http.StatusInternalServerError, w)
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 		}
 	}
 }
@@ -161,12 +161,12 @@ func logging(next http.Handler) http.Handler {
 	})
 }
 
-// logError is a helper function that logs any error and writes it back as an http response
-func logError(msg string, status int, w http.ResponseWriter) {
+// logErrorAndWriteResponse is a helper function that logs any error and writes it back as an http response
+func logErrorAndWriteResponse(msg string, status int, w http.ResponseWriter) {
 	errMsg := fmt.Sprintf("error: %s", msg)
 	log.Println(errMsg)
 	w.WriteHeader(status)
 	if _, err := w.Write([]byte(errMsg)); err != nil {
-		logError(err.Error(), http.StatusInternalServerError, w)
+		logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 	}
 }

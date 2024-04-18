@@ -68,6 +68,14 @@ func TestEndToEnd(t *testing.T) {
 	if retrievedCSR.Certificate != ValidCert2 {
 		t.Fatalf("The certificate that was uploaded does not match the certificate that was given.\n Retrieved: %s\nGiven: %s", retrievedCSR.Certificate, ValidCert2)
 	}
+	_, err = db.Update(strconv.FormatInt(id2, 10), "")
+	if err != nil {
+		t.Fatalf("Couldn't complete Update: %s", err)
+	}
+	retrievedCSR, _ = db.Retrieve(strconv.FormatInt(id2, 10))
+	if retrievedCSR.Certificate != "" {
+		t.Fatalf("Couldn't delete certificate")
+	}
 }
 
 func TestCreateFails(t *testing.T) {

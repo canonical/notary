@@ -108,6 +108,10 @@ func DeleteCertificateRequest(env *Environment) http.HandlerFunc {
 		id := r.PathValue("id")
 		insertId, err := env.DB.Delete(id)
 		if err != nil {
+			if err.Error() == "csr id not found" {
+				logError(err.Error(), http.StatusBadRequest, w)
+				return
+			}
 			logError(err.Error(), http.StatusInternalServerError, w)
 			return
 		}

@@ -191,6 +191,14 @@ func TestGoCertRouter(t *testing.T) {
 			status:   http.StatusAccepted,
 		},
 		{
+			desc:     "delete csr5 fail",
+			method:   "DELETE",
+			path:     "/api/v1/certificate_requests/5",
+			data:     "",
+			response: "error: csr id not found",
+			status:   http.StatusBadRequest,
+		},
+		{
 			desc:     "get csr1 fail",
 			method:   "GET",
 			path:     "/api/v1/certificate_requests/1",

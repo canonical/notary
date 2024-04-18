@@ -27,9 +27,9 @@ func NewGoCertRouter(env *Environment) http.Handler {
 	return logging(v1)
 }
 
-// the health check endpoint simply returns a 200
+// the health check endpoint simply returns a http.StatusOK
 func HealthCheck(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(200) //nolint:errcheck
+	w.WriteHeader(http.StatusOK) //nolint:errcheck
 }
 
 // GetCertificateRequests returns all of the Certificate Requests
@@ -37,16 +37,16 @@ func GetCertificateRequests(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		certs, err := env.DB.RetrieveAll()
 		if err != nil {
-			logError(err.Error(), 500, w)
+			logError(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
 		body, err := json.Marshal(certs)
 		if err != nil {
-			logError(err.Error(), 500, w)
+			logError(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
 		if _, err := w.Write(body); err != nil {
-			logError(err.Error(), 500, w)
+			logError(err.Error(), http.StatusInternalServerError, w)
 		}
 	}
 }
@@ -56,22 +56,22 @@ func PostCertificateRequest(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		csr, err := io.ReadAll(r.Body)
 		if err != nil {
-			logError(err.Error(), 500, w)
+			logError(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
 		id, err := env.DB.Create(string(csr))
 		if err != nil {
 			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
-				logError("given csr already recorded", 400, w)
+				logError("given csr already recorded", http.StatusBadRequest, w)
 				return
 			} else {
-				logError(err.Error(), 400, w)
+				logError(err.Error(), http.StatusBadRequest, w)
 				return
 			}
 		}
-		w.WriteHeader(201)
+		w.WriteHeader(http.StatusCreated)
 		if _, err := w.Write([]byte(strconv.FormatInt(id, 10))); err != nil {
-			logError(err.Error(), 500, w)
+			logError(err.Error(), http.StatusInternalServerError, w)
 		}
 	}
 }
@@ -84,34 +84,34 @@ func GetCertificateRequest(env *Environment) http.HandlerFunc {
 		cert, err := env.DB.Retrieve(id)
 		if err != nil {
 			if err.Error() == "sql: no rows in result set" {
-				logError(err.Error(), 400, w)
+				logError(err.Error(), http.StatusBadRequest, w)
 				return
 			}
-			logError(err.Error(), 500, w)
+			logError(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
 		body, err := json.Marshal(cert)
 		if err != nil {
-			logError(err.Error(), 500, w)
+			logError(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
 		if _, err := w.Write(body); err != nil {
-			logError(err.Error(), 500, w)
+			logError(err.Error(), http.StatusInternalServerError, w)
 		}
 	}
 }
 
 // DeleteCertificateRequest handler receives an id as a path parameter,
-// deletes the corresponding Certificate Request, and returns a 204 on success
+// deletes the corresponding Certificate Request, and returns a http.StatusNoContent on success
 func DeleteCertificateRequest(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		err := env.DB.Delete(id)
 		if err != nil {
-			logError(err.Error(), 500, w)
+			logError(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
-		w.WriteHeader(204)
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
 
@@ -121,18 +121,18 @@ func PostCertificate(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cert, err := io.ReadAll(r.Body)
 		if err != nil {
-			logError(err.Error(), 400, w)
+			logError(err.Error(), http.StatusBadRequest, w)
 			return
 		}
 		id := r.PathValue("id")
 		insertId, err := env.DB.Update(id, string(cert))
 		if err != nil {
-			logError(err.Error(), 400, w)
+			logError(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
-		w.WriteHeader(201)
+		w.WriteHeader(http.StatusCreated)
 		if _, err := w.Write([]byte(strconv.FormatInt(insertId, 10))); err != nil {
-			logError(err.Error(), 500, w)
+			logError(err.Error(), http.StatusInternalServerError, w)
 		}
 	}
 }
@@ -151,6 +151,6 @@ func logError(msg string, status int, w http.ResponseWriter) {
 	log.Println(errMsg)
 	w.WriteHeader(status)
 	if _, err := w.Write([]byte(errMsg)); err != nil {
-		logError(err.Error(), 500, w)
+		logError(err.Error(), http.StatusInternalServerError, w)
 	}
 }

@@ -124,7 +124,7 @@ func TestGoCertRouter(t *testing.T) {
 			path:     "/status",
 			data:     "",
 			response: "",
-			status:   200,
+			status:   http.StatusOK,
 		},
 		{
 			desc:     "empty get csrs success",
@@ -132,7 +132,7 @@ func TestGoCertRouter(t *testing.T) {
 			path:     "/api/v1/certificate_requests",
 			data:     "",
 			response: "null",
-			status:   200,
+			status:   http.StatusOK,
 		},
 		{
 			desc:     "post csr1 success",
@@ -140,7 +140,7 @@ func TestGoCertRouter(t *testing.T) {
 			path:     "/api/v1/certificate_requests",
 			data:     validCSR1,
 			response: "1",
-			status:   201,
+			status:   http.StatusCreated,
 		},
 		{
 			desc:     "get csrs 1 success",
@@ -148,7 +148,7 @@ func TestGoCertRouter(t *testing.T) {
 			path:     "/api/v1/certificate_requests",
 			data:     "",
 			response: expectedGetAllCertsResponseBody1,
-			status:   200,
+			status:   http.StatusOK,
 		},
 		{
 			desc:     "post csr2 success",
@@ -156,7 +156,7 @@ func TestGoCertRouter(t *testing.T) {
 			path:     "/api/v1/certificate_requests",
 			data:     validCSR2,
 			response: "2",
-			status:   201,
+			status:   http.StatusCreated,
 		},
 		{
 			desc:     "get csrs 2 success",
@@ -164,7 +164,7 @@ func TestGoCertRouter(t *testing.T) {
 			path:     "/api/v1/certificate_requests",
 			data:     "",
 			response: expectedGetAllCertsResponseBody2,
-			status:   200,
+			status:   http.StatusOK,
 		},
 		{
 			desc:     "post csr2 fail",
@@ -172,7 +172,7 @@ func TestGoCertRouter(t *testing.T) {
 			path:     "/api/v1/certificate_requests",
 			data:     validCSR2,
 			response: "error: given csr already recorded",
-			status:   400,
+			status:   http.StatusBadRequest,
 		},
 		{
 			desc:     "post csr3 success",
@@ -180,7 +180,7 @@ func TestGoCertRouter(t *testing.T) {
 			path:     "/api/v1/certificate_requests",
 			data:     validCSR3,
 			response: "3",
-			status:   201,
+			status:   http.StatusCreated,
 		},
 		{
 			desc:     "delete csr1 success",
@@ -188,7 +188,7 @@ func TestGoCertRouter(t *testing.T) {
 			path:     "/api/v1/certificate_requests/1",
 			data:     "",
 			response: "",
-			status:   204,
+			status:   http.StatusNoContent,
 		},
 		{
 			desc:     "get csr1 fail",
@@ -196,7 +196,7 @@ func TestGoCertRouter(t *testing.T) {
 			path:     "/api/v1/certificate_requests/1",
 			data:     "",
 			response: "error: sql: no rows in result set",
-			status:   400,
+			status:   http.StatusBadRequest,
 		},
 		{
 			desc:     "get csr2 success",
@@ -204,7 +204,7 @@ func TestGoCertRouter(t *testing.T) {
 			path:     "/api/v1/certificate_requests/2",
 			data:     "",
 			response: expectedGetCertReqResponseBody1,
-			status:   200,
+			status:   http.StatusOK,
 		},
 		{
 			desc:     "post csr4 success",
@@ -212,7 +212,7 @@ func TestGoCertRouter(t *testing.T) {
 			path:     "/api/v1/certificate_requests",
 			data:     validCSR1,
 			response: "4",
-			status:   201,
+			status:   http.StatusCreated,
 		},
 		{
 			desc:     "get csr4 success",
@@ -220,7 +220,7 @@ func TestGoCertRouter(t *testing.T) {
 			path:     "/api/v1/certificate_requests/4",
 			data:     "",
 			response: expectedGetCertReqResponseBody2,
-			status:   200,
+			status:   http.StatusOK,
 		},
 		{
 			desc:     "post cert2 fail",
@@ -228,7 +228,7 @@ func TestGoCertRouter(t *testing.T) {
 			path:     "/api/v1/certificate_requests/4/certificate",
 			data:     validCert2,
 			response: "error: certificate does not match CSR",
-			status:   400,
+			status:   http.StatusBadRequest,
 		},
 		{
 			desc:     "post cert2 success",
@@ -236,7 +236,7 @@ func TestGoCertRouter(t *testing.T) {
 			path:     "/api/v1/certificate_requests/2/certificate",
 			data:     validCert2,
 			response: "4",
-			status:   201,
+			status:   http.StatusCreated,
 		},
 		{
 			desc:     "get csr2 success",
@@ -244,7 +244,7 @@ func TestGoCertRouter(t *testing.T) {
 			path:     "/api/v1/certificate_requests/2",
 			data:     "",
 			response: expectedGetCertReqResponseBody3,
-			status:   200,
+			status:   http.StatusOK,
 		},
 		{
 			desc:     "get csrs 3 success",
@@ -252,7 +252,7 @@ func TestGoCertRouter(t *testing.T) {
 			path:     "/api/v1/certificate_requests",
 			data:     "",
 			response: expectedGetAllCertsResponseBody3,
-			status:   200,
+			status:   http.StatusOK,
 		},
 		{
 			desc:     "healthcheck success",
@@ -260,7 +260,7 @@ func TestGoCertRouter(t *testing.T) {
 			path:     "/status",
 			data:     "",
 			response: "",
-			status:   200,
+			status:   http.StatusOK,
 		},
 	}
 	for _, tC := range testCases {

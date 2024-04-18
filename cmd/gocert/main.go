@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	server "github.com/canonical/gocert/api"
+	server "github.com/canonical/gocert/internal/api"
 )
 
 func main() {

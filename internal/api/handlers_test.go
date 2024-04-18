@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	server "github.com/canonical/gocert/api"
+	server "github.com/canonical/gocert/internal/api"
 	"github.com/canonical/gocert/internal/certdb"
 )
 

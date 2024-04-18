@@ -1,3 +1,5 @@
 *.db
 *.pem
 *config.yaml
+
+.DS_Store

@@ -85,7 +85,7 @@ func NewServer(configFile string) (*http.Server, error) {
 
 	env := &Environment{}
 	env.DB = db
-	router := GoCertRouter(env)
+	router := NewGoCertRouter(env)
 
 	s := &http.Server{
 		Addr: fmt.Sprintf(":%d", config.Port),

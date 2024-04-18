@@ -10,9 +10,9 @@ import (
 	"strings"
 )
 
-// GoCertRouter takes in an environment struct, passes it along to any handlers that will need
+// NewGoCertRouter takes in an environment struct, passes it along to any handlers that will need
 // access to it, then builds and returns it for a server to consume
-func GoCertRouter(env *Environment) http.Handler {
+func NewGoCertRouter(env *Environment) http.Handler {
 	router := http.NewServeMux()
 	router.HandleFunc("GET /certificate_requests", GetCertificateRequests(env))
 	router.HandleFunc("POST /certificate_requests", PostCertificateRequest(env))

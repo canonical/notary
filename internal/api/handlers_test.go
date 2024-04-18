@@ -105,7 +105,7 @@ func TestGoCertRouter(t *testing.T) {
 	}
 	env := &server.Environment{}
 	env.DB = testdb
-	ts := httptest.NewTLSServer(server.GoCertRouter(env))
+	ts := httptest.NewTLSServer(server.NewGoCertRouter(env))
 	defer ts.Close()
 
 	client := ts.Client()

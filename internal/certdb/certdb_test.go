@@ -52,7 +52,7 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatalf("The CSR from the database doesn't match the CSR that was given")
 	}
 
-	if err = db.Delete(strconv.FormatInt(id1, 10)); err != nil {
+	if _, err = db.Delete(strconv.FormatInt(id1, 10)); err != nil {
 		t.Fatalf("Couldn't complete Delete: %s", err)
 	}
 	res, _ = db.RetrieveAll()

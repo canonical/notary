@@ -106,12 +106,19 @@ func (db *CertificateRequestsRepository) Update(id string, cert string) (int64, 
 }
 
 // Delete removes a CSR from the database alongside the certificate that may have been generated for it.
-func (db *CertificateRequestsRepository) Delete(id string) error {
-	_, err := db.conn.Exec(fmt.Sprintf(queryDeleteCSR, db.table), id)
+func (db *CertificateRequestsRepository) Delete(id string) (int64, error) {
+	result, err := db.conn.Exec(fmt.Sprintf(queryDeleteCSR, db.table), id)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return nil
+	deleteId, err := result.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	if deleteId == 0 {
+		return 0, errors.New("csr id not found")
+	}
+	return deleteId, nil
 }
 
 // Close closes the connection to the repository cleanly.

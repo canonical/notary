@@ -187,8 +187,8 @@ func TestGoCertRouter(t *testing.T) {
 			method:   "DELETE",
 			path:     "/api/v1/certificate_requests/1",
 			data:     "",
-			response: "",
-			status:   http.StatusNoContent,
+			response: "1",
+			status:   http.StatusAccepted,
 		},
 		{
 			desc:     "get csr1 fail",

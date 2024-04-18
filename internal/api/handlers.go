@@ -106,12 +106,15 @@ func GetCertificateRequest(env *Environment) http.HandlerFunc {
 func DeleteCertificateRequest(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		err := env.DB.Delete(id)
+		insertId, err := env.DB.Delete(id)
 		if err != nil {
 			logError(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(http.StatusAccepted)
+		if _, err := w.Write([]byte(strconv.FormatInt(insertId, 10))); err != nil {
+			logError(err.Error(), http.StatusInternalServerError, w)
+		}
 	}
 }
 

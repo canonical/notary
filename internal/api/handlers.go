@@ -64,10 +64,13 @@ func PostCertificateRequest(env *Environment) http.HandlerFunc {
 			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 				logError("given csr already recorded", http.StatusBadRequest, w)
 				return
-			} else {
-				logError(err.Error(), http.StatusInternalServerError, w)
+			}
+			if strings.Contains(err.Error(), "csr validation failed") {
+				logError(err.Error(), http.StatusBadRequest, w)
 				return
 			}
+			logError(err.Error(), http.StatusInternalServerError, w)
+			return
 		}
 		w.WriteHeader(http.StatusCreated)
 		if _, err := w.Write([]byte(strconv.FormatInt(id, 10))); err != nil {

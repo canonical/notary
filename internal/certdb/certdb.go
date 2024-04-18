@@ -68,7 +68,7 @@ func (db *CertificateRequestsRepository) Retrieve(id string) (CertificateRequest
 // The given CSR must be valid and unique
 func (db *CertificateRequestsRepository) Create(csr string) (int64, error) {
 	if err := ValidateCertificateRequest(csr); err != nil {
-		return 0, err
+		return 0, errors.New("csr validation failed: " + err.Error())
 	}
 	result, err := db.conn.Exec(fmt.Sprintf(queryCreateCSR, db.table), csr)
 	if err != nil {

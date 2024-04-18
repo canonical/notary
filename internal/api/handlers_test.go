@@ -135,6 +135,14 @@ func TestGoCertRouter(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
+			desc:     "post csr1 fail",
+			method:   "POST",
+			path:     "/api/v1/certificate_requests",
+			data:     "this is very clearly not a csr",
+			response: "error: csr validation failed: PEM Certificate Request string not found or malformed",
+			status:   http.StatusBadRequest,
+		},
+		{
 			desc:     "post csr1 success",
 			method:   "POST",
 			path:     "/api/v1/certificate_requests",

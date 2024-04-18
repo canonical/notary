@@ -85,14 +85,14 @@ func (db *CertificateRequestsRepository) Create(csr string) (int64, error) {
 // The given certificate must share the public key of the CSR and must be valid.
 func (db *CertificateRequestsRepository) Update(id string, cert string) (int64, error) {
 	if err := ValidateCertificate(cert); err != nil {
-		return 0, err
+		return 0, errors.New("cert validation failed: " + err.Error())
 	}
 	csr, err := db.Retrieve(id)
 	if err != nil {
 		return 0, err
 	}
 	if err := CertificateMatchesCSR(cert, csr.CSR); err != nil {
-		return 0, err
+		return 0, errors.New("cert validation failed: " + err.Error())
 	}
 	result, err := db.conn.Exec(fmt.Sprintf(queryUpdateCSR, db.table), cert, csr.ID)
 	if err != nil {

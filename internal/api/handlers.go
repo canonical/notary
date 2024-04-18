@@ -65,7 +65,7 @@ func PostCertificateRequest(env *Environment) http.HandlerFunc {
 				logError("given csr already recorded", http.StatusBadRequest, w)
 				return
 			} else {
-				logError(err.Error(), http.StatusBadRequest, w)
+				logError(err.Error(), http.StatusInternalServerError, w)
 				return
 			}
 		}
@@ -134,11 +134,9 @@ func PostCertificate(env *Environment) http.HandlerFunc {
 		id := r.PathValue("id")
 		insertId, err := env.DB.Update(id, string(cert))
 		if err != nil {
-			if err.Error() == "csr id not found" {
-				logError(err.Error(), http.StatusBadRequest, w)
-				return
-			}
-			if err.Error() == "certificate does not match CSR" {
+			if err.Error() == "csr id not found" ||
+				err.Error() == "certificate does not match CSR" ||
+				strings.Contains(err.Error(), "cert validation failed") {
 				logError(err.Error(), http.StatusBadRequest, w)
 				return
 			}

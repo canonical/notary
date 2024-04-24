@@ -3,6 +3,7 @@ package certdb
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -11,10 +12,10 @@ import (
 const queryCreateTable = "CREATE TABLE IF NOT EXISTS %s (CSR VARCHAR PRIMARY KEY UNIQUE NOT NULL, Certificate VARCHAR DEFAULT '')"
 
 const queryGetAllCSRs = "SELECT rowid, * FROM %s"
-const queryGetCSR = "SELECT rowid, * FROM %s WHERE CSR=?"
+const queryGetCSR = "SELECT rowid, * FROM %s WHERE rowid=?"
 const queryCreateCSR = "INSERT INTO %s (CSR) VALUES (?)"
-const queryUpdateCSR = "UPDATE %s SET Certificate=? WHERE CSR=?"
-const queryDeleteCSR = "DELETE FROM %s WHERE CSR=?"
+const queryUpdateCSR = "UPDATE %s SET Certificate=? WHERE rowid=?"
+const queryDeleteCSR = "DELETE FROM %s WHERE rowid=?"
 
 // CertificateRequestRepository is the object used to communicate with the established repository.
 type CertificateRequestsRepository struct {
@@ -51,10 +52,13 @@ func (db *CertificateRequestsRepository) RetrieveAll() ([]CertificateRequest, er
 
 // Retrieve gets a given CSR from the repository.
 // It returns the row id and matching certificate alongside the CSR in a CertificateRequest object.
-func (db *CertificateRequestsRepository) Retrieve(csr string) (CertificateRequest, error) {
+func (db *CertificateRequestsRepository) Retrieve(id string) (CertificateRequest, error) {
 	var newCSR CertificateRequest
-	row := db.conn.QueryRow(fmt.Sprintf(queryGetCSR, db.table), csr)
+	row := db.conn.QueryRow(fmt.Sprintf(queryGetCSR, db.table), id)
 	if err := row.Scan(&newCSR.ID, &newCSR.CSR, &newCSR.Certificate); err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			return newCSR, errors.New("csr id not found")
+		}
 		return newCSR, err
 	}
 	return newCSR, nil
@@ -64,7 +68,7 @@ func (db *CertificateRequestsRepository) Retrieve(csr string) (CertificateReques
 // The given CSR must be valid and unique
 func (db *CertificateRequestsRepository) Create(csr string) (int64, error) {
 	if err := ValidateCertificateRequest(csr); err != nil {
-		return 0, err
+		return 0, errors.New("csr validation failed: " + err.Error())
 	}
 	result, err := db.conn.Exec(fmt.Sprintf(queryCreateCSR, db.table), csr)
 	if err != nil {
@@ -79,31 +83,44 @@ func (db *CertificateRequestsRepository) Create(csr string) (int64, error) {
 
 // Update adds a new cert to the given CSR in the repository.
 // The given certificate must share the public key of the CSR and must be valid.
-func (db *CertificateRequestsRepository) Update(csr string, cert string) (int64, error) {
-	if err := ValidateCertificate(cert); err != nil {
-		return 0, err
-	}
-	if err := CertificateMatchesCSR(cert, csr); err != nil {
-		return 0, err
-	}
-	result, err := db.conn.Exec(fmt.Sprintf(queryUpdateCSR, db.table), cert, csr)
+func (db *CertificateRequestsRepository) Update(id string, cert string) (int64, error) {
+	csr, err := db.Retrieve(id)
 	if err != nil {
 		return 0, err
 	}
-	id, err := result.LastInsertId()
+	err = ValidateCertificate(cert)
+	if cert != "" && err != nil {
+		return 0, errors.New("cert validation failed: " + err.Error())
+	}
+	err = CertificateMatchesCSR(cert, csr.CSR)
+	if cert != "" && err != nil {
+		return 0, errors.New("cert validation failed: " + err.Error())
+	}
+	result, err := db.conn.Exec(fmt.Sprintf(queryUpdateCSR, db.table), cert, csr.ID)
 	if err != nil {
 		return 0, err
 	}
-	return id, nil
+	insertId, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return insertId, nil
 }
 
 // Delete removes a CSR from the database alongside the certificate that may have been generated for it.
-func (db *CertificateRequestsRepository) Delete(csr string) error {
-	_, err := db.conn.Exec(fmt.Sprintf(queryDeleteCSR, db.table), csr)
+func (db *CertificateRequestsRepository) Delete(id string) (int64, error) {
+	result, err := db.conn.Exec(fmt.Sprintf(queryDeleteCSR, db.table), id)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return nil
+	deleteId, err := result.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	if deleteId == 0 {
+		return 0, errors.New("csr id not found")
+	}
+	return deleteId, nil
 }
 
 // Close closes the connection to the repository cleanly.

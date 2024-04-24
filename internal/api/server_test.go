@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	server "github.com/canonical/gocert/api"
+	server "github.com/canonical/gocert/internal/api"
 )
 
 const (
@@ -89,6 +89,14 @@ D7DC34n8CH9+avz9sCRwxpjxKnYW/BeyK0c4n9uZpjI8N4sOVqy6yWBUseww
 certpath: "./cert_test.pem"
 dbpath: "./certs.db"
 port: 8000`
+	wrongCertConfig = `keypath:  "./key_test.pem"
+certpath: "./cert_test_wrong.pem"
+dbpath: "./certs.db"
+port: 8000`
+	wrongKeyConfig = `keypath:  "./key_test_wrong.pem"
+certpath: "./cert_test.pem"
+dbpath: "./certs.db"
+port: 8000`
 	invalidYAMLConfig = `wrong: fields
 every: where`
 	invalidFileConfig = `keypath:  "./nokeyfile.pem"
@@ -102,10 +110,9 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("couldn't create temp directory")
 	}
-	writeConfigErr := os.WriteFile(testfolder+"/config.yaml", []byte(validConfig), 0644)
 	writeCertErr := os.WriteFile(testfolder+"/cert_test.pem", []byte(validCert), 0644)
 	writeKeyErr := os.WriteFile(testfolder+"/key_test.pem", []byte(validPK), 0644)
-	if writeConfigErr != nil || writeCertErr != nil || writeKeyErr != nil {
+	if writeCertErr != nil || writeKeyErr != nil {
 		log.Fatalf("couldn't create temp testing file")
 	}
 	if err := os.Chdir(testfolder); err != nil {
@@ -124,7 +131,11 @@ func TestMain(m *testing.M) {
 }
 
 func TestNewServerSuccess(t *testing.T) {
-	s, err := server.NewServer([]byte(validCert), []byte(validPK), 8000)
+	writeConfigErr := os.WriteFile("config.yaml", []byte(validConfig), 0644)
+	if writeConfigErr != nil {
+		log.Fatalf("Error writing config file")
+	}
+	s, err := server.NewServer("config.yaml")
 	if err != nil {
 		t.Errorf("Error occured: %s", err)
 	}
@@ -135,52 +146,28 @@ func TestNewServerSuccess(t *testing.T) {
 
 func TestNewServerFail(t *testing.T) {
 	testCases := []struct {
-		desc string
-		cert string
-		key  string
+		desc   string
+		config string
 	}{
 		{
-			desc: "wrong certificate",
-			cert: "some cert",
-			key:  validPK,
+			desc:   "wrong certificate",
+			config: wrongCertConfig,
 		},
 		{
-			desc: "wrong key",
-			cert: validCert,
-			key:  "some pk",
+			desc:   "wrong key",
+			config: wrongKeyConfig,
 		},
 	}
 	for _, tC := range testCases {
+		writeConfigErr := os.WriteFile("config.yaml", []byte(tC.config), 0644)
+		if writeConfigErr != nil {
+			log.Fatalf("Error writing config file")
+		}
 		t.Run(tC.desc, func(t *testing.T) {
-			_, err := server.NewServer([]byte(tC.cert), []byte(tC.key), 8000)
+			_, err := server.NewServer("config.yaml")
 			if err == nil {
 				t.Errorf("Expected error")
 			}
-		})
-	}
-}
-
-func TestConfigFileSuccess(t *testing.T) {
-	config, err := server.ValidateConfigFile("./config.yaml")
-	if err != nil {
-		t.Errorf("Error occured: %s", err)
-	}
-	if config.Cert == nil || config.Key == nil || config.DBPath == "" {
-		t.Errorf("Expected values were not read: %s", err)
-	}
-}
-
-func TestConfigFileFail(t *testing.T) {
-	testCases := []struct {
-		desc string
-	}{
-		{
-			desc: "",
-		},
-	}
-	for _, tC := range testCases {
-		t.Run(tC.desc, func(t *testing.T) {
-
 		})
 	}
 }

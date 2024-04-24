@@ -5,10 +5,12 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/canonical/gocert/internal/certdb"
 	"gopkg.in/yaml.v3"
 )
 
@@ -26,7 +28,12 @@ type Config struct {
 	Port   int
 }
 
-func ValidateConfigFile(filePath string) (Config, error) {
+type Environment struct {
+	DB *certdb.CertificateRequestsRepository
+}
+
+// validateConfigFile opens and processes the given yaml file, and catches errors in the process
+func validateConfigFile(filePath string) (Config, error) {
 	validationErr := errors.New("config file validation failed: ")
 	config := Config{}
 	configYaml, err := os.ReadFile(filePath)
@@ -61,24 +68,31 @@ func ValidateConfigFile(filePath string) (Config, error) {
 	return config, nil
 }
 
-// NewServer creates a new http server with handlers that Go can start listening to
-func NewServer(certificate, key []byte, port int) (*http.Server, error) {
-	serverCerts, err := tls.X509KeyPair(certificate, key)
+// NewServer creates an environment and an http server with handlers that Go can start listening to
+func NewServer(configFile string) (*http.Server, error) {
+	config, err := validateConfigFile(configFile)
 	if err != nil {
 		return nil, err
 	}
-	router := http.NewServeMux()
-	router.HandleFunc("GET /", HealthCheck)
+	serverCerts, err := tls.X509KeyPair(config.Cert, config.Key)
+	if err != nil {
+		return nil, err
+	}
+	db, err := certdb.NewCertificateRequestsRepository(config.DBPath, "CertificateRequests")
+	if err != nil {
+		log.Fatalf("Couldn't connect to database: %s", err)
+	}
 
-	v1 := http.NewServeMux()
-	v1.Handle("/v1/", http.StripPrefix("/v1", router))
+	env := &Environment{}
+	env.DB = db
+	router := NewGoCertRouter(env)
 
 	s := &http.Server{
-		Addr: fmt.Sprintf(":%d", port),
+		Addr: fmt.Sprintf(":%d", config.Port),
 
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
-		Handler:        v1,
+		Handler:        router,
 		MaxHeaderBytes: 1 << 20,
 		TLSConfig: &tls.Config{
 			Certificates: []tls.Certificate{serverCerts},
@@ -86,8 +100,4 @@ func NewServer(certificate, key []byte, port int) (*http.Server, error) {
 	}
 
 	return s, nil
-}
-
-func HealthCheck(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Server Alive")) //nolint:errcheck
 }

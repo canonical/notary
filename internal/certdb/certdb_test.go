@@ -2,6 +2,7 @@ package certdb_test
 
 import (
 	"log"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -23,13 +24,16 @@ func TestEndToEnd(t *testing.T) {
 	}
 	defer db.Close()
 
-	if _, err := db.Create(ValidCSR1); err != nil {
+	id1, err := db.Create(ValidCSR1)
+	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
-	if _, err := db.Create(ValidCSR2); err != nil {
+	id2, err := db.Create(ValidCSR2)
+	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
-	if _, err := db.Create(ValidCSR3); err != nil {
+	_, err = db.Create(ValidCSR3)
+	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
 
@@ -40,7 +44,7 @@ func TestEndToEnd(t *testing.T) {
 	if len(res) != 3 {
 		t.Fatalf("One or more CSRs weren't found in DB")
 	}
-	retrievedCSR, err := db.Retrieve(ValidCSR1)
+	retrievedCSR, err := db.Retrieve(strconv.FormatInt(id1, 10))
 	if err != nil {
 		t.Fatalf("Couldn't complete Retrieve: %s", err)
 	}
@@ -48,7 +52,7 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatalf("The CSR from the database doesn't match the CSR that was given")
 	}
 
-	if err = db.Delete(ValidCSR1); err != nil {
+	if _, err = db.Delete(strconv.FormatInt(id1, 10)); err != nil {
 		t.Fatalf("Couldn't complete Delete: %s", err)
 	}
 	res, _ = db.RetrieveAll()
@@ -56,13 +60,21 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatalf("CSR's weren't deleted from the DB properly")
 	}
 
-	_, err = db.Update(ValidCSR2, ValidCert2)
+	_, err = db.Update(strconv.FormatInt(id2, 10), ValidCert2)
 	if err != nil {
 		t.Fatalf("Couldn't complete Update: %s", err)
 	}
-	retrievedCSR, _ = db.Retrieve(ValidCSR2)
+	retrievedCSR, _ = db.Retrieve(strconv.FormatInt(id2, 10))
 	if retrievedCSR.Certificate != ValidCert2 {
-		t.Fatalf("The certificate that was uploaded does not match the certificate that was given: Retrieved: %s\nGiven: %s", retrievedCSR.Certificate, ValidCert2)
+		t.Fatalf("The certificate that was uploaded does not match the certificate that was given.\n Retrieved: %s\nGiven: %s", retrievedCSR.Certificate, ValidCert2)
+	}
+	_, err = db.Update(strconv.FormatInt(id2, 10), "")
+	if err != nil {
+		t.Fatalf("Couldn't complete Update: %s", err)
+	}
+	retrievedCSR, _ = db.Retrieve(strconv.FormatInt(id2, 10))
+	if retrievedCSR.Certificate != "" {
+		t.Fatalf("Couldn't delete certificate")
 	}
 }
 
@@ -85,13 +97,13 @@ func TestUpdateFails(t *testing.T) {
 	db, _ := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests") //nolint:errcheck
 	defer db.Close()
 
-	db.Create(ValidCSR1) //nolint:errcheck
-	db.Create(ValidCSR2) //nolint:errcheck
+	id1, _ := db.Create(ValidCSR1) //nolint:errcheck
+	id2, _ := db.Create(ValidCSR2) //nolint:errcheck
 	InvalidCert := strings.ReplaceAll(ValidCert2, "/", "+")
-	if _, err := db.Update(ValidCSR2, InvalidCert); err == nil {
+	if _, err := db.Update(strconv.FormatInt(id2, 10), InvalidCert); err == nil {
 		t.Fatalf("Expected updating with invalid cert to fail")
 	}
-	if _, err := db.Update(ValidCSR1, ValidCert2); err == nil {
+	if _, err := db.Update(strconv.FormatInt(id1, 10), ValidCert2); err == nil {
 		t.Fatalf("Expected updating with mismatched cert to fail")
 	}
 }
@@ -101,7 +113,7 @@ func TestRetrieve(t *testing.T) {
 	defer db.Close()
 
 	db.Create(ValidCSR1) //nolint:errcheck
-	if _, err := db.Retrieve(ValidCSR2); err == nil {
+	if _, err := db.Retrieve("this is definitely not an id"); err == nil {
 		t.Fatalf("Expected failure looking for nonexistent CSR")
 	}
 

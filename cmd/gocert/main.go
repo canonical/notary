@@ -5,8 +5,7 @@ import (
 	"log"
 	"os"
 
-	server "github.com/canonical/gocert/api"
-	"github.com/canonical/gocert/internal/certdb"
+	server "github.com/canonical/gocert/internal/api"
 )
 
 func main() {
@@ -17,15 +16,7 @@ func main() {
 	if *configFilePtr == "" {
 		log.Fatalf("Providing a valid config file is required.")
 	}
-	config, err := server.ValidateConfigFile(*configFilePtr)
-	if err != nil {
-		log.Fatalf("Config file validation failed: %s.", err)
-	}
-	_, err = certdb.NewCertificateRequestsRepository(config.DBPath, "CertificateRequests")
-	if err != nil {
-		log.Fatalf("Couldn't connect to database: %s", err)
-	}
-	srv, err := server.NewServer(config.Cert, config.Key, config.Port)
+	srv, err := server.NewServer(*configFilePtr)
 	if err != nil {
 		log.Fatalf("Couldn't create server: %s", err)
 	}

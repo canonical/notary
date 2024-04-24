@@ -88,13 +88,15 @@ func (db *CertificateRequestsRepository) Update(id string, cert string) (int64, 
 	if err != nil {
 		return 0, err
 	}
-	err = ValidateCertificate(cert)
-	if cert != "" && err != nil {
-		return 0, errors.New("cert validation failed: " + err.Error())
-	}
-	err = CertificateMatchesCSR(cert, csr.CSR)
-	if cert != "" && err != nil {
-		return 0, errors.New("cert validation failed: " + err.Error())
+	if cert != "rejected" && cert != "" {
+		err = ValidateCertificate(cert)
+		if err != nil {
+			return 0, errors.New("cert validation failed: " + err.Error())
+		}
+		err = CertificateMatchesCSR(cert, csr.CSR)
+		if err != nil {
+			return 0, errors.New("cert validation failed: " + err.Error())
+		}
 	}
 	result, err := db.conn.Exec(fmt.Sprintf(queryUpdateCSR, db.table), cert, csr.ID)
 	if err != nil {

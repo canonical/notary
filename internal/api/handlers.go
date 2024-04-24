@@ -19,6 +19,7 @@ func NewGoCertRouter(env *Environment) http.Handler {
 	router.HandleFunc("GET /certificate_requests/{id}", GetCertificateRequest(env))
 	router.HandleFunc("DELETE /certificate_requests/{id}", DeleteCertificateRequest(env))
 	router.HandleFunc("POST /certificate_requests/{id}/certificate", PostCertificate(env))
+	router.HandleFunc("POST /certificate_requests/{id}/certificate/reject", RejectCertificate(env))
 	router.HandleFunc("DELETE /certificate_requests/{id}/certificate", DeleteCertificate(env))
 
 	v1 := http.NewServeMux()
@@ -148,6 +149,25 @@ func PostCertificate(env *Environment) http.HandlerFunc {
 			return
 		}
 		w.WriteHeader(http.StatusCreated)
+		if _, err := w.Write([]byte(strconv.FormatInt(insertId, 10))); err != nil {
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+		}
+	}
+}
+
+func RejectCertificate(env *Environment) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		insertId, err := env.DB.Update(id, "rejected")
+		if err != nil {
+			if err.Error() == "csr id not found" {
+				logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)
+				return
+			}
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+			return
+		}
+		w.WriteHeader(http.StatusAccepted)
 		if _, err := w.Write([]byte(strconv.FormatInt(insertId, 10))); err != nil {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 		}

@@ -32,7 +32,7 @@ func TestEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
-	_, err = db.Create(ValidCSR3)
+	id3, err := db.Create(ValidCSR3)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
@@ -70,7 +70,11 @@ func TestEndToEnd(t *testing.T) {
 	}
 	_, err = db.Update(strconv.FormatInt(id2, 10), "")
 	if err != nil {
-		t.Fatalf("Couldn't complete Update: %s", err)
+		t.Fatalf("Couldn't complete Update to delete certificate: %s", err)
+	}
+	_, err = db.Update(strconv.FormatInt(id3, 10), "rejected")
+	if err != nil {
+		t.Fatalf("Couldn't complete Update to reject CSR: %s", err)
 	}
 	retrievedCSR, _ = db.Retrieve(strconv.FormatInt(id2, 10))
 	if retrievedCSR.Certificate != "" {

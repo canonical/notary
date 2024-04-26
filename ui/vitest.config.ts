@@ -5,5 +5,6 @@ export default defineConfig({
     plugins: [react()],
     test: {
         environment: 'jsdom',
+        reporters: ['default', 'github-actions']
     },
 })

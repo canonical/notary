@@ -26,5 +26,8 @@
     "jsdom": "^24.0.0",
     "typescript": "^5",
     "vitest": "^1.5.2"
+  },
+  "overrides": {
+    "rollup": "npm:@rollup/wasm-node@*"
   }
 }

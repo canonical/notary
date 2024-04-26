@@ -61,16 +61,20 @@ jobs:
 
   nextjs-unit-tests:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui
     steps:
       - uses: actions/checkout@v3
-      - name: Use Node.js 20
-        uses: actions/setup-node@v3
+      - name: Use Bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version: 20
-          cache: "npm"
+          bun-version: latest
 
       - name: Execute Unit tests
-        run: npm run test --prefix ui
+        run: |
+          bun install
+          bun run test
 
   rock-build:
     needs: 

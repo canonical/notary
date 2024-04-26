@@ -15,11 +15,10 @@ import (
 )
 
 type ConfigYAML struct {
-	KeyPath     string
-	CertPath    string
-	DBPath      string
-	FrontendDir string
-	Port        int
+	KeyPath  string
+	CertPath string
+	DBPath   string
+	Port     int
 }
 
 type Config struct {
@@ -59,9 +58,6 @@ func validateConfigFile(filePath string) (Config, error) {
 	if err != nil {
 		return config, errors.Join(validationErr, err)
 	}
-	if c.FrontendDir == "" {
-		c.FrontendDir = "ui/out"
-	}
 	err = dbfile.Close()
 	if err != nil {
 		return config, errors.Join(validationErr, err)
@@ -71,7 +67,7 @@ func validateConfigFile(filePath string) (Config, error) {
 	config.Key = key
 	config.DBPath = c.DBPath
 	config.Port = c.Port
-	config.FrontendDir = c.FrontendDir
+	config.FrontendDir = "ui/out"
 	return config, nil
 }
 

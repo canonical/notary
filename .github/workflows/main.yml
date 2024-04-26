@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  build:
+  go-build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,7 +20,22 @@ jobs:
 
       - name: Build
         run: go build ./...
+  nextjs-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
 
+      - name: Execute Unit tests
+        run: |
+          bun install
+          bun run build
   go-vet:
     runs-on: ubuntu-latest
     steps:
@@ -78,7 +93,8 @@ jobs:
 
   rock-build:
     needs: 
-      - build
+      - go-build
+      - nextjs-build
       - go-vet
       - lint
       - go-unit-tests

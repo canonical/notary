@@ -1,7 +1,7 @@
 name: gocert
 base: bare
 build-base: ubuntu@22.04
-version: '0.0.1'
+version: '0.0.2'
 summary: A certificate management tool
 description: |
   A certificate management tool.
@@ -17,6 +17,12 @@ services:
     startup: enabled
 
 parts:
+  frontend:
+    source: ./ui
+    plugin: npm
+    override-build: |
+      npm install
+      npm run build
   gocert:
     source: .
     plugin: go

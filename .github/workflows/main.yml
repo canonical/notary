@@ -32,7 +32,7 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Execute Unit tests
+      - name: Build frontend
         run: |
           bun install
           bun run build

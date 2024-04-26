@@ -3,3 +3,34 @@
 *config.yaml
 
 .DS_Store
+
+# dependencies
+ui/node_modules
+ui/.pnp
+ui/*.pnp.js
+ui/*.yarn/install-state.gz
+
+# testing
+ui/coverage
+
+# next.js
+ui/.next/
+ui/out/
+
+# production
+ui/build
+
+# debug
+ui/npm-debug.log*
+ui/yarn-debug.log*
+ui/yarn-error.log*
+
+# local env files
+ui/.env*.local
+
+# vercel
+ui/.vercel
+
+# typescript
+ui/*.tsbuildinfo
+ui/next-env.d.ts

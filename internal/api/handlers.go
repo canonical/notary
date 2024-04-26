@@ -22,11 +22,18 @@ func NewGoCertRouter(env *Environment) http.Handler {
 	router.HandleFunc("POST /certificate_requests/{id}/certificate/reject", RejectCertificate(env))
 	router.HandleFunc("DELETE /certificate_requests/{id}/certificate", DeleteCertificate(env))
 
+	frontend := newFrontendFileServer(env.FrontendDir)
+
 	v1 := http.NewServeMux()
 	v1.HandleFunc("GET /status", HealthCheck)
 	v1.Handle("/api/v1/", http.StripPrefix("/api/v1", router))
+	v1.Handle("/", frontend)
 
 	return logging(v1)
+}
+
+func newFrontendFileServer(dir string) http.Handler {
+	return http.FileServer(http.Dir(dir))
 }
 
 // the health check endpoint simply returns a http.StatusOK

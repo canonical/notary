@@ -15,21 +15,24 @@ import (
 )
 
 type ConfigYAML struct {
-	KeyPath  string
-	CertPath string
-	DBPath   string
-	Port     int
+	KeyPath     string
+	CertPath    string
+	DBPath      string
+	FrontendDir string
+	Port        int
 }
 
 type Config struct {
-	Key    []byte
-	Cert   []byte
-	DBPath string
-	Port   int
+	Key         []byte
+	Cert        []byte
+	DBPath      string
+	FrontendDir string
+	Port        int
 }
 
 type Environment struct {
-	DB *certdb.CertificateRequestsRepository
+	DB          *certdb.CertificateRequestsRepository
+	FrontendDir string
 }
 
 // validateConfigFile opens and processes the given yaml file, and catches errors in the process
@@ -56,6 +59,9 @@ func validateConfigFile(filePath string) (Config, error) {
 	if err != nil {
 		return config, errors.Join(validationErr, err)
 	}
+	if c.FrontendDir == "" {
+		c.FrontendDir = "ui/out"
+	}
 	err = dbfile.Close()
 	if err != nil {
 		return config, errors.Join(validationErr, err)
@@ -65,6 +71,7 @@ func validateConfigFile(filePath string) (Config, error) {
 	config.Key = key
 	config.DBPath = c.DBPath
 	config.Port = c.Port
+	config.FrontendDir = c.FrontendDir
 	return config, nil
 }
 
@@ -85,6 +92,7 @@ func NewServer(configFile string) (*http.Server, error) {
 
 	env := &Environment{}
 	env.DB = db
+	env.FrontendDir = config.FrontendDir
 	router := NewGoCertRouter(env)
 
 	s := &http.Server{

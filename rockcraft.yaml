@@ -20,6 +20,8 @@ parts:
   frontend:
     source: ./ui
     plugin: npm
+    build-snaps:
+      - node/20/stable
     override-build: |
       npm install
       npm run build

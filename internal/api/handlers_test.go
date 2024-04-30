@@ -320,6 +320,14 @@ func TestGoCertRouter(t *testing.T) {
 			response: "",
 			status:   http.StatusOK,
 		},
+		{
+			desc:     "metrics endpoint success",
+			method:   "GET",
+			path:     "/api/v1/metrics",
+			data:     "",
+			response: "go_goroutines",
+			status:   http.StatusOK,
+		},
 	}
 	for _, tC := range testCases {
 		t.Run(tC.desc, func(t *testing.T) {
@@ -336,8 +344,15 @@ func TestGoCertRouter(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if res.StatusCode != tC.status || string(resBody) != tC.response {
-				t.Errorf("expected response did not match.\nExpected vs Received status code: %d vs %d\nExpected vs Received body: \n%s\nvs\n%s\n", tC.status, res.StatusCode, tC.response, string(resBody))
+			switch path := tC.path; path {
+			case "/api/v1/metrics":
+				if res.StatusCode != tC.status || !strings.Contains(string(resBody), tC.response) {
+					t.Errorf("expected response did not match.\nExpected vs Received status code: %d vs %d\nExpected vs Received body: \n%s\nvs\n%s\n", tC.status, res.StatusCode, tC.response, string(resBody))
+				}
+			default:
+				if res.StatusCode != tC.status || string(resBody) != tC.response {
+					t.Errorf("expected response did not match.\nExpected vs Received status code: %d vs %d\nExpected vs Received body: \n%s\nvs\n%s\n", tC.status, res.StatusCode, tC.response, string(resBody))
+				}
 			}
 		})
 	}

@@ -8,6 +8,10 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // NewGoCertRouter takes in an environment struct, passes it along to any handlers that will need
@@ -25,6 +29,10 @@ func NewGoCertRouter(env *Environment) http.Handler {
 	v1 := http.NewServeMux()
 	v1.HandleFunc("GET /status", HealthCheck)
 	v1.Handle("/api/v1/", http.StripPrefix("/api/v1", router))
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(collectors.NewGoCollector())
+	prometheusHandler := promhttp.HandlerFor(reg, promhttp.HandlerOpts{})
+	v1.Handle("/api/v1/metrics", prometheusHandler)
 
 	return logging(v1)
 }

@@ -8,15 +8,12 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/collectors"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // NewGoCertRouter takes in an environment struct, passes it along to any handlers that will need
-// access to it, then builds and returns it for a server to consume
-func NewGoCertRouter(env *Environment) http.Handler {
+// access to it, and takes an http.Handler that will be used to handle metrics.
+// then builds and returns it for a server to consume
+func NewGoCertRouter(env *Environment, metricsHandler http.Handler) http.Handler {
 	router := http.NewServeMux()
 	router.HandleFunc("GET /certificate_requests", GetCertificateRequests(env))
 	router.HandleFunc("POST /certificate_requests", PostCertificateRequest(env))
@@ -26,15 +23,15 @@ func NewGoCertRouter(env *Environment) http.Handler {
 	router.HandleFunc("POST /certificate_requests/{id}/certificate/reject", RejectCertificate(env))
 	router.HandleFunc("DELETE /certificate_requests/{id}/certificate", DeleteCertificate(env))
 
-	v1 := http.NewServeMux()
-	v1.HandleFunc("GET /status", HealthCheck)
-	v1.Handle("/api/v1/", http.StripPrefix("/api/v1", router))
-	reg := prometheus.NewRegistry()
-	reg.MustRegister(collectors.NewGoCollector())
-	prometheusHandler := promhttp.HandlerFor(reg, promhttp.HandlerOpts{})
-	v1.Handle("/api/v1/metrics", prometheusHandler)
+	monitoringMux := http.NewServeMux()
+	monitoringMux.HandleFunc("/status", HealthCheck)
+	monitoringMux.Handle("/metrics", metricsHandler)
 
-	return logging(v1)
+	api := http.NewServeMux()
+	api.Handle("/api/v1/", http.StripPrefix("/api/v1", router))
+	api.Handle("/", monitoringMux)
+
+	return logging(api)
 }
 
 // the health check endpoint simply returns a http.StatusOK

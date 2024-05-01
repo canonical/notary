@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/canonical/gocert/internal/certdb"
+	metrics "github.com/canonical/gocert/internal/metrics"
 	"gopkg.in/yaml.v3"
 )
 
@@ -85,7 +86,8 @@ func NewServer(configFile string) (*http.Server, error) {
 
 	env := &Environment{}
 	env.DB = db
-	router := NewGoCertRouter(env)
+	metricsHandler := metrics.NewPrometheusHandler()
+	router := NewGoCertRouter(env, metricsHandler)
 
 	s := &http.Server{
 		Addr: fmt.Sprintf(":%d", config.Port),

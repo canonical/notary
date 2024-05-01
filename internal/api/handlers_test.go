@@ -10,6 +10,7 @@ import (
 
 	server "github.com/canonical/gocert/internal/api"
 	"github.com/canonical/gocert/internal/certdb"
+	metrics "github.com/canonical/gocert/internal/metrics"
 )
 
 const (
@@ -107,7 +108,8 @@ func TestGoCertRouter(t *testing.T) {
 	}
 	env := &server.Environment{}
 	env.DB = testdb
-	ts := httptest.NewTLSServer(server.NewGoCertRouter(env))
+	metricsHandler := metrics.NewPrometheusHandler()
+	ts := httptest.NewTLSServer(server.NewGoCertRouter(env, metricsHandler))
 	defer ts.Close()
 
 	client := ts.Client()
@@ -323,7 +325,7 @@ func TestGoCertRouter(t *testing.T) {
 		{
 			desc:     "metrics endpoint success",
 			method:   "GET",
-			path:     "/api/v1/metrics",
+			path:     "/metrics",
 			data:     "",
 			response: "go_goroutines",
 			status:   http.StatusOK,
@@ -345,7 +347,7 @@ func TestGoCertRouter(t *testing.T) {
 				t.Fatal(err)
 			}
 			switch path := tC.path; path {
-			case "/api/v1/metrics":
+			case "/metrics":
 				if res.StatusCode != tC.status || !strings.Contains(string(resBody), tC.response) {
 					t.Errorf("expected response did not match.\nExpected vs Received status code: %d vs %d\nExpected vs Received body: \n%s\nvs\n%s\n", tC.status, res.StatusCode, tC.response, string(resBody))
 				}

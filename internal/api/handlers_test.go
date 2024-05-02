@@ -10,7 +10,6 @@ import (
 
 	server "github.com/canonical/gocert/internal/api"
 	"github.com/canonical/gocert/internal/certdb"
-	metrics "github.com/canonical/gocert/internal/metrics"
 )
 
 const (
@@ -108,8 +107,7 @@ func TestGoCertRouter(t *testing.T) {
 	}
 	env := &server.Environment{}
 	env.DB = testdb
-	metricsHandler := metrics.NewPrometheusHandler()
-	ts := httptest.NewTLSServer(server.NewGoCertRouter(env, metricsHandler))
+	ts := httptest.NewTLSServer(server.NewGoCertRouter(env))
 	defer ts.Close()
 
 	client := ts.Client()

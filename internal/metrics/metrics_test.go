@@ -11,7 +11,7 @@ import (
 
 // TestPrometheusHandler tests that the Prometheus metrics handler responds correctly to an HTTP request.
 func TestPrometheusHandler(t *testing.T) {
-	handler := metrics.NewPrometheusHandler()
+	handler := metrics.NewPrometheusMetricsHandler()
 
 	request, err := http.NewRequest("GET", "/", nil)
 	if err != nil {

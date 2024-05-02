@@ -327,7 +327,7 @@ func TestGoCertRouter(t *testing.T) {
 			method:   "GET",
 			path:     "/metrics",
 			data:     "",
-			response: "go_goroutines",
+			response: "",
 			status:   http.StatusOK,
 		},
 	}

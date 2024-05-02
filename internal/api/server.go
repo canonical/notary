@@ -16,10 +16,10 @@ import (
 )
 
 type ConfigYAML struct {
-	KeyPath  string `yaml:"KeyPath"`
-	CertPath string `yaml:"CertPath"`
-	DBPath   string `yaml:"DBPath"`
-	Port     int    `yaml:"Port"`
+	KeyPath  string
+	CertPath string
+	DBPath   string
+	Port     int
 }
 
 type Config struct {

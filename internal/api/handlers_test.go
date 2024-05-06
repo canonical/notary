@@ -344,15 +344,8 @@ func TestGoCertRouter(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			switch path := tC.path; path {
-			case "/metrics":
-				if res.StatusCode != tC.status || !strings.Contains(string(resBody), tC.response) {
-					t.Errorf("expected response did not match.\nExpected vs Received status code: %d vs %d\nExpected vs Received body: \n%s\nvs\n%s\n", tC.status, res.StatusCode, tC.response, string(resBody))
-				}
-			default:
-				if res.StatusCode != tC.status || string(resBody) != tC.response {
-					t.Errorf("expected response did not match.\nExpected vs Received status code: %d vs %d\nExpected vs Received body: \n%s\nvs\n%s\n", tC.status, res.StatusCode, tC.response, string(resBody))
-				}
+			if res.StatusCode != tC.status || !strings.Contains(string(resBody), tC.response) {
+				t.Errorf("expected response did not match.\nExpected vs Received status code: %d vs %d\nExpected vs Received body: \n%s\nvs\n%s\n", tC.status, res.StatusCode, tC.response, string(resBody))
 			}
 		})
 	}

@@ -1,0 +1,32 @@
+name: Unit Test GoCert
+
+on:
+  workflow_call:
+
+jobs:  
+  nextjs-unit-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use npm
+        uses: actions/setup-node@v4
+
+      - name: Build frontend
+        run: |
+          npm install
+          npm run test
+  go-unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+
+      - name: Unit tests
+        run: go test -cover ./...
+

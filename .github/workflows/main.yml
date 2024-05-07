@@ -8,102 +8,25 @@ on:
     branches:
       - main
 
-jobs:
-  go-build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: "go.mod"
-
-      - name: Build
-        run: go build ./...
-  nextjs-build:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ui
-    steps:
-      - uses: actions/checkout@v3
-      - name: Use npm
-        uses: actions/setup-node@v4
-
-      - name: Build frontend
-        run: |
-          npm install
-          npm run build
+jobs: 
+  build-gocert:
+    uses: ./.github/workflows/main-jobs/build-gocert.yaml
+  unit-test-gocert:
+    needs: [build-gocert]
+    uses: ./.github/workflows/main-jobs/test-gocert.yaml
   go-vet:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: "go.mod"
-
-      - name: Go vet
-        run: go vet ./...
-  
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: "go.mod"
-
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v5
-        with:
-          version: v1.54
-
-  go-unit-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: "go.mod"
-
-      - name: Unit tests
-        run: go test -cover ./...
-
-  nextjs-unit-tests:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ui
-    steps:
-      - uses: actions/checkout@v3
-      - name: Use Bun
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
-
-      - name: Execute Unit tests
-        run: |
-          bun install
-          bun run test
-
+    needs: [build-gocert]
+    uses: ./.github/workflows/main-jobs/go-vet.yaml
+  go-lint:
+    needs: [build-gocert]
+    uses: ./.github/workflows/main-jobs/go-lint.yaml
   rock-build:
-    needs: 
-      - go-build
-      - nextjs-build
-      - go-vet
-      - lint
-      - go-unit-tests
-      - nextjs-unit-tests
+    needs: [build-gocert, unit-test-gocert, go-vet, go-lint]
     uses: ./.github/workflows/build-rock.yaml
-  
   rock-scan:
     if: github.ref_name == 'main'
-    needs: rock-build
+    needs: [rock-build]
     uses: ./.github/workflows/scan-rock.yaml
-
   publish:
     if: github.ref_name == 'main'
     needs: [rock-build]

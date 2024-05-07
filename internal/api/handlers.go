@@ -8,28 +8,33 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	metrics "github.com/canonical/gocert/internal/metrics"
 )
 
 // NewGoCertRouter takes in an environment struct, passes it along to any handlers that will need
-// access to it, then builds and returns it for a server to consume
+// access to it, and takes an http.Handler that will be used to handle metrics.
+// then builds and returns it for a server to consume
 func NewGoCertRouter(env *Environment) http.Handler {
+	apiV1Router := http.NewServeMux()
+	apiV1Router.HandleFunc("GET /certificate_requests", GetCertificateRequests(env))
+	apiV1Router.HandleFunc("POST /certificate_requests", PostCertificateRequest(env))
+	apiV1Router.HandleFunc("GET /certificate_requests/{id}", GetCertificateRequest(env))
+	apiV1Router.HandleFunc("DELETE /certificate_requests/{id}", DeleteCertificateRequest(env))
+	apiV1Router.HandleFunc("POST /certificate_requests/{id}/certificate", PostCertificate(env))
+	apiV1Router.HandleFunc("POST /certificate_requests/{id}/certificate/reject", RejectCertificate(env))
+	apiV1Router.HandleFunc("DELETE /certificate_requests/{id}/certificate", DeleteCertificate(env))
+
+	metricsHandler := metrics.NewPrometheusMetricsHandler()
+	frontendHandler := newFrontendFileServer(env.FrontendDir)
+
 	router := http.NewServeMux()
-	router.HandleFunc("GET /certificate_requests", GetCertificateRequests(env))
-	router.HandleFunc("POST /certificate_requests", PostCertificateRequest(env))
-	router.HandleFunc("GET /certificate_requests/{id}", GetCertificateRequest(env))
-	router.HandleFunc("DELETE /certificate_requests/{id}", DeleteCertificateRequest(env))
-	router.HandleFunc("POST /certificate_requests/{id}/certificate", PostCertificate(env))
-	router.HandleFunc("POST /certificate_requests/{id}/certificate/reject", RejectCertificate(env))
-	router.HandleFunc("DELETE /certificate_requests/{id}/certificate", DeleteCertificate(env))
+	router.HandleFunc("/status", HealthCheck)
+	router.Handle("/metrics", metricsHandler)
+	router.Handle("/api/v1/", http.StripPrefix("/api/v1", apiV1Router))
+	router.Handle("/", frontendHandler)
 
-	frontend := newFrontendFileServer(env.FrontendDir)
-
-	v1 := http.NewServeMux()
-	v1.HandleFunc("GET /status", HealthCheck)
-	v1.Handle("/api/v1/", http.StripPrefix("/api/v1", router))
-	v1.Handle("/", frontend)
-
-	return logging(v1)
+	return logging(router)
 }
 
 func newFrontendFileServer(dir string) http.Handler {

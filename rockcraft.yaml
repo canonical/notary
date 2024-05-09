@@ -12,24 +12,22 @@ platforms:
 
 services:
   gocert:
-    command: gocert
+    command: gocert [ -config /etc/config/config.yaml ]
     override: replace
     startup: enabled
 
 parts:
-  frontend:
-    source: ./ui
-    plugin: npm
-    build-snaps:
-      - node/20/stable
-    override-build: |
-      npm install
-      npm run build
   gocert:
-    source: .
     plugin: go
+    source: .
+    source-type: local
     build-snaps:
       - go/1.22/stable
+      - node/20/stable
+    override-build: |
+      npm install --prefix ui
+      npm run build --prefix ui
+      craftctl default
     stage-packages:
       - ca-certificates_data
       - libc6_libs

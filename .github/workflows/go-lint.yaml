@@ -8,11 +8,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-go@v5
         with:
           go-version-file: "go.mod"
 
+      - name: Download frontend files
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-static-files
+          path: ui/out
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v5
         with:

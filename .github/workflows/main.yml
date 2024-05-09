@@ -9,17 +9,22 @@ on:
       - main
 
 jobs: 
-  build-gocert:
-    uses: ./.github/workflows/main-jobs/build-gocert.yaml
+  unit-test-frontend:
+    uses: ./.github/workflows/test-frontend.yaml
+  build-nextjs:
+    uses: ./.github/workflows/build-frontend.yaml
   unit-test-gocert:
-    needs: [build-gocert]
-    uses: ./.github/workflows/main-jobs/test-gocert.yaml
+    needs: [build-nextjs]
+    uses: ./.github/workflows/test-gocert.yaml
   go-vet:
-    needs: [build-gocert]
-    uses: ./.github/workflows/main-jobs/go-vet.yaml
+    needs: [build-nextjs]
+    uses: ./.github/workflows/go-vet.yaml
   go-lint:
-    needs: [build-gocert]
-    uses: ./.github/workflows/main-jobs/go-lint.yaml
+    needs: [build-nextjs]
+    uses: ./.github/workflows/go-lint.yaml
+  build-gocert:
+    needs: [build-nextjs]
+    uses: ./.github/workflows/build-gocert.yaml
   rock-build:
     needs: [build-gocert, unit-test-gocert, go-vet, go-lint]
     uses: ./.github/workflows/build-rock.yaml

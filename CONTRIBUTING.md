@@ -8,13 +8,7 @@
 4. Build the frontend: `cd ui && npm build build`
 5. Install the project: `go install ./...`
 6. Create a `config.yaml` file:
-```yaml
-keypath:  "./key.pem"
-certpath: "./cert.pem"
-dbpath: "./certs.db"
-port: 3000
-```
-7. Run the project: `gocert --config config.yaml`
+7. Run the project: `gocert -config config.yaml`
 
 Commands for go need to be run from the project directory, and commands for the frontend need to be run from the `ui/` directory
 ## Testing

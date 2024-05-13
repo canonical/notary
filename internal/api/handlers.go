@@ -27,36 +27,21 @@ func NewGoCertRouter(env *Environment) http.Handler {
 	apiV1Router.HandleFunc("POST /certificate_requests/{id}/certificate/reject", RejectCertificate(env))
 	apiV1Router.HandleFunc("DELETE /certificate_requests/{id}/certificate", DeleteCertificate(env))
 
-	metricsHandler := metrics.NewPrometheusMetricsHandler()
+	m := metrics.NewMetricsSubsystem(env.DB)
 	frontendHandler := newFrontendFileServer()
 
 	router := http.NewServeMux()
 	router.HandleFunc("/status", HealthCheck)
-	router.Handle("/metrics", metricsHandler)
+	router.Handle("/metrics", m.Handler)
 	router.Handle("/api/v1/", http.StripPrefix("/api/v1", apiV1Router))
 	router.Handle("/", frontendHandler)
 
-	ctx := Context{}
+	ctx := MiddlewareContext{metrics: m}
 	middleware := createMiddlewareStack(
 		Metrics(&ctx),
 		Logging(&ctx),
 	)
 	return middleware(router)
-}
-
-// createMiddlewareStack chains given middleware for the server.
-// Each middleware functions calls next.ServeHTTP in order to resume the chain of execution.
-// The order these functions are given to createMiddlewareStack matters.
-// The functions will run the code before next.ServeHTTP in order.
-// The functions will run the code after next.ServeHTTP in reverse order.
-func createMiddlewareStack(middleware ...Middleware) Middleware {
-	return func(next http.Handler) http.Handler {
-		for i := len(middleware) - 1; i >= 0; i-- {
-			mw := middleware[i]
-			next = mw(next)
-		}
-		return next
-	}
 }
 
 // newFrontendFileServer uses the embedded ui output files as the base for a file server

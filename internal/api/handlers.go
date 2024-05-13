@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
 
 	metrics "github.com/canonical/gocert/internal/metrics"
+	"github.com/canonical/gocert/ui"
 )
 
 // NewGoCertRouter takes in an environment struct, passes it along to any handlers that will need
@@ -25,12 +27,24 @@ func NewGoCertRouter(env *Environment) http.Handler {
 	apiV1Router.HandleFunc("POST /certificate_requests/{id}/certificate/reject", RejectCertificate(env))
 	apiV1Router.HandleFunc("DELETE /certificate_requests/{id}/certificate", DeleteCertificate(env))
 
-	router := http.NewServeMux()
-	router.Handle("/api/v1/", http.StripPrefix("/api/v1", apiV1Router))
-	router.HandleFunc("/status", HealthCheck)
 	metricsHandler := metrics.NewPrometheusMetricsHandler()
+	frontendHandler := newFrontendFileServer()
+
+	router := http.NewServeMux()
+	router.HandleFunc("/status", HealthCheck)
 	router.Handle("/metrics", metricsHandler)
+	router.Handle("/api/v1/", http.StripPrefix("/api/v1", apiV1Router))
+	router.Handle("/", frontendHandler)
+
 	return logging(router)
+}
+
+func newFrontendFileServer() http.Handler {
+	frontendFS, err := fs.Sub(ui.FrontendFS, "out")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return http.FileServer(http.FS(frontendFS))
 }
 
 // the health check endpoint simply returns a http.StatusOK

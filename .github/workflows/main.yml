@@ -8,70 +8,30 @@ on:
     branches:
       - main
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: "go.mod"
-
-      - name: Build
-        run: go build ./...
-
+jobs: 
+  unit-test-frontend:
+    uses: ./.github/workflows/test-frontend.yaml
+  build-nextjs:
+    uses: ./.github/workflows/build-frontend.yaml
+  unit-test-gocert:
+    needs: [build-nextjs]
+    uses: ./.github/workflows/test-gocert.yaml
   go-vet:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: "go.mod"
-
-      - name: Go vet
-        run: go vet ./...
-  
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: "go.mod"
-
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v5
-        with:
-          version: v1.54
-
-  unit-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: "go.mod"
-
-      - name: Unit tests
-        run: go test -cover ./...
-
+    needs: [build-nextjs]
+    uses: ./.github/workflows/go-vet.yaml
+  go-lint:
+    needs: [build-nextjs]
+    uses: ./.github/workflows/go-lint.yaml
+  build-gocert:
+    needs: [build-nextjs]
+    uses: ./.github/workflows/build-gocert.yaml
   rock-build:
-    needs: 
-      - build
-      - go-vet
-      - lint
-      - unit-tests
+    needs: [build-gocert, unit-test-gocert, go-vet, go-lint]
     uses: ./.github/workflows/build-rock.yaml
-  
   rock-scan:
     if: github.ref_name == 'main'
-    needs: rock-build
+    needs: [rock-build]
     uses: ./.github/workflows/scan-rock.yaml
-
   publish:
     if: github.ref_name == 'main'
     needs: [rock-build]

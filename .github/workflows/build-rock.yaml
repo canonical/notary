@@ -11,7 +11,37 @@ jobs:
         uses: actions/checkout@v4
       - uses: canonical/craft-actions/rockcraft-pack@main
         id: rockcraft
+      
+      - name: Install Skopeo
+        run: |
+          sudo snap install skopeo --edge --devmode
+      - name: Import the image to Docker registry
+        run: |
+          sudo skopeo --insecure-policy copy oci-archive:${{ steps.rockcraft.outputs.rock }} docker-daemon:gocert:latest
+      - name: Create files required by GoCert
+        run: |
+          printf 'keypath:  "/etc/config/key.pem"\ncertpath: "/etc/config/cert.pem"\ndbpath: "/etc/config/certs.db"\nport: 3000\n' > config.yaml
+          openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 1 -out cert.pem -subj "/CN=githubaction.example"
+
+      - name: Run the image
+        run: |
+          docker run -d -p 3000:3000 --name gocert gocert:latest
+      - name: Load config
+        run: |
+          docker exec gocert /bin/pebble mkdir /etc/config
+          docker cp key.pem gocert:/etc/config/key.pem
+          docker cp cert.pem gocert:/etc/config/cert.pem
+          docker cp config.yaml gocert:/etc/config/config.yaml
+          docker restart gocert
+      - name: Check if GoCert is successfully running
+        id: test_image
+        run: |
+          sleep 30
+          curl -k https://localhost:3000 2>&1 | grep GoCert
+        
       - uses: actions/upload-artifact@v4
+        if: steps.test_image.outcome == 'success'
         with:
+
           name: rock
           path: ${{ steps.rockcraft.outputs.rock }}

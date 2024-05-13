@@ -1,0 +1,21 @@
+name: Vet
+
+on:
+  workflow_call:
+
+jobs:
+  go-vet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+
+      - name: Download frontend files
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-static-files
+          path: ui/out
+      - name: Go vet
+        run: go vet ./...

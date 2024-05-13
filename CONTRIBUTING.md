@@ -2,23 +2,37 @@
 
 ## Getting Started
 
-1. Fork the repository on GitHub
-2. Clone the forked repository to your local machine
-3. Build the project: `go build ./...`
-4. Run the project: `./gocert`
+1. Install Go and Nodejs
+2. Fork the repository on GitHub
+3. Clone the forked repository to your local machine
+4. Build the frontend: `cd ui && npm build build`
+5. Install the project: `go install ./...`
+6. Create a `config.yaml` file:
+7. Run the project: `gocert -config config.yaml`
 
+Commands for go need to be run from the project directory, and commands for the frontend need to be run from the `ui/` directory
 ## Testing
 
 ### Unit Tests
 
+Go:
 ```bash
 go test ./...
+```
+Frontend:
+```bash
+npm run test
 ```
 
 ### Lint
 
+Go:
 ```bash
 golangci-lint run ./...
+```
+Frontend:
+```bash
+npm run lint
 ```
 
 ## Container image

@@ -36,9 +36,30 @@ func NewGoCertRouter(env *Environment) http.Handler {
 	router.Handle("/api/v1/", http.StripPrefix("/api/v1", apiV1Router))
 	router.Handle("/", frontendHandler)
 
-	return logging(router)
+	ctx := Context{}
+	middleware := createMiddlewareStack(
+		Metrics(&ctx),
+		Logging(&ctx),
+	)
+	return middleware(router)
 }
 
+// createMiddlewareStack chains given middleware for the server.
+// Each middleware functions calls next.ServeHTTP in order to resume the chain of execution.
+// The order these functions are given to createMiddlewareStack matters.
+// The functions will run the code before next.ServeHTTP in order.
+// The functions will run the code after next.ServeHTTP in reverse order.
+func createMiddlewareStack(middleware ...Middleware) Middleware {
+	return func(next http.Handler) http.Handler {
+		for i := len(middleware) - 1; i >= 0; i-- {
+			mw := middleware[i]
+			next = mw(next)
+		}
+		return next
+	}
+}
+
+// newFrontendFileServer uses the embedded ui output files as the base for a file server
 func newFrontendFileServer() http.Handler {
 	frontendFS, err := fs.Sub(ui.FrontendFS, "out")
 	if err != nil {
@@ -211,14 +232,6 @@ func DeleteCertificate(env *Environment) http.HandlerFunc {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 		}
 	}
-}
-
-// The logging middleware captures any http request coming through, and logs it
-func logging(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		next.ServeHTTP(w, r)
-		log.Println(r.Method, r.URL.Path)
-	})
 }
 
 // logErrorAndWriteResponse is a helper function that logs any error and writes it back as an http response

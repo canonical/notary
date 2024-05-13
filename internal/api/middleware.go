@@ -10,35 +10,37 @@ import (
 
 type Middleware func(http.Handler) http.Handler
 
-// The MiddlewareContext type helps middleware pass along information through the chain.
+// The MiddlewareContext type helps middleware receive and pass along information through the middleware chain.
 type MiddlewareContext struct {
 	responseStatusCode int
 	metrics            *metrics.PrometheusMetrics
 }
 
-// The ResponseWriterCloner struct implements the http.ResponseWriter class, and copies the status
-// code of the response for the middleware to be able to read the responses.
+// The ResponseWriterCloner struct wraps the http.ResponseWriter struct, and extracts the status
+// code of the response writer for the middleware to read
 type ResponseWriterCloner struct {
 	http.ResponseWriter
 	statusCode int
 }
 
 // NewResponseWriter returns a new ResponseWriterCloner struct
+// it returns http.StatusOK by default because the http.ResponseWriter defaults to that header
+// if the WriteHeader() function is never called.
 func NewResponseWriter(w http.ResponseWriter) *ResponseWriterCloner {
 	return &ResponseWriterCloner{w, http.StatusOK}
 }
 
-// WriteHeader duplicates the status code into the cloner struct for reading
+// WriteHeader overrides the ResponseWriter method to duplicate the status code into the wrapper struct
 func (rwc *ResponseWriterCloner) WriteHeader(code int) {
 	rwc.statusCode = code
 	rwc.ResponseWriter.WriteHeader(code)
 }
 
-// createMiddlewareStack chains given middleware for the server.
+// createMiddlewareStack chains the given middleware functions to wrap the api.
 // Each middleware functions calls next.ServeHTTP in order to resume the chain of execution.
-// The order these functions are given to createMiddlewareStack matters.
-// The functions will run the code before next.ServeHTTP in order.
-// The functions will run the code after next.ServeHTTP in reverse order.
+// The order the middleware functions are given to createMiddlewareStack matters.
+// Any code before next.ServeHTTP is called is executed in the given middleware's order.
+// Any code after next.ServeHTTP is called is executed in the given middleware's reverse order.
 func createMiddlewareStack(middleware ...Middleware) Middleware {
 	return func(next http.Handler) http.Handler {
 		for i := len(middleware) - 1; i >= 0; i-- {
@@ -57,17 +59,17 @@ func Metrics(ctx *MiddlewareContext) Middleware {
 			if ctx.responseStatusCode/100 != 2 {
 				return
 			}
-			if r.Method == "POST" && r.URL.Path == "/api/v1/certificate_requests" {
+			if r.Method == "POST" && strings.HasSuffix(r.URL.Path, "/certificate_requests") {
 				ctx.metrics.CertificateRequests.Inc()
 			}
-			if r.Method == "DELETE" && strings.HasPrefix(r.URL.Path, "/api/v1/certificate_requests") {
+			if r.Method == "DELETE" && strings.HasSuffix(r.URL.Path, "/certificate_requests") {
 				ctx.metrics.CertificateRequests.Dec()
 			}
 		})
 	}
 }
 
-// The logging middleware captures any http request coming through, and logs it.
+// The Logging middleware captures any http request coming through and the response status code, and logs it.
 func Logging(ctx *MiddlewareContext) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

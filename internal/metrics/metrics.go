@@ -10,6 +10,7 @@ import (
 
 	"github.com/canonical/gocert/internal/certdb"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -26,7 +27,7 @@ type PrometheusMetrics struct {
 	ExpiredCertificates            prometheus.Gauge
 }
 
-// Returns an HTTP handler for Prometheus metrics.
+// NewMetricsSubsystem returns the metrics endpoint HTTP handler and the Prometheus metrics for the server and middleware.
 func NewMetricsSubsystem(db *certdb.CertificateRequestsRepository) *PrometheusMetrics {
 	metricsBackend, err := newPrometheusMetrics(db)
 	if err != nil {
@@ -36,7 +37,9 @@ func NewMetricsSubsystem(db *certdb.CertificateRequestsRepository) *PrometheusMe
 	return metricsBackend
 }
 
-// Returns the metrics that prometheus needs to collect
+// newPrometheusMetrics reads the status of the database, calculates all of the values of the metrics,
+// registers these metrics to the prometheus registry, and returns the registry and the metrics.
+// The registry and metrics can be modified from this struct from anywhere in the codebase.
 func newPrometheusMetrics(db *certdb.CertificateRequestsRepository) (*PrometheusMetrics, error) {
 	csrs, err := db.RetrieveAll()
 	if err != nil {
@@ -63,11 +66,13 @@ func newPrometheusMetrics(db *certdb.CertificateRequestsRepository) (*Prometheus
 	m.registry.MustRegister(m.CertificatesExpiringIn90Days)
 
 	m.generateMetrics(csrs)
-	// m.registry.MustRegister(collectors.NewGoCollector())
-	// m.registry.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+	m.registry.MustRegister(collectors.NewGoCollector())
+	m.registry.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
 	return m, nil
 }
 
+// generateMetrics receives the live list of csrs to calculate the most recent values for the metrics
+// defined for prometheus
 func (pm *PrometheusMetrics) generateMetrics(csrs []certdb.CertificateRequest) {
 	// TODO: This can run every 24 hours also to make sure we update the expiring in X day metrics.
 	var csrCount int = len(csrs)

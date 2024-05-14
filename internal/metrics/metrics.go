@@ -14,8 +14,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-const ONE_SECOND = 1000000000
-
 type PrometheusMetrics struct {
 	http.Handler
 	registry                       *prometheus.Registry
@@ -40,9 +38,11 @@ func NewMetricsSubsystem(db *certdb.CertificateRequestsRepository) *PrometheusMe
 	}
 	metricsBackend := newPrometheusMetrics()
 	metricsBackend.generateMetrics(csrs)
+	ticker := time.NewTicker(120 * time.Second)
 	go func() {
-		time.Sleep(120 * ONE_SECOND)
-		metricsBackend.generateMetrics(csrs)
+		for range ticker.C {
+			metricsBackend.generateMetrics(csrs)
+		}
 	}()
 	metricsBackend.Handler = promhttp.HandlerFor(metricsBackend.registry, promhttp.HandlerOpts{})
 	return metricsBackend

@@ -39,9 +39,10 @@ func NewMetricsSubsystem(db *certdb.CertificateRequestsRepository) *PrometheusMe
 		log.Println(errors.Join(errors.New("error generating metrics repository: "), err))
 	}
 	metricsBackend := newPrometheusMetrics()
+	metricsBackend.generateMetrics(csrs)
 	go func() {
-		metricsBackend.generateMetrics(csrs)
 		time.Sleep(120 * ONE_SECOND)
+		metricsBackend.generateMetrics(csrs)
 	}()
 	metricsBackend.Handler = promhttp.HandlerFor(metricsBackend.registry, promhttp.HandlerOpts{})
 	return metricsBackend
@@ -97,10 +98,12 @@ func (pm *PrometheusMetrics) generateMetrics(csrs []certdb.CertificateRequest) {
 	for _, entry := range csrs {
 		if entry.Certificate == "" {
 			outstandingCSRCount += 1
+			continue
 		}
-		if entry.Certificate != "" && entry.Certificate != "rejected" {
-			certCount += 1
+		if entry.Certificate == "rejected" {
+			continue
 		}
+		certCount += 1
 		expiryDate := certificateExpiryDate(entry.Certificate)
 		daysRemaining := time.Until(expiryDate).Hours() / 24
 		if daysRemaining < 0 {

@@ -86,7 +86,6 @@ func newPrometheusMetrics() *PrometheusMetrics {
 // generateMetrics receives the live list of csrs to calculate the most recent values for the metrics
 // defined for prometheus
 func (pm *PrometheusMetrics) generateMetrics(csrs []certdb.CertificateRequest) {
-	// TODO: This can run every 24 hours also to make sure we update the expiring in X day metrics.
 	var csrCount int = len(csrs)
 	var outstandingCSRCount int
 	var certCount int

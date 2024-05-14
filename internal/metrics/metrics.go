@@ -134,79 +134,63 @@ func (pm *PrometheusMetrics) generateMetrics(csrs []certdb.CertificateRequest) {
 
 func certificateRequestsMetric() prometheus.Gauge {
 	metric := prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: "TODO",
-		Subsystem: "TODO",
-		Name:      "certificate_requests",
-		Help:      "Total number of certificate requests",
+		Name: "certificate_requests",
+		Help: "Total number of certificate requests",
 	})
 	return metric
 }
 
 func outstandingCertificateRequestsMetric() prometheus.Gauge {
 	metric := prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: "TODO",
-		Subsystem: "TODO",
-		Name:      "outstanding_certificate_requests",
-		Help:      "Number of outstanding certificate requests",
+		Name: "outstanding_certificate_requests",
+		Help: "Number of outstanding certificate requests",
 	})
 	return metric
 }
 
 func certificatesMetric() prometheus.Gauge {
 	metric := prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: "TODO",
-		Subsystem: "TODO",
-		Name:      "certificates",
-		Help:      "Total number of certificates provided to certificate requests",
+		Name: "certificates",
+		Help: "Total number of certificates provided to certificate requests",
 	})
 	return metric
 }
 
 func expiredCertificatesMetric() prometheus.Gauge {
 	metric := prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: "TODO",
-		Subsystem: "TODO",
-		Name:      "certificates_expired",
-		Help:      "Number of expired certificates",
+		Name: "certificates_expired",
+		Help: "Number of expired certificates",
 	})
 	return metric
 }
 
 func certificatesExpiringIn1DayMetric() prometheus.Gauge {
 	metric := prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: "TODO",
-		Subsystem: "TODO",
-		Name:      "certificates_expiring_in_1_day",
-		Help:      "Number of certificates expiring in less than 1 day",
+		Name: "certificates_expiring_in_1_day",
+		Help: "Number of certificates expiring in less than 1 day",
 	})
 	return metric
 }
 
 func certificatesExpiringIn7DaysMetric() prometheus.Gauge {
 	metric := prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: "TODO",
-		Subsystem: "TODO",
-		Name:      "certificates_expiring_in_7_days",
-		Help:      "Number of certificates expiring in less than 7 days",
+		Name: "certificates_expiring_in_7_days",
+		Help: "Number of certificates expiring in less than 7 days",
 	})
 	return metric
 }
 func certificatesExpiringIn30DaysMetric() prometheus.Gauge {
 	metric := prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: "TODO",
-		Subsystem: "TODO",
-		Name:      "certificates_expiring_in_30_days",
-		Help:      "Number of certificates expiring in less than 30 days",
+		Name: "certificates_expiring_in_30_days",
+		Help: "Number of certificates expiring in less than 30 days",
 	})
 	return metric
 }
 
 func certificatesExpiringIn90DaysMetric() prometheus.Gauge {
 	metric := prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: "TODO",
-		Subsystem: "TODO",
-		Name:      "certificates_expiring_in_90_days",
-		Help:      "Number of certificates expiring in less than 90 days",
+		Name: "certificates_expiring_in_90_days",
+		Help: "Number of certificates expiring in less than 90 days",
 	})
 	return metric
 }
@@ -224,11 +208,9 @@ func requestsTotalMetric() prometheus.CounterVec {
 func requestDurationMetric() prometheus.HistogramVec {
 	metric := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Namespace: "TODO",
-			Subsystem: "TODO",
-			Name:      "http_request_duration_seconds",
-			Help:      "Tracks the latencies for HTTP requests.",
-			Buckets:   prometheus.ExponentialBuckets(0.1, 1.5, 5),
+			Name:    "http_request_duration_seconds",
+			Help:    "Tracks the latencies for HTTP requests.",
+			Buckets: prometheus.ExponentialBuckets(0.1, 1.5, 5),
 		}, []string{"method", "code"},
 	)
 	return *metric

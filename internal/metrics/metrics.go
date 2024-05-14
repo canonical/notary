@@ -14,6 +14,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+const ONE_SECOND = 1000000000
+
 type PrometheusMetrics struct {
 	http.Handler
 	registry                       *prometheus.Registry
@@ -25,14 +27,22 @@ type PrometheusMetrics struct {
 	CertificatesExpiringIn30Days   prometheus.Gauge
 	CertificatesExpiringIn90Days   prometheus.Gauge
 	ExpiredCertificates            prometheus.Gauge
+
+	RequestsTotal    prometheus.CounterVec
+	RequestsDuration prometheus.HistogramVec
 }
 
 // NewMetricsSubsystem returns the metrics endpoint HTTP handler and the Prometheus metrics for the server and middleware.
 func NewMetricsSubsystem(db *certdb.CertificateRequestsRepository) *PrometheusMetrics {
-	metricsBackend, err := newPrometheusMetrics(db)
+	csrs, err := db.RetrieveAll()
 	if err != nil {
 		log.Println(errors.Join(errors.New("error generating metrics repository: "), err))
 	}
+	metricsBackend := newPrometheusMetrics()
+	go func() {
+		metricsBackend.generateMetrics(csrs)
+		time.Sleep(120 * ONE_SECOND)
+	}()
 	metricsBackend.Handler = promhttp.HandlerFor(metricsBackend.registry, promhttp.HandlerOpts{})
 	return metricsBackend
 }
@@ -40,11 +50,7 @@ func NewMetricsSubsystem(db *certdb.CertificateRequestsRepository) *PrometheusMe
 // newPrometheusMetrics reads the status of the database, calculates all of the values of the metrics,
 // registers these metrics to the prometheus registry, and returns the registry and the metrics.
 // The registry and metrics can be modified from this struct from anywhere in the codebase.
-func newPrometheusMetrics(db *certdb.CertificateRequestsRepository) (*PrometheusMetrics, error) {
-	csrs, err := db.RetrieveAll()
-	if err != nil {
-		return nil, errors.Join(errors.New("could not retrieve certs for metrics: "), err)
-	}
+func newPrometheusMetrics() *PrometheusMetrics {
 	m := &PrometheusMetrics{
 		registry:                       prometheus.NewRegistry(),
 		CertificateRequests:            certificateRequestsMetric(),
@@ -55,6 +61,9 @@ func newPrometheusMetrics(db *certdb.CertificateRequestsRepository) (*Prometheus
 		CertificatesExpiringIn7Days:    certificatesExpiringIn7DaysMetric(),
 		CertificatesExpiringIn30Days:   certificatesExpiringIn30DaysMetric(),
 		CertificatesExpiringIn90Days:   certificatesExpiringIn90DaysMetric(),
+
+		RequestsTotal:    requestsTotalMetric(),
+		RequestsDuration: requestDurationMetric(),
 	}
 	m.registry.MustRegister(m.CertificateRequests)
 	m.registry.MustRegister(m.OutstandingCertificateRequests)
@@ -65,10 +74,12 @@ func newPrometheusMetrics(db *certdb.CertificateRequestsRepository) (*Prometheus
 	m.registry.MustRegister(m.CertificatesExpiringIn30Days)
 	m.registry.MustRegister(m.CertificatesExpiringIn90Days)
 
-	m.generateMetrics(csrs)
+	m.registry.MustRegister(m.RequestsTotal)
+	m.registry.MustRegister(m.RequestsDuration)
+
 	m.registry.MustRegister(collectors.NewGoCollector())
 	m.registry.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
-	return m, nil
+	return m
 }
 
 // generateMetrics receives the live list of csrs to calculate the most recent values for the metrics
@@ -196,6 +207,29 @@ func certificatesExpiringIn90DaysMetric() prometheus.Gauge {
 		Help:      "Number of certificates expiring in less than 90 days",
 	})
 	return metric
+}
+
+func requestsTotalMetric() prometheus.CounterVec {
+	metric := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_requests_total",
+			Help: "Tracks the number of HTTP requests.",
+		}, []string{"method", "code"},
+	)
+	return *metric
+}
+
+func requestDurationMetric() prometheus.HistogramVec {
+	metric := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: "TODO",
+			Subsystem: "TODO",
+			Name:      "http_request_duration_seconds",
+			Help:      "Tracks the latencies for HTTP requests.",
+			Buckets:   prometheus.ExponentialBuckets(0.1, 1.5, 5),
+		}, []string{"method", "code"},
+	)
+	return *metric
 }
 
 func certificateExpiryDate(certString string) time.Time {

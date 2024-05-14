@@ -3,9 +3,9 @@ package server
 import (
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/canonical/gocert/internal/metrics"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Middleware func(http.Handler) http.Handler
@@ -55,16 +55,14 @@ func createMiddlewareStack(middleware ...Middleware) Middleware {
 func Metrics(ctx *MiddlewareContext) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			next.ServeHTTP(w, r)
-			if ctx.responseStatusCode/100 != 2 {
-				return
-			}
-			if r.Method == "POST" && strings.HasSuffix(r.URL.Path, "/certificate_requests") {
-				ctx.metrics.CertificateRequests.Inc()
-			}
-			if r.Method == "DELETE" && strings.HasSuffix(r.URL.Path, "/certificate_requests") {
-				ctx.metrics.CertificateRequests.Dec()
-			}
+			base := promhttp.InstrumentHandlerCounter(
+				&ctx.metrics.RequestsTotal,
+				promhttp.InstrumentHandlerDuration(
+					&ctx.metrics.RequestsDuration,
+					next,
+				),
+			)
+			base.ServeHTTP(w, r)
 		})
 	}
 }

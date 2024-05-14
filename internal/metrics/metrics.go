@@ -86,14 +86,14 @@ func newPrometheusMetrics() *PrometheusMetrics {
 // generateMetrics receives the live list of csrs to calculate the most recent values for the metrics
 // defined for prometheus
 func (pm *PrometheusMetrics) generateMetrics(csrs []certdb.CertificateRequest) {
-	var csrCount int = len(csrs)
-	var outstandingCSRCount int
-	var certCount int
-	var expiredCertCount int
-	var expiringIn1DayCertCount int
-	var expiringIn7DaysCertCount int
-	var expiringIn30DaysCertCount int
-	var expiringIn90DaysCertCount int
+	var csrCount float64 = float64(len(csrs))
+	var outstandingCSRCount float64
+	var certCount float64
+	var expiredCertCount float64
+	var expiringIn1DayCertCount float64
+	var expiringIn7DaysCertCount float64
+	var expiringIn30DaysCertCount float64
+	var expiringIn90DaysCertCount float64
 	for _, entry := range csrs {
 		if entry.Certificate == "" {
 			outstandingCSRCount += 1
@@ -122,14 +122,14 @@ func (pm *PrometheusMetrics) generateMetrics(csrs []certdb.CertificateRequest) {
 			}
 		}
 	}
-	pm.CertificateRequests.Set(float64(csrCount))
-	pm.OutstandingCertificateRequests.Set(float64(outstandingCSRCount))
-	pm.Certificates.Set(float64(certCount))
-	pm.ExpiredCertificates.Set(float64(expiredCertCount))
-	pm.CertificatesExpiringIn1Day.Set(float64(expiringIn1DayCertCount))
-	pm.CertificatesExpiringIn7Days.Set(float64(expiringIn7DaysCertCount))
-	pm.CertificatesExpiringIn30Days.Set(float64(expiringIn30DaysCertCount))
-	pm.CertificatesExpiringIn90Days.Set(float64(expiringIn90DaysCertCount))
+	pm.CertificateRequests.Set(csrCount)
+	pm.OutstandingCertificateRequests.Set(outstandingCSRCount)
+	pm.Certificates.Set(certCount)
+	pm.ExpiredCertificates.Set(expiredCertCount)
+	pm.CertificatesExpiringIn1Day.Set(expiringIn1DayCertCount)
+	pm.CertificatesExpiringIn7Days.Set(expiringIn7DaysCertCount)
+	pm.CertificatesExpiringIn30Days.Set(expiringIn30DaysCertCount)
+	pm.CertificatesExpiringIn90Days.Set(expiringIn90DaysCertCount)
 }
 
 func certificateRequestsMetric() prometheus.Gauge {

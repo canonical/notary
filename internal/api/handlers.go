@@ -36,10 +36,10 @@ func NewGoCertRouter(env *Environment) http.Handler {
 	router.Handle("/api/v1/", http.StripPrefix("/api/v1", apiV1Router))
 	router.Handle("/", frontendHandler)
 
-	ctx := MiddlewareContext{metrics: m}
+	ctx := middlewareContext{metrics: m}
 	middleware := createMiddlewareStack(
-		Metrics(&ctx),
-		Logging(&ctx),
+		metricsMiddleware(&ctx),
+		loggingMiddleware(&ctx),
 	)
 	return middleware(router)
 }

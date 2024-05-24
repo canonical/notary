@@ -7,7 +7,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"log"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -23,7 +22,7 @@ import (
 func TestPrometheusHandler(t *testing.T) {
 	db, err := certdb.NewCertificateRequestsRepository(":memory:", "CertificateReq")
 	if err != nil {
-		log.Fatalln(err)
+		t.Fatal(err)
 	}
 	m := metrics.NewMetricsSubsystem(db)
 
@@ -46,7 +45,7 @@ func TestPrometheusHandler(t *testing.T) {
 	}
 	err = db.Close()
 	if err != nil {
-		log.Fatalln(err)
+		t.Fatal(err)
 	}
 }
 
@@ -79,16 +78,16 @@ func generateCertPair(daysRemaining int) (string, string) {
 	return csr, cert
 }
 
-func initializeTestDB(db *certdb.CertificateRequestsRepository) {
+func initializeTestDB(t *testing.T, db *certdb.CertificateRequestsRepository) {
 	for i, v := range []int{5, 10, 32} {
 		csr, cert := generateCertPair(v)
 		_, err := db.Create(csr)
 		if err != nil {
-			log.Fatalf("couldn't create test csr:%s", err)
+			t.Fatalf("couldn't create test csr:%s", err)
 		}
 		_, err = db.Update(fmt.Sprint(i+1), cert)
 		if err != nil {
-			log.Fatalf("couldn't create test cert:%s", err)
+			t.Fatalf("couldn't create test cert:%s", err)
 		}
 	}
 }
@@ -97,9 +96,9 @@ func initializeTestDB(db *certdb.CertificateRequestsRepository) {
 func TestMetrics(t *testing.T) {
 	db, err := certdb.NewCertificateRequestsRepository(":memory:", "CertificateReq")
 	if err != nil {
-		log.Fatalln(err)
+		t.Fatal(err)
 	}
-	initializeTestDB(db)
+	initializeTestDB(t, db)
 	m := metrics.NewMetricsSubsystem(db)
 	csrs, _ := db.RetrieveAll()
 	m.GenerateMetrics(csrs)
@@ -152,6 +151,6 @@ func TestMetrics(t *testing.T) {
 
 	err = db.Close()
 	if err != nil {
-		log.Fatalln(err)
+		t.Fatal(err)
 	}
 }

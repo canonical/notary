@@ -32,19 +32,19 @@ type PrometheusMetrics struct {
 
 // NewMetricsSubsystem returns the metrics endpoint HTTP handler and the Prometheus metrics for the server and middleware.
 func NewMetricsSubsystem(db *certdb.CertificateRequestsRepository) *PrometheusMetrics {
-	csrs, err := db.RetrieveAll()
-	if err != nil {
-		log.Println(errors.Join(errors.New("error generating metrics repository: "), err))
-	}
 	metricsBackend := newPrometheusMetrics()
-	metricsBackend.generateMetrics(csrs)
-	ticker := time.NewTicker(120 * time.Second)
+	metricsBackend.Handler = promhttp.HandlerFor(metricsBackend.registry, promhttp.HandlerOpts{})
 	go func() {
-		for range ticker.C {
-			metricsBackend.generateMetrics(csrs)
+		ticker := time.NewTicker(120 * time.Second)
+		for ; true; <-ticker.C {
+			csrs, err := db.RetrieveAll()
+			if err != nil {
+				log.Println(errors.Join(errors.New("error generating metrics repository: "), err))
+				panic(1)
+			}
+			metricsBackend.GenerateMetrics(csrs)
 		}
 	}()
-	metricsBackend.Handler = promhttp.HandlerFor(metricsBackend.registry, promhttp.HandlerOpts{})
 	return metricsBackend
 }
 
@@ -83,9 +83,9 @@ func newPrometheusMetrics() *PrometheusMetrics {
 	return m
 }
 
-// generateMetrics receives the live list of csrs to calculate the most recent values for the metrics
+// GenerateMetrics receives the live list of csrs to calculate the most recent values for the metrics
 // defined for prometheus
-func (pm *PrometheusMetrics) generateMetrics(csrs []certdb.CertificateRequest) {
+func (pm *PrometheusMetrics) GenerateMetrics(csrs []certdb.CertificateRequest) {
 	var csrCount float64 = float64(len(csrs))
 	var outstandingCSRCount float64
 	var certCount float64

@@ -101,6 +101,8 @@ func TestMetrics(t *testing.T) {
 	}
 	initializeTestDB(db)
 	m := metrics.NewMetricsSubsystem(db)
+	csrs, _ := db.RetrieveAll()
+	m.GenerateMetrics(csrs)
 
 	request, _ := http.NewRequest("GET", "/", nil)
 	recorder := httptest.NewRecorder()

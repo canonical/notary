@@ -34,9 +34,9 @@ type PrometheusMetrics struct {
 func NewMetricsSubsystem(db *certdb.CertificateRequestsRepository) *PrometheusMetrics {
 	metricsBackend := newPrometheusMetrics()
 	metricsBackend.Handler = promhttp.HandlerFor(metricsBackend.registry, promhttp.HandlerOpts{})
+	ticker := time.NewTicker(120 * time.Second)
 	go func() {
-		ticker := time.NewTicker(120 * time.Second)
-		for ; true; <-ticker.C {
+		for ; ; <-ticker.C {
 			csrs, err := db.RetrieveAll()
 			if err != nil {
 				log.Println(errors.Join(errors.New("error generating metrics repository: "), err))

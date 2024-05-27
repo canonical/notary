@@ -1,6 +1,6 @@
 name: gocert
 base: bare
-build-base: ubuntu@22.04
+build-base: ubuntu@24.04
 version: '0.0.2'
 summary: A certificate management tool
 description: |
@@ -31,3 +31,4 @@ parts:
     stage-packages:
       - ca-certificates_data
       - libc6_libs
+      - base-files_lib

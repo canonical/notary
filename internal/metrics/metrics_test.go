@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -94,7 +95,14 @@ func initializeTestDB(t *testing.T, db *certdb.CertificateRequestsRepository) {
 
 // TestMetrics tests some of the metrics that we currently collect.
 func TestMetrics(t *testing.T) {
-	db, err := certdb.NewCertificateRequestsRepository(":memory:", "CertificateReq")
+	f, err := os.CreateTemp("./","*.db")
+	fmt.Print(f.Name())
+	if err != nil {
+		t.Fatal("couldn't create temp db file: "+ err.Error())
+	}
+	defer f.Close()
+	defer os.Remove(f.Name())
+	db, err := certdb.NewCertificateRequestsRepository(f.Name(), "CertificateReq")
 	if err != nil {
 		t.Fatal(err)
 	}

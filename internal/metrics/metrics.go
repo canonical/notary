@@ -30,7 +30,7 @@ type PrometheusMetrics struct {
 	RequestsDuration prometheus.HistogramVec
 }
 
-// NewMetricsSubsystem returns the metrics endpoint HTTP handler and the Prometheus metrics for the server and middleware.
+// NewMetricsSubsystem returns the metrics endpoint HTTP handler and the Prometheus metrics collectors for the server and middleware.
 func NewMetricsSubsystem(db *certdb.CertificateRequestsRepository) *PrometheusMetrics {
 	metricsBackend := newPrometheusMetrics()
 	metricsBackend.Handler = promhttp.HandlerFor(metricsBackend.registry, promhttp.HandlerOpts{})

@@ -1,6 +1,6 @@
 "use client"
 
-import { SetStateAction, Dispatch, useState, createContext } from "react"
+import { SetStateAction, Dispatch, useState, createContext, useEffect } from "react"
 
 type AsideContextType = {
     isOpen: boolean,
@@ -35,6 +35,13 @@ export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispa
 }
 
 export function SideBar({ sidebarVisible, setSidebarVisible }: { sidebarVisible: boolean, setSidebarVisible: Dispatch<SetStateAction<boolean>> }) {
+    const [activeTab, setActiveTab] = useState<string>("");
+
+    useEffect(() => {
+      if (typeof window !== 'undefined') {
+        setActiveTab(location.pathname.split('/')[1]);
+      }
+    }, []); 
     return (
         <header className={sidebarVisible ? "l-navigation" : "l-navigation is-collapsed"}>
             <div className="l-navigation__drawer">
@@ -51,7 +58,7 @@ export function SideBar({ sidebarVisible, setSidebarVisible }: { sidebarVisible:
                             <nav aria-label="Main">
                                 <ul className="p-side-navigation__list">
                                     <li className="p-side-navigation__item">
-                                        <a className="p-side-navigation__link" href="/certificate_requests" aria-current={location.pathname.split('/')[1] === "certificate_requests" ? "page" : "false"} >
+                                        <a className="p-side-navigation__link" href="/certificate_requests" aria-current={activeTab === "certificate_requests" ? "page" : "false"} >
                                             <i className="p-icon--information is-light p-side-navigation__icon"></i>
                                             <span className="p-side-navigation__label">
                                                 <span className="p-side-navigation__label">Certificate Requests</span>

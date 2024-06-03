@@ -27,18 +27,24 @@ func NewGoCertRouter(env *Environment) http.Handler {
 	apiV1Router.HandleFunc("POST /certificate_requests/{id}/certificate/reject", RejectCertificate(env))
 	apiV1Router.HandleFunc("DELETE /certificate_requests/{id}/certificate", DeleteCertificate(env))
 
-	metricsHandler := metrics.NewPrometheusMetricsHandler()
+	m := metrics.NewMetricsSubsystem(env.DB)
 	frontendHandler := newFrontendFileServer()
 
 	router := http.NewServeMux()
 	router.HandleFunc("/status", HealthCheck)
-	router.Handle("/metrics", metricsHandler)
+	router.Handle("/metrics", m.Handler)
 	router.Handle("/api/v1/", http.StripPrefix("/api/v1", apiV1Router))
 	router.Handle("/", frontendHandler)
 
-	return logging(router)
+	ctx := middlewareContext{metrics: m}
+	middleware := createMiddlewareStack(
+		metricsMiddleware(&ctx),
+		loggingMiddleware(&ctx),
+	)
+	return middleware(router)
 }
 
+// newFrontendFileServer uses the embedded ui output files as the base for a file server
 func newFrontendFileServer() http.Handler {
 	frontendFS, err := fs.Sub(ui.FrontendFS, "out")
 	if err != nil {
@@ -211,14 +217,6 @@ func DeleteCertificate(env *Environment) http.HandlerFunc {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 		}
 	}
-}
-
-// The logging middleware captures any http request coming through, and logs it
-func logging(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		next.ServeHTTP(w, r)
-		log.Println(r.Method, r.URL.Path)
-	})
 }
 
 // logErrorAndWriteResponse is a helper function that logs any error and writes it back as an http response

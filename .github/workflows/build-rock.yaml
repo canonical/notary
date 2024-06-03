@@ -28,7 +28,7 @@ jobs:
           docker run -d -p 3000:3000 --name gocert gocert:latest
       - name: Load config
         run: |
-          docker exec gocert /bin/pebble mkdir /etc/config
+          docker exec gocert /usr/bin/pebble mkdir /etc/config
           docker cp key.pem gocert:/etc/config/key.pem
           docker cp cert.pem gocert:/etc/config/cert.pem
           docker cp config.yaml gocert:/etc/config/config.yaml

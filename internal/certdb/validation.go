@@ -22,6 +22,7 @@ func ValidateCertificateRequest(csr string) error {
 	if err != nil {
 		return err
 	}
+	// TODO: We should validate the actual certificate request parameters here too. (Has the required fields etc)
 	return nil
 }
 
@@ -40,6 +41,7 @@ func ValidateCertificate(cert string) error {
 	if err != nil {
 		return err
 	}
+	// TODO: We should validate the actual certificate parameters here too. (Has the required fields etc)
 	return nil
 }
 

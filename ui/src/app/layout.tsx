@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import './globals.scss'
+import Navigation from "@/app/nav";
+
 
 export const metadata: Metadata = {
   title: "GoCert",
@@ -12,7 +15,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Navigation>
+          {children}
+        </Navigation>
+      </body>
     </html>
   );
 }

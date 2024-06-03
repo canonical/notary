@@ -2,7 +2,7 @@ import { expect, test } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import Page from './page'
 
-test('Page', () => {
+test('HomePage', () => {
     render(<Page />)
-    expect(screen.getByRole('heading', { level: 1, name: 'Hello from the Frontend' })).toBeDefined()
+    expect(screen.getByText(/Welcome to GoCert/i)).toBeDefined()
 })

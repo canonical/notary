@@ -18,6 +18,6 @@ jobs:
           name: frontend-static-files
           path: ui/out
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v5
+        uses: golangci/golangci-lint-action@v6
         with:
           version: v1.54

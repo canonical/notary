@@ -1,7 +1,5 @@
-export default function Home() {
+export default function Main() {
   return (
-    <main>
-      <h1>Hello from the Frontend</h1>
-    </main>
+    <div>Welcome to GoCert</div>
   );
 }

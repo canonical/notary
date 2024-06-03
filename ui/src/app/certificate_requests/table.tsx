@@ -10,7 +10,7 @@ export function CertificateRequestsTable() {
             <div className="p-panel__header is-sticky">
                 <h4 className="p-panel__title">Certificate Requests</h4>
                 <div className="p-panel__controls">
-                    <button className="u-no-margin--bottom" aria-label="add-csr-button" onClick={() => setAsideIsOpen(true)}>Add New CSR</button>
+                    <button className="u-no-margin--bottom p-button--positive" aria-label="add-csr-button" onClick={() => setAsideIsOpen(true)}>Add New CSR</button>
                 </div>
             </div>
             <div className="p-panel__content">

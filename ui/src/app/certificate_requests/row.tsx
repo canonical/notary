@@ -21,11 +21,11 @@ export default function Row({ id, csr, certificate }: rowProps) {
             </td>
             <td className="" data-test-column="status">{certificate == "" ? "outstanding" : (certificate == "rejected" ? "rejected" : "certificate expiry date here")}</td>
             <td className="" data-test-column="action">
-                <button>Sign</button>
-                <button>Reject</button>
+                <button className="p-button--positive">Sign</button>
+                <button className="p-button--negative">Reject</button>
             </td>
             <td className="" data-test-column="delete">
-                <button>Delete CSR</button>
+                <button className="p-button--negative">Delete CSR</button>
             </td>
         </tr>
     )

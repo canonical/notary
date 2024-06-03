@@ -15,9 +15,9 @@ export default function Row({ id, csr, certificate }: rowProps) {
     return (
         <tr>
             <td className="" data-test-column="id">{id}</td>
-            <td className="u-overflow--visible" data-test-column="details">
-                <p>CN: example.com</p>
-                <p>SAN: example.com, 127.0.0.1, 1.2.3.4.5.56</p>
+            <td className="" data-test-column="details">
+                <p><b>Common Name</b>: example.com</p>
+                <p><b>Subject Alternative Name</b>: example.com, 127.0.0.1, 1.2.3.4.5.56</p>
             </td>
             <td className="" data-test-column="status">{certificate == "" ? "outstanding" : (certificate == "rejected" ? "rejected" : "certificate expiry date here")}</td>
             <td className="" data-test-column="action">

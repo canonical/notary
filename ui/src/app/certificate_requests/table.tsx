@@ -1,10 +1,56 @@
-import { Dispatch, SetStateAction, useContext } from "react"
+import { Dispatch, SetStateAction, useContext, useState } from "react"
 import { AsideContext } from "../nav"
 import Row from "./row"
 
+type CSREntry = {
+    id: number,
+    csr: string,
+    certificate: string
+}
+
+function sortByCSRStatus(a: CSREntry, b: CSREntry) {
+    const aCSRStatus = a.certificate == "" ? "outstanding" : (a.certificate == "rejected" ? "rejected" : "fulfilled")
+    const bCSRStatus = b.certificate == "" ? "outstanding" : (b.certificate == "rejected" ? "rejected" : "fulfilled")
+    if (aCSRStatus < bCSRStatus) {
+        return -1;
+    } else if (aCSRStatus > bCSRStatus) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+function sortByCertStatus(a: CSREntry, b: CSREntry) {
+    const aCertStatus = (a.certificate == "" ? "" : (a.certificate == "rejected" ? "" : "date"))
+    const bCertStatus = (b.certificate == "" ? "" : (b.certificate == "rejected" ? "" : "date"))
+    if (aCertStatus < bCertStatus) {
+        return -1;
+    } else if (aCertStatus > bCertStatus) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
 
 export function CertificateRequestsTable() {
     const { isOpen: isAsideOpen, setIsOpen: setAsideIsOpen } = useContext(AsideContext)
+    const [sortedColumn, setSortedColumn] = useState<string>('none')
+    const [sortDescending, setSortDescending] = useState<boolean>(true)
+    const rows = [
+        {'id':1, 'csr':"csr1",'certificate':""},
+        {'id':2, 'csr':"csr2",'certificate':"rejected"},
+        {'id':3, 'csr':"csr3",'certificate':"a real cert"},
+    ]
+    const sortedRows = () => {
+        switch (sortedColumn) {
+            case "csr":
+                return (sortDescending? rows.sort(sortByCSRStatus).reverse() : rows.sort(sortByCSRStatus))
+            case "cert":
+                return (sortDescending? rows.sort(sortByCertStatus).reverse() : rows.sort(sortByCertStatus))
+            default:
+                return rows
+        }
+    }
     return (
         <div className="p-panel">
             <div className="p-panel__header is-sticky">
@@ -20,16 +66,18 @@ export function CertificateRequestsTable() {
                             <tr>
                                 <th>ID</th>
                                 <th>Details</th>
-                                <th>CSR Status</th>
-                                <th>Certificate Expiry Date</th>
+                                <th aria-sort={sortedColumn == "csr"? (sortDescending? "descending": "ascending"): "none"} onClick={() => {setSortedColumn('csr');setSortDescending(!sortDescending)}}>CSR Status</th>
+                                <th aria-sort={sortedColumn == "cert"? (sortDescending? "descending": "ascending"): "none"} onClick={() => {setSortedColumn('cert');setSortDescending(!sortDescending)}}>Certificate Expiry Date</th>
                                 <th>Actions</th>
                                 <th aria-hidden="true"></th>
                             </tr>
                         </thead>
                         <tbody>
-                            <Row id={1} csr="csr1" certificate="" />
-                            <Row id={2} csr="csr2" certificate="rejected" />
-                            <Row id={3} csr="csr3" certificate="a real cert" />
+                            {
+                                sortedRows().map((row) => (
+                                    <Row key={row.id} id={row.id} csr={row.csr} certificate={row.certificate}/> 
+                                )
+                            )}
                         </tbody>
                     </table>
                 </div>

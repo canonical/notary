@@ -15,14 +15,15 @@ export function CertificateRequestsTable() {
             </div>
             <div className="p-panel__content">
                 <div className="u-fixed-width">
-                    <table aria-label="Certificate Requests Table" className="p-main-table">
+                    <table aria-label="Certificate Requests Table" className="p-table--expanding">
                         <thead>
                             <tr>
                                 <th>ID</th>
                                 <th>Details</th>
                                 <th>CSR Status</th>
-                                <th>Sign/Reject</th>
-                                <th>Delete</th>
+                                <th>Certificate Expiry Date</th>
+                                <th>Actions</th>
+                                <th aria-hidden="true"></th>
                             </tr>
                         </thead>
                         <tbody>

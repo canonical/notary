@@ -20,7 +20,7 @@ export function CertificateRequestsTable() {
                             <tr>
                                 <th>ID</th>
                                 <th>Details</th>
-                                <th>CSR Status</th>
+                                <th>Status</th>
                                 <th>Sign/Reject</th>
                                 <th>Delete</th>
                             </tr>

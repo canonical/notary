@@ -19,7 +19,13 @@ export default function Row({ id, csr, certificate }: rowProps) {
         <tr>
             <td className="" width={5} data-test-column="id">{id}</td>
             <td className="">
-                <button className="u-toggle is-dense" aria-controls={"expanded-row"} aria-expanded={detailsMenuOpen? "true": "false"}  onClick={() => setDetailsMenuOpen(!detailsMenuOpen)}>example.com</button>
+                <button 
+                    className="u-toggle p-contextual-menu__toggle is-dense" 
+                    aria-controls="expanded-row"
+                    aria-expanded={detailsMenuOpen? "true": "false"}
+                    onClick={() => setDetailsMenuOpen(!detailsMenuOpen)}>
+                        <i className="p-icon--chevron-down p-contextual-menu__indicator"></i><span> Example.com</span>
+                </button>
             </td>
             <td className="" data-test-column="status">{certificate == "" ? "outstanding" : (certificate == "rejected" ? "rejected" : "fulfilled")}</td>
             <td className="" data-test-column="status">{certificate == "" ? "" : (certificate == "rejected" ? "" : "date")}</td>

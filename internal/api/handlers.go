@@ -172,8 +172,15 @@ func PostCertificate(env *Environment) http.HandlerFunc {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
+		insertIdStr := strconv.FormatInt(insertId, 10)
+		if env.SendPebbleNotifications {
+			err := SendPebbleNotification("gocert.com/certificate/update", insertIdStr)
+			if err != nil {
+				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
+			}
+		}
 		w.WriteHeader(http.StatusCreated)
-		if _, err := w.Write([]byte(strconv.FormatInt(insertId, 10))); err != nil {
+		if _, err := w.Write([]byte(insertIdStr)); err != nil {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 		}
 	}
@@ -191,8 +198,15 @@ func RejectCertificate(env *Environment) http.HandlerFunc {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
+		insertIdStr := strconv.FormatInt(insertId, 10)
+		if env.SendPebbleNotifications {
+			err := SendPebbleNotification("gocert.com/certificate/update", insertIdStr)
+			if err != nil {
+				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
+			}
+		}
 		w.WriteHeader(http.StatusAccepted)
-		if _, err := w.Write([]byte(strconv.FormatInt(insertId, 10))); err != nil {
+		if _, err := w.Write([]byte(insertIdStr)); err != nil {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 		}
 	}
@@ -212,8 +226,15 @@ func DeleteCertificate(env *Environment) http.HandlerFunc {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
+		insertIdStr := strconv.FormatInt(insertId, 10)
+		if env.SendPebbleNotifications {
+			err := SendPebbleNotification("gocert.com/certificate/update", insertIdStr)
+			if err != nil {
+				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
+			}
+		}
 		w.WriteHeader(http.StatusAccepted)
-		if _, err := w.Write([]byte(strconv.FormatInt(insertId, 10))); err != nil {
+		if _, err := w.Write([]byte(insertIdStr)); err != nil {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 		}
 	}

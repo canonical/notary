@@ -47,7 +47,8 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                         aria-controls="action-menu" 
                         aria-expanded={ActionMenuExpanded == id ? "true": "false"} 
                         aria-haspopup="true" 
-                        onClick={toggleActionMenu}>
+                        onClick={toggleActionMenu}
+                        onBlur={toggleActionMenu}>
                             <i className="p-icon--menu p-contextual-menu__indicator"></i>
                     </button>
                     <span className="p-contextual-menu__dropdown" id="action-menu" aria-hidden={ActionMenuExpanded == id? "false": "true"}>

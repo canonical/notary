@@ -16,7 +16,7 @@ GoCert requires 3 files to operate:
 * A TLS certificate with that private key
 * A YAML config file with the required parameters
 
-you can generate the cert and the associated key by running:
+You can generate the cert and the associated key by running:
 `openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 1 -out cert.pem -subj "/CN=example.com"`
 GoCert does not support insecure http connections.
 

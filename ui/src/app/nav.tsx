@@ -97,9 +97,17 @@ export function TopBar({ setSidebarVisible }: { setSidebarVisible: Dispatch<SetS
 
 export function Logo() {
     return (
-        <div className="p-panel__logo">
-            <img className="p-panel__logo-icon" src="https://assets.ubuntu.com/v1/7144ec6d-logo-jaas-icon.svg" alt="" width="32" height="32" />
-            <h3 className="p-navigation__logo-title is-fading-when-collapsed">GoCert</h3>
+        <div className="logo">
+          <div className="logo-tag">
+            <Image
+              src="https://assets.ubuntu.com/v1/82818827-CoF_white.svg"
+              alt="circle of friends"
+              width={32}
+              height={32}
+              className="logo-image"
+            />
+          </div>
+          <span className="logo-text p-heading--4">GoCert</span>
         </div>
     )
 }

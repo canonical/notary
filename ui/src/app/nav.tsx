@@ -25,10 +25,13 @@ export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispa
                             <label htmlFor="textarea">
                                 Enter or upload CSR in PEM format below
                             </label>
-                        <div className="p-form__group row">
-                            <button className="p-button u-float-left" name="upload">Upload</button>
-                        </div>
+                        
                             <textarea id="textarea" name="textarea" rows={10} placeholder="-----BEGIN CERTIFICATE REQUEST-----"></textarea>
+                        </div>
+                        <div className="p-form__group row">
+                            <div className="col-7">
+                                <input type="file" className="p-button u-float-left" name="upload"></input>
+                            </div>
                         </div>
                         <div className="p-form__group row">
                             <button className="p-button--positive u-float-right" name="submit">Submit</button>

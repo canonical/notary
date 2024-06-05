@@ -5,12 +5,12 @@
 1. Install Go and Nodejs
 2. Fork the repository on GitHub
 3. Clone the forked repository to your local machine
-4. Build the frontend: `cd ui && npm build build`
+4. Build the frontend: `npm i --prefix ui && npm run build --prefix ui`
 5. Install the project: `go install ./...`
-6. Create a `config.yaml` file:
+6. Create a `config.yaml` file as described in README.md
 7. Run the project: `gocert -config config.yaml`
 
-Commands for go need to be run from the project directory, and commands for the frontend need to be run from the `ui/` directory
+Commands assume you're running them from the top level git repo directory
 ## Testing
 
 ### Unit Tests

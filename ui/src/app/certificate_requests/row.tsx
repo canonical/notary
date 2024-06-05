@@ -58,7 +58,7 @@ export default function Row({ id, csr, certificate }: rowProps) {
                 <div className="row">
                     <div className="col-8">
                         <p><b>Common Name</b>: example.com</p>
-                        <p><b>Subject Alternative Name</b>: example.com, 127.0.0.1, 1.2.3.4.5.56</p>
+                        <p><b>Subject Alternative Names</b>: example.com, 127.0.0.1, 1.2.3.4.5.56</p>
                     </div>
                 </div>
             </td>

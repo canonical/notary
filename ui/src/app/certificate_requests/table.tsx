@@ -34,6 +34,8 @@ function sortByCertStatus(a: CSREntry, b: CSREntry) {
 
 export function CertificateRequestsTable() {
     const { isOpen: isAsideOpen, setIsOpen: setAsideIsOpen } = useContext(AsideContext)
+
+    const [actionsMenuExpanded, setActionsMenuExpanded] = useState<number>(0)
     const [sortedColumn, setSortedColumn] = useState<string>('none')
     const [sortDescending, setSortDescending] = useState<boolean>(true)
     const rows = [
@@ -78,7 +80,7 @@ export function CertificateRequestsTable() {
                         <tbody>
                             {
                                 sortedRows().map((row) => (
-                                    <Row key={row.id} id={row.id} csr={row.csr} certificate={row.certificate}/> 
+                                    <Row key={row.id} id={row.id} csr={row.csr} certificate={row.certificate} ActionMenuExpanded={actionsMenuExpanded} setActionMenuExpanded={setActionsMenuExpanded}/> 
                                 )
                             )}
                         </tbody>

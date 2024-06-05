@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, Dispatch, SetStateAction } from "react"
 const extractCSR = (csrPemString: string) => {
     //TODO
 }
@@ -11,10 +11,20 @@ type rowProps = {
     id: number,
     csr: string,
     certificate: string
+
+    ActionMenuExpanded: number
+    setActionMenuExpanded: Dispatch<SetStateAction<number>>
 }
-export default function Row({ id, csr, certificate }: rowProps) {
-    const [actionMenuOpen, setActionMenuOpen] = useState<boolean>(false)
+export default function Row({ id, csr, certificate, ActionMenuExpanded, setActionMenuExpanded }: rowProps) {
     const [detailsMenuOpen, setDetailsMenuOpen] = useState<boolean>(false)
+
+    const toggleActionMenu = () => {
+        if (ActionMenuExpanded == id) {
+            setActionMenuExpanded(0)
+        }else{
+            setActionMenuExpanded(id)
+        }
+    }
     return (
         <tr>
             <td className="" width={5} data-test-column="id">{id}</td>
@@ -35,12 +45,12 @@ export default function Row({ id, csr, certificate }: rowProps) {
                     <button 
                         className="p-contextual-menu__toggle p-button--base is-small u-no-margin--bottom" 
                         aria-controls="action-menu" 
-                        aria-expanded={actionMenuOpen? "true": "false"} 
+                        aria-expanded={ActionMenuExpanded == id ? "true": "false"} 
                         aria-haspopup="true" 
-                        onClick={() => setActionMenuOpen(!actionMenuOpen)}>
+                        onClick={toggleActionMenu}>
                             <i className="p-icon--menu p-contextual-menu__indicator"></i>
                     </button>
-                    <span className="p-contextual-menu__dropdown" id="action-menu" aria-hidden={actionMenuOpen? "false": "true"}>
+                    <span className="p-contextual-menu__dropdown" id="action-menu" aria-hidden={ActionMenuExpanded == id? "false": "true"}>
                         <span className="p-contextual-menu__group">
                             <button className="p-contextual-menu__link">Copy Certificate Request to Clipboard</button>
                             <button className="p-contextual-menu__link">Download Certificate Request</button>

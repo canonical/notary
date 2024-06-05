@@ -1,6 +1,6 @@
 "use client"
 
-import { SetStateAction, Dispatch, useState, createContext, useEffect } from "react"
+import { SetStateAction, Dispatch, useState, createContext, useEffect , ChangeEvent} from "react"
 import Image from "next/image";
 
 type AsideContextType = {
@@ -10,6 +10,24 @@ type AsideContextType = {
 export const AsideContext = createContext<AsideContextType>({ isOpen: false, setIsOpen: () => { } });
 
 export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispatch<SetStateAction<boolean>> }) {
+    const [CSRPEMString, setCSRPEMString] = useState<string>("")
+    const handleTextChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
+        setCSRPEMString(event.target.value);
+    };
+    const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0]
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e: ProgressEvent<FileReader>) => {
+                if (e.target) {
+                    if (e.target.result) {
+                        setCSRPEMString(e.target.result.toString());
+                    }
+                }
+        };
+        reader.readAsText(file);
+        }
+  };
     return (
         <aside className={"l-aside" + (isOpen ? "" : " is-collapsed")} id="aside-panel" aria-label="aside-panel">
             <div className="p-panel">
@@ -25,13 +43,10 @@ export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispa
                             <label htmlFor="textarea">
                                 Enter or upload CSR in PEM format below
                             </label>
-                        
-                            <textarea id="textarea" name="textarea" rows={10} placeholder="-----BEGIN CERTIFICATE REQUEST-----"></textarea>
+                            <textarea id="csr-textarea" name="textarea" rows={10} placeholder="-----BEGIN CERTIFICATE REQUEST-----" onChange={handleTextChange} value={CSRPEMString}/>
                         </div>
                         <div className="p-form__group row">
-                            <div className="col-7">
-                                <input type="file" className="p-button u-float-left" name="upload"></input>
-                            </div>
+                            <input type="file" name="upload" accept=".pem" onChange={handleFileChange}></input>
                         </div>
                         <div className="p-form__group row">
                             <button className="p-button--positive u-float-right" name="submit">Submit</button>

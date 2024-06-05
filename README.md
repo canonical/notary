@@ -28,7 +28,7 @@ The config file requires the following parameters:
 * port: the port in integer form to serve all of GoCert's API and frontend
 * pebblenotificationsenabled: a boolean that once enabled, will allow GoCert to send pebble notices. Read more about it (here)[https://github.com/canonical/pebble?tab=readme-ov-file#notices].
 
-an example config file may look like:
+An example config file may look like:
 
 ```yaml
 keypath:  "./key.pem"

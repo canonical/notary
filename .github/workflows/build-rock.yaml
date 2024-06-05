@@ -37,7 +37,8 @@ jobs:
         id: test_image
         run: |
           sleep 30
-          curl -k https://localhost:3000 2>&1 | grep GoCert
+          docker logs gocert
+          curl -k https://localhost:3000/certificate_requests.html 2>&1 | grep "Certificate Requests"
         
       - uses: actions/upload-artifact@v4
         if: steps.test_image.outcome == 'success'

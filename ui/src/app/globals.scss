@@ -1,0 +1,46 @@
+// Import the framework
+@import 'node_modules/vanilla-framework';
+
+// Include all of Vanilla Framework
+@include vanilla;
+
+// Include Vanilla Framework icons
+@include vf-p-icon-security;
+
+// Override visibility settings
+#csr-table{
+    overflow: visible;
+}
+.p-panel__content{
+    overflow: visible;
+}
+
+// Add Extra logo CSS
+.logo {
+    .logo-tag {
+        background-color: #e95420;
+        height: 2.2rem;
+        position: absolute;
+        top: 0;
+        width: 1.313rem;
+    }
+
+    .logo-image {
+        bottom: 0.125rem;
+        height: 1rem;
+        left: 50%;
+        position: absolute;
+        transform: translate(-50%, 0);
+        width: 1rem;
+    }
+
+    .logo-text {
+        color: #fff;
+        display: inline-block;
+        font-size: 1.3rem;
+        font-weight: 300;
+        line-height: 1rem;
+        margin-top: 0.5rem;
+        padding-left: 1.5rem;
+    }
+}

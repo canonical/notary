@@ -48,7 +48,7 @@ export default function Row({ id, csr, certificate }: rowProps) {
                             <button className="p-contextual-menu__link">Delete Certificate Request</button>
                         </span>
                         <span className="p-contextual-menu__group">
-                            <button className="p-contextual-menu__link">Upload Certificate (Modal)</button>
+                            <button className="p-contextual-menu__link">Upload Certificate</button>
                             <button className="p-contextual-menu__link">Revoke Certificate</button>
                         </span>
                     </span>

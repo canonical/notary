@@ -1,6 +1,7 @@
 "use client"
 
 import { SetStateAction, Dispatch, useState, createContext, useEffect } from "react"
+import Image from "next/image";
 
 type AsideContextType = {
     isOpen: boolean,
@@ -21,7 +22,12 @@ export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispa
                 <div className="p-panel__content">
                     <form className="p-form p-form--stacked">
                         <div className="p-form__group row">
-                            <label htmlFor="textarea">Paste CSR in PEM format below</label>
+                            <label htmlFor="textarea">
+                                Enter or upload CSR in PEM format below
+                            </label>
+                        <div className="p-form__group row">
+                            <button className="p-button u-float-left" name="upload">Upload</button>
+                        </div>
                             <textarea id="textarea" name="textarea" rows={10} placeholder="-----BEGIN CERTIFICATE REQUEST-----"></textarea>
                         </div>
                         <div className="p-form__group row">
@@ -36,7 +42,6 @@ export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispa
 
 export function SideBar({ sidebarVisible, setSidebarVisible }: { sidebarVisible: boolean, setSidebarVisible: Dispatch<SetStateAction<boolean>> }) {
     const [activeTab, setActiveTab] = useState<string>("");
-
     useEffect(() => {
       if (typeof window !== 'undefined') {
         setActiveTab(location.pathname.split('/')[1]);
@@ -59,7 +64,7 @@ export function SideBar({ sidebarVisible, setSidebarVisible }: { sidebarVisible:
                                 <ul className="p-side-navigation__list">
                                     <li className="p-side-navigation__item">
                                         <a className="p-side-navigation__link" href="/certificate_requests.html" aria-current={activeTab === "certificate_requests" ? "page" : "false"} >
-                                            <i className="p-icon--information is-light p-side-navigation__icon"></i>
+                                            <i className="p-icon--security is-light p-side-navigation__icon"></i>
                                             <span className="p-side-navigation__label">
                                                 <span className="p-side-navigation__label">Certificate Requests</span>
                                             </span>
@@ -92,12 +97,13 @@ export function TopBar({ setSidebarVisible }: { setSidebarVisible: Dispatch<SetS
 
 export function Logo() {
     return (
-        <a className="p-panel__logo" href="/">
-            <img className="p-panel__logo-icon" src="https://assets.ubuntu.com/v1/7144ec6d-logo-jaas-icon.svg" alt="" width="24" height="24" />
-            <span className="p-navigation__logo-title is-fading-when-collapsed">GoCert</span>
-        </a>
+        <div className="p-panel__logo">
+            <img className="p-panel__logo-icon" src="https://assets.ubuntu.com/v1/7144ec6d-logo-jaas-icon.svg" alt="" width="32" height="32" />
+            <h3 className="p-navigation__logo-title is-fading-when-collapsed">GoCert</h3>
+        </div>
     )
 }
+
 export default function Navigation({
     children,
 }: Readonly<{

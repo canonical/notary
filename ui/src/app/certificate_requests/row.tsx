@@ -20,24 +20,25 @@ export default function Row({ id, csr, certificate }: rowProps) {
             <td className="" width={5} data-test-column="id">{id}</td>
             <td className="">
                 <button 
-                    className="u-toggle p-contextual-menu__toggle is-dense" 
+                    className="u-toggle p-contextual-menu__toggle is-small" 
                     aria-controls="expanded-row"
                     aria-expanded={detailsMenuOpen? "true": "false"}
                     onClick={() => setDetailsMenuOpen(!detailsMenuOpen)}>
-                        <i className="p-icon--chevron-down p-contextual-menu__indicator"></i><span> Example.com</span>
+                        <i className="p-icon--chevron-down p-contextual-menu__indicator"></i>
                 </button>
+                        <span> example.com</span>
             </td>
             <td className="" data-test-column="status">{certificate == "" ? "outstanding" : (certificate == "rejected" ? "rejected" : "fulfilled")}</td>
             <td className="" data-test-column="status">{certificate == "" ? "" : (certificate == "rejected" ? "" : "date")}</td>
             <td className="has-overflow" data-heading="Actions">
-                <span className="p-contextual-menu--center">
+                <span className="p-contextual-menu--center u-no-margin--bottom">
                     <button 
-                        className="p-contextual-menu__toggle p-button--positive u-no-margin--bottom" 
+                        className="p-contextual-menu__toggle p-button is-small u-no-margin--bottom" 
                         aria-controls="action-menu" 
                         aria-expanded={actionMenuOpen? "true": "false"} 
                         aria-haspopup="true" 
                         onClick={() => setActionMenuOpen(!actionMenuOpen)}>
-                            <i className="p-icon--chevron-down p-contextual-menu__indicator is-light"></i><span> Actions</span>
+                            <i className="p-icon--menu p-contextual-menu__indicator"></i>
                     </button>
                     <span className="p-contextual-menu__dropdown" id="action-menu" aria-hidden={actionMenuOpen? "false": "true"}>
                         <span className="p-contextual-menu__group">

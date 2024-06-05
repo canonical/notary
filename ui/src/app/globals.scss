@@ -6,3 +6,11 @@
 
 // Include Vanilla Framework icons
 @include vf-p-icon-security;
+
+// Override visibility settings
+#csr-table{
+    overflow: visible;
+}
+.p-panel__content{
+    overflow: visible;
+}

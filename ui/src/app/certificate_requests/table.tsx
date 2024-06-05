@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction, useContext, useState } from "react"
+import { useContext, useState } from "react"
 import { AsideContext } from "../nav"
 import Row from "./row"
 
@@ -40,6 +40,9 @@ export function CertificateRequestsTable() {
         {'id':1, 'csr':"csr1",'certificate':""},
         {'id':2, 'csr':"csr2",'certificate':"rejected"},
         {'id':3, 'csr':"csr3",'certificate':"a real cert"},
+        {'id':4, 'csr':"csr3",'certificate':"a real cert"},
+        {'id':5, 'csr':"csr3",'certificate':"a real cert"},
+        {'id':6, 'csr':"csr3",'certificate':"a real cert"},
     ]
     const sortedRows = () => {
         switch (sortedColumn) {
@@ -61,14 +64,14 @@ export function CertificateRequestsTable() {
             </div>
             <div className="p-panel__content">
                 <div className="u-fixed-width">
-                    <table aria-label="Certificate Requests Table" className="p-table--expanding">
+                    <table id="csr-table" aria-label="Certificate Requests Table" className="p-table--expanding">
                         <thead>
                             <tr>
                                 <th>ID</th>
                                 <th>Details</th>
                                 <th aria-sort={sortedColumn == "csr"? (sortDescending? "descending": "ascending"): "none"} onClick={() => {setSortedColumn('csr');setSortDescending(!sortDescending)}}>CSR Status</th>
                                 <th aria-sort={sortedColumn == "cert"? (sortDescending? "descending": "ascending"): "none"} onClick={() => {setSortedColumn('cert');setSortDescending(!sortDescending)}}>Certificate Expiry Date</th>
-                                <th>Actions</th>
+                                <th className="has-overflow">Actions</th>
                                 <th aria-hidden="true"></th>
                             </tr>
                         </thead>

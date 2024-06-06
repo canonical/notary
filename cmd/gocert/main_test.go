@@ -87,16 +87,18 @@ Q53tuiWQeoxNOjHiWstBPELxGbW6447JyVVbNYGUk+VFU7okzA6sRTJ/5Ysda4Sf
 auNQc2hruhr/2plhFUYoZHPzGz7d5zUGKymhCoS8BsFVtD0WDL4srdtY/W2Us7TD
 D7DC34n8CH9+avz9sCRwxpjxKnYW/BeyK0c4n9uZpjI8N4sOVqy6yWBUseww
 -----END RSA PRIVATE KEY-----`
-	validConfig = `keypath:  "./key_test.pem"
-certpath: "./cert_test.pem"
-dbpath: "./certs.db"
-port: 8000`
+	validConfig = `key_path:  "./key_test.pem"
+cert_path: "./cert_test.pem"
+db)path: "./certs.db"
+port: 8000
+pebble_notices: false`
 	invalidConfig = `hello: "world"
 goodbye: "world"`
-	invalidDBConfig = `keypath:  "./key_test.pem"
-certpath: "./cert_test.pem"
-dbpath: "/etc/hosts"
-port: 8000`
+	invalidDBConfig = `key_path:  "./key_test.pem"
+cert_path: "./cert_test.pem"
+db_path: "/etc/hosts"
+port: 8000
+pebble_notices: false`
 )
 
 func TestMain(m *testing.M) {

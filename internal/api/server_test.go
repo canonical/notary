@@ -85,23 +85,23 @@ Q53tuiWQeoxNOjHiWstBPELxGbW6447JyVVbNYGUk+VFU7okzA6sRTJ/5Ysda4Sf
 auNQc2hruhr/2plhFUYoZHPzGz7d5zUGKymhCoS8BsFVtD0WDL4srdtY/W2Us7TD
 D7DC34n8CH9+avz9sCRwxpjxKnYW/BeyK0c4n9uZpjI8N4sOVqy6yWBUseww
 -----END RSA PRIVATE KEY-----`
-	validConfig = `keypath:  "./key_test.pem"
-certpath: "./cert_test.pem"
-dbpath: "./certs.db"
+	validConfig = `key_path:  "./key_test.pem"
+cert_path: "./cert_test.pem"
+db_path: "./certs.db"
 port: 8000`
-	wrongCertConfig = `keypath:  "./key_test.pem"
-certpath: "./cert_test_wrong.pem"
-dbpath: "./certs.db"
+	wrongCertConfig = `key_path:  "./key_test.pem"
+cert_path: "./cert_test_wrong.pem"
+db_path: "./certs.db"
 port: 8000`
-	wrongKeyConfig = `keypath:  "./key_test_wrong.pem"
-certpath: "./cert_test.pem"
-dbpath: "./certs.db"
+	wrongKeyConfig = `key_path:  "./key_test_wrong.pem"
+cert_path: "./cert_test.pem"
+db_path: "./certs.db"
 port: 8000`
 	invalidYAMLConfig = `wrong: fields
 every: where`
-	invalidFileConfig = `keypath:  "./nokeyfile.pem"
-certpath: "./nocertfile.pem"
-dbpath: "./certs.db"
+	invalidFileConfig = `key_path:  "./nokeyfile.pem"
+cert_path: "./nocertfile.pem"
+db_path: "./certs.db"
 port: 8000`
 )
 

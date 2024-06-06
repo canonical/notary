@@ -16,24 +16,26 @@ GoCert requires 3 files to operate:
 * A TLS certificate with that private key
 * A YAML config file with the required parameters
 
-you can generate the cert and the associated key by running:
+You can generate the cert and the associated key by running:
 `openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 1 -out cert.pem -subj "/CN=example.com"`
 GoCert does not support insecure http connections.
 
 ### Config File
 The config file requires the following parameters:
-* keypath: this is the path to the private key you've generated.
-* certpath: this is the path to a certificate for enabling HTTPS connections.
-* dbpath: the path to a sqlite database file. If the file does not exist GoCert will attempt to create it.
-* port: the port in integer form to serve all of GoCert's API and frontend
-* pebblenotificationsenabled: a boolean that once enabled, will allow GoCert to send pebble notices. Read more about it (here)[https://github.com/canonical/pebble?tab=readme-ov-file#notices].
+| Key                  | Type    | Description |
+|----------------------|---------|----------|
+| key_path             | string  | path to the private key for enabling HTTPS connections |
+| cert_path            | string  | path to a PEM formatted certificate for enabling HTTPS connections |
+| db_path              | string  | path to a sqlite database file. If the file does not exist GoCert will attempt to create it. |
+| port                 | number  | port number on which GoCert will listen for all incoming API and frontend connections. |
+| pebble_notifications | boolean | Allow GoCert to send pebble notices on certificate events (create, update, delete). Read more about it [here](https://github.com/canonical/pebble?tab=readme-ov-file#notices). |
 
-an example config file may look like:
+An example config file may look like:
 
 ```yaml
-keypath:  "./key.pem"
-certpath: "./cert.pem"
-dbpath: "./certs.db"
+key_path:  "./key.pem"
+cert_path: "./cert.pem"
+db_path: "./certs.db"
 port: 3000
-pebblenotificationsenabled: true
+pebble_notifications: true
 ```

@@ -20,7 +20,7 @@ jobs:
           sudo skopeo --insecure-policy copy oci-archive:${{ steps.rockcraft.outputs.rock }} docker-daemon:gocert:latest
       - name: Create files required by GoCert
         run: |
-          printf 'keypath:  "/etc/config/key.pem"\ncertpath: "/etc/config/cert.pem"\ndbpath: "/etc/config/certs.db"\nport: 3000\npebblenotificationsenabled: true\n' > config.yaml
+          printf 'key_path:  "/etc/config/key.pem"\ncert_path: "/etc/config/cert.pem"\ndb_path: "/etc/config/certs.db"\nport: 3000\npebble_notifications: true\n' > config.yaml
           openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 1 -out cert.pem -subj "/CN=githubaction.example"
 
       - name: Run the image

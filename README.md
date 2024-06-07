@@ -31,7 +31,7 @@ The config file requires the following parameters:
 | cert_path            | string  | path to a PEM formatted certificate for enabling HTTPS connections |
 | db_path              | string  | path to a sqlite database file. If the file does not exist GoCert will attempt to create it. |
 | port                 | integer (0-65535)  | port number on which GoCert will listen for all incoming API and frontend connections. |
-| pebble_notifications | boolean | Allow GoCert to send pebble notices on certificate events (create, update, delete). Pebble needs to be running on the same system as GoCert. Read more about it [here](https://github.com/canonical/pebble?tab=readme-ov-file#notices). |
+| pebble_notifications | boolean | Allow GoCert to send pebble notices on certificate events (create, update, delete). Pebble needs to be running on the same system as GoCert. Read more about Pebble Notices [here](https://github.com/canonical/pebble?tab=readme-ov-file#notices). |
 
 An example config file may look like:
 

@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"time"
 
 	"github.com/canonical/gocert/internal/certdb"
@@ -15,21 +16,24 @@ import (
 )
 
 type ConfigYAML struct {
-	KeyPath  string
-	CertPath string
-	DBPath   string
-	Port     int
+	KeyPath                    string `yaml:"key_path"`
+	CertPath                   string `yaml:"cert_path"`
+	DBPath                     string `yaml:"db_path"`
+	Port                       int    `yaml:"port"`
+	Pebblenotificationsenabled bool   `yaml:"pebble_notifications"`
 }
 
 type Config struct {
-	Key    []byte
-	Cert   []byte
-	DBPath string
-	Port   int
+	Key                        []byte
+	Cert                       []byte
+	DBPath                     string
+	Port                       int
+	PebbleNotificationsEnabled bool
 }
 
 type Environment struct {
-	DB *certdb.CertificateRequestsRepository
+	DB                      *certdb.CertificateRequestsRepository
+	SendPebbleNotifications bool
 }
 
 // validateConfigFile opens and processes the given yaml file, and catches errors in the process
@@ -65,7 +69,16 @@ func validateConfigFile(filePath string) (Config, error) {
 	config.Key = key
 	config.DBPath = c.DBPath
 	config.Port = c.Port
+	config.PebbleNotificationsEnabled = c.Pebblenotificationsenabled
 	return config, nil
+}
+
+func SendPebbleNotification(key, request_id string) error {
+	cmd := exec.Command("pebble", "notify", key, fmt.Sprintf("request_id=%s", request_id))
+	if err := cmd.Run(); err != nil {
+		return errors.Join(errors.New("couldn't execute a pebble notify: "), err)
+	}
+	return nil
 }
 
 // NewServer creates an environment and an http server with handlers that Go can start listening to
@@ -85,6 +98,7 @@ func NewServer(configFile string) (*http.Server, error) {
 
 	env := &Environment{}
 	env.DB = db
+	env.SendPebbleNotifications = config.PebbleNotificationsEnabled
 	router := NewGoCertRouter(env)
 
 	s := &http.Server{

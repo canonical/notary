@@ -11,6 +11,7 @@
 7. Run the project: `gocert -config config.yaml`
 
 Commands assume you're running them from the top level git repo directory
+
 ## Testing
 
 ### Unit Tests

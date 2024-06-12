@@ -1,6 +1,7 @@
 "use client"
 
 import { SetStateAction, Dispatch, useState, createContext, useEffect , ChangeEvent} from "react"
+import { QueryClient, QueryClientProvider } from "react-query";
 import Image from "next/image";
 
 type AsideContextType = {
@@ -130,6 +131,7 @@ export function Logo() {
     )
 }
 
+const queryClient = new QueryClient()
 export default function Navigation({
     children,
 }: Readonly<{
@@ -138,15 +140,17 @@ export default function Navigation({
     const [sidebarVisible, setSidebarVisible] = useState<boolean>(true)
     const [asideOpen, setAsideOpen] = useState<boolean>(false)
     return (
-        <div className="l-application" role="presentation">
-            <TopBar setSidebarVisible={setSidebarVisible} />
-            <SideBar sidebarVisible={sidebarVisible} setSidebarVisible={setSidebarVisible} />
-            <main className="l-main">
-                <AsideContext.Provider value={{ isOpen: asideOpen, setIsOpen: setAsideOpen }}>
-                    {children}
-                </AsideContext.Provider>
-            </main>
-            <Aside isOpen={asideOpen} setIsOpen={setAsideOpen} />
-        </div >
+        <QueryClientProvider client={queryClient}>
+            <div className="l-application" role="presentation">
+                <TopBar setSidebarVisible={setSidebarVisible} />
+                <SideBar sidebarVisible={sidebarVisible} setSidebarVisible={setSidebarVisible} />
+                <main className="l-main">
+                    <AsideContext.Provider value={{ isOpen: asideOpen, setIsOpen: setAsideOpen }}>
+                        {children}
+                    </AsideContext.Provider>
+                </main>
+                <Aside isOpen={asideOpen} setIsOpen={setAsideOpen} />
+            </div >
+        </QueryClientProvider>
     )
 }

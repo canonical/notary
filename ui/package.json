@@ -14,6 +14,7 @@
     "next": "14.2.3",
     "react": "^18",
     "react-dom": "^18",
+    "react-query": "^3.39.3",
     "sass": "^1.77.4",
     "vanilla-framework": "^4.11.0"
   },

@@ -32,7 +32,7 @@ function sortByCertStatus(a: CSREntry, b: CSREntry) {
     }
 }
 
-export function CertificateRequestsTable({csrs: rows}: TableProps) {
+export function CertificateRequestsTable({ csrs: rows }: TableProps) {
     const { isOpen: isAsideOpen, setIsOpen: setAsideIsOpen } = useContext(AsideContext)
 
     const [actionsMenuExpanded, setActionsMenuExpanded] = useState<number>(0)
@@ -41,9 +41,9 @@ export function CertificateRequestsTable({csrs: rows}: TableProps) {
     const sortedRows = () => {
         switch (sortedColumn) {
             case "csr":
-                return (sortDescending? rows.sort(sortByCSRStatus).reverse() : rows.sort(sortByCSRStatus))
+                return (sortDescending ? rows.sort(sortByCSRStatus).reverse() : rows.sort(sortByCSRStatus))
             case "cert":
-                return (sortDescending? rows.sort(sortByCertStatus).reverse() : rows.sort(sortByCertStatus))
+                return (sortDescending ? rows.sort(sortByCertStatus).reverse() : rows.sort(sortByCertStatus))
             default:
                 return rows
         }
@@ -63,8 +63,8 @@ export function CertificateRequestsTable({csrs: rows}: TableProps) {
                             <tr>
                                 <th>ID</th>
                                 <th>Details</th>
-                                <th aria-sort={sortedColumn == "csr"? (sortDescending? "descending": "ascending"): "none"} onClick={() => {setSortedColumn('csr');setSortDescending(!sortDescending)}}>CSR Status</th>
-                                <th aria-sort={sortedColumn == "cert"? (sortDescending? "descending": "ascending"): "none"} onClick={() => {setSortedColumn('cert');setSortDescending(!sortDescending)}}>Certificate Expiry Date</th>
+                                <th aria-sort={sortedColumn == "csr" ? (sortDescending ? "descending" : "ascending") : "none"} onClick={() => { setSortedColumn('csr'); setSortDescending(!sortDescending) }}>CSR Status</th>
+                                <th aria-sort={sortedColumn == "cert" ? (sortDescending ? "descending" : "ascending") : "none"} onClick={() => { setSortedColumn('cert'); setSortDescending(!sortDescending) }}>Certificate Expiry Date</th>
                                 <th className="has-overflow">Actions</th>
                                 <th aria-hidden="true"></th>
                             </tr>
@@ -72,9 +72,9 @@ export function CertificateRequestsTable({csrs: rows}: TableProps) {
                         <tbody>
                             {
                                 sortedRows().map((row) => (
-                                    <Row key={row.ID} id={row.ID} csr={row.CSR} certificate={row.Certificate} ActionMenuExpanded={actionsMenuExpanded} setActionMenuExpanded={setActionsMenuExpanded}/> 
+                                    <Row key={row.ID} id={row.ID} csr={row.CSR} certificate={row.Certificate} ActionMenuExpanded={actionsMenuExpanded} setActionMenuExpanded={setActionsMenuExpanded} />
                                 )
-                            )}
+                                )}
                         </tbody>
                     </table>
                 </div>

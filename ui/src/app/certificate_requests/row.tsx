@@ -25,7 +25,7 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
     }
     return (
         <tr>
-            <td className="" width={5} data-test-column="id">{id}</td>
+            <td className="" width={5} aria-label="id">{id}</td>
             <td className="">
                 <button
                     className="u-toggle p-contextual-menu__toggle p-button--base is-small"
@@ -36,8 +36,8 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                 </button>
                 <span>{csrObj.subjects.find((e) => e.type == "Common Name")?.value}</span>
             </td>
-            <td className="" data-test-column="status">{certificate == "" ? "outstanding" : (certificate == "rejected" ? "rejected" : "fulfilled")}</td>
-            <td className="" data-test-column="status">{certificate == "" ? "" : (certificate == "rejected" ? "" : certObj?.notAfter)}</td>
+            <td className="" aria-label="csr-status">{certificate == "" ? "outstanding" : (certificate == "rejected" ? "rejected" : "fulfilled")}</td>
+            <td className="" aria-label="certificate-expiry-date">{certificate == "" ? "" : (certificate == "rejected" ? "" : certObj?.notAfter)}</td>
             <td className="has-overflow" data-heading="Actions">
                 <span className="p-contextual-menu--center u-no-margin--bottom">
                     <button

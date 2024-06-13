@@ -56,7 +56,7 @@ const setActionMenuExpanded = (val: number) => {
 test('Certificate Requests Table Row', () => {
     render(<Row id={csr.ID} csr={csr.CSR} certificate={csr.Certificate} ActionMenuExpanded={actionMenuExpanded} setActionMenuExpanded={setActionMenuExpanded as Dispatch<SetStateAction<number>>} />)
     expect(screen.getByText('10.152.183.53')).toBeDefined() // Common name of CSR
-    expect(screen.getByText('Thu Mar 27 2025 15:48:04 GMT+0300 (GMT+03:00)')).toBeDefined()
+    expect(screen.getByLabelText('certificate-expiry-date').innerHTML).toMatch(/^Thu Mar 27/)
     const openActionsButton = screen.getByLabelText("action-menu-button")
     fireEvent.click(openActionsButton);
     expect(actionMenuExpanded).toBe(1)

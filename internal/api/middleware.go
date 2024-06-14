@@ -73,7 +73,7 @@ func loggingMiddleware(ctx *middlewareContext) middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			clonedWriter := newResponseWriter(w)
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(clonedWriter, r)
 
 			// Suppress logging for static files
 			if !strings.HasPrefix(r.URL.Path, "/_next") {

@@ -140,7 +140,7 @@ func TestGoCertFail(t *testing.T) {
 		ConfigYAML     string
 		ExpectedOutput string
 	}{
-		{"flags not set", []string{}, validConfig, "Providing a valid config file is required."},
+		{"flags not set", []string{}, validConfig, "Providing a config file is required."},
 		{"config file not valid", []string{"-config", "config.yaml"}, invalidConfig, "config file validation failed:"},
 		{"database not connectable", []string{"-config", "config.yaml"}, invalidDBConfig, "Couldn't connect to database:"},
 	}

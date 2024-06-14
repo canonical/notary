@@ -1,5 +1,7 @@
-import { useState, Dispatch, SetStateAction } from "react"
+import { useState, Dispatch, SetStateAction, useEffect, useRef } from "react"
+import { useMutation, useQueryClient } from "react-query"
 import { extractCSR, extractCert } from "../utils"
+import { deleteCSR, rejectCSR } from "../queries"
 
 
 type rowProps = {
@@ -15,6 +17,15 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
 
     const csrObj = extractCSR(csr)
     const certObj = extractCert(certificate)
+
+    // Access the client
+    const queryClient = useQueryClient()
+    const deleteMutation = useMutation(deleteCSR, {
+        onSuccess: () => queryClient.invalidateQueries('csrs')
+    })
+    const rejectMutation = useMutation(rejectCSR, {
+        onSuccess: () => queryClient.invalidateQueries('csrs')
+    })
 
     const toggleActionMenu = () => {
         if (ActionMenuExpanded == id) {
@@ -54,8 +65,8 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                         <span className="p-contextual-menu__group">
                             <button className="p-contextual-menu__link">Copy Certificate Request to Clipboard</button>
                             <button className="p-contextual-menu__link">Download Certificate Request</button>
-                            <button className="p-contextual-menu__link">Reject Certificate Request</button>
-                            <button className="p-contextual-menu__link">Delete Certificate Request</button>
+                            <button className="p-contextual-menu__link" onMouseDown={() => rejectMutation.mutate(id.toString())}>Reject Certificate Request</button>
+                            <button className="p-contextual-menu__link" onMouseDown={() => deleteMutation.mutate(id.toString())}>Delete Certificate Request</button>
                         </span>
                         <span className="p-contextual-menu__group">
                             <button className="p-contextual-menu__link">Upload Certificate</button>

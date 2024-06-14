@@ -1,7 +1,7 @@
 import { useContext, useState } from "react"
 import { AsideContext } from "../nav"
 import Row from "./row"
-import { CSREntry } from "./types"
+import { CSREntry } from "../types"
 
 
 type TableProps = {

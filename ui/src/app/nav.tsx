@@ -1,8 +1,10 @@
 "use client"
 
 import { SetStateAction, Dispatch, useState, createContext, useEffect, ChangeEvent } from "react"
-import { QueryClient, QueryClientProvider } from "react-query";
+import { QueryClient, QueryClientProvider, useMutation } from "react-query";
 import Image from "next/image";
+import { postCSR } from "./queries";
+import { extractCSR } from "./utils";
 
 type AsideContextType = {
     isOpen: boolean,
@@ -11,10 +13,16 @@ type AsideContextType = {
 export const AsideContext = createContext<AsideContextType>({ isOpen: false, setIsOpen: () => { } });
 
 export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispatch<SetStateAction<boolean>> }) {
+    const mutation = useMutation(postCSR, {
+        onSuccess: () => {
+            queryClient.invalidateQueries('csrs')
+        },
+    })
+
     const [CSRPEMString, setCSRPEMString] = useState<string>("")
     const handleTextChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
         setCSRPEMString(event.target.value);
-    };
+    }
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0]
         if (file) {
@@ -29,8 +37,16 @@ export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispa
             reader.readAsText(file);
         }
     };
+    const CSRValidationElement = function () {
+        try {
+            extractCSR(CSRPEMString)
+        } catch (e) {
+            return <div><i className="p-icon--error"></i>Invalid CSR</div>
+        }
+        return <div><i className="p-icon--success"></i>Valid CSR</div>
+    }()
     return (
-        <aside className={"l-aside" + (isOpen ? "" : " is-collapsed")} id="aside-panel" aria-label="aside-panel">
+        <aside className={"l-aside" + (isOpen ? "" : " is-collapsed")} id="aside-panel" aria-label="aside-panel" >
             <div className="p-panel">
                 <div className="p-panel__header">
                     <h4 className="p-panel__title">Add New CSR</h4>
@@ -50,7 +66,10 @@ export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispa
                             <input type="file" name="upload" accept=".pem" onChange={handleFileChange}></input>
                         </div>
                         <div className="p-form__group row">
-                            <button className="p-button--positive u-float-right" name="submit">Submit</button>
+                            {CSRValidationElement}
+                            <button className="p-button--positive u-float-right" name="submit" onClick={() => mutation.mutate(CSRPEMString)} >
+                                Submit
+                            </button>
                         </div>
                     </form>
                 </div>

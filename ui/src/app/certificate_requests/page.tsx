@@ -2,8 +2,8 @@
 
 import { useQuery } from "react-query"
 import { CertificateRequestsTable } from "./table"
-import { getCertificateRequests } from "./queries"
-import { CSREntry } from "./types"
+import { getCertificateRequests } from "../queries"
+import { CSREntry } from "../types"
 
 function Error({ msg }: { msg: string }) {
     return (

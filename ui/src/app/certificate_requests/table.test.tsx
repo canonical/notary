@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { CertificateRequestsTable } from './table'
+import { QueryClient, QueryClientProvider } from 'react-query'
 
 const rows = [
     {
@@ -92,8 +93,13 @@ Mvo/+PAJHkBciR5Xn+Wg2a+7vrZvT6CBoRSOTozlLSM=
     },
 ]
 
+const queryClient = new QueryClient()
 test('CertificateRequestsPage', () => {
-    render(< CertificateRequestsTable csrs={rows} />)
+    render(
+        <QueryClientProvider client={queryClient}>
+            < CertificateRequestsTable csrs={rows} />
+        </QueryClientProvider>
+    )
     expect(screen.getByRole('table', {})).toBeDefined()
     expect(screen.getByText('example.com')).toBeDefined() // Common Name of one of the CSR's
 })

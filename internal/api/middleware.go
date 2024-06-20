@@ -3,6 +3,7 @@ package server
 import (
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/canonical/gocert/internal/metrics"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -71,10 +72,15 @@ func metricsMiddleware(ctx *middlewareContext) middleware {
 func loggingMiddleware(ctx *middlewareContext) middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			clonedWwriter := newResponseWriter(w)
-			next.ServeHTTP(w, r)
-			log.Println(r.Method, r.URL.Path, clonedWwriter.statusCode, http.StatusText(clonedWwriter.statusCode))
-			ctx.responseStatusCode = clonedWwriter.statusCode
+			clonedWriter := newResponseWriter(w)
+			next.ServeHTTP(clonedWriter, r)
+
+			// Suppress logging for static files
+			if !strings.HasPrefix(r.URL.Path, "/_next") {
+				log.Println(r.Method, r.URL.Path, clonedWriter.statusCode, http.StatusText(clonedWriter.statusCode))
+			}
+
+			ctx.responseStatusCode = clonedWriter.statusCode
 		})
 	}
 }

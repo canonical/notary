@@ -14,7 +14,7 @@ export async function postCSR(csr: string) {
         headers: {
             'Content-Type': 'text/plain',
         },
-        body: csr
+        body: csr.trim()
     })
     if (!response.ok) {
         throw new Error('Network response was not ok')

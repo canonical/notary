@@ -15,7 +15,7 @@ export const AsideContext = createContext<AsideContextType>({ isOpen: false, set
 function SubmitCSR({ csrText, onClickFunc }: { csrText: string, onClickFunc: any }) {
     let csrIsValid = false
     try {
-        extractCSR(csrText)
+        extractCSR(csrText.trim())
         csrIsValid = true
     }
     catch { }
@@ -36,8 +36,6 @@ export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispa
             queryClient.invalidateQueries('csrs')
         },
     })
-
-    const [csrIsValid, setCSRIsValid] = useState<boolean>(false)
     const [CSRPEMString, setCSRPEMString] = useState<string>("")
     const handleTextChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
         setCSRPEMString(event.target.value);
@@ -60,7 +58,7 @@ export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispa
         <aside className={"l-aside" + (isOpen ? "" : " is-collapsed")} id="aside-panel" aria-label="aside-panel" >
             <div className="p-panel">
                 <div className="p-panel__header">
-                    <h4 className="p-panel__title">Add New CSR</h4>
+                    <h4 className="p-panel__title">Add a New Certificate Request</h4>
                     <div className="p-panel__controls">
                         <button onClick={() => setIsOpen(false)} className="p-button--base u-no-margin--bottom has-icon"><i className="p-icon--close"></i></button>
                     </div>
@@ -69,12 +67,12 @@ export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispa
                     <form className="p-form p-form--stacked">
                         <div className="p-form__group row">
                             <label htmlFor="textarea">
-                                Enter or upload CSR in PEM format below
+                                Enter or upload the CSR in PEM format below
                             </label>
                             <textarea id="csr-textarea" name="textarea" rows={10} placeholder="-----BEGIN CERTIFICATE REQUEST-----" onChange={handleTextChange} value={CSRPEMString} />
                         </div>
                         <div className="p-form__group row">
-                            <input type="file" name="upload" accept=".pem" onChange={handleFileChange}></input>
+                            <input type="file" name="upload" accept=".pem,.csr" onChange={handleFileChange}></input>
                         </div>
                         <div className="p-form__group row">
                             <SubmitCSR csrText={CSRPEMString} onClickFunc={() => mutation.mutate(CSRPEMString)} />

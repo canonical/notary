@@ -1,6 +1,7 @@
 "use client"
 
-import { SetStateAction, Dispatch, useState, createContext, useEffect , ChangeEvent} from "react"
+import { SetStateAction, Dispatch, useState, createContext, useEffect, ChangeEvent } from "react"
+import { QueryClient, QueryClientProvider } from "react-query";
 import Image from "next/image";
 
 type AsideContextType = {
@@ -24,10 +25,10 @@ export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispa
                         setCSRPEMString(e.target.result.toString());
                     }
                 }
-        };
-        reader.readAsText(file);
+            };
+            reader.readAsText(file);
         }
-  };
+    };
     return (
         <aside className={"l-aside" + (isOpen ? "" : " is-collapsed")} id="aside-panel" aria-label="aside-panel">
             <div className="p-panel">
@@ -43,7 +44,7 @@ export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispa
                             <label htmlFor="textarea">
                                 Enter or upload CSR in PEM format below
                             </label>
-                            <textarea id="csr-textarea" name="textarea" rows={10} placeholder="-----BEGIN CERTIFICATE REQUEST-----" onChange={handleTextChange} value={CSRPEMString}/>
+                            <textarea id="csr-textarea" name="textarea" rows={10} placeholder="-----BEGIN CERTIFICATE REQUEST-----" onChange={handleTextChange} value={CSRPEMString} />
                         </div>
                         <div className="p-form__group row">
                             <input type="file" name="upload" accept=".pem" onChange={handleFileChange}></input>
@@ -61,10 +62,10 @@ export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispa
 export function SideBar({ sidebarVisible, setSidebarVisible }: { sidebarVisible: boolean, setSidebarVisible: Dispatch<SetStateAction<boolean>> }) {
     const [activeTab, setActiveTab] = useState<string>("");
     useEffect(() => {
-      if (typeof window !== 'undefined') {
-        setActiveTab(location.pathname.split('/')[1]);
-      }
-    }, []); 
+        if (typeof window !== 'undefined') {
+            setActiveTab(location.pathname.split('/')[1]);
+        }
+    }, []);
     return (
         <header className={sidebarVisible ? "l-navigation" : "l-navigation is-collapsed"}>
             <div className="l-navigation__drawer">
@@ -116,20 +117,21 @@ export function TopBar({ setSidebarVisible }: { setSidebarVisible: Dispatch<SetS
 export function Logo() {
     return (
         <div className="logo">
-          <div className="logo-tag">
-            <Image
-              src="https://assets.ubuntu.com/v1/82818827-CoF_white.svg"
-              alt="circle of friends"
-              width={32}
-              height={32}
-              className="logo-image"
-            />
-          </div>
-          <span className="logo-text p-heading--4">GoCert</span>
+            <div className="logo-tag">
+                <Image
+                    src="https://assets.ubuntu.com/v1/82818827-CoF_white.svg"
+                    alt="circle of friends"
+                    width={32}
+                    height={32}
+                    className="logo-image"
+                />
+            </div>
+            <span className="logo-text p-heading--4">GoCert</span>
         </div>
     )
 }
 
+const queryClient = new QueryClient()
 export default function Navigation({
     children,
 }: Readonly<{
@@ -138,15 +140,17 @@ export default function Navigation({
     const [sidebarVisible, setSidebarVisible] = useState<boolean>(true)
     const [asideOpen, setAsideOpen] = useState<boolean>(false)
     return (
-        <div className="l-application" role="presentation">
-            <TopBar setSidebarVisible={setSidebarVisible} />
-            <SideBar sidebarVisible={sidebarVisible} setSidebarVisible={setSidebarVisible} />
-            <main className="l-main">
-                <AsideContext.Provider value={{ isOpen: asideOpen, setIsOpen: setAsideOpen }}>
-                    {children}
-                </AsideContext.Provider>
-            </main>
-            <Aside isOpen={asideOpen} setIsOpen={setAsideOpen} />
-        </div >
+        <QueryClientProvider client={queryClient}>
+            <div className="l-application" role="presentation">
+                <TopBar setSidebarVisible={setSidebarVisible} />
+                <SideBar sidebarVisible={sidebarVisible} setSidebarVisible={setSidebarVisible} />
+                <main className="l-main">
+                    <AsideContext.Provider value={{ isOpen: asideOpen, setIsOpen: setAsideOpen }}>
+                        {children}
+                    </AsideContext.Provider>
+                </main>
+                <Aside isOpen={asideOpen} setIsOpen={setAsideOpen} />
+            </div >
+        </QueryClientProvider>
     )
 }

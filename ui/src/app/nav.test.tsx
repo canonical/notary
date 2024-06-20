@@ -1,11 +1,11 @@
 import { expect, describe, it } from "vitest";
-import {render, fireEvent, screen} from '@testing-library/react'
+import { render, fireEvent, screen } from '@testing-library/react'
 import Navigation from "./nav";
 import { CertificateRequestsTable } from "./certificate_requests/table";
 
 describe('Navigation', () => {
   it('should open aside when clicking button', () => {
-    render(<Navigation><CertificateRequestsTable /></Navigation>)
+    render(<Navigation><CertificateRequestsTable csrs={[]} /></Navigation>)
     const addCSRButton = screen.getByLabelText(/add-csr-button/i)
     expect(screen.getByLabelText(/aside-panel/i).className.endsWith('is-collapsed')).toBe(true)
     fireEvent.click(addCSRButton)

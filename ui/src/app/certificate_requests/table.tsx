@@ -1,8 +1,22 @@
-import { useContext, useState } from "react"
+import { useContext, useState, Dispatch, SetStateAction } from "react"
 import { AsideContext } from "../nav"
 import Row from "./row"
 import { CSREntry } from "./types"
 
+function EmptyState({ asideOpen, setAsideOpen }: { asideOpen: boolean, setAsideOpen: Dispatch<SetStateAction<boolean>> }) {
+    return (
+        <caption>
+            <div className="p-strip">
+                <div className="row">
+                    <div className="col-8 col-medium-4 col-small-3">
+                        <p className="p-heading--4">No CSRs available yet.</p>
+                        <button className="u-no-margin--bottom p-button--positive" aria-label="add-csr-button" onClick={() => setAsideOpen(true)}>Add New CSR</button>
+                    </div>
+                </div>
+            </div>
+        </caption>
+    )
+}
 
 type TableProps = {
     csrs: CSREntry[]
@@ -53,7 +67,7 @@ export function CertificateRequestsTable({ csrs: rows }: TableProps) {
             <div className="p-panel__header is-sticky">
                 <h4 className="p-panel__title">Certificate Requests</h4>
                 <div className="p-panel__controls">
-                    <button className="u-no-margin--bottom p-button--positive" aria-label="add-csr-button" onClick={() => setAsideIsOpen(true)}>Add New CSR</button>
+                    {rows.length > 0 && <button className="u-no-margin--bottom p-button--positive" aria-label="add-csr-button" onClick={() => setAsideIsOpen(true)}>Add New CSR</button>}
                 </div>
             </div>
             <div className="p-panel__content">
@@ -76,6 +90,7 @@ export function CertificateRequestsTable({ csrs: rows }: TableProps) {
                                 )
                                 )}
                         </tbody>
+                        {rows.length == 0 && <EmptyState asideOpen={isAsideOpen} setAsideOpen={setAsideIsOpen} />}
                     </table>
                 </div>
             </div>

@@ -12,6 +12,24 @@ type AsideContextType = {
 }
 export const AsideContext = createContext<AsideContextType>({ isOpen: false, setIsOpen: () => { } });
 
+function SubmitCSR({ csrText, onClickFunc }: { csrText: string, onClickFunc: any }) {
+    let csrIsValid = false
+    try {
+        extractCSR(csrText)
+        csrIsValid = true
+    }
+    catch { }
+
+    const validationComponent = csrText == "" ? <></> : csrIsValid ? <div><i className="p-icon--success"></i>Valid CSR</div> : <div><i className="p-icon--error"></i>Invalid CSR</div>
+    const buttonComponent = csrIsValid ? <button className="p-button--positive u-float-right" name="submit" onClick={onClickFunc} >Submit</button> : <button className="p-button--positive u-float-right" name="submit" disabled={true} onClick={onClickFunc} >Submit</button>
+    return (
+        <>
+            {validationComponent}
+            {buttonComponent}
+        </>
+    )
+}
+
 export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispatch<SetStateAction<boolean>> }) {
     const mutation = useMutation(postCSR, {
         onSuccess: () => {
@@ -19,6 +37,7 @@ export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispa
         },
     })
 
+    const [csrIsValid, setCSRIsValid] = useState<boolean>(false)
     const [CSRPEMString, setCSRPEMString] = useState<string>("")
     const handleTextChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
         setCSRPEMString(event.target.value);
@@ -37,14 +56,6 @@ export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispa
             reader.readAsText(file);
         }
     };
-    const CSRValidationElement = function () {
-        try {
-            extractCSR(CSRPEMString)
-        } catch (e) {
-            return <div><i className="p-icon--error"></i>Invalid CSR</div>
-        }
-        return <div><i className="p-icon--success"></i>Valid CSR</div>
-    }()
     return (
         <aside className={"l-aside" + (isOpen ? "" : " is-collapsed")} id="aside-panel" aria-label="aside-panel" >
             <div className="p-panel">
@@ -66,10 +77,7 @@ export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispa
                             <input type="file" name="upload" accept=".pem" onChange={handleFileChange}></input>
                         </div>
                         <div className="p-form__group row">
-                            {CSRValidationElement}
-                            <button className="p-button--positive u-float-right" name="submit" onClick={() => mutation.mutate(CSRPEMString)} >
-                                Submit
-                            </button>
+                            <SubmitCSR csrText={CSRPEMString} onClickFunc={() => mutation.mutate(CSRPEMString)} />
                         </div>
                     </form>
                 </div>

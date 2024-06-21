@@ -17,6 +17,7 @@ jobs:
       - name: Import the image to Docker registry
         run: |
           sudo rockcraft.skopeo --insecure-policy copy oci-archive:${{ steps.rockcraft.outputs.rock }} docker-daemon:gocert:latest
+
       - name: Create files required by GoCert
         run: |
           printf 'key_path:  "/etc/config/key.pem"\ncert_path: "/etc/config/cert.pem"\ndb_path: "/etc/config/certs.db"\nport: 3000\npebble_notifications: true\n' > config.yaml

@@ -1,7 +1,7 @@
 import { useContext, useState, Dispatch, SetStateAction } from "react"
 import { AsideContext } from "../nav"
 import Row from "./row"
-import { CSREntry } from "./types"
+import { CSREntry } from "../types"
 
 function EmptyState({ asideOpen, setAsideOpen }: { asideOpen: boolean, setAsideOpen: Dispatch<SetStateAction<boolean>> }) {
     return (

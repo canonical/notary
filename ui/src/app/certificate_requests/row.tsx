@@ -18,7 +18,6 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
     const csrObj = extractCSR(csr)
     const certObj = extractCert(certificate)
 
-    // Access the client
     const queryClient = useQueryClient()
     const deleteMutation = useMutation(deleteCSR, {
         onSuccess: () => queryClient.invalidateQueries('csrs')

@@ -38,13 +38,13 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
     const handleReject = () => {
         setConfirmationModalData({
             func: () => mutationFunc(rejectMutation),
-            warningText: "Are you sure you want to reject this CSR? This action cannot be undone and will remove the certificate if there is any."
+            warningText: "Rejecting a Certificate Request means the CSR will remain in this application, but its status will be moved to rejected and the associated certificate will be deleted if there is any. This action cannot be undone."
         })
     }
     const handleDelete = () => {
         setConfirmationModalData({
             func: () => mutationFunc(deleteMutation),
-            warningText: "Are you sure you want to delete this CSR? This action cannot be undone and will delete the certificate if there is any."
+            warningText: "Deleting a Certificate Request means this row will be completely removed from the application. This action cannot be undone."
         })
     }
 
@@ -87,7 +87,9 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                             <span className="p-contextual-menu__group">
                                 <button className="p-contextual-menu__link">Copy Certificate Request to Clipboard</button>
                                 <button className="p-contextual-menu__link">Download Certificate Request</button>
-                                <button className="p-contextual-menu__link" onMouseDown={handleReject}>Reject Certificate Request</button>
+                                {certificate == "rejected" ?
+                                    <button className="p-contextual-menu__link" disabled={true} onMouseDown={handleReject}>Reject Certificate Request</button> :
+                                    <button className="p-contextual-menu__link" onMouseDown={handleReject}>Reject Certificate Request</button>}
                                 <button className="p-contextual-menu__link" onMouseDown={handleDelete}>Delete Certificate Request</button>
                             </span>
                             <span className="p-contextual-menu__group">

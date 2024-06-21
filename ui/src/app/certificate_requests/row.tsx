@@ -37,13 +37,13 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
     }
     const handleReject = () => {
         setConfirmationModalData({
-            func: () => () => mutationFunc(rejectMutation),
+            func: () => mutationFunc(rejectMutation),
             warningText: "Are you sure you want to reject this CSR? This action cannot be undone and will remove the certificate if there is any."
         })
     }
     const handleDelete = () => {
         setConfirmationModalData({
-            func: () => () => mutationFunc(deleteMutation),
+            func: () => mutationFunc(deleteMutation),
             warningText: "Are you sure you want to delete this CSR? This action cannot be undone and will delete the certificate if there is any."
         })
     }

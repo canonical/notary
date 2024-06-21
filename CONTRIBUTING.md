@@ -40,6 +40,6 @@ npm run lint
 ```bash
 rockcraft pack -v
 version=$(yq '.version' rockcraft.yaml)
-sudo skopeo --insecure-policy copy oci-archive:gocert_${version}_amd64.rock docker-daemon:gocert:${version}
+sudo rockcraft.skopeo --insecure-policy copy oci-archive:gocert_${version}_amd64.rock docker-daemon:gocert:${version}
 docker run gocert:${version}
 ```

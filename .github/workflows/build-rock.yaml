@@ -13,6 +13,7 @@ jobs:
         id: rockcraft
         with:
           rockcraft-channel: edge
+  
       - name: Import the image to Docker registry
         run: |
           sudo rockcraft.skopeo --insecure-policy copy oci-archive:${{ steps.rockcraft.outputs.rock }} docker-daemon:gocert:latest

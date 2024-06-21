@@ -10,9 +10,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install skopeo
+      - name: Install rockcraft
         run: |
-          sudo snap install --devmode --channel edge skopeo
+          sudo snap install rockcraft --classic --channel edge
 
       - name: Install yq
         run: |
@@ -29,7 +29,7 @@ jobs:
           version="$(yq '.version' rockcraft.yaml)"
           echo "version=${version}" >> $GITHUB_ENV
           rock_file=$(ls *.rock | tail -n 1)
-          sudo skopeo \
+          sudo rockcraft.skopeo \
             --insecure-policy \
             copy \
             oci-archive:"${rock_file}" \

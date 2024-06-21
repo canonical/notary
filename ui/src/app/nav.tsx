@@ -12,13 +12,30 @@ type AsideContextType = {
 }
 export const AsideContext = createContext<AsideContextType>({ isOpen: false, setIsOpen: () => { } });
 
+function SubmitCSR({ csrText, onClickFunc }: { csrText: string, onClickFunc: any }) {
+    let csrIsValid = false
+    try {
+        extractCSR(csrText.trim())
+        csrIsValid = true
+    }
+    catch { }
+
+    const validationComponent = csrText == "" ? <></> : csrIsValid ? <div><i className="p-icon--success"></i>Valid CSR</div> : <div><i className="p-icon--error"></i>Invalid CSR</div>
+    const buttonComponent = csrIsValid ? <button className="p-button--positive u-float-right" name="submit" onClick={onClickFunc} >Submit</button> : <button className="p-button--positive u-float-right" name="submit" disabled={true} onClick={onClickFunc} >Submit</button>
+    return (
+        <>
+            {validationComponent}
+            {buttonComponent}
+        </>
+    )
+}
+
 export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispatch<SetStateAction<boolean>> }) {
     const mutation = useMutation(postCSR, {
         onSuccess: () => {
             queryClient.invalidateQueries('csrs')
         },
     })
-
     const [CSRPEMString, setCSRPEMString] = useState<string>("")
     const handleTextChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
         setCSRPEMString(event.target.value);
@@ -37,19 +54,11 @@ export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispa
             reader.readAsText(file);
         }
     };
-    const CSRValidationElement = function () {
-        try {
-            extractCSR(CSRPEMString)
-        } catch (e) {
-            return <div><i className="p-icon--error"></i>Invalid CSR</div>
-        }
-        return <div><i className="p-icon--success"></i>Valid CSR</div>
-    }()
     return (
         <aside className={"l-aside" + (isOpen ? "" : " is-collapsed")} id="aside-panel" aria-label="aside-panel" >
             <div className="p-panel">
                 <div className="p-panel__header">
-                    <h4 className="p-panel__title">Add New CSR</h4>
+                    <h4 className="p-panel__title">Add a New Certificate Request</h4>
                     <div className="p-panel__controls">
                         <button onClick={() => setIsOpen(false)} className="p-button--base u-no-margin--bottom has-icon"><i className="p-icon--close"></i></button>
                     </div>
@@ -58,18 +67,15 @@ export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispa
                     <form className="p-form p-form--stacked">
                         <div className="p-form__group row">
                             <label htmlFor="textarea">
-                                Enter or upload CSR in PEM format below
+                                Enter or upload the CSR in PEM format below
                             </label>
                             <textarea id="csr-textarea" name="textarea" rows={10} placeholder="-----BEGIN CERTIFICATE REQUEST-----" onChange={handleTextChange} value={CSRPEMString} />
                         </div>
                         <div className="p-form__group row">
-                            <input type="file" name="upload" accept=".pem" onChange={handleFileChange}></input>
+                            <input type="file" name="upload" accept=".pem,.csr" onChange={handleFileChange}></input>
                         </div>
                         <div className="p-form__group row">
-                            {CSRValidationElement}
-                            <button className="p-button--positive u-float-right" name="submit" onClick={() => mutation.mutate(CSRPEMString)} >
-                                Submit
-                            </button>
+                            <SubmitCSR csrText={CSRPEMString} onClickFunc={() => mutation.mutate(CSRPEMString)} />
                         </div>
                     </form>
                 </div>
@@ -101,7 +107,7 @@ export function SideBar({ sidebarVisible, setSidebarVisible }: { sidebarVisible:
                             <nav aria-label="Main">
                                 <ul className="p-side-navigation__list">
                                     <li className="p-side-navigation__item">
-                                        <a className="p-side-navigation__link" href="/certificate_requests.html" aria-current={activeTab === "certificate_requests" ? "page" : "false"} >
+                                        <a className="p-side-navigation__link" href="/certificate_requests" aria-current={activeTab === "certificate_requests" ? "page" : "false"} >
                                             <i className="p-icon--security is-light p-side-navigation__icon"></i>
                                             <span className="p-side-navigation__label">
                                                 <span className="p-side-navigation__label">Certificate Requests</span>

@@ -18,11 +18,7 @@ function SubmitCSR({ csrText, onClickFunc }: { csrText: string, onClickFunc: any
         extractCSR(csrText.trim())
         csrIsValid = true
     }
-    catch (e) {
-        if (e instanceof Error) {
-            console.log(e.message)
-        }
-    }
+    catch { }
 
     const validationComponent = csrText == "" ? <></> : csrIsValid ? <div><i className="p-icon--success"></i>Valid CSR</div> : <div><i className="p-icon--error"></i>Invalid CSR</div>
     const buttonComponent = csrIsValid ? <button className="p-button--positive u-float-right" name="submit" onClick={onClickFunc} >Submit</button> : <button className="p-button--positive u-float-right" name="submit" disabled={true} onClick={onClickFunc} >Submit</button>

@@ -1,8 +1,22 @@
-import { useContext, useState } from "react"
+import { useContext, useState, Dispatch, SetStateAction } from "react"
 import { AsideContext } from "../nav"
 import Row from "./row"
-import { CSREntry } from "./types"
+import { CSREntry } from "../types"
 
+function EmptyState({ asideOpen, setAsideOpen }: { asideOpen: boolean, setAsideOpen: Dispatch<SetStateAction<boolean>> }) {
+    return (
+        <caption>
+            <div className="p-strip">
+                <div className="row">
+                    <div className="col-8 col-medium-4 col-small-3">
+                        <p className="p-heading--4">No CSRs available yet.</p>
+                        <button className="u-no-margin--bottom p-button--positive" aria-label="add-csr-button" onClick={() => setAsideOpen(true)}>Add New CSR</button>
+                    </div>
+                </div>
+            </div>
+        </caption>
+    )
+}
 
 type TableProps = {
     csrs: CSREntry[]
@@ -32,7 +46,7 @@ function sortByCertStatus(a: CSREntry, b: CSREntry) {
     }
 }
 
-export function CertificateRequestsTable({csrs: rows}: TableProps) {
+export function CertificateRequestsTable({ csrs: rows }: TableProps) {
     const { isOpen: isAsideOpen, setIsOpen: setAsideIsOpen } = useContext(AsideContext)
 
     const [actionsMenuExpanded, setActionsMenuExpanded] = useState<number>(0)
@@ -41,9 +55,9 @@ export function CertificateRequestsTable({csrs: rows}: TableProps) {
     const sortedRows = () => {
         switch (sortedColumn) {
             case "csr":
-                return (sortDescending? rows.sort(sortByCSRStatus).reverse() : rows.sort(sortByCSRStatus))
+                return (sortDescending ? rows.sort(sortByCSRStatus).reverse() : rows.sort(sortByCSRStatus))
             case "cert":
-                return (sortDescending? rows.sort(sortByCertStatus).reverse() : rows.sort(sortByCertStatus))
+                return (sortDescending ? rows.sort(sortByCertStatus).reverse() : rows.sort(sortByCertStatus))
             default:
                 return rows
         }
@@ -53,7 +67,7 @@ export function CertificateRequestsTable({csrs: rows}: TableProps) {
             <div className="p-panel__header is-sticky">
                 <h4 className="p-panel__title">Certificate Requests</h4>
                 <div className="p-panel__controls">
-                    <button className="u-no-margin--bottom p-button--positive" aria-label="add-csr-button" onClick={() => setAsideIsOpen(true)}>Add New CSR</button>
+                    {rows.length > 0 && <button className="u-no-margin--bottom p-button--positive" aria-label="add-csr-button" onClick={() => setAsideIsOpen(true)}>Add New CSR</button>}
                 </div>
             </div>
             <div className="p-panel__content">
@@ -63,8 +77,8 @@ export function CertificateRequestsTable({csrs: rows}: TableProps) {
                             <tr>
                                 <th>ID</th>
                                 <th>Details</th>
-                                <th aria-sort={sortedColumn == "csr"? (sortDescending? "descending": "ascending"): "none"} onClick={() => {setSortedColumn('csr');setSortDescending(!sortDescending)}}>CSR Status</th>
-                                <th aria-sort={sortedColumn == "cert"? (sortDescending? "descending": "ascending"): "none"} onClick={() => {setSortedColumn('cert');setSortDescending(!sortDescending)}}>Certificate Expiry Date</th>
+                                <th aria-sort={sortedColumn == "csr" ? (sortDescending ? "descending" : "ascending") : "none"} onClick={() => { setSortedColumn('csr'); setSortDescending(!sortDescending) }}>CSR Status</th>
+                                <th aria-sort={sortedColumn == "cert" ? (sortDescending ? "descending" : "ascending") : "none"} onClick={() => { setSortedColumn('cert'); setSortDescending(!sortDescending) }}>Certificate Expiry Date</th>
                                 <th className="has-overflow">Actions</th>
                                 <th aria-hidden="true"></th>
                             </tr>
@@ -72,10 +86,11 @@ export function CertificateRequestsTable({csrs: rows}: TableProps) {
                         <tbody>
                             {
                                 sortedRows().map((row) => (
-                                    <Row key={row.ID} id={row.ID} csr={row.CSR} certificate={row.Certificate} ActionMenuExpanded={actionsMenuExpanded} setActionMenuExpanded={setActionsMenuExpanded}/> 
+                                    <Row key={row.ID} id={row.ID} csr={row.CSR} certificate={row.Certificate} ActionMenuExpanded={actionsMenuExpanded} setActionMenuExpanded={setActionsMenuExpanded} />
                                 )
-                            )}
+                                )}
                         </tbody>
+                        {rows.length == 0 && <EmptyState asideOpen={isAsideOpen} setAsideOpen={setAsideIsOpen} />}
                     </table>
                 </div>
             </div>

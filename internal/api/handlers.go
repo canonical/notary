@@ -50,7 +50,19 @@ func newFrontendFileServer() http.Handler {
 	if err != nil {
 		log.Fatal(err)
 	}
-	return http.FileServer(http.FS(frontendFS))
+
+	fileServer := http.FileServer(http.FS(frontendFS))
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		if strings.HasSuffix(path, "/") || path == "/" {
+			path = "/certificate_requests.html"
+		} else if !strings.Contains(path, ".") {
+			path += ".html"
+		}
+		r.URL.Path = path
+		fileServer.ServeHTTP(w, r)
+	})
 }
 
 // the health check endpoint simply returns a http.StatusOK

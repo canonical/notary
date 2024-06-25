@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest'
 import { Dispatch, SetStateAction } from "react"
 import { render, screen, fireEvent } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from 'react-query'
 import Row from './row'
 
 const csr =
@@ -53,15 +54,29 @@ const setActionMenuExpanded = (val: number) => {
     actionMenuExpanded = val
 }
 
+const queryClient = new QueryClient()
 test('Certificate Requests Table Row', () => {
-    render(<Row id={csr.ID} csr={csr.CSR} certificate={csr.Certificate} ActionMenuExpanded={actionMenuExpanded} setActionMenuExpanded={setActionMenuExpanded as Dispatch<SetStateAction<number>>} />)
+    render(
+        <QueryClientProvider client={queryClient}>
+            <Row id={csr.ID} csr={csr.CSR} certificate={csr.Certificate} ActionMenuExpanded={actionMenuExpanded} setActionMenuExpanded={setActionMenuExpanded as Dispatch<SetStateAction<number>>} />
+        </QueryClientProvider>
+    )
     expect(screen.getByText('10.152.183.53')).toBeDefined() // Common name of CSR
     expect(screen.getByLabelText('certificate-expiry-date').innerHTML).toMatch(/^Thu Mar 27/)
     const openActionsButton = screen.getByLabelText("action-menu-button")
     fireEvent.click(openActionsButton);
     expect(actionMenuExpanded).toBe(1)
-    render(<Row id={csr.ID} csr={csr.CSR} certificate="rejected" ActionMenuExpanded={actionMenuExpanded} setActionMenuExpanded={setActionMenuExpanded as Dispatch<SetStateAction<number>>} />)
+    render(
+        <QueryClientProvider client={queryClient}>
+            <Row id={csr.ID} csr={csr.CSR} certificate="rejected" ActionMenuExpanded={actionMenuExpanded} setActionMenuExpanded={setActionMenuExpanded as Dispatch<SetStateAction<number>>} />
+
+        </QueryClientProvider>
+    )
     expect(screen.getByText('rejected')).toBeDefined()
-    render(<Row id={csr.ID} csr={csr.CSR} certificate="" ActionMenuExpanded={actionMenuExpanded} setActionMenuExpanded={setActionMenuExpanded as Dispatch<SetStateAction<number>>} />)
+    render(
+        <QueryClientProvider client={queryClient}>
+            <Row id={csr.ID} csr={csr.CSR} certificate="" ActionMenuExpanded={actionMenuExpanded} setActionMenuExpanded={setActionMenuExpanded as Dispatch<SetStateAction<number>>} />
+        </QueryClientProvider>
+    )
     expect(screen.getByText('outstanding')).toBeDefined()
 })

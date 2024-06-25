@@ -21,3 +21,23 @@ export async function postCSR(csr: string) {
     }
     return response.json()
 }
+
+export async function deleteCSR(id: string) {
+    const response = await fetch("/api/v1/certificate_requests/" + id, {
+        method: 'delete',
+    })
+    if (!response.ok) {
+        throw new Error('Network response was not ok')
+    }
+    return response.json()
+}
+
+export async function rejectCSR(id: string) {
+    const response = await fetch("/api/v1/certificate_requests/" + id + "/certificate/reject", {
+        method: 'post',
+    })
+    if (!response.ok) {
+        throw new Error('Network response was not ok')
+    }
+    return response.json()
+}

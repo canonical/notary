@@ -32,14 +32,14 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
     })
     const rejectMutation = useMutation(rejectCSR, {
         onSuccess: () => queryClient.invalidateQueries('csrs')
-    })    
+    })
     const revokeMutation = useMutation(revokeCertificate, {
         onSuccess: () => queryClient.invalidateQueries('csrs')
     })
     const mutationFunc = (mutation: UseMutationResult<any, unknown, string, unknown>) => {
         mutation.mutate(id.toString())
     }
-    
+
     const handleCopy = () => {
         navigator.clipboard.writeText(csr).then(function () {
             setSuccessNotification("CSR copied to clipboard")
@@ -144,7 +144,7 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                 </td>
             </tr>
             {confirmationModalData != null && <ConfirmationModal modalData={confirmationModalData} setModalData={setConfirmationModalData} />}
-            {certificateFormOpen && <SubmitCertificateModal id={id.toString()} setFormOpen={setCertificateFormOpen} />}
+            {certificateFormOpen && <SubmitCertificateModal id={id.toString()} csr={csr} setFormOpen={setCertificateFormOpen} />}
         </>
     )
 }

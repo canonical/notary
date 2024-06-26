@@ -1,7 +1,7 @@
 import { Dispatch, SetStateAction, useState, ChangeEvent } from "react"
 import { useMutation, useQueryClient } from "react-query"
 import { ConfirmationModalData } from "./row"
-import { extractCert } from "../utils"
+import { extractCert, csrMatchesCertificate } from "../utils"
 import { postCertToID } from "../queries"
 
 interface ConfirmationModalProps {
@@ -31,12 +31,13 @@ export function ConfirmationModal({ modalData, setModalData }: ConfirmationModal
     )
 }
 
-function SubmitCertificate({ certText, onClickFunc }: { certText: string, onClickFunc: any }) {
+function SubmitCertificate({ csrText, certText, onClickFunc }: { csrText: string, certText: string, onClickFunc: any }) {
     let certIsValid = false
     try {
         extractCert(certText.trim())
-        //TODO: compare public keys here too
-        certIsValid = true
+        if (csrMatchesCertificate(csrText, certText)) {
+            certIsValid = true
+        }
     }
     catch { }
 
@@ -52,9 +53,10 @@ function SubmitCertificate({ certText, onClickFunc }: { certText: string, onClic
 
 interface SubmitCertificateModalProps {
     id: string
+    csr: string
     setFormOpen: Dispatch<SetStateAction<boolean>>
 }
-export function SubmitCertificateModal({ id, setFormOpen }: SubmitCertificateModalProps) {
+export function SubmitCertificateModal({ id, csr, setFormOpen }: SubmitCertificateModalProps) {
     const queryClient = useQueryClient()
     const mutation = useMutation(postCertToID(id), {
         onSuccess: () => {
@@ -103,7 +105,7 @@ export function SubmitCertificateModal({ id, setFormOpen }: SubmitCertificateMod
                     </div>
                 </form>
                 <footer className="p-modal__footer">
-                    <SubmitCertificate certText={certificatePEMString} onClickFunc={handleSubmit} />
+                    <SubmitCertificate csrText={csr} certText={certificatePEMString} onClickFunc={handleSubmit} />
                     <button className="u-no-margin--bottom" aria-controls="modal" onMouseDown={() => setFormOpen(false)}>Cancel</button>
                 </footer>
             </section>

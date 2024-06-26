@@ -31,11 +31,11 @@ export function ConfirmationModal({ modalData, setModalData }: ConfirmationModal
     )
 }
 
-function SubmitCertificate({ csrText, certText, onClickFunc }: { csrText: string, certText: string, onClickFunc: any }) {
+function SubmitCertificate({ existingCSRText, existingCertText, certText, onClickFunc }: { existingCSRText: string, existingCertText: string, certText: string, onClickFunc: any }) {
     let certIsValid = false
     try {
         extractCert(certText.trim())
-        if (csrMatchesCertificate(csrText, certText)) {
+        if (csrMatchesCertificate(existingCSRText.trim(), certText.trim()) && existingCertText.trim() != certText) {
             certIsValid = true
         }
     }
@@ -54,9 +54,10 @@ function SubmitCertificate({ csrText, certText, onClickFunc }: { csrText: string
 interface SubmitCertificateModalProps {
     id: string
     csr: string
+    cert: string
     setFormOpen: Dispatch<SetStateAction<boolean>>
 }
-export function SubmitCertificateModal({ id, csr, setFormOpen }: SubmitCertificateModalProps) {
+export function SubmitCertificateModal({ id, csr, cert, setFormOpen }: SubmitCertificateModalProps) {
     const queryClient = useQueryClient()
     const mutation = useMutation(postCertToID(id), {
         onSuccess: () => {
@@ -99,13 +100,13 @@ export function SubmitCertificateModal({ id, csr, setFormOpen }: SubmitCertifica
                         <textarea id="csr-textarea" name="textarea" rows={10} placeholder="-----BEGIN CERTIFICATE-----" onChange={handleTextChange} value={certificatePEMString} />
                     </div>
                     <div className="p-form__group row">
-                        <input type="file" name="upload" accept=".pem" onChange={handleFileChange}></input>
+                        <input type="file" name="upload" accept=".pem,.crt" onChange={handleFileChange}></input>
                     </div>
                     <div className="p-form__group row">
                     </div>
                 </form>
                 <footer className="p-modal__footer">
-                    <SubmitCertificate csrText={csr} certText={certificatePEMString} onClickFunc={handleSubmit} />
+                    <SubmitCertificate existingCSRText={csr} existingCertText={cert} certText={certificatePEMString} onClickFunc={handleSubmit} />
                     <button className="u-no-margin--bottom" aria-controls="modal" onMouseDown={() => setFormOpen(false)}>Cancel</button>
                 </footer>
             </section>

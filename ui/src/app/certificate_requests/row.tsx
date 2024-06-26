@@ -144,7 +144,7 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                 </td>
             </tr>
             {confirmationModalData != null && <ConfirmationModal modalData={confirmationModalData} setModalData={setConfirmationModalData} />}
-            {certificateFormOpen && <SubmitCertificateModal id={id.toString()} csr={csr} setFormOpen={setCertificateFormOpen} />}
+            {certificateFormOpen && <SubmitCertificateModal id={id.toString()} csr={csr} cert={certificate} setFormOpen={setCertificateFormOpen} />}
         </>
     )
 }

@@ -8,10 +8,11 @@
 @include vf-p-icon-security;
 
 // Override visibility settings
-#csr-table{
+#csr-table {
     overflow: visible;
 }
-.p-panel__content{
+
+.p-panel__content {
     overflow: visible;
 }
 
@@ -43,4 +44,17 @@
         margin-top: 0.5rem;
         padding-left: 1.5rem;
     }
+}
+
+.certificate-info {
+    margin: 0;
+    padding: 0;
+}
+
+.certificate-info h4 {
+    margin: 4px 0;
+}
+
+.certificate-info p {
+    margin: 4px 0;
 }

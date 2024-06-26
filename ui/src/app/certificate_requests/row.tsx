@@ -62,7 +62,7 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
         const blob = new Blob([csr], { type: 'text/plain' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = "csr.pem"; // TODO: change this to <csr-commonname>.pem
+        link.download = "csr-" + id.toString() + ".pem"; // TODO: change this to <csr-commonname>.pem
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

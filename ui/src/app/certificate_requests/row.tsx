@@ -56,11 +56,14 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
             setActionMenuExpanded(id)
         }
     }
-    const getFieldDisplay = (key: string, field: string | undefined, defaultMessage: string) => (
-        <p style={{ color: field ? "black" : "grey" }}>
-            <b>{key}</b>: {field || defaultMessage}
-        </p>
+    const getFieldDisplay = (key: string, field: string | undefined) => (
+        field ? (
+            <p>
+                <b>{key}</b>: {field}
+            </p>
+        ) : null
     );
+
     return (
         <>
             <tr>
@@ -108,18 +111,15 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                 <td id="expanded-row" className="p-table__expanding-panel" aria-hidden={detailsMenuOpen ? "false" : "true"}>
                     <div className="col-8">
                         <div className="certificate-info">
-                            <h4>Basic Information</h4>
-                            {getFieldDisplay("Common Name", csrObj.commonName, "N/A")}
-                            {getFieldDisplay("Organization", csrObj.organization, "N/A")}
-                            {getFieldDisplay("Country", csrObj.country, "N/A")}
-                            {getFieldDisplay("Locality", csrObj.locality, "N/A")}
-                            {getFieldDisplay("Email Address", csrObj.emailAddress, "N/A")}
+                            <h4>CSR Details</h4>
+                            {getFieldDisplay("Common Name", csrObj.commonName)}
+                            {getFieldDisplay("Subject Alternative Name DNS", csrObj.sansDns && csrObj.sansDns.length > 0 ? csrObj.sansDns.join(', ') : "")}
+                            {getFieldDisplay("Subject Alternative Name IP addresses", csrObj.sansIp && csrObj.sansIp.length > 0 ? csrObj.sansIp.join(', ') : "")}
+                            {getFieldDisplay("Organization", csrObj.organization)}
+                            {getFieldDisplay("Country", csrObj.country)}
+                            {getFieldDisplay("Locality", csrObj.locality)}
+                            {getFieldDisplay("Email Address", csrObj.emailAddress)}
                             <p><b>Certificate request for a certificate authority</b>: {csrObj.is_ca ? "Yes" : "No"}</p>
-                        </div>
-                        <div className="certificate-info">
-                            <h4>Subject Alternative Names</h4>
-                            {getFieldDisplay("Subject Alternative Name DNS", csrObj.sansDns && csrObj.sansDns.length > 0 ? csrObj.sansDns.join(', ') : "", "N/A")}
-                            {getFieldDisplay("Subject Alternative Name IP addresses", csrObj.sansIp && csrObj.sansIp.length > 0 ? csrObj.sansIp.join(', ') : "", "N/A")}
                         </div>
                     </div>
                 </td>

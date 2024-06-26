@@ -2,7 +2,7 @@ import { useState, Dispatch, SetStateAction, useEffect, useRef } from "react"
 import { UseMutationResult, useMutation, useQueryClient } from "react-query"
 import { extractCSR, extractCert } from "../utils"
 import { deleteCSR, rejectCSR } from "../queries"
-import { ConfirmationModal } from "./modals"
+import { ConfirmationModal, SuccessNotification } from "./components"
 
 type rowProps = {
     id: number,
@@ -18,6 +18,7 @@ export type ConfirmationModalData = {
 } | null
 
 export default function Row({ id, csr, certificate, ActionMenuExpanded, setActionMenuExpanded }: rowProps) {
+    const [successNotification, setSuccessNotification] = useState<string | null>(null)
     const [detailsMenuOpen, setDetailsMenuOpen] = useState<boolean>(false)
     const [confirmationModalData, setConfirmationModalData] = useState<ConfirmationModalData>(null)
 
@@ -47,6 +48,26 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
             warningText: "Deleting a Certificate Request means this row will be completely removed from the application. This action cannot be undone."
         })
     }
+    const handleCopy = () => {
+        navigator.clipboard.writeText(csr).then(function () {
+            setSuccessNotification("CSR copied to clipboard")
+            setTimeout(() => {
+                setSuccessNotification(null);
+            }, 2500);
+        }, function (err) {
+            console.error('could not copy text: ', err);
+        });
+    }
+    const handleDownload = () => {
+        const blob = new Blob([csr], { type: 'text/plain' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = "csr-" + id.toString() + ".pem"; // TODO: change this to <csr-commonname>.pem
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+    };
 
     const toggleActionMenu = () => {
         if (ActionMenuExpanded == id) {
@@ -83,10 +104,11 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                             onBlur={toggleActionMenu}>
                             <i className="p-icon--menu p-contextual-menu__indicator"></i>
                         </button>
+                        {successNotification && <SuccessNotification successMessage={successNotification} />}
                         <span className="p-contextual-menu__dropdown" id="action-menu" aria-hidden={ActionMenuExpanded == id ? "false" : "true"}>
                             <span className="p-contextual-menu__group">
-                                <button className="p-contextual-menu__link">Copy Certificate Request to Clipboard</button>
-                                <button className="p-contextual-menu__link">Download Certificate Request</button>
+                                <button className="p-contextual-menu__link" onMouseDown={handleCopy}>Copy Certificate Request to Clipboard</button>
+                                <button className="p-contextual-menu__link" onMouseDown={handleDownload}>Download Certificate Request</button>
                                 {certificate == "rejected" ?
                                     <button className="p-contextual-menu__link" disabled={true} onMouseDown={handleReject}>Reject Certificate Request</button> :
                                     <button className="p-contextual-menu__link" onMouseDown={handleReject}>Reject Certificate Request</button>}

@@ -48,7 +48,7 @@ function SubmitCertificate({ existingCSRText, existingCertText, certText, onClic
             existingCertText.trim() == certText.trim() ?
                 <div><i className="p-icon--error"></i> This certificate is identical to the one uploaded</div> :
                 <div><i className="p-icon--success"></i> Valid Certificate</div>
-    const buttonComponent = certIsValid && existingCertText.trim() != certText ? <button className="p-button--positive" name="submit" onClick={onClickFunc} >Submit</button> : <button className="p-button--positive" name="submit" disabled={true} onClick={onClickFunc} >Submit</button>
+    const buttonComponent = certIsValid && existingCertText.trim() != certText.trim() ? <button className="p-button--positive" name="submit" onClick={onClickFunc} >Submit</button> : <button className="p-button--positive" name="submit" disabled={true} onClick={onClickFunc} >Submit</button>
     return (
         <>
             {validationComponent}

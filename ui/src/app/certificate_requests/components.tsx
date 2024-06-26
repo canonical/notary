@@ -35,14 +35,20 @@ function SubmitCertificate({ existingCSRText, existingCertText, certText, onClic
     let certIsValid = false
     try {
         extractCert(certText.trim())
-        if (csrMatchesCertificate(existingCSRText.trim(), certText.trim()) && existingCertText.trim() != certText) {
+        if (csrMatchesCertificate(existingCSRText.trim(), certText.trim())) {
             certIsValid = true
         }
     }
     catch { }
 
-    const validationComponent = certText == "" ? <></> : certIsValid ? <div><i className="p-icon--success"></i>Valid Certificate</div> : <div><i className="p-icon--error"></i>Invalid Certificate</div>
-    const buttonComponent = certIsValid ? <button className="p-button--positive" name="submit" onClick={onClickFunc} >Submit</button> : <button className="p-button--positive" name="submit" disabled={true} onClick={onClickFunc} >Submit</button>
+    const validationComponent = certText == "" ?
+        <></> :
+        !certIsValid ?
+            <div><i className="p-icon--error"></i> Invalid Certificate</div> :
+            existingCertText.trim() == certText.trim() ?
+                <div><i className="p-icon--error"></i> This certificate is identical to the one uploaded</div> :
+                <div><i className="p-icon--success"></i> Valid Certificate</div>
+    const buttonComponent = certIsValid && existingCertText.trim() != certText ? <button className="p-button--positive" name="submit" onClick={onClickFunc} >Submit</button> : <button className="p-button--positive" name="submit" disabled={true} onClick={onClickFunc} >Submit</button>
     return (
         <>
             {validationComponent}

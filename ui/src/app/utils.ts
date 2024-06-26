@@ -1,5 +1,6 @@
-import { CertificationRequest, Certificate } from "pkijs";
+import { CertificationRequest, Certificate, Extension, Extensions, GeneralName, GeneralNames } from "pkijs";
 import { fromBER } from "asn1js";
+import * as pvutils from "pvutils";
 
 
 export const oidToName = (oid: string) => {
@@ -38,7 +39,8 @@ export const oidToName = (oid: string) => {
         // OID for pkcs-9-at-extensionRequest
         "1.2.840.113549.1.9.14": "Extension Request",
         // OID for basicConstraint
-        "2.5.29.19": "Basic Constraint"
+        "2.5.29.19": "Basic Constraint",
+        "2.5.29.17": "Subject Alternative Name"
     }
     if (!(oid in map)) {
         throw new Error("oid not recognized: " + oid)
@@ -46,24 +48,22 @@ export const oidToName = (oid: string) => {
     return map[oid]
 }
 
+function fromPEM(pem: string) {
+    const b64 = pem.replace(/(-----(BEGIN|END) CERTIFICATE REQUEST-----|\n)/g, "");
+    const binaryDerString = atob(b64);
+    const binaryDer = pvutils.stringToArrayBuffer(binaryDerString);
+    return binaryDer;
+}
+
+function hexToIp(hex: ArrayBuffer): string {
+    const byteArray = new Uint8Array(hex);
+    return Array.from(byteArray).map(byte => byte.toString(10)).join('.');
+}
+
+
 export const extractCSR = (csrPemString: string) => {
-    // Decode PEM to DER
-    const pemHeader = "-----BEGIN CERTIFICATE REQUEST-----";
-    const pemFooter = "-----END CERTIFICATE REQUEST-----";
-    const pemContents = csrPemString.substring(pemHeader.length, csrPemString.length - pemFooter.length);
-    const binaryDerString = window.atob(pemContents);
-    const binaryDer = new Uint8Array(binaryDerString.length);
-    for (let i = 0; i < binaryDerString.length; i++) {
-        binaryDer[i] = binaryDerString.charCodeAt(i);
-    }
-
-    // Parse DER encoded CSR
-    const asn1 = fromBER(binaryDer.buffer);
-    if (asn1.offset === -1) {
-        throw new Error("Error parsing certificate request");
-    }
-
-    // Load CSR object
+    const arrayBuffer = fromPEM(csrPemString);
+    const asn1 = fromBER(arrayBuffer);
     const csr = new CertificationRequest({ schema: asn1.result });
 
     // Extract subject information from CSR
@@ -71,13 +71,61 @@ export const extractCSR = (csrPemString: string) => {
         type: oidToName(typeAndValue.type),
         value: typeAndValue.value.valueBlock.value
     }));
+    const getValue = (type: string) => subjects.find(subject => subject.type === type)?.value;
+
+    const commonName = getValue("Common Name");
+    const organization = getValue("Organization Name");
+    const emailAddress = getValue("Email Address");
+    const country = getValue("Country");
+    const locality = getValue("Locality");
 
     // Look for extensions attribute in CSR
     const attributes = csr.attributes?.map(typeAndValue => ({
         type: oidToName(typeAndValue.type),
         value: typeAndValue.values
     }))
-    return { subjects }
+    let sansDns: string[] = [];
+    let sansIp: string[] = [];
+    let is_ca = false;
+
+    if (csr.attributes) {
+        const extensionAttributes = csr.attributes.filter(attribute => attribute.type === "1.2.840.113549.1.9.14");
+        if (extensionAttributes.length > 0) {
+            const extensions = new Extensions({ schema: extensionAttributes[0].values[0] });
+            extensions.extensions.forEach(extension => {
+                let extensionName: string;
+                try {
+                    extensionName = oidToName(extension.extnID);
+                } catch (error) {
+                    console.error(`Unrecognized extension OID: ${extension.extnID}`);
+                    return;
+                }
+                if (extensionName === "Subject Alternative Name") {
+                    extension.parsedValue.altNames.forEach((altName: { type: number; value: any; }) => {
+                        if (altName.type == 2) {
+                            sansDns.push(altName.value);
+                        } else if (altName.type == 7) {
+                            sansIp.push(hexToIp(altName.value.valueBlock.valueHex))
+                        }
+                    });
+                }
+                else if (extensionName === "Basic Constraint") {
+                    console.log(extension);
+                    is_ca = extension.parsedValue.cA;
+                }
+            });
+        }
+    }
+    return {
+        commonName,
+        organization,
+        emailAddress,
+        country,
+        locality,
+        sansDns,
+        sansIp,
+        is_ca
+    }
 }
 
 export const extractCert = (certPemString: string) => {

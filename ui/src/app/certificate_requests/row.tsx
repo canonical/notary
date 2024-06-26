@@ -104,6 +104,7 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                             onBlur={toggleActionMenu}>
                             <i className="p-icon--menu p-contextual-menu__indicator"></i>
                         </button>
+                        {successNotification && <SuccessNotification successMessage={successNotification} />}
                         <span className="p-contextual-menu__dropdown" id="action-menu" aria-hidden={ActionMenuExpanded == id ? "false" : "true"}>
                             <span className="p-contextual-menu__group">
                                 <button className="p-contextual-menu__link" onMouseDown={handleCopy}>Copy Certificate Request to Clipboard</button>
@@ -129,13 +130,6 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                 </td>
             </tr>
             {confirmationModalData != null && <ConfirmationModal modalData={confirmationModalData} setModalData={setConfirmationModalData} />}
-            {successNotification &&
-                <tr>
-                    <td>
-                        <SuccessNotification successMessage={successNotification} />
-                    </td>
-                </tr>
-            }
         </>
     )
 }

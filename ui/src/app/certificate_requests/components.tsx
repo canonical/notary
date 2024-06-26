@@ -29,13 +29,12 @@ export function ConfirmationModal({ modalData, setModalData }: ConfirmationModal
 }
 
 export function SuccessNotification({ successMessage }: { successMessage: string }) {
+    const style = {
+        display: 'inline'
+    }
     return (
-        <div className="p-notification--positive is-inline is-borderless u-no-margin--bottom">
-            <div className="p-notification__content">
-                <p className="p-notification__message">
-                    {successMessage}
-                </p>
-            </div>
-        </div>
+        <p style={style}>
+            <i className="p-icon--success"></i> {successMessage}
+        </p>
     );
 }

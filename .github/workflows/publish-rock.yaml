@@ -17,9 +17,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install skopeo
+      - name: Install rockcraft
         run: |
-          sudo snap install --devmode --channel edge skopeo
+          sudo snap install rockcraft --classic --channel edge
+        
       - uses: actions/download-artifact@v4
         with:
           name: rock
@@ -29,7 +30,7 @@ jobs:
           image_name="$(yq '.name' rockcraft.yaml)"
           version="$(yq '.version' rockcraft.yaml)"
           rock_file=$(ls *.rock | tail -n 1)
-          sudo skopeo \
+          sudo rockcraft.skopeo \
             --insecure-policy \
             copy \
             oci-archive:"${rock_file}" \

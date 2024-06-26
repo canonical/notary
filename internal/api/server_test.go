@@ -85,24 +85,6 @@ Q53tuiWQeoxNOjHiWstBPELxGbW6447JyVVbNYGUk+VFU7okzA6sRTJ/5Ysda4Sf
 auNQc2hruhr/2plhFUYoZHPzGz7d5zUGKymhCoS8BsFVtD0WDL4srdtY/W2Us7TD
 D7DC34n8CH9+avz9sCRwxpjxKnYW/BeyK0c4n9uZpjI8N4sOVqy6yWBUseww
 -----END RSA PRIVATE KEY-----`
-	validConfig = `key_path:  "./key_test.pem"
-cert_path: "./cert_test.pem"
-db_path: "./certs.db"
-port: 8000`
-	wrongCertConfig = `key_path:  "./key_test.pem"
-cert_path: "./cert_test_wrong.pem"
-db_path: "./certs.db"
-port: 8000`
-	wrongKeyConfig = `key_path:  "./key_test_wrong.pem"
-cert_path: "./cert_test.pem"
-db_path: "./certs.db"
-port: 8000`
-	invalidYAMLConfig = `wrong: fields
-every: where`
-	invalidFileConfig = `key_path:  "./nokeyfile.pem"
-cert_path: "./nocertfile.pem"
-db_path: "./certs.db"
-port: 8000`
 )
 
 func TestMain(m *testing.M) {
@@ -131,11 +113,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestNewServerSuccess(t *testing.T) {
-	writeConfigErr := os.WriteFile("config.yaml", []byte(validConfig), 0644)
-	if writeConfigErr != nil {
-		log.Fatalf("Error writing config file")
-	}
-	s, err := server.NewServer("config.yaml")
+	s, err := server.NewServer(8000, []byte(validCert), []byte(validPK), "certs.db", false)
 	if err != nil {
 		t.Errorf("Error occured: %s", err)
 	}
@@ -144,30 +122,9 @@ func TestNewServerSuccess(t *testing.T) {
 	}
 }
 
-func TestNewServerFail(t *testing.T) {
-	testCases := []struct {
-		desc   string
-		config string
-	}{
-		{
-			desc:   "wrong certificate",
-			config: wrongCertConfig,
-		},
-		{
-			desc:   "wrong key",
-			config: wrongKeyConfig,
-		},
-	}
-	for _, tC := range testCases {
-		writeConfigErr := os.WriteFile("config.yaml", []byte(tC.config), 0644)
-		if writeConfigErr != nil {
-			log.Fatalf("Error writing config file")
-		}
-		t.Run(tC.desc, func(t *testing.T) {
-			_, err := server.NewServer("config.yaml")
-			if err == nil {
-				t.Errorf("Expected error")
-			}
-		})
+func TestInvalidKeyFailure(t *testing.T) {
+	_, err := server.NewServer(8000, []byte(validCert), []byte{}, "certs.db", false)
+	if err == nil {
+		t.Errorf("No error was thrown for invalid key")
 	}
 }

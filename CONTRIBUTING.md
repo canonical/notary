@@ -11,7 +11,6 @@
 7. Run the project: `gocert -config config.yaml`
 
 Commands assume you're running them from the top level git repo directory
-
 ## Testing
 
 ### Unit Tests
@@ -41,6 +40,6 @@ npm run lint
 ```bash
 rockcraft pack -v
 version=$(yq '.version' rockcraft.yaml)
-sudo skopeo --insecure-policy copy oci-archive:gocert_${version}_amd64.rock docker-daemon:gocert:${version}
+sudo rockcraft.skopeo --insecure-policy copy oci-archive:gocert_${version}_amd64.rock docker-daemon:gocert:${version}
 docker run gocert:${version}
 ```

@@ -1,8 +1,10 @@
 "use client"
 
-import { SetStateAction, Dispatch, useState, createContext, useEffect , ChangeEvent} from "react"
-import { QueryClient, QueryClientProvider } from "react-query";
+import { SetStateAction, Dispatch, useState, createContext, useEffect, ChangeEvent } from "react"
+import { QueryClient, QueryClientProvider, useMutation } from "react-query";
 import Image from "next/image";
+import { postCSR } from "./queries";
+import { extractCSR } from "./utils";
 
 type AsideContextType = {
     isOpen: boolean,
@@ -10,11 +12,34 @@ type AsideContextType = {
 }
 export const AsideContext = createContext<AsideContextType>({ isOpen: false, setIsOpen: () => { } });
 
+function SubmitCSR({ csrText, onClickFunc }: { csrText: string, onClickFunc: any }) {
+    let csrIsValid = false
+    try {
+        extractCSR(csrText.trim())
+        csrIsValid = true
+    }
+    catch { }
+
+    const validationComponent = csrText == "" ? <></> : csrIsValid ? <div><i className="p-icon--success"></i>Valid CSR</div> : <div><i className="p-icon--error"></i>Invalid CSR</div>
+    const buttonComponent = csrIsValid ? <button className="p-button--positive u-float-right" name="submit" onClick={onClickFunc} >Submit</button> : <button className="p-button--positive u-float-right" name="submit" disabled={true} onClick={onClickFunc} >Submit</button>
+    return (
+        <>
+            {validationComponent}
+            {buttonComponent}
+        </>
+    )
+}
+
 export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispatch<SetStateAction<boolean>> }) {
+    const mutation = useMutation(postCSR, {
+        onSuccess: () => {
+            queryClient.invalidateQueries('csrs')
+        },
+    })
     const [CSRPEMString, setCSRPEMString] = useState<string>("")
     const handleTextChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
         setCSRPEMString(event.target.value);
-    };
+    }
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0]
         if (file) {
@@ -25,15 +50,15 @@ export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispa
                         setCSRPEMString(e.target.result.toString());
                     }
                 }
-        };
-        reader.readAsText(file);
+            };
+            reader.readAsText(file);
         }
-  };
+    };
     return (
-        <aside className={"l-aside" + (isOpen ? "" : " is-collapsed")} id="aside-panel" aria-label="aside-panel">
+        <aside className={"l-aside" + (isOpen ? "" : " is-collapsed")} id="aside-panel" aria-label="aside-panel" >
             <div className="p-panel">
                 <div className="p-panel__header">
-                    <h4 className="p-panel__title">Add New CSR</h4>
+                    <h4 className="p-panel__title">Add a New Certificate Request</h4>
                     <div className="p-panel__controls">
                         <button onClick={() => setIsOpen(false)} className="p-button--base u-no-margin--bottom has-icon"><i className="p-icon--close"></i></button>
                     </div>
@@ -42,15 +67,15 @@ export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispa
                     <form className="p-form p-form--stacked">
                         <div className="p-form__group row">
                             <label htmlFor="textarea">
-                                Enter or upload CSR in PEM format below
+                                Enter or upload the CSR in PEM format below
                             </label>
-                            <textarea id="csr-textarea" name="textarea" rows={10} placeholder="-----BEGIN CERTIFICATE REQUEST-----" onChange={handleTextChange} value={CSRPEMString}/>
+                            <textarea id="csr-textarea" name="textarea" rows={10} placeholder="-----BEGIN CERTIFICATE REQUEST-----" onChange={handleTextChange} value={CSRPEMString} />
                         </div>
                         <div className="p-form__group row">
-                            <input type="file" name="upload" accept=".pem" onChange={handleFileChange}></input>
+                            <input type="file" name="upload" accept=".pem,.csr" onChange={handleFileChange}></input>
                         </div>
                         <div className="p-form__group row">
-                            <button className="p-button--positive u-float-right" name="submit">Submit</button>
+                            <SubmitCSR csrText={CSRPEMString} onClickFunc={() => mutation.mutate(CSRPEMString)} />
                         </div>
                     </form>
                 </div>
@@ -62,10 +87,10 @@ export function Aside({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: Dispa
 export function SideBar({ sidebarVisible, setSidebarVisible }: { sidebarVisible: boolean, setSidebarVisible: Dispatch<SetStateAction<boolean>> }) {
     const [activeTab, setActiveTab] = useState<string>("");
     useEffect(() => {
-      if (typeof window !== 'undefined') {
-        setActiveTab(location.pathname.split('/')[1]);
-      }
-    }, []); 
+        if (typeof window !== 'undefined') {
+            setActiveTab(location.pathname.split('/')[1]);
+        }
+    }, []);
     return (
         <header className={sidebarVisible ? "l-navigation" : "l-navigation is-collapsed"}>
             <div className="l-navigation__drawer">
@@ -82,7 +107,7 @@ export function SideBar({ sidebarVisible, setSidebarVisible }: { sidebarVisible:
                             <nav aria-label="Main">
                                 <ul className="p-side-navigation__list">
                                     <li className="p-side-navigation__item">
-                                        <a className="p-side-navigation__link" href="/certificate_requests.html" aria-current={activeTab === "certificate_requests" ? "page" : "false"} >
+                                        <a className="p-side-navigation__link" href="/certificate_requests" aria-current={activeTab === "certificate_requests" ? "page" : "false"} >
                                             <i className="p-icon--security is-light p-side-navigation__icon"></i>
                                             <span className="p-side-navigation__label">
                                                 <span className="p-side-navigation__label">Certificate Requests</span>
@@ -117,16 +142,16 @@ export function TopBar({ setSidebarVisible }: { setSidebarVisible: Dispatch<SetS
 export function Logo() {
     return (
         <div className="logo">
-          <div className="logo-tag">
-            <Image
-              src="https://assets.ubuntu.com/v1/82818827-CoF_white.svg"
-              alt="circle of friends"
-              width={32}
-              height={32}
-              className="logo-image"
-            />
-          </div>
-          <span className="logo-text p-heading--4">GoCert</span>
+            <div className="logo-tag">
+                <Image
+                    src="https://assets.ubuntu.com/v1/82818827-CoF_white.svg"
+                    alt="circle of friends"
+                    width={32}
+                    height={32}
+                    className="logo-image"
+                />
+            </div>
+            <span className="logo-text p-heading--4">GoCert</span>
         </div>
     )
 }

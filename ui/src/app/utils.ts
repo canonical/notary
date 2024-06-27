@@ -108,6 +108,8 @@ export const extractCSR = (csrPemString: string) => {
     const emailAddress = getValue("Email Address");
     const country = getValue("Country");
     const locality = getValue("Locality");
+    const stateOrProvince = getValue("State or Province");
+    const OrganizationalUnitName = getValue("Organizational Unit Name");
 
     let sansDns: string[] = [];
     let sansIp: string[] = [];
@@ -122,6 +124,8 @@ export const extractCSR = (csrPemString: string) => {
     }
     return {
         commonName,
+        stateOrProvince,
+        OrganizationalUnitName,
         organization,
         emailAddress,
         country,

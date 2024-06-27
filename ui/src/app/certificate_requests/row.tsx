@@ -111,13 +111,14 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                 <td id="expanded-row" className="p-table__expanding-panel" aria-hidden={detailsMenuOpen ? "false" : "true"}>
                     <div className="col-8">
                         <div className="certificate-info">
-                            <h4>CSR Details</h4>
                             {getFieldDisplay("Common Name", csrObj.commonName)}
                             {getFieldDisplay("Subject Alternative Name DNS", csrObj.sansDns && csrObj.sansDns.length > 0 ? csrObj.sansDns.join(', ') : "")}
                             {getFieldDisplay("Subject Alternative Name IP addresses", csrObj.sansIp && csrObj.sansIp.length > 0 ? csrObj.sansIp.join(', ') : "")}
-                            {getFieldDisplay("Organization", csrObj.organization)}
                             {getFieldDisplay("Country", csrObj.country)}
+                            {getFieldDisplay("State or Province", csrObj.stateOrProvince)}
                             {getFieldDisplay("Locality", csrObj.locality)}
+                            {getFieldDisplay("Organization", csrObj.organization)}
+                            {getFieldDisplay("Organizational Unit", csrObj.OrganizationalUnitName)}
                             {getFieldDisplay("Email Address", csrObj.emailAddress)}
                             <p><b>Certificate request for a certificate authority</b>: {csrObj.is_ca ? "Yes" : "No"}</p>
                         </div>

@@ -1,8 +1,8 @@
 import { useState, Dispatch, SetStateAction, useEffect, useRef } from "react"
 import { UseMutationResult, useMutation, useQueryClient } from "react-query"
 import { extractCSR, extractCert } from "../utils"
-import { deleteCSR, rejectCSR } from "../queries"
-import { ConfirmationModal, SuccessNotification } from "./components"
+import { deleteCSR, rejectCSR, revokeCertificate } from "../queries"
+import { ConfirmationModal, SubmitCertificateModal, SuccessNotification } from "./components"
 
 type rowProps = {
     id: number,
@@ -20,6 +20,7 @@ export type ConfirmationModalData = {
 export default function Row({ id, csr, certificate, ActionMenuExpanded, setActionMenuExpanded }: rowProps) {
     const [successNotification, setSuccessNotification] = useState<string | null>(null)
     const [detailsMenuOpen, setDetailsMenuOpen] = useState<boolean>(false)
+    const [certificateFormOpen, setCertificateFormOpen] = useState<boolean>(false)
     const [confirmationModalData, setConfirmationModalData] = useState<ConfirmationModalData>(null)
 
     const csrObj = extractCSR(csr)
@@ -32,22 +33,13 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
     const rejectMutation = useMutation(rejectCSR, {
         onSuccess: () => queryClient.invalidateQueries('csrs')
     })
-
+    const revokeMutation = useMutation(revokeCertificate, {
+        onSuccess: () => queryClient.invalidateQueries('csrs')
+    })
     const mutationFunc = (mutation: UseMutationResult<any, unknown, string, unknown>) => {
         mutation.mutate(id.toString())
     }
-    const handleReject = () => {
-        setConfirmationModalData({
-            func: () => mutationFunc(rejectMutation),
-            warningText: "Rejecting a Certificate Request means the CSR will remain in this application, but its status will be moved to rejected and the associated certificate will be deleted if there is any. This action cannot be undone."
-        })
-    }
-    const handleDelete = () => {
-        setConfirmationModalData({
-            func: () => mutationFunc(deleteMutation),
-            warningText: "Deleting a Certificate Request means this row will be completely removed from the application. This action cannot be undone."
-        })
-    }
+
     const handleCopy = () => {
         navigator.clipboard.writeText(csr).then(function () {
             setSuccessNotification("CSR copied to clipboard")
@@ -68,6 +60,25 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
         document.body.removeChild(link);
         URL.revokeObjectURL(link.href);
     };
+    const handleReject = () => {
+        setConfirmationModalData({
+            func: () => mutationFunc(rejectMutation),
+            warningText: "Rejecting a Certificate Request means the CSR will remain in this application, but its status will be moved to rejected and the associated certificate will be deleted if there is any. This action cannot be undone."
+        })
+    }
+    const handleDelete = () => {
+        setConfirmationModalData({
+            func: () => mutationFunc(deleteMutation),
+            warningText: "Deleting a Certificate Request means this row will be completely removed from the application. This action cannot be undone."
+        })
+    }
+    const handleRevoke = () => {
+        setConfirmationModalData({
+            func: () => mutationFunc(revokeMutation),
+            warningText: "Revoking a Certificate will delete it from the table. This action cannot be undone."
+        })
+    }
+
 
     const toggleActionMenu = () => {
         if (ActionMenuExpanded == id) {
@@ -115,8 +126,11 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                                 <button className="p-contextual-menu__link" onMouseDown={handleDelete}>Delete Certificate Request</button>
                             </span>
                             <span className="p-contextual-menu__group">
-                                <button className="p-contextual-menu__link">Upload Certificate</button>
-                                <button className="p-contextual-menu__link">Revoke Certificate</button>
+                                <button className="p-contextual-menu__link" onMouseDown={() => setCertificateFormOpen(true)}>Upload Certificate</button>
+                                {certificate == "rejected" || certificate == "" ?
+                                    <button className="p-contextual-menu__link" disabled={true} onMouseDown={handleRevoke}>Revoke Certificate</button> :
+                                    <button className="p-contextual-menu__link" onMouseDown={handleRevoke}>Revoke Certificate</button>
+                                }
                             </span>
                         </span>
                     </span>
@@ -130,6 +144,7 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                 </td>
             </tr>
             {confirmationModalData != null && <ConfirmationModal modalData={confirmationModalData} setModalData={setConfirmationModalData} />}
+            {certificateFormOpen && <SubmitCertificateModal id={id.toString()} csr={csr} cert={certificate} setFormOpen={setCertificateFormOpen} />}
         </>
     )
 }

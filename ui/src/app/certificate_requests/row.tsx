@@ -1,8 +1,8 @@
 import { useState, Dispatch, SetStateAction, useEffect, useRef } from "react"
 import { UseMutationResult, useMutation, useQueryClient } from "react-query"
 import { extractCSR, extractCert } from "../utils"
-import { deleteCSR, rejectCSR } from "../queries"
-import { ConfirmationModal } from "./modals"
+import { deleteCSR, rejectCSR, revokeCertificate } from "../queries"
+import { ConfirmationModal, SubmitCertificateModal, SuccessNotification } from "./components"
 import "./../globals.scss"
 
 type rowProps = {
@@ -19,7 +19,9 @@ export type ConfirmationModalData = {
 } | null
 
 export default function Row({ id, csr, certificate, ActionMenuExpanded, setActionMenuExpanded }: rowProps) {
+    const [successNotification, setSuccessNotification] = useState<string | null>(null)
     const [detailsMenuOpen, setDetailsMenuOpen] = useState<boolean>(false)
+    const [certificateFormOpen, setCertificateFormOpen] = useState<boolean>(false)
     const [confirmationModalData, setConfirmationModalData] = useState<ConfirmationModalData>(null)
 
     const csrObj = extractCSR(csr)
@@ -32,10 +34,33 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
     const rejectMutation = useMutation(rejectCSR, {
         onSuccess: () => queryClient.invalidateQueries('csrs')
     })
-
+    const revokeMutation = useMutation(revokeCertificate, {
+        onSuccess: () => queryClient.invalidateQueries('csrs')
+    })
     const mutationFunc = (mutation: UseMutationResult<any, unknown, string, unknown>) => {
         mutation.mutate(id.toString())
     }
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(csr).then(function () {
+            setSuccessNotification("CSR copied to clipboard")
+            setTimeout(() => {
+                setSuccessNotification(null);
+            }, 2500);
+        }, function (err) {
+            console.error('could not copy text: ', err);
+        });
+    }
+    const handleDownload = () => {
+        const blob = new Blob([csr], { type: 'text/plain' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = "csr-" + id.toString() + ".pem"; // TODO: change this to <csr-commonname>.pem
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+    };
     const handleReject = () => {
         setConfirmationModalData({
             func: () => mutationFunc(rejectMutation),
@@ -48,6 +73,13 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
             warningText: "Deleting a Certificate Request means this row will be completely removed from the application. This action cannot be undone."
         })
     }
+    const handleRevoke = () => {
+        setConfirmationModalData({
+            func: () => mutationFunc(revokeMutation),
+            warningText: "Revoking a Certificate will delete it from the table. This action cannot be undone."
+        })
+    }
+
 
     const toggleActionMenu = () => {
         if (ActionMenuExpanded == id) {
@@ -92,18 +124,22 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                             onBlur={toggleActionMenu}>
                             <i className="p-icon--menu p-contextual-menu__indicator"></i>
                         </button>
+                        {successNotification && <SuccessNotification successMessage={successNotification} />}
                         <span className="p-contextual-menu__dropdown" id="action-menu" aria-hidden={ActionMenuExpanded == id ? "false" : "true"}>
                             <span className="p-contextual-menu__group">
-                                <button className="p-contextual-menu__link">Copy Certificate Request to Clipboard</button>
-                                <button className="p-contextual-menu__link">Download Certificate Request</button>
+                                <button className="p-contextual-menu__link" onMouseDown={handleCopy}>Copy Certificate Request to Clipboard</button>
+                                <button className="p-contextual-menu__link" onMouseDown={handleDownload}>Download Certificate Request</button>
                                 {certificate == "rejected" ?
                                     <button className="p-contextual-menu__link" disabled={true} onMouseDown={handleReject}>Reject Certificate Request</button> :
                                     <button className="p-contextual-menu__link" onMouseDown={handleReject}>Reject Certificate Request</button>}
                                 <button className="p-contextual-menu__link" onMouseDown={handleDelete}>Delete Certificate Request</button>
                             </span>
                             <span className="p-contextual-menu__group">
-                                <button className="p-contextual-menu__link">Upload Certificate</button>
-                                <button className="p-contextual-menu__link">Revoke Certificate</button>
+                                <button className="p-contextual-menu__link" onMouseDown={() => setCertificateFormOpen(true)}>Upload Certificate</button>
+                                {certificate == "rejected" || certificate == "" ?
+                                    <button className="p-contextual-menu__link" disabled={true} onMouseDown={handleRevoke}>Revoke Certificate</button> :
+                                    <button className="p-contextual-menu__link" onMouseDown={handleRevoke}>Revoke Certificate</button>
+                                }
                             </span>
                         </span>
                     </span>
@@ -126,6 +162,7 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                 </td>
             </tr>
             {confirmationModalData != null && <ConfirmationModal modalData={confirmationModalData} setModalData={setConfirmationModalData} />}
+            {certificateFormOpen && <SubmitCertificateModal id={id.toString()} csr={csr} cert={certificate} setFormOpen={setCertificateFormOpen} />}
         </>
     )
 }

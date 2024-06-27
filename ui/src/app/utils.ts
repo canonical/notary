@@ -167,3 +167,47 @@ export const extractCert = (certPemString: string) => {
 
     return { notAfter }
 }
+
+export const csrMatchesCertificate = (csrPemString: string, certPemString: string) => {
+    // Decode PEM to DER
+    let pemHeader = "-----BEGIN CERTIFICATE-----";
+    let pemFooter = "-----END CERTIFICATE-----";
+    let pemContents = certPemString.substring(pemHeader.length, certPemString.length - pemFooter.length);
+    let binaryDerString = window.atob(pemContents);
+    let binaryDer = new Uint8Array(binaryDerString.length);
+    for (let i = 0; i < binaryDerString.length; i++) {
+        binaryDer[i] = binaryDerString.charCodeAt(i);
+    }
+
+    // Parse DER encoded certificate
+    let asn1 = fromBER(binaryDer.buffer);
+    if (asn1.offset === -1) {
+        throw new Error("Error parsing certificate");
+    }
+
+    // Load Certificate object
+    const cert = new Certificate({ schema: asn1.result });
+
+    // Decode PEM to DER
+    pemHeader = "-----BEGIN CERTIFICATE REQUEST-----";
+    pemFooter = "-----END CERTIFICATE REQUEST-----";
+    pemContents = csrPemString.substring(pemHeader.length, csrPemString.length - pemFooter.length);
+    binaryDerString = window.atob(pemContents);
+    binaryDer = new Uint8Array(binaryDerString.length);
+    for (let i = 0; i < binaryDerString.length; i++) {
+        binaryDer[i] = binaryDerString.charCodeAt(i);
+    }
+
+    // Parse DER encoded CSR
+    asn1 = fromBER(binaryDer.buffer);
+    if (asn1.offset === -1) {
+        throw new Error("Error parsing certificate request");
+    }
+
+    // Load CSR object
+    const csr = new CertificationRequest({ schema: asn1.result });
+
+    const csrPKbytes = csr.subjectPublicKeyInfo.subjectPublicKey.valueBeforeDecodeView
+    const certPKbytes = cert.subjectPublicKeyInfo.subjectPublicKey.valueBeforeDecodeView
+    return csrPKbytes.toString() == certPKbytes.toString()
+}

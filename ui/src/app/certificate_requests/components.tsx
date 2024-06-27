@@ -33,10 +33,12 @@ export function ConfirmationModal({ modalData, setModalData }: ConfirmationModal
 
 function SubmitCertificate({ existingCSRText, existingCertText, certText, onClickFunc }: { existingCSRText: string, existingCertText: string, certText: string, onClickFunc: any }) {
     let certIsValid = false
+    let certMatchesCSR = false
     try {
-        extractCert(certText.trim())
-        if (csrMatchesCertificate(existingCSRText.trim(), certText.trim())) {
-            certIsValid = true
+        extractCert(certText)
+        certIsValid = true
+        if (csrMatchesCertificate(existingCSRText, certText)){
+            certMatchesCSR = true
         }
     }
     catch { }
@@ -45,10 +47,12 @@ function SubmitCertificate({ existingCSRText, existingCertText, certText, onClic
         <></> :
         !certIsValid ?
             <div><i className="p-icon--error"></i> Invalid Certificate</div> :
-            existingCertText.trim() == certText.trim() ?
+            existingCertText == certText ?
                 <div><i className="p-icon--error"></i> This certificate is identical to the one uploaded</div> :
-                <div><i className="p-icon--success"></i> Valid Certificate</div>
-    const buttonComponent = certIsValid && existingCertText.trim() != certText.trim() ? <button className="p-button--positive" name="submit" onClick={onClickFunc} >Submit</button> : <button className="p-button--positive" name="submit" disabled={true} onClick={onClickFunc} >Submit</button>
+                !certMatchesCSR ?
+                    <div><i className="p-icon--error"></i> Certificate does not match CSR</div> :
+                    <div><i className="p-icon--success"></i> Valid Certificate</div>
+    const buttonComponent = certIsValid && certMatchesCSR && existingCertText != certText ? <button className="p-button--positive" name="submit" onClick={onClickFunc} >Submit</button> : <button className="p-button--positive" name="submit" disabled={true} onClick={onClickFunc} >Submit</button>
     return (
         <>
             {validationComponent}
@@ -112,7 +116,7 @@ export function SubmitCertificateModal({ id, csr, cert, setFormOpen }: SubmitCer
                     </div>
                 </form>
                 <footer className="p-modal__footer">
-                    <SubmitCertificate existingCSRText={csr} existingCertText={cert} certText={certificatePEMString} onClickFunc={handleSubmit} />
+                    <SubmitCertificate existingCSRText={csr.trim()} existingCertText={cert.trim()} certText={certificatePEMString.trim()} onClickFunc={handleSubmit} />
                     <button className="u-no-margin--bottom" aria-controls="modal" onMouseDown={() => setFormOpen(false)}>Cancel</button>
                 </footer>
             </section>

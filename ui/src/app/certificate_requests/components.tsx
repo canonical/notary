@@ -37,7 +37,7 @@ function SubmitCertificate({ existingCSRText, existingCertText, certText, onClic
     try {
         extractCert(certText)
         certIsValid = true
-        if (csrMatchesCertificate(existingCSRText, certText)){
+        if (csrMatchesCertificate(existingCSRText, certText)) {
             certMatchesCSR = true
         }
     }
@@ -48,9 +48,9 @@ function SubmitCertificate({ existingCSRText, existingCertText, certText, onClic
         !certIsValid ?
             <div><i className="p-icon--error"></i> Invalid Certificate</div> :
             existingCertText == certText ?
-                <div><i className="p-icon--error"></i> This certificate is identical to the one uploaded</div> :
+                <div><i className="p-icon--error"></i> Certificate is identical to the one uploaded</div> :
                 !certMatchesCSR ?
-                    <div><i className="p-icon--error"></i> Certificate does not match CSR</div> :
+                    <div><i className="p-icon--error"></i> Certificate does not match the request</div> :
                     <div><i className="p-icon--success"></i> Valid Certificate</div>
     const buttonComponent = certIsValid && certMatchesCSR && existingCertText != certText ? <button className="p-button--positive" name="submit" onClick={onClickFunc} >Submit</button> : <button className="p-button--positive" name="submit" disabled={true} onClick={onClickFunc} >Submit</button>
     return (

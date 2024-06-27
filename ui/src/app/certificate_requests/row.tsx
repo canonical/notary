@@ -3,6 +3,7 @@ import { UseMutationResult, useMutation, useQueryClient } from "react-query"
 import { extractCSR, extractCert } from "../utils"
 import { deleteCSR, rejectCSR, revokeCertificate } from "../queries"
 import { ConfirmationModal, SubmitCertificateModal, SuccessNotification } from "./components"
+import "./../globals.scss"
 
 type rowProps = {
     id: number,
@@ -87,6 +88,14 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
             setActionMenuExpanded(id)
         }
     }
+    const getFieldDisplay = (key: string, field: string | undefined) => (
+        field ? (
+            <p>
+                <b>{key}</b>: {field}
+            </p>
+        ) : null
+    );
+
     return (
         <>
             <tr>
@@ -99,7 +108,7 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                         onClick={() => setDetailsMenuOpen(!detailsMenuOpen)}>
                         <i className="p-icon--chevron-down p-contextual-menu__indicator"></i>
                     </button>
-                    <span>{csrObj.subjects.find((e) => e.type == "Common Name")?.value}</span>
+                    <span>{csrObj.commonName}</span>
                 </td>
                 <td className="" aria-label="csr-status">{certificate == "" ? "outstanding" : (certificate == "rejected" ? "rejected" : "fulfilled")}</td>
                 <td className="" aria-label="certificate-expiry-date">{certificate == "" ? "" : (certificate == "rejected" ? "" : certObj?.notAfter)}</td>
@@ -136,9 +145,18 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                     </span>
                 </td>
                 <td id="expanded-row" className="p-table__expanding-panel" aria-hidden={detailsMenuOpen ? "false" : "true"}>
-                    <div className="row">
-                        <div className="col-8">
-                            <p><b>Common Name</b>: {csrObj.subjects.find((e) => e.type == "Common Name")?.value}</p>
+                    <div className="col-8">
+                        <div className="certificate-info">
+                            {getFieldDisplay("Common Name", csrObj.commonName)}
+                            {getFieldDisplay("Subject Alternative Name DNS", csrObj.sansDns && csrObj.sansDns.length > 0 ? csrObj.sansDns.join(', ') : "")}
+                            {getFieldDisplay("Subject Alternative Name IP addresses", csrObj.sansIp && csrObj.sansIp.length > 0 ? csrObj.sansIp.join(', ') : "")}
+                            {getFieldDisplay("Country", csrObj.country)}
+                            {getFieldDisplay("State or Province", csrObj.stateOrProvince)}
+                            {getFieldDisplay("Locality", csrObj.locality)}
+                            {getFieldDisplay("Organization", csrObj.organization)}
+                            {getFieldDisplay("Organizational Unit", csrObj.OrganizationalUnitName)}
+                            {getFieldDisplay("Email Address", csrObj.emailAddress)}
+                            <p><b>Certificate request for a certificate authority</b>: {csrObj.is_ca ? "Yes" : "No"}</p>
                         </div>
                     </div>
                 </td>

@@ -156,6 +156,9 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                             {getFieldDisplay("Organization", csrObj.organization)}
                             {getFieldDisplay("Organizational Unit", csrObj.OrganizationalUnitName)}
                             {getFieldDisplay("Email Address", csrObj.emailAddress)}
+                            {getFieldDisplay("Start of validity", certObj?.notBefore)}
+                            {getFieldDisplay("Expiry Time", certObj?.notAfter)}
+                            {getFieldDisplay("Issuer Common Name", certObj?.issuerCommonName)}
                             <p><b>Certificate request for a certificate authority</b>: {csrObj.is_ca ? "Yes" : "No"}</p>
                         </div>
                     </div>

@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	_ "github.com/mattn/go-sqlite3"
+	"golang.org/x/crypto/bcrypt"
 )
 
 const queryCreateCSRsTable = `CREATE TABLE IF NOT EXISTS %s (
@@ -26,14 +27,13 @@ const queryCreateUsersTable = `CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
 	password TEXT NOT NULL,
-	salt TEXT NOT NULL,
 	permissions INTEGER,
 )`
 const (
 	queryGetAllUsers = "SELECT * FROM users"
 	queryGetUser     = "SELECT * FROM users WHERE user_id=?"
-	queryCreateUser  = "INSERT INTO users (username, password, salt, permissions) VALUES (?, ?, ?, ?)"
-	queryUpdateUser  = "UPDATE users SET password=?, salt=? WHERE user_id=?"
+	queryCreateUser  = "INSERT INTO users (username, password, permissions) VALUES (?, ?, ?, ?)"
+	queryUpdateUser  = "UPDATE users SET password=?, WHERE user_id=?"
 	queryDeleteUser  = "DELETE FROM users WHERE user_id=?"
 )
 
@@ -54,7 +54,6 @@ type User struct {
 	ID          int
 	Username    string
 	Password    string
-	Salt        string
 	Permissions int
 }
 
@@ -162,7 +161,7 @@ func (db *CertificateRequestsRepository) RetrieveAllUsers() ([]User, error) {
 	defer rows.Close()
 	for rows.Next() {
 		var user User
-		if err := rows.Scan(&user.ID, &user.Username, &user.Password, &user.Salt, &user.Permissions); err != nil {
+		if err := rows.Scan(&user.ID, &user.Username, &user.Password, &user.Permissions); err != nil {
 			return nil, err
 		}
 		allUsers = append(allUsers, user)
@@ -172,7 +171,7 @@ func (db *CertificateRequestsRepository) RetrieveAllUsers() ([]User, error) {
 func (db *CertificateRequestsRepository) RetrieveUser(id string) (User, error) {
 	var newUser User
 	row := db.conn.QueryRow(queryGetUser, id)
-	if err := row.Scan(&newUser.ID, &newUser.Username, &newUser.Password, &newUser.Salt, &newUser.Permissions); err != nil {
+	if err := row.Scan(&newUser.ID, &newUser.Username, &newUser.Password, &newUser.Permissions); err != nil {
 		if err.Error() == "sql: no rows in result set" {
 			return newUser, errors.New("user id not found")
 		}
@@ -181,26 +180,32 @@ func (db *CertificateRequestsRepository) RetrieveUser(id string) (User, error) {
 	return newUser, nil
 }
 
-// func (db *CertificateRequestsRepository) CreateUser(username, password, permissions string) (int64, error) {
-// 	passwordHash, salt, err := something bcrypt
-// 	result, err := db.conn.Exec(queryCreateUser, username, passwordHash, salt, permissions)
-// 	if err != nil {
-// 		return 0, err
-// 	}
-// 	id, err := result.LastInsertId()
-// 	if err != nil {
-// 		return 0, err
-// 	}
-// 	return id, nil
-// }
+func (db *CertificateRequestsRepository) CreateUser(username, password, permissions string) (int64, error) {
+	pw, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MaxCost)
+	if err != nil {
+		return 0, err
+	}
+	result, err := db.conn.Exec(queryCreateUser, username, pw, permissions)
+	if err != nil {
+		return 0, err
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return id, nil
+}
 
 func (db *CertificateRequestsRepository) UpdateUser(id, password string) (int64, error) {
 	user, err := db.RetrieveUser(id)
 	if err != nil {
 		return 0, err
 	}
-	// passwordHash, salt := something bcrypt
-	result, err := db.conn.Exec(queryUpdateUser, user.ID)
+	pw, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MaxCost)
+	if err != nil {
+		return 0, err
+	}
+	result, err := db.conn.Exec(queryUpdateUser, pw, user.ID)
 	if err != nil {
 		return 0, err
 	}

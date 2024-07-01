@@ -61,8 +61,9 @@ test('Certificate Requests Table Row', () => {
             <Row id={csr.ID} csr={csr.CSR} certificate={csr.Certificate} ActionMenuExpanded={actionMenuExpanded} setActionMenuExpanded={setActionMenuExpanded as Dispatch<SetStateAction<number>>} />
         </QueryClientProvider>
     )
-    expect(screen.getByText('10.152.183.53')).toBeDefined() // Common name of CSR
-    expect(screen.getByLabelText('certificate-expiry-date').innerHTML).toMatch(/^Thu Mar 27/)
+    const commonNames = screen.getAllByText('10.152.183.53');
+    expect(commonNames.length).toBeGreaterThan(0);
+    expect(screen.getByLabelText('certificate-expiry-date').innerHTML.trim()).toMatch(/^Thu Mar 27/)
     const openActionsButton = screen.getByLabelText("action-menu-button")
     fireEvent.click(openActionsButton);
     expect(actionMenuExpanded).toBe(1)

@@ -91,10 +91,25 @@ function parseExtensions(extensions: Extensions) {
     return { sansDns, sansIp, is_ca };
 }
 
-export const extractCSR = (csrPemString: string) => {
-    const arrayBuffer = pemToArrayBuffer(csrPemString);
-    const asn1 = fromBER(arrayBuffer);
+function loadCertificateRequest(csrPemString: string) {
+    const binaryDer = pemToArrayBuffer(csrPemString)
+    const asn1 = fromBER(binaryDer)
     const csr = new CertificationRequest({ schema: asn1.result });
+    return csr
+}
+
+function loadCertificate(certPemString: string) {
+    const binaryDer = pemToArrayBuffer(certPemString)
+    const asn1 = fromBER(binaryDer)
+    if (asn1.offset === -1) {
+        throw new Error("Error parsing certificate");
+    }
+    const cert = new Certificate({ schema: asn1.result });
+    return cert
+}
+
+export const extractCSR = (csrPemString: string) => {
+    const csr = loadCertificateRequest(csrPemString);
 
     // Extract subject information from CSR
     const subjects = csr.subject.typesAndValues.map(typeAndValue => ({
@@ -136,76 +151,84 @@ export const extractCSR = (csrPemString: string) => {
     }
 }
 
+
 export const extractCert = (certPemString: string) => {
-    if (certPemString == "" || certPemString == "rejected") { return }
-
-    // Decode PEM to DER
-    const binaryDer = pemToArrayBuffer(certPemString);
-
-    // Parse DER encoded certificate
-    const asn1 = fromBER(binaryDer);
-    if (asn1.offset === -1) {
-        throw new Error("Error parsing certificate");
+    if (certPemString === "" || certPemString === "rejected") {
+        return null;
     }
 
-    // Load Certificate object
-    const cert = new Certificate({ schema: asn1.result });
+    const cert = loadCertificate(certPemString)
 
-    // Extract relevant information from certificate
-    const subject = cert.subject.typesAndValues.map(typeAndValue => ({
-        type: typeAndValue.type,
+    const subjects = cert.subject.typesAndValues.map(typeAndValue => ({
+        type: oidToName(typeAndValue.type),
         value: typeAndValue.value.valueBlock.value
     }));
-
-    const issuer = cert.issuer.typesAndValues.map(typeAndValue => ({
-        type: typeAndValue.type,
+    const issuerInfo = cert.subject.typesAndValues.map(typeAndValue => ({
+        type: oidToName(typeAndValue.type),
         value: typeAndValue.value.valueBlock.value
     }));
+    const getSubjectValue = (type: string) => subjects.find(subject => subject.type === type)?.value;
+    const getIssuerValue = (type: string) => issuerInfo.find(info => info.type === type)?.value;
 
-    const notBefore = cert.notBefore.value.toString();
-    const notAfter = cert.notAfter.value.toString();
+    const commonName = getSubjectValue("Common Name");
+    const organization = getSubjectValue("Organization Name");
+    const emailAddress = getSubjectValue("Email Address");
+    const country = getSubjectValue("Country");
+    const locality = getSubjectValue("Locality");
+    const stateOrProvince = getSubjectValue("State or Province");
+    const OrganizationalUnitName = getSubjectValue("Organizational Unit Name");
+    const issuerCommonName = getIssuerValue("Common Name");
+    const issuerOrganization = getIssuerValue("Organization Name");
+    const issuerEmailAddress = getIssuerValue("Email Address");
+    const issuerCountry = getIssuerValue("Country");
+    const issuerLocality = getIssuerValue("Locality");
+    const issuerStateOrProvince = getIssuerValue("State or Province");
+    const issuerOrganizationalUnitName = getIssuerValue("Organizational Unit Name");
 
-    return { notAfter }
+    const notBeforeUnformatted = cert.notBefore.value.toString();
+    const notBefore = notBeforeUnformatted ? notBeforeUnformatted.replace(/\s*\(.+\)/, '') : '';
+    const notAfterUnformatted = cert.notAfter.value.toString();
+    const notAfter = notAfterUnformatted ? notAfterUnformatted.replace(/\s*\(.+\)/, '') : '';
+
+    // Extract extensions such as SANs and Basic Constraints
+    let sansDns: string[] = [];
+    let sansIp: string[] = [];
+    let is_ca = false;
+
+    if (cert.extensions) {
+        // Correctly handle extensions by creating a new Extensions object
+        const extensionsInstance = new Extensions({ extensions: cert.extensions });
+        const ext = parseExtensions(extensionsInstance);
+        sansDns = ext.sansDns;
+        sansIp = ext.sansIp;
+        is_ca = ext.is_ca;
+    }
+    return {
+        commonName,
+        stateOrProvince,
+        OrganizationalUnitName,
+        organization,
+        emailAddress,
+        country,
+        locality,
+        sansDns,
+        sansIp,
+        is_ca,
+        notBefore,
+        notAfter,
+        issuerCommonName,
+        issuerOrganization,
+        issuerEmailAddress,
+        issuerCountry,
+        issuerLocality,
+        issuerStateOrProvince,
+        issuerOrganizationalUnitName,
+    };
 }
 
 export const csrMatchesCertificate = (csrPemString: string, certPemString: string) => {
-    // Decode PEM to DER
-    let pemHeader = "-----BEGIN CERTIFICATE-----";
-    let pemFooter = "-----END CERTIFICATE-----";
-    let pemContents = certPemString.substring(pemHeader.length, certPemString.length - pemFooter.length);
-    let binaryDerString = window.atob(pemContents);
-    let binaryDer = new Uint8Array(binaryDerString.length);
-    for (let i = 0; i < binaryDerString.length; i++) {
-        binaryDer[i] = binaryDerString.charCodeAt(i);
-    }
-
-    // Parse DER encoded certificate
-    let asn1 = fromBER(binaryDer.buffer);
-    if (asn1.offset === -1) {
-        throw new Error("Error parsing certificate");
-    }
-
-    // Load Certificate object
-    const cert = new Certificate({ schema: asn1.result });
-
-    // Decode PEM to DER
-    pemHeader = "-----BEGIN CERTIFICATE REQUEST-----";
-    pemFooter = "-----END CERTIFICATE REQUEST-----";
-    pemContents = csrPemString.substring(pemHeader.length, csrPemString.length - pemFooter.length);
-    binaryDerString = window.atob(pemContents);
-    binaryDer = new Uint8Array(binaryDerString.length);
-    for (let i = 0; i < binaryDerString.length; i++) {
-        binaryDer[i] = binaryDerString.charCodeAt(i);
-    }
-
-    // Parse DER encoded CSR
-    asn1 = fromBER(binaryDer.buffer);
-    if (asn1.offset === -1) {
-        throw new Error("Error parsing certificate request");
-    }
-
-    // Load CSR object
-    const csr = new CertificationRequest({ schema: asn1.result });
+    const cert = loadCertificate(certPemString);
+    const csr = loadCertificateRequest(csrPemString);
 
     const csrPKbytes = csr.subjectPublicKeyInfo.subjectPublicKey.valueBeforeDecodeView
     const certPKbytes = cert.subjectPublicKeyInfo.subjectPublicKey.valueBeforeDecodeView

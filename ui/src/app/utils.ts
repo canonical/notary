@@ -157,13 +157,7 @@ export const extractCert = (certPemString: string) => {
         return null;
     }
 
-    const binaryDer = pemToArrayBuffer(certPemString);
-    const asn1 = fromBER(binaryDer);
-    if (asn1.offset === -1) {
-        throw new Error("Error parsing certificate");
-    }
-
-    const cert = new Certificate({ schema: asn1.result });
+    const cert = loadCertificate(certPemString)
 
     const subjects = cert.subject.typesAndValues.map(typeAndValue => ({
         type: oidToName(typeAndValue.type),

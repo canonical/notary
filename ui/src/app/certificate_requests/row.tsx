@@ -4,7 +4,6 @@ import { extractCSR, extractCert } from "../utils"
 import { deleteCSR, rejectCSR, revokeCertificate } from "../queries"
 import { ConfirmationModal, SubmitCertificateModal, SuccessNotification } from "./components"
 import "./../globals.scss"
-import { get } from "http"
 
 type rowProps = {
     id: number,
@@ -95,7 +94,7 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
         return field ? (
             <p>
                 <b>{label}:</b>{" "}
-                <span style={{ color: isMismatched ? 'red' : 'inherit' }}>
+                <span style={{ color: isMismatched ? '#c7162b' : 'inherit' }}>
                     {field}
                 </span>
             </p>
@@ -110,10 +109,12 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
         const oneDayInMillis = 24 * 60 * 60 * 1000;
         const timeDifference = expiryDate.getTime() - now.getTime();
 
-        if (timeDifference < 0 || timeDifference < oneDayInMillis) {
-            return 'red';
+        if (timeDifference < 0) {
+            return '#c7162b';
+        } else if (timeDifference < oneDayInMillis) {
+            return '#f99b11';
         } else {
-            return 'green';
+            return '#0e8420';
         }
     };
 
@@ -203,7 +204,6 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                         )}
                     </div>
                 </td>
-
             </tr>
             {confirmationModalData != null && <ConfirmationModal modalData={confirmationModalData} setModalData={setConfirmationModalData} />}
             {certificateFormOpen && <SubmitCertificateModal id={id.toString()} csr={csr} cert={certificate} setFormOpen={setCertificateFormOpen} />}

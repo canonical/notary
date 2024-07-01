@@ -89,8 +89,7 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
         }
     }
 
-    function getFieldDisplay(label: string, field: string | undefined, compareField?: string | undefined) {
-        if (!field) return null;
+    const getFieldDisplay = (label: string, field: string | undefined, compareField?: string | undefined) => {
         const isMismatched = compareField !== undefined && compareField !== field;
         return field ? (
             <p>
@@ -100,7 +99,7 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                 </span>
             </p>
         ) : null;
-    }
+    };
 
     return (
         <>
@@ -171,15 +170,15 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                             <div className="col-12 col-md-6">
                                 <div className="certificate-info">
                                     <h4>Certificate Details</h4>
-                                    {getFieldDisplay("Common Name", csrObj.commonName, certObj.commonName)}
-                                    {getFieldDisplay("Subject Alternative Name DNS", csrObj.sansDns && csrObj.sansDns.join(', '), certObj.sansDns && certObj.sansDns.join(', '))}
-                                    {getFieldDisplay("Subject Alternative Name IP addresses", csrObj.sansIp && csrObj.sansIp.join(', '), certObj.sansIp && certObj.sansIp.join(', '))}
-                                    {getFieldDisplay("Country", csrObj.country, certObj.country)}
-                                    {getFieldDisplay("State or Province", csrObj.stateOrProvince, certObj.stateOrProvince)}
-                                    {getFieldDisplay("Locality", csrObj.locality, certObj.locality)}
-                                    {getFieldDisplay("Organization", csrObj.organization, certObj.organization)}
-                                    {getFieldDisplay("Organizational Unit", csrObj.OrganizationalUnitName, certObj.OrganizationalUnitName)}
-                                    {getFieldDisplay("Email Address", csrObj.emailAddress, certObj.emailAddress)}
+                                    {getFieldDisplay("Common Name", certObj.commonName, csrObj.commonName)}
+                                    {getFieldDisplay("Subject Alternative Name DNS", certObj.sansDns && certObj.sansDns.join(', '), csrObj.sansDns && csrObj.sansDns.join(', '))}
+                                    {getFieldDisplay("Subject Alternative Name IP addresses", certObj.sansIp && certObj.sansIp.join(', '), csrObj.sansIp && csrObj.sansIp.join(', '))}
+                                    {getFieldDisplay("Country", certObj.country, csrObj.country)}
+                                    {getFieldDisplay("State or Province", certObj.stateOrProvince, csrObj.stateOrProvince)}
+                                    {getFieldDisplay("Locality", certObj.locality, csrObj.locality)}
+                                    {getFieldDisplay("Organization", certObj.organization, csrObj.organization)}
+                                    {getFieldDisplay("Organizational Unit", certObj.OrganizationalUnitName, csrObj.OrganizationalUnitName)}
+                                    {getFieldDisplay("Email Address", certObj.emailAddress, csrObj.emailAddress)}
                                     {getFieldDisplay("Start of validity", certObj.notBefore)}
                                     {getFieldDisplay("Expiry Time", certObj.notAfter)}
                                     {getFieldDisplay("Issuer Common Name", certObj.issuerCommonName)}

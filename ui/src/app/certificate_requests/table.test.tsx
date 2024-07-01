@@ -5,8 +5,8 @@ import { QueryClient, QueryClientProvider } from 'react-query'
 
 const rows = [
     {
-        'ID': 1,
-        'CSR': `-----BEGIN CERTIFICATE REQUEST-----
+        'id': 1,
+        'csr': `-----BEGIN CERTIFICATE REQUEST-----
 MIICszCCAZsCAQAwFjEUMBIGA1UEAwwLZXhhbXBsZS5jb20wggEiMA0GCSqGSIb3
 DQEBAQUAA4IBDwAwggEKAoIBAQDC5KgrADpuOUPwSh0YLmpWF66VTcciIGC2HcGn
 oJknL7pm5q9qhfWGIdvKKlIA6cBB32jPd0QcYDsx7+AvzEvBuO7mq7v2Q1sPU4Q+
@@ -23,11 +23,11 @@ Y/uPl4g3jpGqLCKTASWJDGnZLroLICOzYTVs5P3oj+VueSUwYhGK5tBnS2x5FHID
 uMNMgwl0fxGMQZjrlXyCBhXBm1k6PmwcJGJF5LQ31c+5aTTMFU7SyZhlymctB8mS
 y+ErBQsRpcQho6Ok+HTXQQUcx7WNcwI=
 -----END CERTIFICATE REQUEST-----`,
-        'Certificate': ""
+        'certificate': ""
     },
     {
-        'ID': 2,
-        'CSR': `-----BEGIN CERTIFICATE REQUEST-----
+        'id': 2,
+        'csr': `-----BEGIN CERTIFICATE REQUEST-----
 MIIDGjCCAgICAQAwajEVMBMGA1UEAwwMZXhlbXBsYXIuY29tMQswCQYDVQQGEwJV
 UzESMBAGA1UECAwJTG91aXNpYW5hMRQwEgYDVQQHDAtOZXcgT3JsZWFuczEaMBgG
 A1UECgwRQ2VydGlmaWNhdGUgVG9vbHMwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw
@@ -46,11 +46,11 @@ tK9qb8EE92MoWboo4m4bcX74y+eUo3xBev6ZZwdScy8OHLhA/MMI8EElpeYt+Hc2
 WsDOAOH6qKQKQg3BO/xmRoohC6GL4CuhP7HYGi7+wziNhNZQa4GtE/k9DyIXVtJy
 yuf2PnfXCKnaIWRJNoEqDCZRVMfA5BFSwTPITqyo
 -----END CERTIFICATE REQUEST-----`,
-        'Certificate': "rejected"
+        'certificate': "rejected"
     },
     {
-        'ID': 3,
-        'CSR': `-----BEGIN CERTIFICATE REQUEST-----
+        'id': 3,
+        'csr': `-----BEGIN CERTIFICATE REQUEST-----
 MIIC5zCCAc8CAQAwRzEWMBQGA1UEAwwNMTAuMTUyLjE4My41MzEtMCsGA1UELQwk
 MzlhY2UxOTUtZGM1YS00MzJiLTgwOTAtYWZlNmFiNGI0OWNmMIIBIjANBgkqhkiG
 9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjM5Wz+HRtDveRzeDkEDM4ornIaefe8d8nmFi
@@ -68,7 +68,7 @@ cAQXk3fvTWuikHiCHqqdSdjDYj/8cyiwCrQWpV245VSbOE0WesWoEnSdFXVUfE1+
 RSKeTRuuJMcdGqBkDnDI22myj0bjt7q8eqBIjTiLQLnAFnQYpcCrhc8dKU9IJlv1
 H9Hay4ZO9LRew3pEtlx2WrExw/gpUcWM8rTI
 -----END CERTIFICATE REQUEST-----`,
-        'Certificate': `-----BEGIN CERTIFICATE-----
+        'certificate': `-----BEGIN CERTIFICATE-----
 MIIDrDCCApSgAwIBAgIURKr+jf7hj60SyAryIeN++9wDdtkwDQYJKoZIhvcNAQEL
 BQAwOTELMAkGA1UEBhMCVVMxKjAoBgNVBAMMIXNlbGYtc2lnbmVkLWNlcnRpZmlj
 YXRlcy1vcGVyYXRvcjAeFw0yNDAzMjcxMjQ4MDRaFw0yNTAzMjcxMjQ4MDRaMEcx

@@ -19,6 +19,9 @@ export type ConfirmationModalData = {
 } | null
 
 export default function Row({ id, csr, certificate, ActionMenuExpanded, setActionMenuExpanded }: rowProps) {
+    const red = "#c7162b"
+    const green = "#0e8420"
+    const yellow = "#f99b11"
     const [successNotification, setSuccessNotification] = useState<string | null>(null)
     const [detailsMenuOpen, setDetailsMenuOpen] = useState<boolean>(false)
     const [certificateFormOpen, setCertificateFormOpen] = useState<boolean>(false)
@@ -94,7 +97,7 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
         return field ? (
             <p>
                 <b>{label}:</b>{" "}
-                <span style={{ color: isMismatched ? '#c7162b' : 'inherit' }}>
+                <span style={{ color: isMismatched ? red : 'inherit' }}>
                     {field}
                 </span>
             </p>
@@ -110,11 +113,11 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
         const timeDifference = expiryDate.getTime() - now.getTime();
 
         if (timeDifference < 0) {
-            return '#c7162b';
+            return red;
         } else if (timeDifference < oneDayInMillis) {
-            return '#f99b11';
+            return yellow;
         } else {
-            return '#0e8420';
+            return green;
         }
     };
 

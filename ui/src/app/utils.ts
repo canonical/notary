@@ -185,8 +185,10 @@ export const extractCert = (certPemString: string) => {
     const issuerStateOrProvince = getIssuerValue("State or Province");
     const issuerOrganizationalUnitName = getIssuerValue("Organizational Unit Name");
 
-    const notBefore = cert.notBefore.value.toString();
-    const notAfter = cert.notAfter.value.toString();
+    const notBeforeUnformatted = cert.notBefore.value.toString();
+    const notBefore = notBeforeUnformatted ? notBeforeUnformatted.replace(/\s*\(.+\)/, '') : '';
+    const notAfterUnformatted = cert.notAfter.value.toString();
+    const notAfter = notAfterUnformatted ? notAfterUnformatted.replace(/\s*\(.+\)/, '') : '';
 
     // Extract extensions such as SANs and Basic Constraints
     let sansDns: string[] = [];

@@ -19,9 +19,9 @@ export type ConfirmationModalData = {
 } | null
 
 export default function Row({ id, csr, certificate, ActionMenuExpanded, setActionMenuExpanded }: rowProps) {
-    const red = "#c7162b"
-    const green = "#0e8420"
-    const yellow = "#f99b11"
+    const red = "rgba(199, 22, 43, 1)"
+    const green = "rgba(14, 132, 32, 0.35)"
+    const yellow = "rgba(249, 155, 17, 0.45)"
     const [successNotification, setSuccessNotification] = useState<string | null>(null)
     const [detailsMenuOpen, setDetailsMenuOpen] = useState<boolean>(false)
     const [certificateFormOpen, setCertificateFormOpen] = useState<boolean>(false)
@@ -136,7 +136,7 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                     <span>{csrObj.commonName}</span>
                 </td>
                 <td className="" aria-label="csr-status">{certificate == "" ? "outstanding" : (certificate == "rejected" ? "rejected" : "fulfilled")}</td>
-                <td className="" aria-label="certificate-expiry-date" style={{ color: getExpiryColor(certObj?.notAfter) }}> {certificate === "" ? "" : (certificate === "rejected" ? "" : certObj?.notAfter)}</td>
+                <td className="" aria-label="certificate-expiry-date" style={{ backgroundColor: getExpiryColor(certObj?.notAfter) }}> {certificate === "" ? "" : (certificate === "rejected" ? "" : certObj?.notAfter)}</td>
                 <td className="has-overflow" data-heading="Actions">
                     <span className="p-contextual-menu--center u-no-margin--bottom">
                         <button

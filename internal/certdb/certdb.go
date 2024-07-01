@@ -151,6 +151,7 @@ func (db *CertificateRequestsRepository) DeleteCSR(id string) (int64, error) {
 	return deleteId, nil
 }
 
+// RetrieveAllUsers returns all of the users and their fields available in the database.
 func (db *CertificateRequestsRepository) RetrieveAllUsers() ([]User, error) {
 	rows, err := db.conn.Query(queryGetAllUsers)
 	if err != nil {
@@ -168,6 +169,8 @@ func (db *CertificateRequestsRepository) RetrieveAllUsers() ([]User, error) {
 	}
 	return allUsers, nil
 }
+
+// RetrieveUser retrieves the name, password and the permission level of a user.
 func (db *CertificateRequestsRepository) RetrieveUser(id string) (User, error) {
 	var newUser User
 	row := db.conn.QueryRow(queryGetUser, id)
@@ -180,6 +183,9 @@ func (db *CertificateRequestsRepository) RetrieveUser(id string) (User, error) {
 	return newUser, nil
 }
 
+// CreateUser creates a new user from a given username, password and permission level.
+// The permission level 1 represents an admin, and a 0 represents a regular user.
+// The password passed in should be in plaintext. This function handles hashing and salting the password before storing it in the database.
 func (db *CertificateRequestsRepository) CreateUser(username, password, permissions string) (int64, error) {
 	pw, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -196,6 +202,8 @@ func (db *CertificateRequestsRepository) CreateUser(username, password, permissi
 	return id, nil
 }
 
+// UpdateUser updates the password of the given user.
+// Just like with CreateUser, this function handles hashing and salting the password before storage.
 func (db *CertificateRequestsRepository) UpdateUser(id, password string) (int64, error) {
 	user, err := db.RetrieveUser(id)
 	if err != nil {
@@ -216,6 +224,7 @@ func (db *CertificateRequestsRepository) UpdateUser(id, password string) (int64,
 	return insertId, nil
 }
 
+// DeleteUser removes a user from the table.
 func (db *CertificateRequestsRepository) DeleteUser(id string) (int64, error) {
 	result, err := db.conn.Exec(queryDeleteUser, id)
 	if err != nil {

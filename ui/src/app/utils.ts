@@ -230,7 +230,7 @@ export const extractCert = (certPemString: string) => {
     };
 }
 
-function certPublicKeysMatche(certPemString: string, csrPemString: string) {
+function certPublicKeysMatch(certPemString: string, csrPemString: string) {
     const cert = loadCertificate(certPemString);
     const csr = loadCertificateRequest(csrPemString);
 
@@ -240,9 +240,10 @@ function certPublicKeysMatche(certPemString: string, csrPemString: string) {
 }
 export const csrMatchesCertificate = (csrPemString: string, certPemString: string) => {
     // Decode PEM to DER
-    if (!certPublicKeysMatche(certPemString, csrPemString)) {
+    if (!certPublicKeysMatch(certPemString, csrPemString)) {
         return false
     }
+    /*
     const csrDetails = extractCSR(csrPemString)
     const certDetails = extractCert(certPemString)
     if (certDetails === null || csrDetails === null) {
@@ -260,5 +261,6 @@ export const csrMatchesCertificate = (csrPemString: string, certPemString: strin
     ) {
         return false;
     }
+    */
     return true;
 }

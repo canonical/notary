@@ -88,13 +88,19 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
             setActionMenuExpanded(id)
         }
     }
-    const getFieldDisplay = (key: string, field: string | undefined) => (
-        field ? (
+
+    function getFieldDisplay(label: string, field: string | undefined, compareField?: string | undefined) {
+        if (!field) return null;
+        const isMismatched = compareField !== undefined && compareField !== field;
+        return field ? (
             <p>
-                <b>{key}</b>: {field}
+                <b>{label}:</b>{" "}
+                <span style={{ color: isMismatched ? 'red' : 'inherit' }}>
+                    {field}
+                </span>
             </p>
-        ) : null
-    );
+        ) : null;
+    }
 
     return (
         <>
@@ -145,24 +151,44 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                     </span>
                 </td>
                 <td id="expanded-row" className="p-table__expanding-panel" aria-hidden={detailsMenuOpen ? "false" : "true"}>
-                    <div className="col-8">
-                        <div className="certificate-info">
-                            {getFieldDisplay("Common Name", csrObj.commonName)}
-                            {getFieldDisplay("Subject Alternative Name DNS", csrObj.sansDns && csrObj.sansDns.length > 0 ? csrObj.sansDns.join(', ') : "")}
-                            {getFieldDisplay("Subject Alternative Name IP addresses", csrObj.sansIp && csrObj.sansIp.length > 0 ? csrObj.sansIp.join(', ') : "")}
-                            {getFieldDisplay("Country", csrObj.country)}
-                            {getFieldDisplay("State or Province", csrObj.stateOrProvince)}
-                            {getFieldDisplay("Locality", csrObj.locality)}
-                            {getFieldDisplay("Organization", csrObj.organization)}
-                            {getFieldDisplay("Organizational Unit", csrObj.OrganizationalUnitName)}
-                            {getFieldDisplay("Email Address", csrObj.emailAddress)}
-                            {getFieldDisplay("Start of validity", certObj?.notBefore)}
-                            {getFieldDisplay("Expiry Time", certObj?.notAfter)}
-                            {getFieldDisplay("Issuer Common Name", certObj?.issuerCommonName)}
-                            <p><b>Certificate request for a certificate authority</b>: {csrObj.is_ca ? "Yes" : "No"}</p>
+                    <div className="row" style={{ display: 'flex', flexWrap: 'wrap', position: 'relative' }}>
+                        <div className="col-12 col-md-6">
+                            <div className="certificate-info">
+                                <h4>Request Details</h4>
+                                {getFieldDisplay("Common Name", csrObj.commonName)}
+                                {getFieldDisplay("Subject Alternative Name DNS", csrObj.sansDns && csrObj.sansDns.length > 0 ? csrObj.sansDns.join(', ') : "")}
+                                {getFieldDisplay("Subject Alternative Name IP addresses", csrObj.sansIp && csrObj.sansIp.length > 0 ? csrObj.sansIp.join(', ') : "")}
+                                {getFieldDisplay("Country", csrObj.country)}
+                                {getFieldDisplay("State or Province", csrObj.stateOrProvince)}
+                                {getFieldDisplay("Locality", csrObj.locality)}
+                                {getFieldDisplay("Organization", csrObj.organization)}
+                                {getFieldDisplay("Organizational Unit", csrObj.OrganizationalUnitName)}
+                                {getFieldDisplay("Email Address", csrObj.emailAddress)}
+                                <p><b>Certificate request for a certificate authority</b>: {csrObj.is_ca ? "Yes" : "No"}</p>
+                            </div>
                         </div>
+                        {certObj && (certObj.notBefore || certObj.notAfter || certObj.issuerCommonName) && (
+                            <div className="col-12 col-md-6">
+                                <div className="certificate-info">
+                                    <h4>Certificate Details</h4>
+                                    {getFieldDisplay("Common Name", csrObj.commonName, certObj.commonName)}
+                                    {getFieldDisplay("Subject Alternative Name DNS", csrObj.sansDns && csrObj.sansDns.join(', '), certObj.sansDns && certObj.sansDns.join(', '))}
+                                    {getFieldDisplay("Subject Alternative Name IP addresses", csrObj.sansIp && csrObj.sansIp.join(', '), certObj.sansIp && certObj.sansIp.join(', '))}
+                                    {getFieldDisplay("Country", csrObj.country, certObj.country)}
+                                    {getFieldDisplay("State or Province", csrObj.stateOrProvince, certObj.stateOrProvince)}
+                                    {getFieldDisplay("Locality", csrObj.locality, certObj.locality)}
+                                    {getFieldDisplay("Organization", csrObj.organization, certObj.organization)}
+                                    {getFieldDisplay("Organizational Unit", csrObj.OrganizationalUnitName, certObj.OrganizationalUnitName)}
+                                    {getFieldDisplay("Email Address", csrObj.emailAddress, certObj.emailAddress)}
+                                    {getFieldDisplay("Start of validity", certObj.notBefore)}
+                                    {getFieldDisplay("Expiry Time", certObj.notAfter)}
+                                    {getFieldDisplay("Issuer Common Name", certObj.issuerCommonName)}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </td>
+
             </tr>
             {confirmationModalData != null && <ConfirmationModal modalData={confirmationModalData} setModalData={setConfirmationModalData} />}
             {certificateFormOpen && <SubmitCertificateModal id={id.toString()} csr={csr} cert={certificate} setFormOpen={setCertificateFormOpen} />}

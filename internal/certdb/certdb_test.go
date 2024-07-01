@@ -24,27 +24,27 @@ func TestEndToEnd(t *testing.T) {
 	}
 	defer db.Close()
 
-	id1, err := db.Create(ValidCSR1)
+	id1, err := db.CreateCSR(ValidCSR1)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
-	id2, err := db.Create(ValidCSR2)
+	id2, err := db.CreateCSR(ValidCSR2)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
-	id3, err := db.Create(ValidCSR3)
+	id3, err := db.CreateCSR(ValidCSR3)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
 
-	res, err := db.RetrieveAll()
+	res, err := db.RetrieveAllCSRs()
 	if err != nil {
 		t.Fatalf("Couldn't complete RetrieveAll: %s", err)
 	}
 	if len(res) != 3 {
 		t.Fatalf("One or more CSRs weren't found in DB")
 	}
-	retrievedCSR, err := db.Retrieve(strconv.FormatInt(id1, 10))
+	retrievedCSR, err := db.RetrieveCSR(strconv.FormatInt(id1, 10))
 	if err != nil {
 		t.Fatalf("Couldn't complete Retrieve: %s", err)
 	}
@@ -52,31 +52,31 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatalf("The CSR from the database doesn't match the CSR that was given")
 	}
 
-	if _, err = db.Delete(strconv.FormatInt(id1, 10)); err != nil {
+	if _, err = db.DeleteCSR(strconv.FormatInt(id1, 10)); err != nil {
 		t.Fatalf("Couldn't complete Delete: %s", err)
 	}
-	res, _ = db.RetrieveAll()
+	res, _ = db.RetrieveAllCSRs()
 	if len(res) != 2 {
 		t.Fatalf("CSR's weren't deleted from the DB properly")
 	}
 
-	_, err = db.Update(strconv.FormatInt(id2, 10), ValidCert2)
+	_, err = db.UpdateCSR(strconv.FormatInt(id2, 10), ValidCert2)
 	if err != nil {
 		t.Fatalf("Couldn't complete Update: %s", err)
 	}
-	retrievedCSR, _ = db.Retrieve(strconv.FormatInt(id2, 10))
+	retrievedCSR, _ = db.RetrieveCSR(strconv.FormatInt(id2, 10))
 	if retrievedCSR.Certificate != ValidCert2 {
 		t.Fatalf("The certificate that was uploaded does not match the certificate that was given.\n Retrieved: %s\nGiven: %s", retrievedCSR.Certificate, ValidCert2)
 	}
-	_, err = db.Update(strconv.FormatInt(id2, 10), "")
+	_, err = db.UpdateCSR(strconv.FormatInt(id2, 10), "")
 	if err != nil {
 		t.Fatalf("Couldn't complete Update to delete certificate: %s", err)
 	}
-	_, err = db.Update(strconv.FormatInt(id3, 10), "rejected")
+	_, err = db.UpdateCSR(strconv.FormatInt(id3, 10), "rejected")
 	if err != nil {
 		t.Fatalf("Couldn't complete Update to reject CSR: %s", err)
 	}
-	retrievedCSR, _ = db.Retrieve(strconv.FormatInt(id2, 10))
+	retrievedCSR, _ = db.RetrieveCSR(strconv.FormatInt(id2, 10))
 	if retrievedCSR.Certificate != "" {
 		t.Fatalf("Couldn't delete certificate")
 	}
@@ -87,12 +87,12 @@ func TestCreateFails(t *testing.T) {
 	defer db.Close()
 
 	InvalidCSR := strings.ReplaceAll(ValidCSR1, "/", "+")
-	if _, err := db.Create(InvalidCSR); err == nil {
+	if _, err := db.CreateCSR(InvalidCSR); err == nil {
 		t.Fatalf("Expected error due to invalid CSR")
 	}
 
-	db.Create(ValidCSR1) //nolint:errcheck
-	if _, err := db.Create(ValidCSR1); err == nil {
+	db.CreateCSR(ValidCSR1) //nolint:errcheck
+	if _, err := db.CreateCSR(ValidCSR1); err == nil {
 		t.Fatalf("Expected error due to duplicate CSR")
 	}
 }
@@ -101,13 +101,13 @@ func TestUpdateFails(t *testing.T) {
 	db, _ := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests") //nolint:errcheck
 	defer db.Close()
 
-	id1, _ := db.Create(ValidCSR1) //nolint:errcheck
-	id2, _ := db.Create(ValidCSR2) //nolint:errcheck
+	id1, _ := db.CreateCSR(ValidCSR1) //nolint:errcheck
+	id2, _ := db.CreateCSR(ValidCSR2) //nolint:errcheck
 	InvalidCert := strings.ReplaceAll(ValidCert2, "/", "+")
-	if _, err := db.Update(strconv.FormatInt(id2, 10), InvalidCert); err == nil {
+	if _, err := db.UpdateCSR(strconv.FormatInt(id2, 10), InvalidCert); err == nil {
 		t.Fatalf("Expected updating with invalid cert to fail")
 	}
-	if _, err := db.Update(strconv.FormatInt(id1, 10), ValidCert2); err == nil {
+	if _, err := db.UpdateCSR(strconv.FormatInt(id1, 10), ValidCert2); err == nil {
 		t.Fatalf("Expected updating with mismatched cert to fail")
 	}
 }
@@ -116,8 +116,8 @@ func TestRetrieve(t *testing.T) {
 	db, _ := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests") //nolint:errcheck
 	defer db.Close()
 
-	db.Create(ValidCSR1) //nolint:errcheck
-	if _, err := db.Retrieve("this is definitely not an id"); err == nil {
+	db.CreateCSR(ValidCSR1) //nolint:errcheck
+	if _, err := db.RetrieveCSR("this is definitely not an id"); err == nil {
 		t.Fatalf("Expected failure looking for nonexistent CSR")
 	}
 
@@ -128,15 +128,15 @@ func Example() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	_, err = db.Create(ValidCSR2)
+	_, err = db.CreateCSR(ValidCSR2)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	_, err = db.Update(ValidCSR2, ValidCert2)
+	_, err = db.UpdateCSR(ValidCSR2, ValidCert2)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	entry, err := db.Retrieve(ValidCSR2)
+	entry, err := db.RetrieveCSR(ValidCSR2)
 	if err != nil {
 		log.Fatalln(err)
 	}

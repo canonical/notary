@@ -82,11 +82,11 @@ func generateCertPair(daysRemaining int) (string, string) {
 func initializeTestDB(t *testing.T, db *certdb.CertificateRequestsRepository) {
 	for i, v := range []int{5, 10, 32} {
 		csr, cert := generateCertPair(v)
-		_, err := db.Create(csr)
+		_, err := db.CreateCSR(csr)
 		if err != nil {
 			t.Fatalf("couldn't create test csr:%s", err)
 		}
-		_, err = db.Update(fmt.Sprint(i+1), cert)
+		_, err = db.UpdateCSR(fmt.Sprint(i+1), cert)
 		if err != nil {
 			t.Fatalf("couldn't create test cert:%s", err)
 		}
@@ -95,10 +95,10 @@ func initializeTestDB(t *testing.T, db *certdb.CertificateRequestsRepository) {
 
 // TestMetrics tests some of the metrics that we currently collect.
 func TestMetrics(t *testing.T) {
-	f, err := os.CreateTemp("./","*.db")
+	f, err := os.CreateTemp("./", "*.db")
 	fmt.Print(f.Name())
 	if err != nil {
-		t.Fatal("couldn't create temp db file: "+ err.Error())
+		t.Fatal("couldn't create temp db file: " + err.Error())
 	}
 	defer f.Close()
 	defer os.Remove(f.Name())
@@ -108,7 +108,7 @@ func TestMetrics(t *testing.T) {
 	}
 	initializeTestDB(t, db)
 	m := metrics.NewMetricsSubsystem(db)
-	csrs, _ := db.RetrieveAll()
+	csrs, _ := db.RetrieveAllCSRs()
 	m.GenerateMetrics(csrs)
 
 	request, _ := http.NewRequest("GET", "/", nil)

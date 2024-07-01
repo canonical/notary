@@ -1,5 +1,5 @@
 export type CSREntry = {
-    ID: number,
-    CSR: string,
-    Certificate: string
+    id: number,
+    csr: string,
+    certificate: string
 }

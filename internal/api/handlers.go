@@ -73,7 +73,7 @@ func HealthCheck(w http.ResponseWriter, r *http.Request) {
 // GetCertificateRequests returns all of the Certificate Requests
 func GetCertificateRequests(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		certs, err := env.DB.RetrieveAll()
+		certs, err := env.DB.RetrieveAllCSRs()
 		if err != nil {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
@@ -97,7 +97,7 @@ func PostCertificateRequest(env *Environment) http.HandlerFunc {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
-		id, err := env.DB.Create(string(csr))
+		id, err := env.DB.CreateCSR(string(csr))
 		if err != nil {
 			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 				logErrorAndWriteResponse("given csr already recorded", http.StatusBadRequest, w)
@@ -122,7 +122,7 @@ func PostCertificateRequest(env *Environment) http.HandlerFunc {
 func GetCertificateRequest(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		cert, err := env.DB.Retrieve(id)
+		cert, err := env.DB.RetrieveCSR(id)
 		if err != nil {
 			if err.Error() == "csr id not found" {
 				logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)
@@ -147,7 +147,7 @@ func GetCertificateRequest(env *Environment) http.HandlerFunc {
 func DeleteCertificateRequest(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		insertId, err := env.DB.Delete(id)
+		insertId, err := env.DB.DeleteCSR(id)
 		if err != nil {
 			if err.Error() == "csr id not found" {
 				logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)
@@ -173,7 +173,7 @@ func PostCertificate(env *Environment) http.HandlerFunc {
 			return
 		}
 		id := r.PathValue("id")
-		insertId, err := env.DB.Update(id, string(cert))
+		insertId, err := env.DB.UpdateCSR(id, string(cert))
 		if err != nil {
 			if err.Error() == "csr id not found" ||
 				err.Error() == "certificate does not match CSR" ||
@@ -201,7 +201,7 @@ func PostCertificate(env *Environment) http.HandlerFunc {
 func RejectCertificate(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		insertId, err := env.DB.Update(id, "rejected")
+		insertId, err := env.DB.UpdateCSR(id, "rejected")
 		if err != nil {
 			if err.Error() == "csr id not found" {
 				logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)
@@ -229,7 +229,7 @@ func RejectCertificate(env *Environment) http.HandlerFunc {
 func DeleteCertificate(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		insertId, err := env.DB.Update(id, "")
+		insertId, err := env.DB.UpdateCSR(id, "")
 		if err != nil {
 			if err.Error() == "csr id not found" {
 				logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)

@@ -27,13 +27,13 @@ const queryCreateUsersTable = `CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
 	password TEXT NOT NULL,
-	permissions INTEGER,
+	permissions INTEGER
 )`
 const (
 	queryGetAllUsers = "SELECT * FROM users"
 	queryGetUser     = "SELECT * FROM users WHERE user_id=?"
-	queryCreateUser  = "INSERT INTO users (username, password, permissions) VALUES (?, ?, ?, ?)"
-	queryUpdateUser  = "UPDATE users SET password=?, WHERE user_id=?"
+	queryCreateUser  = "INSERT INTO users (username, password, permissions) VALUES (?, ?, ?)"
+	queryUpdateUser  = "UPDATE users SET password=? WHERE user_id=?"
 	queryDeleteUser  = "DELETE FROM users WHERE user_id=?"
 )
 
@@ -46,15 +46,15 @@ type CertificateRequestsRepository struct {
 // A CertificateRequest struct represents an entry in the database.
 // The object contains a Certificate Request, its matching Certificate if any, and the row ID.
 type CertificateRequest struct {
-	ID          int
-	CSR         string
-	Certificate string
+	ID          int    `json:"id"`
+	CSR         string `json:"csr"`
+	Certificate string `json:"certificate"`
 }
 type User struct {
-	ID          int
-	Username    string
-	Password    string
-	Permissions int
+	ID          int    `json:"id"`
+	Username    string `json:"username"`
+	Password    string `json:"password"`
+	Permissions int    `json:"permissions"`
 }
 
 // RetrieveAllCSRs gets every CertificateRequest entry in the table.
@@ -181,7 +181,7 @@ func (db *CertificateRequestsRepository) RetrieveUser(id string) (User, error) {
 }
 
 func (db *CertificateRequestsRepository) CreateUser(username, password, permissions string) (int64, error) {
-	pw, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MaxCost)
+	pw, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return 0, err
 	}
@@ -201,7 +201,7 @@ func (db *CertificateRequestsRepository) UpdateUser(id, password string) (int64,
 	if err != nil {
 		return 0, err
 	}
-	pw, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MaxCost)
+	pw, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return 0, err
 	}
@@ -217,7 +217,7 @@ func (db *CertificateRequestsRepository) UpdateUser(id, password string) (int64,
 }
 
 func (db *CertificateRequestsRepository) DeleteUser(id string) (int64, error) {
-	result, err := db.conn.Exec(queryDeleteCSR, id)
+	result, err := db.conn.Exec(queryDeleteUser, id)
 	if err != nil {
 		return 0, err
 	}
@@ -252,6 +252,9 @@ func NewCertificateRequestsRepository(databasePath string, tableName string) (*C
 		return nil, err
 	}
 	if _, err := conn.Exec(fmt.Sprintf(queryCreateCSRsTable, tableName)); err != nil {
+		return nil, err
+	}
+	if _, err := conn.Exec(queryCreateUsersTable); err != nil {
 		return nil, err
 	}
 	db := new(CertificateRequestsRepository)

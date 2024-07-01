@@ -230,37 +230,11 @@ export const extractCert = (certPemString: string) => {
     };
 }
 
-function certPublicKeysMatch(certPemString: string, csrPemString: string) {
+export const csrMatchesCertificate = (csrPemString: string, certPemString: string) => {
     const cert = loadCertificate(certPemString);
     const csr = loadCertificateRequest(csrPemString);
 
     const csrPKbytes = csr.subjectPublicKeyInfo.subjectPublicKey.valueBeforeDecodeView
     const certPKbytes = cert.subjectPublicKeyInfo.subjectPublicKey.valueBeforeDecodeView
     return csrPKbytes.toString() == certPKbytes.toString()
-}
-export const csrMatchesCertificate = (csrPemString: string, certPemString: string) => {
-    // Decode PEM to DER
-    if (!certPublicKeysMatch(certPemString, csrPemString)) {
-        return false
-    }
-    /*
-    const csrDetails = extractCSR(csrPemString)
-    const certDetails = extractCert(certPemString)
-    if (certDetails === null || csrDetails === null) {
-        return false;
-    }
-    // Be sure that subject fields match
-    if (
-        csrDetails['commonName'] !== certDetails['commonName'] ||
-        csrDetails['stateOrProvince'] !== certDetails['stateOrProvince'] ||
-        csrDetails['OrganizationalUnitName'] !== certDetails['OrganizationalUnitName'] ||
-        csrDetails['organization'] !== certDetails['organization'] ||
-        csrDetails['emailAddress'] !== certDetails['emailAddress'] ||
-        csrDetails['country'] !== certDetails['country'] ||
-        csrDetails['locality'] !== certDetails['locality']
-    ) {
-        return false;
-    }
-    */
-    return true;
 }

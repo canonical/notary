@@ -4,6 +4,7 @@ import { extractCSR, extractCert } from "../utils"
 import { deleteCSR, rejectCSR, revokeCertificate } from "../queries"
 import { ConfirmationModal, SubmitCertificateModal, SuccessNotification } from "./components"
 import "./../globals.scss"
+import { get } from "http"
 
 type rowProps = {
     id: number,
@@ -101,6 +102,21 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
         ) : null;
     };
 
+    const getExpiryColor = (notAfter?: string): string => {
+        if (!notAfter) return 'inherit';
+
+        const expiryDate = new Date(notAfter);
+        const now = new Date();
+        const oneDayInMillis = 24 * 60 * 60 * 1000;
+        const timeDifference = expiryDate.getTime() - now.getTime();
+
+        if (timeDifference < 0 || timeDifference < oneDayInMillis) {
+            return 'red';
+        } else {
+            return 'green';
+        }
+    };
+
     return (
         <>
             <tr>
@@ -116,7 +132,7 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                     <span>{csrObj.commonName}</span>
                 </td>
                 <td className="" aria-label="csr-status">{certificate == "" ? "outstanding" : (certificate == "rejected" ? "rejected" : "fulfilled")}</td>
-                <td className="" aria-label="certificate-expiry-date">{certificate == "" ? "" : (certificate == "rejected" ? "" : certObj?.notAfter)}</td>
+                <td className="" aria-label="certificate-expiry-date" style={{ color: getExpiryColor(certObj?.notAfter) }}> {certificate === "" ? "" : (certificate === "rejected" ? "" : certObj?.notAfter)}</td>
                 <td className="has-overflow" data-heading="Actions">
                     <span className="p-contextual-menu--center u-no-margin--bottom">
                         <button

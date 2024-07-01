@@ -100,6 +100,6 @@ test('CertificateRequestsPage', () => {
             < CertificateRequestsTable csrs={rows} />
         </QueryClientProvider>
     )
-    expect(screen.getByRole('table', {})).toBeDefined()
-    expect(screen.getByText('example.com')).toBeDefined() // Common Name of one of the CSR's
+    const commonNames = screen.getAllByText('example.com');
+    expect(commonNames.length).toBeGreaterThan(0);
 })

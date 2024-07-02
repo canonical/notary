@@ -100,6 +100,12 @@ const (
 	expectedGetCertReqResponseBody4  = "{\"id\":2,\"csr\":\"-----BEGIN CERTIFICATE REQUEST-----\\nMIIC5zCCAc8CAQAwRzEWMBQGA1UEAwwNMTAuMTUyLjE4My41MzEtMCsGA1UELQwk\\nMzlhY2UxOTUtZGM1YS00MzJiLTgwOTAtYWZlNmFiNGI0OWNmMIIBIjANBgkqhkiG\\n9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjM5Wz+HRtDveRzeDkEDM4ornIaefe8d8nmFi\\npUat9qCU3U9798FR460DHjCLGxFxxmoRitzHtaR4ew5H036HlGB20yas/CMDgSUI\\n69DyAsyPwEJqOWBGO1LL50qXdl5/jOkO2voA9j5UsD1CtWSklyhbNhWMpYqj2ObW\\nXcaYj9Gx/TwYhw8xsJ/QRWyCrvjjVzH8+4frfDhBVOyywN7sq+I3WwCbyBBcN8uO\\nyae0b/q5+UJUiqgpeOAh/4Y7qI3YarMj4cm7dwmiCVjedUwh65zVyHtQUfLd8nFW\\nKl9775mNBc1yicvKDU3ZB5hZ1MZtpbMBwaA1yMSErs/fh5KaXwIDAQABoFswWQYJ\\nKoZIhvcNAQkOMUwwSjBIBgNVHREEQTA/hwQKmLc1gjd2YXVsdC1rOHMtMC52YXVs\\ndC1rOHMtZW5kcG9pbnRzLnZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsMA0GCSqGSIb3\\nDQEBCwUAA4IBAQCJt8oVDbiuCsik4N5AOJIT7jKsMb+j0mizwjahKMoCHdx+zv0V\\nFGkhlf0VWPAdEu3gHdJfduX88WwzJ2wBBUK38UuprAyvfaZfaYUgFJQNC6DH1fIa\\nuHYEhvNJBdFJHaBvW7lrSFi57fTA9IEPrB3m/XN3r2F4eoHnaJJqHZmMwqVHck87\\ncAQXk3fvTWuikHiCHqqdSdjDYj/8cyiwCrQWpV245VSbOE0WesWoEnSdFXVUfE1+\\nRSKeTRuuJMcdGqBkDnDI22myj0bjt7q8eqBIjTiLQLnAFnQYpcCrhc8dKU9IJlv1\\nH9Hay4ZO9LRew3pEtlx2WrExw/gpUcWM8rTI\\n-----END CERTIFICATE REQUEST-----\",\"certificate\":\"\"}"
 )
 
+const (
+	adminUser   = `{"username": "testadmin", "password": "admin"}`
+	validUser   = `{"username": "testuser", "password": "user"}`
+	invalidUser = `{"username": "testuser", "password": ""}`
+)
+
 func TestGoCertRouter(t *testing.T) {
 	testdb, err := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests")
 	if err != nil {
@@ -327,6 +333,54 @@ func TestGoCertRouter(t *testing.T) {
 			data:     "",
 			response: "",
 			status:   http.StatusOK,
+		},
+		{
+			desc:     "Create first user success",
+			method:   "POST",
+			path:     "/api/v1/accounts",
+			data:     adminUser,
+			response: "{\"id\": 1}",
+			status:   http.StatusCreated,
+		},
+		{
+			desc:     "Retrieve admin user success",
+			method:   "GET",
+			path:     "/api/v1/accounts/1/account",
+			data:     "",
+			response: "{\"id\":1,\"username\":\"testadmin\",\"permissions\":1}",
+			status:   http.StatusOK,
+		},
+		{
+			desc:     "Create second user success",
+			method:   "POST",
+			path:     "/api/v1/accounts",
+			data:     validUser,
+			response: "{\"id\": 2}",
+			status:   http.StatusCreated,
+		},
+		{
+			desc:     "Retrieve normal user success",
+			method:   "GET",
+			path:     "/api/v1/accounts/2/account",
+			data:     "",
+			response: "{\"id\":2,\"username\":\"testuser\",\"permissions\":0}",
+			status:   http.StatusOK,
+		},
+		{
+			desc:     "Retrieve user failure",
+			method:   "GET",
+			path:     "/api/v1/accounts/3/account",
+			data:     "",
+			response: "error: user id not found",
+			status:   http.StatusInternalServerError, //Yazan Todo don't have this as internal server error
+		},
+		{
+			desc:     "Create second user success",
+			method:   "POST",
+			path:     "/api/v1/accounts",
+			data:     invalidUser,
+			response: "error: Username and password are required",
+			status:   http.StatusBadRequest,
 		},
 	}
 	for _, tC := range testCases {

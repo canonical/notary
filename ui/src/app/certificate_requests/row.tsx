@@ -19,6 +19,9 @@ export type ConfirmationModalData = {
 } | null
 
 export default function Row({ id, csr, certificate, ActionMenuExpanded, setActionMenuExpanded }: rowProps) {
+    const red = "rgba(199, 22, 43, 1)"
+    const green = "rgba(14, 132, 32, 0.35)"
+    const yellow = "rgba(249, 155, 17, 0.45)"
     const [successNotification, setSuccessNotification] = useState<string | null>(null)
     const [detailsMenuOpen, setDetailsMenuOpen] = useState<boolean>(false)
     const [certificateFormOpen, setCertificateFormOpen] = useState<boolean>(false)
@@ -88,13 +91,35 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
             setActionMenuExpanded(id)
         }
     }
-    const getFieldDisplay = (key: string, field: string | undefined) => (
-        field ? (
+
+    const getFieldDisplay = (label: string, field: string | undefined, compareField?: string | undefined) => {
+        const isMismatched = compareField !== undefined && compareField !== field;
+        return field ? (
             <p>
-                <b>{key}</b>: {field}
+                <b>{label}:</b>{" "}
+                <span style={{ color: isMismatched ? red : 'inherit' }}>
+                    {field}
+                </span>
             </p>
-        ) : null
-    );
+        ) : null;
+    };
+
+    const getExpiryColor = (notAfter?: string): string => {
+        if (!notAfter) return 'inherit';
+
+        const expiryDate = new Date(notAfter);
+        const now = new Date();
+        const oneDayInMillis = 24 * 60 * 60 * 1000;
+        const timeDifference = expiryDate.getTime() - now.getTime();
+
+        if (timeDifference < 0) {
+            return red;
+        } else if (timeDifference < oneDayInMillis) {
+            return yellow;
+        } else {
+            return green;
+        }
+    };
 
     return (
         <>
@@ -111,7 +136,7 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                     <span>{csrObj.commonName}</span>
                 </td>
                 <td className="" aria-label="csr-status">{certificate == "" ? "outstanding" : (certificate == "rejected" ? "rejected" : "fulfilled")}</td>
-                <td className="" aria-label="certificate-expiry-date">{certificate == "" ? "" : (certificate == "rejected" ? "" : certObj?.notAfter)}</td>
+                <td className="" aria-label="certificate-expiry-date" style={{ backgroundColor: getExpiryColor(certObj?.notAfter) }}> {certificate === "" ? "" : (certificate === "rejected" ? "" : certObj?.notAfter)}</td>
                 <td className="has-overflow" data-heading="Actions">
                     <span className="p-contextual-menu--center u-no-margin--bottom">
                         <button
@@ -145,19 +170,41 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                     </span>
                 </td>
                 <td id="expanded-row" className="p-table__expanding-panel" aria-hidden={detailsMenuOpen ? "false" : "true"}>
-                    <div className="col-8">
-                        <div className="certificate-info">
-                            {getFieldDisplay("Common Name", csrObj.commonName)}
-                            {getFieldDisplay("Subject Alternative Name DNS", csrObj.sansDns && csrObj.sansDns.length > 0 ? csrObj.sansDns.join(', ') : "")}
-                            {getFieldDisplay("Subject Alternative Name IP addresses", csrObj.sansIp && csrObj.sansIp.length > 0 ? csrObj.sansIp.join(', ') : "")}
-                            {getFieldDisplay("Country", csrObj.country)}
-                            {getFieldDisplay("State or Province", csrObj.stateOrProvince)}
-                            {getFieldDisplay("Locality", csrObj.locality)}
-                            {getFieldDisplay("Organization", csrObj.organization)}
-                            {getFieldDisplay("Organizational Unit", csrObj.OrganizationalUnitName)}
-                            {getFieldDisplay("Email Address", csrObj.emailAddress)}
-                            <p><b>Certificate request for a certificate authority</b>: {csrObj.is_ca ? "Yes" : "No"}</p>
+                    <div className="row" style={{ display: 'flex', flexWrap: 'wrap', position: 'relative' }}>
+                        <div className="col-12 col-md-6">
+                            <div className="certificate-info">
+                                <h4>Request Details</h4>
+                                {getFieldDisplay("Common Name", csrObj.commonName)}
+                                {getFieldDisplay("Subject Alternative Name DNS", csrObj.sansDns && csrObj.sansDns.length > 0 ? csrObj.sansDns.join(', ') : "")}
+                                {getFieldDisplay("Subject Alternative Name IP addresses", csrObj.sansIp && csrObj.sansIp.length > 0 ? csrObj.sansIp.join(', ') : "")}
+                                {getFieldDisplay("Country", csrObj.country)}
+                                {getFieldDisplay("State or Province", csrObj.stateOrProvince)}
+                                {getFieldDisplay("Locality", csrObj.locality)}
+                                {getFieldDisplay("Organization", csrObj.organization)}
+                                {getFieldDisplay("Organizational Unit", csrObj.OrganizationalUnitName)}
+                                {getFieldDisplay("Email Address", csrObj.emailAddress)}
+                                <p><b>Certificate request for a certificate authority</b>: {csrObj.is_ca ? "Yes" : "No"}</p>
+                            </div>
                         </div>
+                        {certObj && (certObj.notBefore || certObj.notAfter || certObj.issuerCommonName) && (
+                            <div className="col-12 col-md-6">
+                                <div className="certificate-info">
+                                    <h4>Certificate Details</h4>
+                                    {getFieldDisplay("Common Name", certObj.commonName, csrObj.commonName)}
+                                    {getFieldDisplay("Subject Alternative Name DNS", certObj.sansDns && certObj.sansDns.join(', '), csrObj.sansDns && csrObj.sansDns.join(', '))}
+                                    {getFieldDisplay("Subject Alternative Name IP addresses", certObj.sansIp && certObj.sansIp.join(', '), csrObj.sansIp && csrObj.sansIp.join(', '))}
+                                    {getFieldDisplay("Country", certObj.country, csrObj.country)}
+                                    {getFieldDisplay("State or Province", certObj.stateOrProvince, csrObj.stateOrProvince)}
+                                    {getFieldDisplay("Locality", certObj.locality, csrObj.locality)}
+                                    {getFieldDisplay("Organization", certObj.organization, csrObj.organization)}
+                                    {getFieldDisplay("Organizational Unit", certObj.OrganizationalUnitName, csrObj.OrganizationalUnitName)}
+                                    {getFieldDisplay("Email Address", certObj.emailAddress, csrObj.emailAddress)}
+                                    {getFieldDisplay("Start of validity", certObj.notBefore)}
+                                    {getFieldDisplay("Expiry Time", certObj.notAfter)}
+                                    {getFieldDisplay("Issuer Common Name", certObj.issuerCommonName)}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </td>
             </tr>

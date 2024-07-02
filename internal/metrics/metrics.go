@@ -37,7 +37,7 @@ func NewMetricsSubsystem(db *certdb.CertificateRequestsRepository) *PrometheusMe
 	ticker := time.NewTicker(120 * time.Second)
 	go func() {
 		for ; ; <-ticker.C {
-			csrs, err := db.RetrieveAll()
+			csrs, err := db.RetrieveAllCSRs()
 			if err != nil {
 				log.Println(errors.Join(errors.New("error generating metrics repository: "), err))
 				panic(1)

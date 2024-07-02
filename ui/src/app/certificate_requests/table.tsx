@@ -23,8 +23,8 @@ type TableProps = {
 }
 
 function sortByCSRStatus(a: CSREntry, b: CSREntry) {
-    const aCSRStatus = a.Certificate == "" ? "outstanding" : (a.Certificate == "rejected" ? "rejected" : "fulfilled")
-    const bCSRStatus = b.Certificate == "" ? "outstanding" : (b.Certificate == "rejected" ? "rejected" : "fulfilled")
+    const aCSRStatus = a.certificate == "" ? "outstanding" : (a.certificate == "rejected" ? "rejected" : "fulfilled")
+    const bCSRStatus = b.certificate == "" ? "outstanding" : (b.certificate == "rejected" ? "rejected" : "fulfilled")
     if (aCSRStatus < bCSRStatus) {
         return -1;
     } else if (aCSRStatus > bCSRStatus) {
@@ -35,8 +35,8 @@ function sortByCSRStatus(a: CSREntry, b: CSREntry) {
 }
 
 function sortByCertStatus(a: CSREntry, b: CSREntry) {
-    const aCertStatus = (a.Certificate == "" ? "" : (a.Certificate == "rejected" ? "" : "date"))
-    const bCertStatus = (b.Certificate == "" ? "" : (b.Certificate == "rejected" ? "" : "date"))
+    const aCertStatus = (a.certificate == "" ? "" : (a.certificate == "rejected" ? "" : "date"))
+    const bCertStatus = (b.certificate == "" ? "" : (b.certificate == "rejected" ? "" : "date"))
     if (aCertStatus < bCertStatus) {
         return -1;
     } else if (aCertStatus > bCertStatus) {
@@ -86,7 +86,7 @@ export function CertificateRequestsTable({ csrs: rows }: TableProps) {
                         <tbody>
                             {
                                 sortedRows().map((row) => (
-                                    <Row key={row.ID} id={row.ID} csr={row.CSR} certificate={row.Certificate} ActionMenuExpanded={actionsMenuExpanded} setActionMenuExpanded={setActionsMenuExpanded} />
+                                    <Row key={row.id} id={row.id} csr={row.csr} certificate={row.certificate} ActionMenuExpanded={actionsMenuExpanded} setActionMenuExpanded={setActionsMenuExpanded} />
                                 )
                                 )}
                         </tbody>

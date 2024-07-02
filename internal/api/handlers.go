@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/canonical/gocert/internal/certdb"
 	metrics "github.com/canonical/gocert/internal/metrics"
 	"github.com/canonical/gocert/ui"
 )
@@ -26,6 +27,10 @@ func NewGoCertRouter(env *Environment) http.Handler {
 	apiV1Router.HandleFunc("POST /certificate_requests/{id}/certificate", PostCertificate(env))
 	apiV1Router.HandleFunc("POST /certificate_requests/{id}/certificate/reject", RejectCertificate(env))
 	apiV1Router.HandleFunc("DELETE /certificate_requests/{id}/certificate", DeleteCertificate(env))
+
+	apiV1Router.HandleFunc("GET /accounts/{id}/account", GetUserAccount(env))
+	apiV1Router.HandleFunc("GET /accounts", GetUserAccounts(env))
+	apiV1Router.HandleFunc("POST /accounts", PostUserAccount(env))
 
 	m := metrics.NewMetricsSubsystem(env.DB)
 	frontendHandler := newFrontendFileServer()
@@ -247,6 +252,110 @@ func DeleteCertificate(env *Environment) http.HandlerFunc {
 		}
 		w.WriteHeader(http.StatusAccepted)
 		if _, err := w.Write([]byte(insertIdStr)); err != nil {
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+		}
+	}
+}
+
+// GetUserAccounts returns all users from the database
+func GetUserAccounts(env *Environment) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		users, err := env.DB.RetrieveAllUsers()
+		if err != nil {
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+			return
+		}
+		apiUsers := make([]certdb.UserAPIModel, 0, len(users))
+		for _, user := range users {
+			apiUsers = append(apiUsers, certdb.UserAPIModel{
+				ID:          user.ID,
+				Username:    user.Username,
+				Permissions: user.Permissions,
+			})
+		}
+		body, err := json.Marshal(apiUsers)
+		if err != nil {
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+			return
+		}
+		if _, err := w.Write(body); err != nil {
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+		}
+	}
+}
+
+// GetUserAccount receives an id as a path parameter, and
+// returns the corresponding User Account
+func GetUserAccount(env *Environment) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		userAccount, err := env.DB.RetrieveUser(id)
+		if err != nil {
+			if err.Error() == "User account not founds" {
+				logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)
+				return
+			}
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+			return
+		}
+		apiUser := certdb.UserAPIModel{
+			ID:          userAccount.ID,
+			Username:    userAccount.Username,
+			Permissions: userAccount.Permissions,
+		}
+
+		body, err := json.Marshal(apiUser)
+		if err != nil {
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+			return
+		}
+
+		if err != nil {
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+			return
+		}
+		if _, err := w.Write(body); err != nil {
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+		}
+	}
+}
+
+// PostUserAccount creates a new User Account, and returns the id of the created row
+func PostUserAccount(env *Environment) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var user certdb.UserCreationRequest
+		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+			logErrorAndWriteResponse("Invalid JSON format", http.StatusBadRequest, w)
+			return
+		}
+		if user.Username == "" || user.Password == "" {
+			logErrorAndWriteResponse("Username and password are required", http.StatusBadRequest, w)
+			return
+		}
+		users, err := env.DB.RetrieveAllUsers()
+		if err != nil {
+			logErrorAndWriteResponse("Failed to retrieve users: "+err.Error(), http.StatusInternalServerError, w)
+			return
+		}
+
+		permission := "0"
+		if len(users) == 0 {
+			permission = "1" //if this is the first user it will be admin
+		}
+		id, err := env.DB.CreateUser(user.Username, user.Password, permission)
+		if err != nil {
+			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+				logErrorAndWriteResponse("user with given username already exists", http.StatusBadRequest, w)
+				return
+			}
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		response := fmt.Sprintf(`{"id": %d}`, id)
+		if _, err := w.Write([]byte(response)); err != nil {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 		}
 	}

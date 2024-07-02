@@ -57,6 +57,17 @@ type User struct {
 	Permissions int    `json:"permissions"`
 }
 
+type UserCreationRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type UserAPIModel struct {
+	ID          int    `json:"id"`
+	Username    string `json:"username"`
+	Permissions int    `json:"permissions"`
+}
+
 // RetrieveAllCSRs gets every CertificateRequest entry in the table.
 func (db *CertificateRequestsRepository) RetrieveAllCSRs() ([]CertificateRequest, error) {
 	rows, err := db.conn.Query(fmt.Sprintf(queryGetAllCSRs, db.certificateTable))

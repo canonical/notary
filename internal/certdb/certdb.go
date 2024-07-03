@@ -53,8 +53,8 @@ type CertificateRequest struct {
 type User struct {
 	ID          int    `json:"id"`
 	Username    string `json:"username"`
-	Password    string `json:"-"`
-	Permissions *int   `json:"permissions"`
+	Password    string `json:"password,omitempty"`
+	Permissions int    `json:"permissions"`
 }
 
 // RetrieveAllCSRs gets every CertificateRequest entry in the table.

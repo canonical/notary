@@ -28,7 +28,7 @@ func NewGoCertRouter(env *Environment) http.Handler {
 	apiV1Router.HandleFunc("POST /certificate_requests/{id}/certificate/reject", RejectCertificate(env))
 	apiV1Router.HandleFunc("DELETE /certificate_requests/{id}/certificate", DeleteCertificate(env))
 
-	apiV1Router.HandleFunc("GET /accounts/{id}/account", GetUserAccount(env))
+	apiV1Router.HandleFunc("GET /accounts/{id}", GetUserAccount(env))
 	apiV1Router.HandleFunc("GET /accounts", GetUserAccounts(env))
 	apiV1Router.HandleFunc("POST /accounts", PostUserAccount(env))
 
@@ -265,15 +265,10 @@ func GetUserAccounts(env *Environment) http.HandlerFunc {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
-		apiUsers := make([]certdb.User, 0, len(users))
-		for _, user := range users {
-			apiUsers = append(apiUsers, certdb.User{
-				ID:          user.ID,
-				Username:    user.Username,
-				Permissions: user.Permissions,
-			})
+		for i := range users {
+			users[i].Password = ""
 		}
-		body, err := json.Marshal(apiUsers)
+		body, err := json.Marshal(users)
 		if err != nil {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
@@ -298,13 +293,8 @@ func GetUserAccount(env *Environment) http.HandlerFunc {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
-		apiUser := certdb.User{
-			ID:          userAccount.ID,
-			Username:    userAccount.Username,
-			Permissions: userAccount.Permissions,
-		}
-
-		body, err := json.Marshal(apiUser)
+		userAccount.Password = ""
+		body, err := json.Marshal(userAccount)
 		if err != nil {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return

@@ -389,7 +389,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 		{
 			desc:     "Retrieve admin user success",
 			method:   "GET",
-			path:     "/api/v1/accounts/1/account",
+			path:     "/api/v1/accounts/1",
 			data:     "",
 			response: "{\"id\":1,\"username\":\"testadmin\",\"permissions\":1}",
 			status:   http.StatusOK,
@@ -405,7 +405,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 		{
 			desc:     "Retrieve normal user success",
 			method:   "GET",
-			path:     "/api/v1/accounts/2/account",
+			path:     "/api/v1/accounts/2",
 			data:     "",
 			response: "{\"id\":2,\"username\":\"testuser\",\"permissions\":0}",
 			status:   http.StatusOK,
@@ -413,7 +413,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 		{
 			desc:     "Retrieve user failure",
 			method:   "GET",
-			path:     "/api/v1/accounts/3/account",
+			path:     "/api/v1/accounts/3",
 			data:     "",
 			response: "error: user id not found",
 			status:   http.StatusNotFound,

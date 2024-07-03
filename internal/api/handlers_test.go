@@ -375,7 +375,7 @@ func TestGoCertRouter(t *testing.T) {
 			status:   http.StatusNotFound,
 		},
 		{
-			desc:     "Create second user success",
+			desc:     "Create user failure",
 			method:   "POST",
 			path:     "/api/v1/accounts",
 			data:     invalidUser,

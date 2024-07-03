@@ -369,6 +369,12 @@ func TestGoCertUsersHandlers(t *testing.T) {
 	ts := httptest.NewTLSServer(server.NewGoCertRouter(env))
 	defer ts.Close()
 
+	originalFunc := server.GeneratePassword
+	server.GeneratePassword = func(length int) (string, error) {
+		return "generatedPassword", nil
+	}
+	defer func() { server.GeneratePassword = originalFunc }()
+
 	client := ts.Client()
 
 	testCases := []struct {
@@ -408,7 +414,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/accounts",
 			data:     noPasswordUser,
-			response: "{\"id\":3,\"password\":",
+			response: "{\"id\":3,\"password\":\"generatedPassword\"}",
 			status:   http.StatusCreated,
 		},
 		{

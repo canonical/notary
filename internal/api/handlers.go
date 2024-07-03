@@ -321,7 +321,7 @@ func PostUserAccount(env *Environment) http.HandlerFunc {
 			return
 		}
 		if user.Password == "" {
-			user.Password, _ = generatePassword(8)
+			user.Password, _ = GeneratePassword(8)
 		}
 		users, err := env.DB.RetrieveAllUsers()
 		if err != nil {
@@ -365,7 +365,7 @@ func logErrorAndWriteResponse(msg string, status int, w http.ResponseWriter) {
 	}
 }
 
-func generatePassword(length int) (string, error) {
+var GeneratePassword = func(length int) (string, error) {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789&*?@"
 	b := make([]byte, length)
 	for i := range b {

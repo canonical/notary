@@ -212,7 +212,7 @@ func TestGoCertRouter(t *testing.T) {
 			path:     "/api/v1/certificate_requests/5",
 			data:     "",
 			response: "error: csr id not found",
-			status:   http.StatusBadRequest,
+			status:   http.StatusNotFound,
 		},
 		{
 			desc:     "get csr1 fail",
@@ -220,7 +220,7 @@ func TestGoCertRouter(t *testing.T) {
 			path:     "/api/v1/certificate_requests/1",
 			data:     "",
 			response: "error: csr id not found",
-			status:   http.StatusBadRequest,
+			status:   http.StatusNotFound,
 		},
 		{
 			desc:     "get csr2 success",
@@ -372,7 +372,7 @@ func TestGoCertRouter(t *testing.T) {
 			path:     "/api/v1/accounts/3/account",
 			data:     "",
 			response: "error: user id not found",
-			status:   http.StatusInternalServerError, //Yazan Todo don't have this as internal server error
+			status:   http.StatusNotFound,
 		},
 		{
 			desc:     "Create second user success",

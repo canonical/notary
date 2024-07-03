@@ -130,7 +130,7 @@ func GetCertificateRequest(env *Environment) http.HandlerFunc {
 		cert, err := env.DB.RetrieveCSR(id)
 		if err != nil {
 			if err.Error() == "csr id not found" {
-				logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)
+				logErrorAndWriteResponse(err.Error(), http.StatusNotFound, w)
 				return
 			}
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
@@ -155,7 +155,7 @@ func DeleteCertificateRequest(env *Environment) http.HandlerFunc {
 		insertId, err := env.DB.DeleteCSR(id)
 		if err != nil {
 			if err.Error() == "csr id not found" {
-				logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)
+				logErrorAndWriteResponse(err.Error(), http.StatusNotFound, w)
 				return
 			}
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
@@ -209,7 +209,7 @@ func RejectCertificate(env *Environment) http.HandlerFunc {
 		insertId, err := env.DB.UpdateCSR(id, "rejected")
 		if err != nil {
 			if err.Error() == "csr id not found" {
-				logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)
+				logErrorAndWriteResponse(err.Error(), http.StatusNotFound, w)
 				return
 			}
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
@@ -291,8 +291,8 @@ func GetUserAccount(env *Environment) http.HandlerFunc {
 		id := r.PathValue("id")
 		userAccount, err := env.DB.RetrieveUser(id)
 		if err != nil {
-			if err.Error() == "User account not founds" {
-				logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)
+			if err.Error() == "user id not found" {
+				logErrorAndWriteResponse(err.Error(), http.StatusNotFound, w)
 				return
 			}
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)

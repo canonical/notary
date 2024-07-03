@@ -265,9 +265,9 @@ func GetUserAccounts(env *Environment) http.HandlerFunc {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
-		apiUsers := make([]certdb.UserAPIModel, 0, len(users))
+		apiUsers := make([]certdb.User, 0, len(users))
 		for _, user := range users {
-			apiUsers = append(apiUsers, certdb.UserAPIModel{
+			apiUsers = append(apiUsers, certdb.User{
 				ID:          user.ID,
 				Username:    user.Username,
 				Permissions: user.Permissions,
@@ -298,18 +298,13 @@ func GetUserAccount(env *Environment) http.HandlerFunc {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
-		apiUser := certdb.UserAPIModel{
+		apiUser := certdb.User{
 			ID:          userAccount.ID,
 			Username:    userAccount.Username,
 			Permissions: userAccount.Permissions,
 		}
 
 		body, err := json.Marshal(apiUser)
-		if err != nil {
-			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
-			return
-		}
-
 		if err != nil {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
@@ -323,13 +318,13 @@ func GetUserAccount(env *Environment) http.HandlerFunc {
 // PostUserAccount creates a new User Account, and returns the id of the created row
 func PostUserAccount(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var user certdb.UserCreationRequest
+		var user certdb.User
 		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 			logErrorAndWriteResponse("Invalid JSON format", http.StatusBadRequest, w)
 			return
 		}
-		if user.Username == "" || user.Password == "" {
-			logErrorAndWriteResponse("Username and password are required", http.StatusBadRequest, w)
+		if user.Username == "" {
+			logErrorAndWriteResponse("Username is required", http.StatusBadRequest, w)
 			return
 		}
 		users, err := env.DB.RetrieveAllUsers()

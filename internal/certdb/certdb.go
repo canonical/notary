@@ -53,19 +53,8 @@ type CertificateRequest struct {
 type User struct {
 	ID          int    `json:"id"`
 	Username    string `json:"username"`
-	Password    string `json:"password"`
-	Permissions int    `json:"permissions"`
-}
-
-type UserCreationRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
-type UserAPIModel struct {
-	ID          int    `json:"id"`
-	Username    string `json:"username"`
-	Permissions int    `json:"permissions"`
+	Password    string `json:"-"`
+	Permissions *int   `json:"permissions"`
 }
 
 // RetrieveAllCSRs gets every CertificateRequest entry in the table.

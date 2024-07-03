@@ -103,10 +103,10 @@ const (
 const (
 	adminUser   = `{"username": "testadmin", "password": "admin"}`
 	validUser   = `{"username": "testuser", "password": "user"}`
-	invalidUser = `{"username": "testuser", "password": ""}`
+	invalidUser = `{"username": "", "password": ""}`
 )
 
-func TestGoCertRouter(t *testing.T) {
+func TestGoCertCertificatesHandlers(t *testing.T) {
 	testdb, err := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests")
 	if err != nil {
 		log.Fatalf("couldn't create test sqlite db: %s", err)
@@ -334,6 +334,50 @@ func TestGoCertRouter(t *testing.T) {
 			response: "",
 			status:   http.StatusOK,
 		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			req, err := http.NewRequest(tC.method, ts.URL+tC.path, strings.NewReader(tC.data))
+			if err != nil {
+				t.Fatal(err)
+			}
+			res, err := client.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			resBody, err := io.ReadAll(res.Body)
+			res.Body.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if res.StatusCode != tC.status || !strings.Contains(string(resBody), tC.response) {
+				t.Errorf("expected response did not match.\nExpected vs Received status code: %d vs %d\nExpected vs Received body: \n%s\nvs\n%s\n", tC.status, res.StatusCode, tC.response, string(resBody))
+			}
+		})
+	}
+
+}
+
+func TestGoCertUsersHandlers(t *testing.T) {
+	testdb, err := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests")
+	if err != nil {
+		log.Fatalf("couldn't create test sqlite db: %s", err)
+	}
+	env := &server.Environment{}
+	env.DB = testdb
+	ts := httptest.NewTLSServer(server.NewGoCertRouter(env))
+	defer ts.Close()
+
+	client := ts.Client()
+
+	testCases := []struct {
+		desc     string
+		method   string
+		path     string
+		data     string
+		response string
+		status   int
+	}{
 		{
 			desc:     "Create first user success",
 			method:   "POST",
@@ -379,7 +423,7 @@ func TestGoCertRouter(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/accounts",
 			data:     invalidUser,
-			response: "error: Username and password are required",
+			response: "error: Username is required",
 			status:   http.StatusBadRequest,
 		},
 	}
@@ -403,5 +447,4 @@ func TestGoCertRouter(t *testing.T) {
 			}
 		})
 	}
-
 }

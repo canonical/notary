@@ -101,9 +101,10 @@ const (
 )
 
 const (
-	adminUser   = `{"username": "testadmin", "password": "admin"}`
-	validUser   = `{"username": "testuser", "password": "user"}`
-	invalidUser = `{"username": "", "password": ""}`
+	adminUser      = `{"username": "testadmin", "password": "admin"}`
+	validUser      = `{"username": "testuser", "password": "user"}`
+	noPasswordUser = `{"username": "nopass", "password": ""}`
+	invalidUser    = `{"username": "", "password": ""}`
 )
 
 func TestGoCertCertificatesHandlers(t *testing.T) {
@@ -383,7 +384,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/accounts",
 			data:     adminUser,
-			response: "{\"id\": 1}",
+			response: "{\"id\":1,\"password\":\"admin\"}",
 			status:   http.StatusCreated,
 		},
 		{
@@ -399,7 +400,15 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/accounts",
 			data:     validUser,
-			response: "{\"id\": 2}",
+			response: "{\"id\":2,\"password\":\"user\"}",
+			status:   http.StatusCreated,
+		},
+		{
+			desc:     "Create no password user success",
+			method:   "POST",
+			path:     "/api/v1/accounts",
+			data:     noPasswordUser,
+			response: "{\"id\":3,\"password\":",
 			status:   http.StatusCreated,
 		},
 		{
@@ -413,7 +422,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 		{
 			desc:     "Retrieve user failure",
 			method:   "GET",
-			path:     "/api/v1/accounts/3",
+			path:     "/api/v1/accounts/300",
 			data:     "",
 			response: "error: id not found",
 			status:   http.StatusNotFound,

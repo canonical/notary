@@ -1,12 +1,14 @@
 package server
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"log"
+	"math/big"
 	"net/http"
 	"strconv"
 	"strings"
@@ -318,6 +320,9 @@ func PostUserAccount(env *Environment) http.HandlerFunc {
 			logErrorAndWriteResponse("Username is required", http.StatusBadRequest, w)
 			return
 		}
+		if user.Password == "" {
+			user.Password, _ = generatePassword(8)
+		}
 		users, err := env.DB.RetrieveAllUsers()
 		if err != nil {
 			logErrorAndWriteResponse("Failed to retrieve users: "+err.Error(), http.StatusInternalServerError, w)
@@ -340,8 +345,11 @@ func PostUserAccount(env *Environment) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		response := fmt.Sprintf(`{"id": %d}`, id)
-		if _, err := w.Write([]byte(response)); err != nil {
+		response, err := json.Marshal(map[string]any{"id": id, "password": user.Password})
+		if err != nil {
+			logErrorAndWriteResponse("Error marshaling response", http.StatusInternalServerError, w)
+		}
+		if _, err := w.Write(response); err != nil {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 		}
 	}
@@ -355,4 +363,17 @@ func logErrorAndWriteResponse(msg string, status int, w http.ResponseWriter) {
 	if _, err := w.Write([]byte(errMsg)); err != nil {
 		logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 	}
+}
+
+func generatePassword(length int) (string, error) {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789&*?@"
+	b := make([]byte, length)
+	for i := range b {
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		if err != nil {
+			return "", err
+		}
+		b[i] = charset[n.Int64()]
+	}
+	return string(b), nil
 }

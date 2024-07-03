@@ -211,7 +211,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			method:   "DELETE",
 			path:     "/api/v1/certificate_requests/5",
 			data:     "",
-			response: "error: csr id not found",
+			response: "error: id not found",
 			status:   http.StatusNotFound,
 		},
 		{
@@ -219,7 +219,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			method:   "GET",
 			path:     "/api/v1/certificate_requests/1",
 			data:     "",
-			response: "error: csr id not found",
+			response: "error: id not found",
 			status:   http.StatusNotFound,
 		},
 		{
@@ -415,7 +415,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "GET",
 			path:     "/api/v1/accounts/3",
 			data:     "",
-			response: "error: user id not found",
+			response: "error: id not found",
 			status:   http.StatusNotFound,
 		},
 		{

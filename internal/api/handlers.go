@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -129,7 +130,7 @@ func GetCertificateRequest(env *Environment) http.HandlerFunc {
 		id := r.PathValue("id")
 		cert, err := env.DB.RetrieveCSR(id)
 		if err != nil {
-			if err.Error() == "csr id not found" {
+			if errors.Is(err, certdb.ErrIdNotFound) {
 				logErrorAndWriteResponse(err.Error(), http.StatusNotFound, w)
 				return
 			}
@@ -154,7 +155,7 @@ func DeleteCertificateRequest(env *Environment) http.HandlerFunc {
 		id := r.PathValue("id")
 		insertId, err := env.DB.DeleteCSR(id)
 		if err != nil {
-			if err.Error() == "csr id not found" {
+			if errors.Is(err, certdb.ErrIdNotFound) {
 				logErrorAndWriteResponse(err.Error(), http.StatusNotFound, w)
 				return
 			}
@@ -180,7 +181,7 @@ func PostCertificate(env *Environment) http.HandlerFunc {
 		id := r.PathValue("id")
 		insertId, err := env.DB.UpdateCSR(id, string(cert))
 		if err != nil {
-			if err.Error() == "csr id not found" ||
+			if errors.Is(err, certdb.ErrIdNotFound) ||
 				err.Error() == "certificate does not match CSR" ||
 				strings.Contains(err.Error(), "cert validation failed") {
 				logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)
@@ -208,7 +209,7 @@ func RejectCertificate(env *Environment) http.HandlerFunc {
 		id := r.PathValue("id")
 		insertId, err := env.DB.UpdateCSR(id, "rejected")
 		if err != nil {
-			if err.Error() == "csr id not found" {
+			if errors.Is(err, certdb.ErrIdNotFound) {
 				logErrorAndWriteResponse(err.Error(), http.StatusNotFound, w)
 				return
 			}
@@ -236,7 +237,7 @@ func DeleteCertificate(env *Environment) http.HandlerFunc {
 		id := r.PathValue("id")
 		insertId, err := env.DB.UpdateCSR(id, "")
 		if err != nil {
-			if err.Error() == "csr id not found" {
+			if errors.Is(err, certdb.ErrIdNotFound) {
 				logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)
 				return
 			}
@@ -286,7 +287,7 @@ func GetUserAccount(env *Environment) http.HandlerFunc {
 		id := r.PathValue("id")
 		userAccount, err := env.DB.RetrieveUser(id)
 		if err != nil {
-			if err.Error() == "user id not found" {
+			if errors.Is(err, certdb.ErrIdNotFound) {
 				logErrorAndWriteResponse(err.Error(), http.StatusNotFound, w)
 				return
 			}

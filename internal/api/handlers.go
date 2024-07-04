@@ -321,7 +321,12 @@ func PostUserAccount(env *Environment) http.HandlerFunc {
 			return
 		}
 		if user.Password == "" {
-			user.Password, _ = GeneratePassword(8)
+			generatedPassword, err := GeneratePassword(8)
+			if err != nil {
+				logErrorAndWriteResponse("Failed to generate password", http.StatusInternalServerError, w)
+				return
+			}
+			user.Password = generatedPassword
 		}
 		users, err := env.DB.RetrieveAllUsers()
 		if err != nil {

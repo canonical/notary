@@ -130,11 +130,11 @@ func (db *CertificateRequestsRepository) UpdateCSR(id string, cert string) (int6
 	if err != nil {
 		return 0, err
 	}
-	insertId, err := result.LastInsertId()
+	affectedRows, err := result.RowsAffected()
 	if err != nil {
 		return 0, err
 	}
-	return insertId, nil
+	return affectedRows, nil
 }
 
 // DeleteCSR removes a CSR from the database alongside the certificate that may have been generated for it.
@@ -219,11 +219,11 @@ func (db *CertificateRequestsRepository) UpdateUser(id, password string) (int64,
 	if err != nil {
 		return 0, err
 	}
-	insertId, err := result.LastInsertId()
+	affectedRows, err := result.RowsAffected()
 	if err != nil {
 		return 0, err
 	}
-	return insertId, nil
+	return affectedRows, nil
 }
 
 // DeleteUser removes a user from the table.

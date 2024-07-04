@@ -34,6 +34,7 @@ func NewGoCertRouter(env *Environment) http.Handler {
 	apiV1Router.HandleFunc("GET /accounts/{id}", GetUserAccount(env))
 	apiV1Router.HandleFunc("GET /accounts", GetUserAccounts(env))
 	apiV1Router.HandleFunc("POST /accounts", PostUserAccount(env))
+	apiV1Router.HandleFunc("POST /accounts/{id}", ChangeUserAccountPassword(env))
 
 	m := metrics.NewMetricsSubsystem(env.DB)
 	frontendHandler := newFrontendFileServer()
@@ -355,6 +356,34 @@ func PostUserAccount(env *Environment) http.HandlerFunc {
 			logErrorAndWriteResponse("Error marshaling response", http.StatusInternalServerError, w)
 		}
 		if _, err := w.Write(response); err != nil {
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+		}
+	}
+}
+
+func ChangeUserAccountPassword(env *Environment) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		var user certdb.User
+		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+			logErrorAndWriteResponse("Invalid JSON format", http.StatusBadRequest, w)
+			return
+		}
+		if user.Password == "" {
+			logErrorAndWriteResponse("Password is required", http.StatusBadRequest, w)
+			return
+		}
+		ret, err := env.DB.UpdateUser(id, user.Password)
+		if err != nil {
+			if errors.Is(err, certdb.ErrIdNotFound) {
+				logErrorAndWriteResponse(err.Error(), http.StatusNotFound, w)
+				return
+			}
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write([]byte(strconv.FormatInt(ret, 10))); err != nil {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 		}
 	}

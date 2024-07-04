@@ -1,15 +1,19 @@
 package server
 
 import (
+	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"log"
+	"math/big"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/canonical/gocert/internal/certdb"
 	metrics "github.com/canonical/gocert/internal/metrics"
 	"github.com/canonical/gocert/ui"
 )
@@ -26,6 +30,10 @@ func NewGoCertRouter(env *Environment) http.Handler {
 	apiV1Router.HandleFunc("POST /certificate_requests/{id}/certificate", PostCertificate(env))
 	apiV1Router.HandleFunc("POST /certificate_requests/{id}/certificate/reject", RejectCertificate(env))
 	apiV1Router.HandleFunc("DELETE /certificate_requests/{id}/certificate", DeleteCertificate(env))
+
+	apiV1Router.HandleFunc("GET /accounts/{id}", GetUserAccount(env))
+	apiV1Router.HandleFunc("GET /accounts", GetUserAccounts(env))
+	apiV1Router.HandleFunc("POST /accounts", PostUserAccount(env))
 
 	m := metrics.NewMetricsSubsystem(env.DB)
 	frontendHandler := newFrontendFileServer()
@@ -124,8 +132,8 @@ func GetCertificateRequest(env *Environment) http.HandlerFunc {
 		id := r.PathValue("id")
 		cert, err := env.DB.RetrieveCSR(id)
 		if err != nil {
-			if err.Error() == "csr id not found" {
-				logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)
+			if errors.Is(err, certdb.ErrIdNotFound) {
+				logErrorAndWriteResponse(err.Error(), http.StatusNotFound, w)
 				return
 			}
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
@@ -149,8 +157,8 @@ func DeleteCertificateRequest(env *Environment) http.HandlerFunc {
 		id := r.PathValue("id")
 		insertId, err := env.DB.DeleteCSR(id)
 		if err != nil {
-			if err.Error() == "csr id not found" {
-				logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)
+			if errors.Is(err, certdb.ErrIdNotFound) {
+				logErrorAndWriteResponse(err.Error(), http.StatusNotFound, w)
 				return
 			}
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
@@ -175,7 +183,7 @@ func PostCertificate(env *Environment) http.HandlerFunc {
 		id := r.PathValue("id")
 		insertId, err := env.DB.UpdateCSR(id, string(cert))
 		if err != nil {
-			if err.Error() == "csr id not found" ||
+			if errors.Is(err, certdb.ErrIdNotFound) ||
 				err.Error() == "certificate does not match CSR" ||
 				strings.Contains(err.Error(), "cert validation failed") {
 				logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)
@@ -203,8 +211,8 @@ func RejectCertificate(env *Environment) http.HandlerFunc {
 		id := r.PathValue("id")
 		insertId, err := env.DB.UpdateCSR(id, "rejected")
 		if err != nil {
-			if err.Error() == "csr id not found" {
-				logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)
+			if errors.Is(err, certdb.ErrIdNotFound) {
+				logErrorAndWriteResponse(err.Error(), http.StatusNotFound, w)
 				return
 			}
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
@@ -231,7 +239,7 @@ func DeleteCertificate(env *Environment) http.HandlerFunc {
 		id := r.PathValue("id")
 		insertId, err := env.DB.UpdateCSR(id, "")
 		if err != nil {
-			if err.Error() == "csr id not found" {
+			if errors.Is(err, certdb.ErrIdNotFound) {
 				logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)
 				return
 			}
@@ -252,6 +260,106 @@ func DeleteCertificate(env *Environment) http.HandlerFunc {
 	}
 }
 
+// GetUserAccounts returns all users from the database
+func GetUserAccounts(env *Environment) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		users, err := env.DB.RetrieveAllUsers()
+		if err != nil {
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+			return
+		}
+		for i := range users {
+			users[i].Password = ""
+		}
+		body, err := json.Marshal(users)
+		if err != nil {
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+			return
+		}
+		if _, err := w.Write(body); err != nil {
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+		}
+	}
+}
+
+// GetUserAccount receives an id as a path parameter, and
+// returns the corresponding User Account
+func GetUserAccount(env *Environment) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		userAccount, err := env.DB.RetrieveUser(id)
+		if err != nil {
+			if errors.Is(err, certdb.ErrIdNotFound) {
+				logErrorAndWriteResponse(err.Error(), http.StatusNotFound, w)
+				return
+			}
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+			return
+		}
+		userAccount.Password = ""
+		body, err := json.Marshal(userAccount)
+		if err != nil {
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+			return
+		}
+		if _, err := w.Write(body); err != nil {
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+		}
+	}
+}
+
+// PostUserAccount creates a new User Account, and returns the id of the created row
+func PostUserAccount(env *Environment) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var user certdb.User
+		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+			logErrorAndWriteResponse("Invalid JSON format", http.StatusBadRequest, w)
+			return
+		}
+		if user.Username == "" {
+			logErrorAndWriteResponse("Username is required", http.StatusBadRequest, w)
+			return
+		}
+		if user.Password == "" {
+			generatedPassword, err := GeneratePassword(8)
+			if err != nil {
+				logErrorAndWriteResponse("Failed to generate password", http.StatusInternalServerError, w)
+				return
+			}
+			user.Password = generatedPassword
+		}
+		users, err := env.DB.RetrieveAllUsers()
+		if err != nil {
+			logErrorAndWriteResponse("Failed to retrieve users: "+err.Error(), http.StatusInternalServerError, w)
+			return
+		}
+
+		permission := "0"
+		if len(users) == 0 {
+			permission = "1" //if this is the first user it will be admin
+		}
+		id, err := env.DB.CreateUser(user.Username, user.Password, permission)
+		if err != nil {
+			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+				logErrorAndWriteResponse("user with given username already exists", http.StatusBadRequest, w)
+				return
+			}
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		response, err := json.Marshal(map[string]any{"id": id, "password": user.Password})
+		if err != nil {
+			logErrorAndWriteResponse("Error marshaling response", http.StatusInternalServerError, w)
+		}
+		if _, err := w.Write(response); err != nil {
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+		}
+	}
+}
+
 // logErrorAndWriteResponse is a helper function that logs any error and writes it back as an http response
 func logErrorAndWriteResponse(msg string, status int, w http.ResponseWriter) {
 	errMsg := fmt.Sprintf("error: %s", msg)
@@ -260,4 +368,17 @@ func logErrorAndWriteResponse(msg string, status int, w http.ResponseWriter) {
 	if _, err := w.Write([]byte(errMsg)); err != nil {
 		logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 	}
+}
+
+var GeneratePassword = func(length int) (string, error) {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789&*?@"
+	b := make([]byte, length)
+	for i := range b {
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		if err != nil {
+			return "", err
+		}
+		b[i] = charset[n.Int64()]
+	}
+	return string(b), nil
 }

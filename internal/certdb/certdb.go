@@ -53,9 +53,11 @@ type CertificateRequest struct {
 type User struct {
 	ID          int    `json:"id"`
 	Username    string `json:"username"`
-	Password    string `json:"password"`
+	Password    string `json:"password,omitempty"`
 	Permissions int    `json:"permissions"`
 }
+
+var ErrIdNotFound = errors.New("id not found")
 
 // RetrieveAllCSRs gets every CertificateRequest entry in the table.
 func (db *CertificateRequestsRepository) RetrieveAllCSRs() ([]CertificateRequest, error) {
@@ -83,7 +85,7 @@ func (db *CertificateRequestsRepository) RetrieveCSR(id string) (CertificateRequ
 	row := db.conn.QueryRow(fmt.Sprintf(queryGetCSR, db.certificateTable), id)
 	if err := row.Scan(&newCSR.ID, &newCSR.CSR, &newCSR.Certificate); err != nil {
 		if err.Error() == "sql: no rows in result set" {
-			return newCSR, errors.New("csr id not found")
+			return newCSR, ErrIdNotFound
 		}
 		return newCSR, err
 	}
@@ -146,7 +148,7 @@ func (db *CertificateRequestsRepository) DeleteCSR(id string) (int64, error) {
 		return 0, err
 	}
 	if deleteId == 0 {
-		return 0, errors.New("csr id not found")
+		return 0, ErrIdNotFound
 	}
 	return deleteId, nil
 }
@@ -176,7 +178,7 @@ func (db *CertificateRequestsRepository) RetrieveUser(id string) (User, error) {
 	row := db.conn.QueryRow(queryGetUser, id)
 	if err := row.Scan(&newUser.ID, &newUser.Username, &newUser.Password, &newUser.Permissions); err != nil {
 		if err.Error() == "sql: no rows in result set" {
-			return newUser, errors.New("user id not found")
+			return newUser, ErrIdNotFound
 		}
 		return newUser, err
 	}
@@ -235,7 +237,7 @@ func (db *CertificateRequestsRepository) DeleteUser(id string) (int64, error) {
 		return 0, err
 	}
 	if deleteId == 0 {
-		return 0, errors.New("user id not found")
+		return 0, ErrIdNotFound
 	}
 	return deleteId, nil
 }

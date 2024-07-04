@@ -100,7 +100,14 @@ const (
 	expectedGetCertReqResponseBody4  = "{\"id\":2,\"csr\":\"-----BEGIN CERTIFICATE REQUEST-----\\nMIIC5zCCAc8CAQAwRzEWMBQGA1UEAwwNMTAuMTUyLjE4My41MzEtMCsGA1UELQwk\\nMzlhY2UxOTUtZGM1YS00MzJiLTgwOTAtYWZlNmFiNGI0OWNmMIIBIjANBgkqhkiG\\n9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjM5Wz+HRtDveRzeDkEDM4ornIaefe8d8nmFi\\npUat9qCU3U9798FR460DHjCLGxFxxmoRitzHtaR4ew5H036HlGB20yas/CMDgSUI\\n69DyAsyPwEJqOWBGO1LL50qXdl5/jOkO2voA9j5UsD1CtWSklyhbNhWMpYqj2ObW\\nXcaYj9Gx/TwYhw8xsJ/QRWyCrvjjVzH8+4frfDhBVOyywN7sq+I3WwCbyBBcN8uO\\nyae0b/q5+UJUiqgpeOAh/4Y7qI3YarMj4cm7dwmiCVjedUwh65zVyHtQUfLd8nFW\\nKl9775mNBc1yicvKDU3ZB5hZ1MZtpbMBwaA1yMSErs/fh5KaXwIDAQABoFswWQYJ\\nKoZIhvcNAQkOMUwwSjBIBgNVHREEQTA/hwQKmLc1gjd2YXVsdC1rOHMtMC52YXVs\\ndC1rOHMtZW5kcG9pbnRzLnZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsMA0GCSqGSIb3\\nDQEBCwUAA4IBAQCJt8oVDbiuCsik4N5AOJIT7jKsMb+j0mizwjahKMoCHdx+zv0V\\nFGkhlf0VWPAdEu3gHdJfduX88WwzJ2wBBUK38UuprAyvfaZfaYUgFJQNC6DH1fIa\\nuHYEhvNJBdFJHaBvW7lrSFi57fTA9IEPrB3m/XN3r2F4eoHnaJJqHZmMwqVHck87\\ncAQXk3fvTWuikHiCHqqdSdjDYj/8cyiwCrQWpV245VSbOE0WesWoEnSdFXVUfE1+\\nRSKeTRuuJMcdGqBkDnDI22myj0bjt7q8eqBIjTiLQLnAFnQYpcCrhc8dKU9IJlv1\\nH9Hay4ZO9LRew3pEtlx2WrExw/gpUcWM8rTI\\n-----END CERTIFICATE REQUEST-----\",\"certificate\":\"\"}"
 )
 
-func TestGoCertRouter(t *testing.T) {
+const (
+	adminUser      = `{"username": "testadmin", "password": "admin"}`
+	validUser      = `{"username": "testuser", "password": "user"}`
+	noPasswordUser = `{"username": "nopass", "password": ""}`
+	invalidUser    = `{"username": "", "password": ""}`
+)
+
+func TestGoCertCertificatesHandlers(t *testing.T) {
 	testdb, err := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests")
 	if err != nil {
 		log.Fatalf("couldn't create test sqlite db: %s", err)
@@ -205,16 +212,16 @@ func TestGoCertRouter(t *testing.T) {
 			method:   "DELETE",
 			path:     "/api/v1/certificate_requests/5",
 			data:     "",
-			response: "error: csr id not found",
-			status:   http.StatusBadRequest,
+			response: "error: id not found",
+			status:   http.StatusNotFound,
 		},
 		{
 			desc:     "get csr1 fail",
 			method:   "GET",
 			path:     "/api/v1/certificate_requests/1",
 			data:     "",
-			response: "error: csr id not found",
-			status:   http.StatusBadRequest,
+			response: "error: id not found",
+			status:   http.StatusNotFound,
 		},
 		{
 			desc:     "get csr2 success",
@@ -350,4 +357,109 @@ func TestGoCertRouter(t *testing.T) {
 		})
 	}
 
+}
+
+func TestGoCertUsersHandlers(t *testing.T) {
+	testdb, err := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests")
+	if err != nil {
+		log.Fatalf("couldn't create test sqlite db: %s", err)
+	}
+	env := &server.Environment{}
+	env.DB = testdb
+	ts := httptest.NewTLSServer(server.NewGoCertRouter(env))
+	defer ts.Close()
+
+	originalFunc := server.GeneratePassword
+	server.GeneratePassword = func(length int) (string, error) {
+		return "generatedPassword", nil
+	}
+	defer func() { server.GeneratePassword = originalFunc }()
+
+	client := ts.Client()
+
+	testCases := []struct {
+		desc     string
+		method   string
+		path     string
+		data     string
+		response string
+		status   int
+	}{
+		{
+			desc:     "Create first user success",
+			method:   "POST",
+			path:     "/api/v1/accounts",
+			data:     adminUser,
+			response: "{\"id\":1,\"password\":\"admin\"}",
+			status:   http.StatusCreated,
+		},
+		{
+			desc:     "Retrieve admin user success",
+			method:   "GET",
+			path:     "/api/v1/accounts/1",
+			data:     "",
+			response: "{\"id\":1,\"username\":\"testadmin\",\"permissions\":1}",
+			status:   http.StatusOK,
+		},
+		{
+			desc:     "Create second user success",
+			method:   "POST",
+			path:     "/api/v1/accounts",
+			data:     validUser,
+			response: "{\"id\":2,\"password\":\"user\"}",
+			status:   http.StatusCreated,
+		},
+		{
+			desc:     "Create no password user success",
+			method:   "POST",
+			path:     "/api/v1/accounts",
+			data:     noPasswordUser,
+			response: "{\"id\":3,\"password\":\"generatedPassword\"}",
+			status:   http.StatusCreated,
+		},
+		{
+			desc:     "Retrieve normal user success",
+			method:   "GET",
+			path:     "/api/v1/accounts/2",
+			data:     "",
+			response: "{\"id\":2,\"username\":\"testuser\",\"permissions\":0}",
+			status:   http.StatusOK,
+		},
+		{
+			desc:     "Retrieve user failure",
+			method:   "GET",
+			path:     "/api/v1/accounts/300",
+			data:     "",
+			response: "error: id not found",
+			status:   http.StatusNotFound,
+		},
+		{
+			desc:     "Create user failure",
+			method:   "POST",
+			path:     "/api/v1/accounts",
+			data:     invalidUser,
+			response: "error: Username is required",
+			status:   http.StatusBadRequest,
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			req, err := http.NewRequest(tC.method, ts.URL+tC.path, strings.NewReader(tC.data))
+			if err != nil {
+				t.Fatal(err)
+			}
+			res, err := client.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			resBody, err := io.ReadAll(res.Body)
+			res.Body.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if res.StatusCode != tC.status || !strings.Contains(string(resBody), tC.response) {
+				t.Errorf("expected response did not match.\nExpected vs Received status code: %d vs %d\nExpected vs Received body: \n%s\nvs\n%s\n", tC.status, res.StatusCode, tC.response, string(resBody))
+			}
+		})
+	}
 }

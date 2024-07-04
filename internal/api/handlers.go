@@ -34,6 +34,7 @@ func NewGoCertRouter(env *Environment) http.Handler {
 	apiV1Router.HandleFunc("GET /accounts/{id}", GetUserAccount(env))
 	apiV1Router.HandleFunc("GET /accounts", GetUserAccounts(env))
 	apiV1Router.HandleFunc("POST /accounts", PostUserAccount(env))
+	apiV1Router.HandleFunc("DELETE /accounts/{id}/account", DeleteUserAccount(env))
 
 	m := metrics.NewMetricsSubsystem(env.DB)
 	frontendHandler := newFrontendFileServer()
@@ -355,6 +356,27 @@ func PostUserAccount(env *Environment) http.HandlerFunc {
 			logErrorAndWriteResponse("Error marshaling response", http.StatusInternalServerError, w)
 		}
 		if _, err := w.Write(response); err != nil {
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+		}
+	}
+}
+
+// DeleteUserAccount handler receives an id as a path parameter,
+// deletes the corresponding User Account, and returns a http.StatusNoContent on success
+func DeleteUserAccount(env *Environment) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		insertId, err := env.DB.DeleteUser(id)
+		if err != nil {
+			if errors.Is(err, certdb.ErrIdNotFound) {
+				logErrorAndWriteResponse(err.Error(), http.StatusNotFound, w)
+				return
+			}
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+			return
+		}
+		w.WriteHeader(http.StatusAccepted)
+		if _, err := w.Write([]byte(strconv.FormatInt(insertId, 10))); err != nil {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 		}
 	}

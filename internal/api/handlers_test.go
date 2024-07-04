@@ -101,10 +101,12 @@ const (
 )
 
 const (
-	adminUser      = `{"username": "testadmin", "password": "admin"}`
-	validUser      = `{"username": "testuser", "password": "user"}`
-	noPasswordUser = `{"username": "nopass", "password": ""}`
-	invalidUser    = `{"username": "", "password": ""}`
+	adminUser          = `{"username": "testadmin", "password": "admin"}`
+	validUser          = `{"username": "testuser", "password": "user"}`
+	invalidUser        = `{"username": "", "password": ""}`
+	noPasswordUser     = `{"username": "nopass", "password": ""}`
+	adminUserWrongPass = `{"username": "testadmin", "password": "wrongpass"}`
+	notExistingUser    = `{"username": "not_existing", "password": "user"}`
 )
 
 func TestGoCertCertificatesHandlers(t *testing.T) {
@@ -268,7 +270,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/certificate_requests/2/certificate",
 			data:     validCert2,
-			response: "4",
+			response: "1",
 			status:   http.StatusCreated,
 		},
 		{
@@ -284,7 +286,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/certificate_requests/4/certificate/reject",
 			data:     "",
-			response: "4",
+			response: "1",
 			status:   http.StatusAccepted,
 		},
 		{
@@ -300,7 +302,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			method:   "DELETE",
 			path:     "/api/v1/certificate_requests/2/certificate",
 			data:     "",
-			response: "4",
+			response: "1",
 			status:   http.StatusAccepted,
 		},
 		{
@@ -369,12 +371,6 @@ func TestGoCertUsersHandlers(t *testing.T) {
 	ts := httptest.NewTLSServer(server.NewGoCertRouter(env))
 	defer ts.Close()
 
-	originalFunc := server.GeneratePassword
-	server.GeneratePassword = func(length int) (string, error) {
-		return "generatedPassword", nil
-	}
-	defer func() { server.GeneratePassword = originalFunc }()
-
 	client := ts.Client()
 
 	testCases := []struct {
@@ -414,7 +410,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/accounts",
 			data:     noPasswordUser,
-			response: "{\"id\":3,\"password\":\"generatedPassword\"}",
+			response: "{\"id\":3,\"password\":",
 			status:   http.StatusCreated,
 		},
 		{
@@ -440,6 +436,46 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			data:     invalidUser,
 			response: "error: Username is required",
 			status:   http.StatusBadRequest,
+		},
+		{
+			desc:     "Login success",
+			method:   "POST",
+			path:     "/api/v1/login",
+			data:     adminUser,
+			response: "jwt",
+			status:   http.StatusOK,
+		},
+		{
+			desc:     "Login failure missing username",
+			method:   "POST",
+			path:     "/api/v1/login",
+			data:     invalidUser,
+			response: "Username is required",
+			status:   http.StatusBadRequest,
+		},
+		{
+			desc:     "Login failure missing password",
+			method:   "POST",
+			path:     "/api/v1/login",
+			data:     noPasswordUser,
+			response: "Password is required",
+			status:   http.StatusBadRequest,
+		},
+		{
+			desc:     "Login failure invalid password",
+			method:   "POST",
+			path:     "/api/v1/login",
+			data:     adminUserWrongPass,
+			response: "Invalid password",
+			status:   http.StatusUnauthorized,
+		},
+		{
+			desc:     "Login failure invalid username",
+			method:   "POST",
+			path:     "/api/v1/login",
+			data:     notExistingUser,
+			response: "error: id not found",
+			status:   http.StatusNotFound,
 		},
 	}
 	for _, tC := range testCases {

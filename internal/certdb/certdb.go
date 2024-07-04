@@ -30,11 +30,12 @@ const queryCreateUsersTable = `CREATE TABLE IF NOT EXISTS users (
 	permissions INTEGER
 )`
 const (
-	queryGetAllUsers = "SELECT * FROM users"
-	queryGetUser     = "SELECT * FROM users WHERE user_id=?"
-	queryCreateUser  = "INSERT INTO users (username, password, permissions) VALUES (?, ?, ?)"
-	queryUpdateUser  = "UPDATE users SET password=? WHERE user_id=?"
-	queryDeleteUser  = "DELETE FROM users WHERE user_id=?"
+	queryGetAllUsers       = "SELECT * FROM users"
+	queryGetUser           = "SELECT * FROM users WHERE user_id=?"
+	queryGetUserByUsername = "SELECT * FROM users WHERE username=?"
+	queryCreateUser        = "INSERT INTO users (username, password, permissions) VALUES (?, ?, ?)"
+	queryUpdateUser        = "UPDATE users SET password=? WHERE user_id=?"
+	queryDeleteUser        = "DELETE FROM users WHERE user_id=?"
 )
 
 // CertificateRequestRepository is the object used to communicate with the established repository.
@@ -130,11 +131,11 @@ func (db *CertificateRequestsRepository) UpdateCSR(id string, cert string) (int6
 	if err != nil {
 		return 0, err
 	}
-	insertId, err := result.LastInsertId()
+	affectedRows, err := result.RowsAffected()
 	if err != nil {
 		return 0, err
 	}
-	return insertId, nil
+	return affectedRows, nil
 }
 
 // DeleteCSR removes a CSR from the database alongside the certificate that may have been generated for it.
@@ -185,6 +186,19 @@ func (db *CertificateRequestsRepository) RetrieveUser(id string) (User, error) {
 	return newUser, nil
 }
 
+// RetrieveUser retrieves the id, password and the permission level of a user.
+func (db *CertificateRequestsRepository) RetrieveUserByUsername(name string) (User, error) {
+	var newUser User
+	row := db.conn.QueryRow(queryGetUserByUsername, name)
+	if err := row.Scan(&newUser.ID, &newUser.Username, &newUser.Password, &newUser.Permissions); err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			return newUser, ErrIdNotFound
+		}
+		return newUser, err
+	}
+	return newUser, nil
+}
+
 // CreateUser creates a new user from a given username, password and permission level.
 // The permission level 1 represents an admin, and a 0 represents a regular user.
 // The password passed in should be in plaintext. This function handles hashing and salting the password before storing it in the database.
@@ -219,11 +233,11 @@ func (db *CertificateRequestsRepository) UpdateUser(id, password string) (int64,
 	if err != nil {
 		return 0, err
 	}
-	insertId, err := result.LastInsertId()
+	affectedRows, err := result.RowsAffected()
 	if err != nil {
 		return 0, err
 	}
-	return insertId, nil
+	return affectedRows, nil
 }
 
 // DeleteUser removes a user from the table.

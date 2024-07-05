@@ -385,17 +385,17 @@ func Login(env *Environment) http.HandlerFunc {
 		if err != nil {
 			status := http.StatusInternalServerError
 			if errors.Is(err, certdb.ErrIdNotFound) {
-				logErrorAndWriteResponse("The Username or Password is Incorrect. Try again.", http.StatusUnauthorized, w)
+				logErrorAndWriteResponse("The username or password is incorrect. Try again.", http.StatusUnauthorized, w)
 				return
 			}
 			logErrorAndWriteResponse(err.Error(), status, w)
 			return
 		}
 		if err := bcrypt.CompareHashAndPassword([]byte(userAccount.Password), []byte(userRequest.Password)); err != nil {
-			logErrorAndWriteResponse("The Username or Password is Incorrect. Try again.", http.StatusUnauthorized, w)
+			logErrorAndWriteResponse("The username or password is incorrect. Try again.", http.StatusUnauthorized, w)
 			return
 		}
-		jwt, err := generateJWT(userRequest.Username, env.jwtSecret)
+		jwt, err := generateJWT(userRequest.Username, env.jwtSecret, userAccount.Permissions)
 		if err != nil {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
@@ -436,10 +436,11 @@ var GeneratePassword = func(length int) (string, error) {
 }
 
 // Helper function to generate a JWT
-func generateJWT(username, jwtSecret string) (string, error) {
+func generateJWT(username, jwtSecret string, permissions int) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"username": username,
-		"exp":      time.Now().Add(time.Hour * 1).Unix(),
+		"username":    username,
+		"permissions": permissions,
+		"exp":         time.Now().Add(time.Hour * 1).Unix(),
 	})
 	tokenString, err := token.SignedString([]byte(jwtSecret))
 	if err != nil {

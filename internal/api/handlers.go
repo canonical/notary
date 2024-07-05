@@ -34,7 +34,7 @@ func NewGoCertRouter(env *Environment) http.Handler {
 	apiV1Router.HandleFunc("GET /accounts/{id}", GetUserAccount(env))
 	apiV1Router.HandleFunc("GET /accounts", GetUserAccounts(env))
 	apiV1Router.HandleFunc("POST /accounts", PostUserAccount(env))
-	apiV1Router.HandleFunc("POST /accounts/{id}", ChangeUserAccountPassword(env))
+	apiV1Router.HandleFunc("POST /accounts/{id}/change_password", ChangeUserAccountPassword(env))
 
 	m := metrics.NewMetricsSubsystem(env.DB)
 	frontendHandler := newFrontendFileServer()

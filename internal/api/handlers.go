@@ -400,7 +400,7 @@ func Login(env *Environment) http.HandlerFunc {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
-		response, err := json.Marshal(map[string]string{"jwt": jwt})
+		response, err := json.Marshal(jwt)
 		if err != nil {
 			logErrorAndWriteResponse("Failed to marshal JWT", http.StatusInternalServerError, w)
 			return

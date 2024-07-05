@@ -385,13 +385,14 @@ func Login(env *Environment) http.HandlerFunc {
 		if err != nil {
 			status := http.StatusInternalServerError
 			if errors.Is(err, certdb.ErrIdNotFound) {
-				status = http.StatusNotFound
+				logErrorAndWriteResponse("The Username or Password is Incorrect. Try again.", http.StatusUnauthorized, w)
+				return
 			}
 			logErrorAndWriteResponse(err.Error(), status, w)
 			return
 		}
 		if err := bcrypt.CompareHashAndPassword([]byte(userAccount.Password), []byte(userRequest.Password)); err != nil {
-			logErrorAndWriteResponse("Invalid password", http.StatusUnauthorized, w)
+			logErrorAndWriteResponse("The Username or Password is Incorrect. Try again.", http.StatusUnauthorized, w)
 			return
 		}
 		jwt, err := generateJWT(userRequest.Username, env.jwtSecret)

@@ -466,7 +466,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/login",
 			data:     adminUserWrongPass,
-			response: "Invalid password",
+			response: "error: The Username or Password is Incorrect. Try again.",
 			status:   http.StatusUnauthorized,
 		},
 		{
@@ -474,8 +474,8 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/login",
 			data:     notExistingUser,
-			response: "error: id not found",
-			status:   http.StatusNotFound,
+			response: "error: The Username or Password is Incorrect. Try again.",
+			status:   http.StatusUnauthorized,
 		},
 	}
 	for _, tC := range testCases {

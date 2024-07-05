@@ -429,7 +429,7 @@ func getRandomChars(charset string, length int) (string, error) {
 	return string(result), nil
 }
 
-// Generates a random 8 chars long password that contains uppercase and lowercase characters and numbers or symbols.
+// Generates a random 16 chars long password that contains uppercase and lowercase characters and numbers or symbols.
 var GeneratePassword = func() (string, error) {
 	const (
 		uppercaseSet         = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -449,7 +449,7 @@ var GeneratePassword = func() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	allChars, err := getRandomChars(allCharsSet, 2)
+	allChars, err := getRandomChars(allCharsSet, 10)
 	if err != nil {
 		return "", err
 	}

@@ -440,7 +440,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 		{
 			desc:     "Change password success",
 			method:   "POST",
-			path:     "/api/v1/accounts/1",
+			path:     "/api/v1/accounts/1/change_password",
 			data:     adminUserNewPassword,
 			response: "1",
 			status:   http.StatusOK,
@@ -448,7 +448,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 		{
 			desc:     "Change password failure no user",
 			method:   "POST",
-			path:     "/api/v1/accounts/100",
+			path:     "/api/v1/accounts/100/change_password",
 			data:     adminUserNewPassword,
 			response: "id not found",
 			status:   http.StatusNotFound,
@@ -456,7 +456,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 		{
 			desc:     "Change password failure",
 			method:   "POST",
-			path:     "/api/v1/accounts/1",
+			path:     "/api/v1/accounts/1/change_password",
 			data:     userNewInvalidPassword,
 			response: "Password is required",
 			status:   http.StatusBadRequest,

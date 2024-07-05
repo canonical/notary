@@ -441,6 +441,22 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			response: "error: Username is required",
 			status:   http.StatusBadRequest,
 		},
+		{
+			desc:     "Delete user success",
+			method:   "DELETE",
+			path:     "/api/v1/accounts/2",
+			data:     invalidUser,
+			response: "1",
+			status:   http.StatusAccepted,
+		},
+		{
+			desc:     "Delete user failure",
+			method:   "DELETE",
+			path:     "/api/v1/accounts/2",
+			data:     invalidUser,
+			response: "error: id not found",
+			status:   http.StatusNotFound,
+		},
 	}
 	for _, tC := range testCases {
 		t.Run(tC.desc, func(t *testing.T) {

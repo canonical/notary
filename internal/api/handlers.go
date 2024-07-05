@@ -9,7 +9,9 @@ import (
 	"io/fs"
 	"log"
 	"math/big"
+	mrand "math/rand"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -322,12 +324,20 @@ func PostUserAccount(env *Environment) http.HandlerFunc {
 			return
 		}
 		if user.Password == "" {
-			generatedPassword, err := GeneratePassword(8)
+			generatedPassword, err := GeneratePassword()
 			if err != nil {
 				logErrorAndWriteResponse("Failed to generate password", http.StatusInternalServerError, w)
 				return
 			}
 			user.Password = generatedPassword
+		}
+		if !validatePassword(user.Password) {
+			logErrorAndWriteResponse(
+				"Password does not meet requirements. It must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
+				http.StatusBadRequest,
+				w,
+			)
+			return
 		}
 		users, err := env.DB.RetrieveAllUsers()
 		if err != nil {
@@ -373,6 +383,14 @@ func ChangeUserAccountPassword(env *Environment) http.HandlerFunc {
 			logErrorAndWriteResponse("Password is required", http.StatusBadRequest, w)
 			return
 		}
+		if !validatePassword(user.Password) {
+			logErrorAndWriteResponse(
+				"Password does not meet requirements. It must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
+				http.StatusBadRequest,
+				w,
+			)
+			return
+		}
 		ret, err := env.DB.UpdateUser(id, user.Password)
 		if err != nil {
 			if errors.Is(err, certdb.ErrIdNotFound) {
@@ -399,15 +417,62 @@ func logErrorAndWriteResponse(msg string, status int, w http.ResponseWriter) {
 	}
 }
 
-var GeneratePassword = func(length int) (string, error) {
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789&*?@"
-	b := make([]byte, length)
-	for i := range b {
+func getRandomChars(charset string, length int) (string, error) {
+	result := make([]byte, length)
+	for i := range result {
 		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
 		if err != nil {
 			return "", err
 		}
-		b[i] = charset[n.Int64()]
+		result[i] = charset[n.Int64()]
 	}
-	return string(b), nil
+	return string(result), nil
+}
+
+// Generates a random 8 chars long password that contains uppercase and lowercase characters and numbers or symbols.
+var GeneratePassword = func() (string, error) {
+	const (
+		uppercaseSet         = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		lowercaseSet         = "abcdefghijklmnopqrstuvwxyz"
+		numbersAndSymbolsSet = "0123456789&*?@"
+		allCharsSet          = uppercaseSet + lowercaseSet + numbersAndSymbolsSet
+	)
+	uppercase, err := getRandomChars(uppercaseSet, 2)
+	if err != nil {
+		return "", err
+	}
+	lowercase, err := getRandomChars(lowercaseSet, 2)
+	if err != nil {
+		return "", err
+	}
+	numbersOrSymbols, err := getRandomChars(numbersAndSymbolsSet, 2)
+	if err != nil {
+		return "", err
+	}
+	allChars, err := getRandomChars(allCharsSet, 2)
+	if err != nil {
+		return "", err
+	}
+	res := []rune(uppercase + lowercase + numbersOrSymbols + allChars)
+	mrand.Shuffle(len(res), func(i, j int) {
+		res[i], res[j] = res[j], res[i]
+	})
+	return string(res), nil
+}
+
+func validatePassword(password string) bool {
+	if len(password) < 8 {
+		return false
+	}
+	hasCapital := regexp.MustCompile(`[A-Z]`).MatchString(password)
+	if !hasCapital {
+		return false
+	}
+	hasLower := regexp.MustCompile(`[a-z]`).MatchString(password)
+	if !hasLower {
+		return false
+	}
+	hasNumberOrSymbol := regexp.MustCompile(`[0-9!@#$%^&*()_+\-=\[\]{};':"|,.<>?~]`).MatchString(password)
+
+	return hasNumberOrSymbol
 }

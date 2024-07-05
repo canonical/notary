@@ -101,12 +101,13 @@ const (
 )
 
 const (
-	adminUser              = `{"username": "testadmin", "password": "admin"}`
-	validUser              = `{"username": "testuser", "password": "user"}`
+	adminUser              = `{"username": "testadmin", "password": "Admin123"}`
+	validUser              = `{"username": "testuser", "password": "userPass!"}`
 	invalidUser            = `{"username": "", "password": ""}`
 	noPasswordUser         = `{"username": "nopass", "password": ""}`
-	adminUserNewPassword   = `{"id": 1, "password": "newpassword"}`
-	userNewInvalidPassword = `{"id": 1, "password": ""}`
+	adminUserNewPassword   = `{"id": 1, "password": "newPassword1"}`
+	userNewInvalidPassword = `{"id": 1, "password": "password"}`
+	userMissingPassword    = `{"id": 1, "password": ""}`
 )
 
 func TestGoCertCertificatesHandlers(t *testing.T) {
@@ -369,6 +370,11 @@ func TestGoCertUsersHandlers(t *testing.T) {
 	env := &server.Environment{}
 	env.DB = testdb
 	ts := httptest.NewTLSServer(server.NewGoCertRouter(env))
+	originalFunc := server.GeneratePassword
+	server.GeneratePassword = func() (string, error) {
+		return "generatedPassword!", nil
+	}
+	defer func() { server.GeneratePassword = originalFunc }()
 	defer ts.Close()
 
 	client := ts.Client()
@@ -386,7 +392,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/accounts",
 			data:     adminUser,
-			response: "{\"id\":1,\"password\":\"admin\"}",
+			response: "{\"id\":1,\"password\":\"Admin123\"}",
 			status:   http.StatusCreated,
 		},
 		{
@@ -402,7 +408,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/accounts",
 			data:     validUser,
-			response: "{\"id\":2,\"password\":\"user\"}",
+			response: "{\"id\":2,\"password\":\"userPass!\"}",
 			status:   http.StatusCreated,
 		},
 		{
@@ -410,7 +416,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/accounts",
 			data:     noPasswordUser,
-			response: "{\"id\":3,\"password\":",
+			response: "{\"id\":3,\"password\":\"generatedPassword!\"}",
 			status:   http.StatusCreated,
 		},
 		{
@@ -454,11 +460,19 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			status:   http.StatusNotFound,
 		},
 		{
-			desc:     "Change password failure",
+			desc:     "Change password failure missing password",
+			method:   "POST",
+			path:     "/api/v1/accounts/1/change_password",
+			data:     userMissingPassword,
+			response: "Password is required",
+			status:   http.StatusBadRequest,
+		},
+		{
+			desc:     "Change password failure bad password",
 			method:   "POST",
 			path:     "/api/v1/accounts/1/change_password",
 			data:     userNewInvalidPassword,
-			response: "Password is required",
+			response: "Password does not meet requirements. It must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
 			status:   http.StatusBadRequest,
 		},
 	}

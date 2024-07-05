@@ -444,7 +444,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 		{
 			desc:     "Delete user success",
 			method:   "DELETE",
-			path:     "/api/v1/accounts/2/account",
+			path:     "/api/v1/accounts/2",
 			data:     invalidUser,
 			response: "1",
 			status:   http.StatusAccepted,
@@ -452,7 +452,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 		{
 			desc:     "Delete user failure",
 			method:   "DELETE",
-			path:     "/api/v1/accounts/2/account",
+			path:     "/api/v1/accounts/2",
 			data:     invalidUser,
 			response: "error: id not found",
 			status:   http.StatusNotFound,

@@ -416,7 +416,7 @@ func Login(env *Environment) http.HandlerFunc {
 			logErrorAndWriteResponse("The username or password is incorrect. Try again.", http.StatusUnauthorized, w)
 			return
 		}
-		jwt, err := GenerateJWT(userRequest.Username, env.jwtSecret, userAccount.Permissions)
+		jwt, err := generateJWT(userRequest.Username, env.JWTSecret, userAccount.Permissions)
 		if err != nil {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
@@ -452,7 +452,7 @@ var GeneratePassword = func(length int) (string, error) {
 }
 
 // Helper function to generate a JWT
-var GenerateJWT = func(username, jwtSecret string, permissions int) (string, error) {
+func generateJWT(username, jwtSecret string, permissions int) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"username":    username,
 		"permissions": permissions,

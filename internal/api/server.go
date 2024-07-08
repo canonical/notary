@@ -18,7 +18,7 @@ import (
 type Environment struct {
 	DB                      *certdb.CertificateRequestsRepository
 	SendPebbleNotifications bool
-	jwtSecret               string
+	JWTSecret               string
 }
 
 func SendPebbleNotification(key, request_id string) error {
@@ -55,7 +55,7 @@ func NewServer(port int, cert []byte, key []byte, dbPath string, pebbleNotificat
 	env := &Environment{}
 	env.DB = db
 	env.SendPebbleNotifications = pebbleNotificationsEnabled
-	env.jwtSecret = jwtSecret
+	env.JWTSecret = jwtSecret
 	router := NewGoCertRouter(env)
 
 	s := &http.Server{

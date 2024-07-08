@@ -367,7 +367,6 @@ func PostUserAccount(env *Environment) http.HandlerFunc {
 
 func Login(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
 		var userRequest certdb.User
 		if err := json.NewDecoder(r.Body).Decode(&userRequest); err != nil {
 			logErrorAndWriteResponse("Invalid JSON format", http.StatusBadRequest, w)
@@ -400,13 +399,8 @@ func Login(env *Environment) http.HandlerFunc {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
-		response, err := json.Marshal(jwt)
-		if err != nil {
-			logErrorAndWriteResponse("Failed to marshal JWT", http.StatusInternalServerError, w)
-			return
-		}
 		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write(response); err != nil {
+		if _, err := w.Write([]byte(jwt)); err != nil {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 		}
 	}

@@ -502,7 +502,7 @@ func generatePassword() (string, error) {
 	const (
 		uppercaseSet         = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 		lowercaseSet         = "abcdefghijklmnopqrstuvwxyz"
-		numbersAndSymbolsSet = "0123456789&*?@"
+		numbersAndSymbolsSet = "0123456789*?@"
 		allCharsSet          = uppercaseSet + lowercaseSet + numbersAndSymbolsSet
 	)
 	uppercase, err := getRandomChars(uppercaseSet, 2)

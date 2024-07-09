@@ -329,7 +329,8 @@ func PostUserAccount(env *Environment) http.HandlerFunc {
 			logErrorAndWriteResponse("Username is required", http.StatusBadRequest, w)
 			return
 		}
-		if user.Password == "" {
+		var shouldGeneratePassword = user.Password == ""
+		if shouldGeneratePassword {
 			generatedPassword, err := generatePassword()
 			if err != nil {
 				logErrorAndWriteResponse("Failed to generate password", http.StatusInternalServerError, w)
@@ -367,7 +368,10 @@ func PostUserAccount(env *Environment) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		response, err := json.Marshal(map[string]any{"id": id, "password": user.Password})
+		response, err := json.Marshal(map[string]any{"id": id})
+		if shouldGeneratePassword {
+			response, err = json.Marshal(map[string]any{"id": id, "password": user.Password})
+		}
 		if err != nil {
 			logErrorAndWriteResponse("Error marshaling response", http.StatusInternalServerError, w)
 		}

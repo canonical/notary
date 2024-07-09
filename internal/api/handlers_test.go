@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -103,12 +104,15 @@ const (
 )
 
 const (
-	adminUser          = `{"username": "testadmin", "password": "admin"}`
-	validUser          = `{"username": "testuser", "password": "user"}`
-	invalidUser        = `{"username": "", "password": ""}`
-	noPasswordUser     = `{"username": "nopass", "password": ""}`
-	adminUserWrongPass = `{"username": "testadmin", "password": "wrongpass"}`
-	notExistingUser    = `{"username": "not_existing", "password": "user"}`
+	adminUser              = `{"username": "testadmin", "password": "Admin123"}`
+	validUser              = `{"username": "testuser", "password": "userPass!"}`
+	invalidUser            = `{"username": "", "password": ""}`
+	noPasswordUser         = `{"username": "nopass", "password": ""}`
+	adminUserNewPassword   = `{"id": 1, "password": "newPassword1"}`
+	userNewInvalidPassword = `{"id": 1, "password": "password"}`
+	userMissingPassword    = `{"id": 1, "password": ""}`
+	adminUserWrongPass     = `{"username": "testadmin", "password": "wrongpass"}`
+	notExistingUser        = `{"username": "not_existing", "password": "user"}`
 )
 
 func TestGoCertCertificatesHandlers(t *testing.T) {
@@ -373,12 +377,6 @@ func TestGoCertUsersHandlers(t *testing.T) {
 	ts := httptest.NewTLSServer(server.NewGoCertRouter(env))
 	defer ts.Close()
 
-	originalFunc := server.GeneratePassword
-	server.GeneratePassword = func(length int) (string, error) {
-		return "generatedPassword", nil
-	}
-	defer func() { server.GeneratePassword = originalFunc }()
-
 	client := ts.Client()
 
 	testCases := []struct {
@@ -394,7 +392,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/accounts",
 			data:     adminUser,
-			response: "{\"id\":1,\"password\":\"admin\"}",
+			response: "{\"id\":1,\"password\":\"Admin123\"}",
 			status:   http.StatusCreated,
 		},
 		{
@@ -410,7 +408,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/accounts",
 			data:     validUser,
-			response: "{\"id\":2,\"password\":\"user\"}",
+			response: "{\"id\":2,\"password\":\"userPass!\"}",
 			status:   http.StatusCreated,
 		},
 		{
@@ -418,7 +416,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/accounts",
 			data:     noPasswordUser,
-			response: "{\"id\":3,\"password\":\"generatedPassword\"}",
+			response: "{\"id\":3,\"password\":",
 			status:   http.StatusCreated,
 		},
 		{
@@ -443,6 +441,38 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			path:     "/api/v1/accounts",
 			data:     invalidUser,
 			response: "error: Username is required",
+			status:   http.StatusBadRequest,
+		},
+		{
+			desc:     "Change password success",
+			method:   "POST",
+			path:     "/api/v1/accounts/1/change_password",
+			data:     adminUserNewPassword,
+			response: "1",
+			status:   http.StatusOK,
+		},
+		{
+			desc:     "Change password failure no user",
+			method:   "POST",
+			path:     "/api/v1/accounts/100/change_password",
+			data:     adminUserNewPassword,
+			response: "id not found",
+			status:   http.StatusNotFound,
+		},
+		{
+			desc:     "Change password failure missing password",
+			method:   "POST",
+			path:     "/api/v1/accounts/1/change_password",
+			data:     userMissingPassword,
+			response: "Password is required",
+			status:   http.StatusBadRequest,
+		},
+		{
+			desc:     "Change password failure bad password",
+			method:   "POST",
+			path:     "/api/v1/accounts/1/change_password",
+			data:     userNewInvalidPassword,
+			response: "Password does not meet requirements. It must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
 			status:   http.StatusBadRequest,
 		},
 		{
@@ -480,6 +510,12 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			if res.StatusCode != tC.status || !strings.Contains(string(resBody), tC.response) {
 				t.Errorf("expected response did not match.\nExpected vs Received status code: %d vs %d\nExpected vs Received body: \n%s\nvs\n%s\n", tC.status, res.StatusCode, tC.response, string(resBody))
 			}
+			if tC.desc == "Create no password user success" {
+				match, _ := regexp.MatchString(`"password":"[!-~]{16}"`, string(resBody))
+				if !match {
+					t.Errorf("password does not match expected format or length: got %s", string(resBody))
+				}
+			}
 		})
 	}
 }
@@ -494,12 +530,6 @@ func TestLogin(t *testing.T) {
 	env.JWTSecret = "secret"
 	ts := httptest.NewTLSServer(server.NewGoCertRouter(env))
 	defer ts.Close()
-
-	originalFunc := server.GeneratePassword
-	server.GeneratePassword = func(length int) (string, error) {
-		return "generatedPassword", nil
-	}
-	defer func() { server.GeneratePassword = originalFunc }()
 
 	client := ts.Client()
 
@@ -516,7 +546,7 @@ func TestLogin(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/accounts",
 			data:     adminUser,
-			response: "{\"id\":1,\"password\":\"admin\"}",
+			response: "{\"id\":1,\"password\":\"Admin123\"}",
 			status:   http.StatusCreated,
 		},
 		{

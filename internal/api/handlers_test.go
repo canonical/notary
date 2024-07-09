@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -374,11 +375,6 @@ func TestGoCertUsersHandlers(t *testing.T) {
 	env := &server.Environment{}
 	env.DB = testdb
 	ts := httptest.NewTLSServer(server.NewGoCertRouter(env))
-	originalFunc := server.GeneratePassword
-	server.GeneratePassword = func() (string, error) {
-		return "generatedPassword!", nil
-	}
-	defer func() { server.GeneratePassword = originalFunc }()
 	defer ts.Close()
 
 	client := ts.Client()
@@ -420,7 +416,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/accounts",
 			data:     noPasswordUser,
-			response: "{\"id\":3,\"password\":\"generatedPassword!\"}",
+			response: "{\"id\":3,\"password\":",
 			status:   http.StatusCreated,
 		},
 		{
@@ -514,6 +510,12 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			if res.StatusCode != tC.status || !strings.Contains(string(resBody), tC.response) {
 				t.Errorf("expected response did not match.\nExpected vs Received status code: %d vs %d\nExpected vs Received body: \n%s\nvs\n%s\n", tC.status, res.StatusCode, tC.response, string(resBody))
 			}
+			if tC.desc == "Create no password user success" {
+				match, _ := regexp.MatchString(`"password":"[!-~]{16}"`, string(resBody))
+				if !match {
+					t.Errorf("password does not match expected format or length: got %s", string(resBody))
+				}
+			}
 		})
 	}
 }
@@ -528,12 +530,6 @@ func TestLogin(t *testing.T) {
 	env.JWTSecret = "secret"
 	ts := httptest.NewTLSServer(server.NewGoCertRouter(env))
 	defer ts.Close()
-
-	originalFunc := server.GeneratePassword
-	server.GeneratePassword = func() (string, error) {
-		return "generatedPassword", nil
-	}
-	defer func() { server.GeneratePassword = originalFunc }()
 
 	client := ts.Client()
 
@@ -550,7 +546,7 @@ func TestLogin(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/accounts",
 			data:     adminUser,
-			response: "{\"id\":1,\"password\":\"admin\"}",
+			response: "{\"id\":1,\"password\":\"Admin123\"}",
 			status:   http.StatusCreated,
 		},
 		{

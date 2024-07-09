@@ -330,7 +330,7 @@ func PostUserAccount(env *Environment) http.HandlerFunc {
 			return
 		}
 		if user.Password == "" {
-			generatedPassword, err := GeneratePassword()
+			generatedPassword, err := generatePassword()
 			if err != nil {
 				logErrorAndWriteResponse("Failed to generate password", http.StatusInternalServerError, w)
 				return
@@ -498,7 +498,7 @@ func getRandomChars(charset string, length int) (string, error) {
 }
 
 // Generates a random 16 chars long password that contains uppercase and lowercase characters and numbers or symbols.
-var GeneratePassword = func() (string, error) {
+func generatePassword() (string, error) {
 	const (
 		uppercaseSet         = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 		lowercaseSet         = "abcdefghijklmnopqrstuvwxyz"

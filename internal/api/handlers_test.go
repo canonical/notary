@@ -472,7 +472,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/accounts/1/change_password",
 			data:     userNewInvalidPassword,
-			response: "Password does not meet requirements. It must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
+			response: "Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
 			status:   http.StatusBadRequest,
 		},
 		{

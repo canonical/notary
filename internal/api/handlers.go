@@ -339,7 +339,7 @@ func PostUserAccount(env *Environment) http.HandlerFunc {
 		}
 		if !validatePassword(user.Password) {
 			logErrorAndWriteResponse(
-				"Password does not meet requirements. It must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
+				"Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
 				http.StatusBadRequest,
 				w,
 			)
@@ -412,7 +412,7 @@ func ChangeUserAccountPassword(env *Environment) http.HandlerFunc {
 		}
 		if !validatePassword(user.Password) {
 			logErrorAndWriteResponse(
-				"Password does not meet requirements. It must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
+				"Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
 				http.StatusBadRequest,
 				w,
 			)

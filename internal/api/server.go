@@ -2,7 +2,9 @@
 package server
 
 import (
+	"crypto/rand"
 	"crypto/tls"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -16,6 +18,7 @@ import (
 type Environment struct {
 	DB                      *certdb.CertificateRequestsRepository
 	SendPebbleNotifications bool
+	JWTSecret               string
 }
 
 func SendPebbleNotification(key, request_id string) error {
@@ -24,6 +27,14 @@ func SendPebbleNotification(key, request_id string) error {
 		return errors.Join(errors.New("couldn't execute a pebble notify: "), err)
 	}
 	return nil
+}
+
+func generateJWTSecret() (string, error) {
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", fmt.Errorf("failed to generate JWT secret: %w", err)
+	}
+	return hex.EncodeToString(bytes), nil
 }
 
 // NewServer creates an environment and an http server with handlers that Go can start listening to
@@ -37,9 +48,14 @@ func NewServer(port int, cert []byte, key []byte, dbPath string, pebbleNotificat
 		log.Fatalf("Couldn't connect to database: %s", err)
 	}
 
+	jwtSecret, err := generateJWTSecret()
+	if err != nil {
+		return nil, err
+	}
 	env := &Environment{}
 	env.DB = db
 	env.SendPebbleNotifications = pebbleNotificationsEnabled
+	env.JWTSecret = jwtSecret
 	router := NewGoCertRouter(env)
 
 	s := &http.Server{

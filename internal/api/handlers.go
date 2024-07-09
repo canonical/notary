@@ -12,10 +12,13 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/canonical/gocert/internal/certdb"
 	metrics "github.com/canonical/gocert/internal/metrics"
 	"github.com/canonical/gocert/ui"
+	"github.com/golang-jwt/jwt"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // NewGoCertRouter takes in an environment struct, passes it along to any handlers that will need
@@ -35,6 +38,8 @@ func NewGoCertRouter(env *Environment) http.Handler {
 	apiV1Router.HandleFunc("GET /accounts", GetUserAccounts(env))
 	apiV1Router.HandleFunc("POST /accounts", PostUserAccount(env))
 	apiV1Router.HandleFunc("DELETE /accounts/{id}", DeleteUserAccount(env))
+
+	apiV1Router.HandleFunc("POST /login", Login(env))
 
 	m := metrics.NewMetricsSubsystem(env.DB)
 	frontendHandler := newFrontendFileServer()
@@ -382,6 +387,47 @@ func DeleteUserAccount(env *Environment) http.HandlerFunc {
 	}
 }
 
+func Login(env *Environment) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var userRequest certdb.User
+		if err := json.NewDecoder(r.Body).Decode(&userRequest); err != nil {
+			logErrorAndWriteResponse("Invalid JSON format", http.StatusBadRequest, w)
+			return
+		}
+		if userRequest.Username == "" {
+			logErrorAndWriteResponse("Username is required", http.StatusBadRequest, w)
+			return
+		}
+		if userRequest.Password == "" {
+			logErrorAndWriteResponse("Password is required", http.StatusBadRequest, w)
+			return
+		}
+		userAccount, err := env.DB.RetrieveUserByUsername(userRequest.Username)
+		if err != nil {
+			status := http.StatusInternalServerError
+			if errors.Is(err, certdb.ErrIdNotFound) {
+				logErrorAndWriteResponse("The username or password is incorrect. Try again.", http.StatusUnauthorized, w)
+				return
+			}
+			logErrorAndWriteResponse(err.Error(), status, w)
+			return
+		}
+		if err := bcrypt.CompareHashAndPassword([]byte(userAccount.Password), []byte(userRequest.Password)); err != nil {
+			logErrorAndWriteResponse("The username or password is incorrect. Try again.", http.StatusUnauthorized, w)
+			return
+		}
+		jwt, err := generateJWT(userRequest.Username, env.JWTSecret, userAccount.Permissions)
+		if err != nil {
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write([]byte(jwt)); err != nil {
+			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+		}
+	}
+}
+
 // logErrorAndWriteResponse is a helper function that logs any error and writes it back as an http response
 func logErrorAndWriteResponse(msg string, status int, w http.ResponseWriter) {
 	errMsg := fmt.Sprintf("error: %s", msg)
@@ -403,4 +449,19 @@ var GeneratePassword = func(length int) (string, error) {
 		b[i] = charset[n.Int64()]
 	}
 	return string(b), nil
+}
+
+// Helper function to generate a JWT
+func generateJWT(username, jwtSecret string, permissions int) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"username":    username,
+		"permissions": permissions,
+		"exp":         time.Now().Add(time.Hour * 1).Unix(),
+	})
+	tokenString, err := token.SignedString([]byte(jwtSecret))
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
 }

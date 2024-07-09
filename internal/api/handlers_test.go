@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 
 	server "github.com/canonical/gocert/internal/api"
 	"github.com/canonical/gocert/internal/certdb"
+	"github.com/golang-jwt/jwt"
 )
 
 const (
@@ -101,10 +103,12 @@ const (
 )
 
 const (
-	adminUser      = `{"username": "testadmin", "password": "admin"}`
-	validUser      = `{"username": "testuser", "password": "user"}`
-	noPasswordUser = `{"username": "nopass", "password": ""}`
-	invalidUser    = `{"username": "", "password": ""}`
+	adminUser          = `{"username": "testadmin", "password": "admin"}`
+	validUser          = `{"username": "testuser", "password": "user"}`
+	invalidUser        = `{"username": "", "password": ""}`
+	noPasswordUser     = `{"username": "nopass", "password": ""}`
+	adminUserWrongPass = `{"username": "testadmin", "password": "wrongpass"}`
+	notExistingUser    = `{"username": "not_existing", "password": "user"}`
 )
 
 func TestGoCertCertificatesHandlers(t *testing.T) {
@@ -268,7 +272,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/certificate_requests/2/certificate",
 			data:     validCert2,
-			response: "4",
+			response: "1",
 			status:   http.StatusCreated,
 		},
 		{
@@ -284,7 +288,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/certificate_requests/4/certificate/reject",
 			data:     "",
-			response: "4",
+			response: "1",
 			status:   http.StatusAccepted,
 		},
 		{
@@ -300,7 +304,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			method:   "DELETE",
 			path:     "/api/v1/certificate_requests/2/certificate",
 			data:     "",
-			response: "4",
+			response: "1",
 			status:   http.StatusAccepted,
 		},
 		{
@@ -475,6 +479,126 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			}
 			if res.StatusCode != tC.status || !strings.Contains(string(resBody), tC.response) {
 				t.Errorf("expected response did not match.\nExpected vs Received status code: %d vs %d\nExpected vs Received body: \n%s\nvs\n%s\n", tC.status, res.StatusCode, tC.response, string(resBody))
+			}
+		})
+	}
+}
+
+func TestLogin(t *testing.T) {
+	testdb, err := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests")
+	if err != nil {
+		log.Fatalf("couldn't create test sqlite db: %s", err)
+	}
+	env := &server.Environment{}
+	env.DB = testdb
+	env.JWTSecret = "secret"
+	ts := httptest.NewTLSServer(server.NewGoCertRouter(env))
+	defer ts.Close()
+
+	originalFunc := server.GeneratePassword
+	server.GeneratePassword = func(length int) (string, error) {
+		return "generatedPassword", nil
+	}
+	defer func() { server.GeneratePassword = originalFunc }()
+
+	client := ts.Client()
+
+	testCases := []struct {
+		desc     string
+		method   string
+		path     string
+		data     string
+		response string
+		status   int
+	}{
+		{
+			desc:     "Create admin user",
+			method:   "POST",
+			path:     "/api/v1/accounts",
+			data:     adminUser,
+			response: "{\"id\":1,\"password\":\"admin\"}",
+			status:   http.StatusCreated,
+		},
+		{
+			desc:     "Login success",
+			method:   "POST",
+			path:     "/api/v1/login",
+			data:     adminUser,
+			response: "",
+			status:   http.StatusOK,
+		},
+		{
+			desc:     "Login failure missing username",
+			method:   "POST",
+			path:     "/api/v1/login",
+			data:     invalidUser,
+			response: "Username is required",
+			status:   http.StatusBadRequest,
+		},
+		{
+			desc:     "Login failure missing password",
+			method:   "POST",
+			path:     "/api/v1/login",
+			data:     noPasswordUser,
+			response: "Password is required",
+			status:   http.StatusBadRequest,
+		},
+		{
+			desc:     "Login failure invalid password",
+			method:   "POST",
+			path:     "/api/v1/login",
+			data:     adminUserWrongPass,
+			response: "error: The username or password is incorrect. Try again.",
+			status:   http.StatusUnauthorized,
+		},
+		{
+			desc:     "Login failure invalid username",
+			method:   "POST",
+			path:     "/api/v1/login",
+			data:     notExistingUser,
+			response: "error: The username or password is incorrect. Try again.",
+			status:   http.StatusUnauthorized,
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			req, err := http.NewRequest(tC.method, ts.URL+tC.path, strings.NewReader(tC.data))
+			if err != nil {
+				t.Fatal(err)
+			}
+			res, err := client.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			resBody, err := io.ReadAll(res.Body)
+			res.Body.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if res.StatusCode != tC.status || !strings.Contains(string(resBody), tC.response) {
+				t.Errorf("expected response did not match.\nExpected vs Received status code: %d vs %d\nExpected vs Received body: \n%s\nvs\n%s\n", tC.status, res.StatusCode, tC.response, string(resBody))
+			}
+			if tC.desc == "Login success" && res.StatusCode == http.StatusOK {
+				token, parseErr := jwt.Parse(string(resBody), func(token *jwt.Token) (interface{}, error) {
+					if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+						return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+					}
+					return []byte(env.JWTSecret), nil
+				})
+				if parseErr != nil {
+					t.Errorf("Error parsing JWT: %v", parseErr)
+					return
+				}
+
+				if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+					if claims["username"] != "testadmin" {
+						t.Errorf("Username found in JWT does not match expected value.")
+					} else if int(claims["permissions"].(float64)) != 1 {
+						t.Errorf("Permissions found in JWT does not match expected value.")
+					}
+				} else {
+					t.Errorf("Invalid JWT token or JWT claims are not readable")
+				}
 			}
 		})
 	}

@@ -555,10 +555,12 @@ func validatePassword(password string) bool {
 
 // Helper function to generate a JWT
 func generateJWT(username string, jwtSecret []byte, permissions int) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"username":    username,
-		"permissions": permissions,
-		"exp":         time.Now().Add(time.Hour * 1).Unix(),
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtGocertClaims{
+		Username:    username,
+		Permissions: permissions,
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: time.Now().Add(time.Hour * 1).Unix(),
+		},
 	})
 	tokenString, err := token.SignedString(jwtSecret)
 	if err != nil {
@@ -566,4 +568,10 @@ func generateJWT(username string, jwtSecret []byte, permissions int) (string, er
 	}
 
 	return tokenString, nil
+}
+
+type jwtGocertClaims struct {
+	Username    string `json:"username"`
+	Permissions int    `json:"permissions"`
+	jwt.StandardClaims
 }

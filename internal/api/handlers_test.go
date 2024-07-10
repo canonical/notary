@@ -127,6 +127,10 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 
 	client := ts.Client()
 
+	var adminToken string
+	var nonAdminToken string
+	t.Run("prepare user accounts and tokens", prepareUserAccounts(ts.URL, client, &adminToken, &nonAdminToken))
+
 	testCases := []struct {
 		desc     string
 		method   string
@@ -347,6 +351,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 	for _, tC := range testCases {
 		t.Run(tC.desc, func(t *testing.T) {
 			req, err := http.NewRequest(tC.method, ts.URL+tC.path, strings.NewReader(tC.data))
+			req.Header.Set("Authorization", "Bearer "+adminToken)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -379,43 +384,43 @@ func TestGoCertUsersHandlers(t *testing.T) {
 
 	client := ts.Client()
 
+	var adminToken string
+	var nonAdminToken string
+	t.Run("prepare user accounts and tokens", prepareUserAccounts(ts.URL, client, &adminToken, &nonAdminToken))
+
 	testCases := []struct {
 		desc     string
 		method   string
 		path     string
 		data     string
+		auth     string
 		response string
 		status   int
 	}{
-		{
-			desc:     "Create first user success",
-			method:   "POST",
-			path:     "/api/v1/accounts",
-			data:     adminUser,
-			response: "{\"id\":1}",
-			status:   http.StatusCreated,
-		},
 		{
 			desc:     "Retrieve admin user success",
 			method:   "GET",
 			path:     "/api/v1/accounts/1",
 			data:     "",
+			auth:     adminToken,
 			response: "{\"id\":1,\"username\":\"testadmin\",\"permissions\":1}",
 			status:   http.StatusOK,
 		},
 		{
-			desc:     "Create second user success",
-			method:   "POST",
-			path:     "/api/v1/accounts",
-			data:     validUser,
-			response: "{\"id\":2}",
-			status:   http.StatusCreated,
+			desc:     "Retrieve admin user fail",
+			method:   "GET",
+			path:     "/api/v1/accounts/1",
+			data:     "",
+			auth:     nonAdminToken,
+			response: "error: forbidden",
+			status:   http.StatusForbidden,
 		},
 		{
 			desc:     "Create no password user success",
 			method:   "POST",
 			path:     "/api/v1/accounts",
 			data:     noPasswordUser,
+			auth:     adminToken,
 			response: "{\"id\":3,\"password\":",
 			status:   http.StatusCreated,
 		},
@@ -424,6 +429,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "GET",
 			path:     "/api/v1/accounts/2",
 			data:     "",
+			auth:     adminToken,
 			response: "{\"id\":2,\"username\":\"testuser\",\"permissions\":0}",
 			status:   http.StatusOK,
 		},
@@ -432,6 +438,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "GET",
 			path:     "/api/v1/accounts/300",
 			data:     "",
+			auth:     adminToken,
 			response: "error: id not found",
 			status:   http.StatusNotFound,
 		},
@@ -440,6 +447,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/accounts",
 			data:     invalidUser,
+			auth:     adminToken,
 			response: "error: Username is required",
 			status:   http.StatusBadRequest,
 		},
@@ -448,6 +456,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/accounts/1/change_password",
 			data:     adminUserNewPassword,
+			auth:     adminToken,
 			response: "1",
 			status:   http.StatusOK,
 		},
@@ -456,6 +465,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/accounts/100/change_password",
 			data:     adminUserNewPassword,
+			auth:     adminToken,
 			response: "id not found",
 			status:   http.StatusNotFound,
 		},
@@ -464,6 +474,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/accounts/1/change_password",
 			data:     userMissingPassword,
+			auth:     adminToken,
 			response: "Password is required",
 			status:   http.StatusBadRequest,
 		},
@@ -472,6 +483,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/accounts/1/change_password",
 			data:     userNewInvalidPassword,
+			auth:     adminToken,
 			response: "Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
 			status:   http.StatusBadRequest,
 		},
@@ -480,6 +492,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "DELETE",
 			path:     "/api/v1/accounts/2",
 			data:     invalidUser,
+			auth:     adminToken,
 			response: "1",
 			status:   http.StatusAccepted,
 		},
@@ -488,6 +501,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 			method:   "DELETE",
 			path:     "/api/v1/accounts/2",
 			data:     invalidUser,
+			auth:     adminToken,
 			response: "error: id not found",
 			status:   http.StatusNotFound,
 		},
@@ -495,6 +509,7 @@ func TestGoCertUsersHandlers(t *testing.T) {
 	for _, tC := range testCases {
 		t.Run(tC.desc, func(t *testing.T) {
 			req, err := http.NewRequest(tC.method, ts.URL+tC.path, strings.NewReader(tC.data))
+			req.Header.Add("Authorization", "Bearer "+tC.auth)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -552,7 +567,7 @@ func TestLogin(t *testing.T) {
 		{
 			desc:     "Login success",
 			method:   "POST",
-			path:     "/api/v1/login",
+			path:     "/login",
 			data:     adminUser,
 			response: "",
 			status:   http.StatusOK,
@@ -560,7 +575,7 @@ func TestLogin(t *testing.T) {
 		{
 			desc:     "Login failure missing username",
 			method:   "POST",
-			path:     "/api/v1/login",
+			path:     "/login",
 			data:     invalidUser,
 			response: "Username is required",
 			status:   http.StatusBadRequest,
@@ -568,7 +583,7 @@ func TestLogin(t *testing.T) {
 		{
 			desc:     "Login failure missing password",
 			method:   "POST",
-			path:     "/api/v1/login",
+			path:     "/login",
 			data:     noPasswordUser,
 			response: "Password is required",
 			status:   http.StatusBadRequest,
@@ -576,7 +591,7 @@ func TestLogin(t *testing.T) {
 		{
 			desc:     "Login failure invalid password",
 			method:   "POST",
-			path:     "/api/v1/login",
+			path:     "/login",
 			data:     adminUserWrongPass,
 			response: "error: The username or password is incorrect. Try again.",
 			status:   http.StatusUnauthorized,
@@ -584,7 +599,7 @@ func TestLogin(t *testing.T) {
 		{
 			desc:     "Login failure invalid username",
 			method:   "POST",
-			path:     "/api/v1/login",
+			path:     "/login",
 			data:     notExistingUser,
 			response: "error: The username or password is incorrect. Try again.",
 			status:   http.StatusUnauthorized,
@@ -631,5 +646,229 @@ func TestLogin(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestAuthorization(t *testing.T) {
+	testdb, err := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests")
+	if err != nil {
+		log.Fatalf("couldn't create test sqlite db: %s", err)
+	}
+	env := &server.Environment{}
+	env.DB = testdb
+	env.JWTSecret = []byte("secret")
+	ts := httptest.NewTLSServer(server.NewGoCertRouter(env))
+	defer ts.Close()
+
+	client := ts.Client()
+	var adminToken string
+	var nonAdminToken string
+	t.Run("prepare user accounts and tokens", prepareUserAccounts(ts.URL, client, &adminToken, &nonAdminToken))
+
+	testCases := []struct {
+		desc     string
+		method   string
+		path     string
+		data     string
+		auth     string
+		response string
+		status   int
+	}{
+		{
+			desc:     "metrics reachable without auth",
+			method:   "GET",
+			path:     "/metrics",
+			data:     "",
+			auth:     "",
+			response: "# HELP certificate_requests Total number of certificate requests",
+			status:   http.StatusOK,
+		},
+		{
+			desc:     "status reachable without auth",
+			method:   "GET",
+			path:     "/status",
+			data:     "",
+			auth:     "",
+			response: "",
+			status:   http.StatusOK,
+		},
+		{
+			desc:     "missing endpoints produce 404",
+			method:   "GET",
+			path:     "/this/path/does/not/exist",
+			data:     "",
+			auth:     nonAdminToken,
+			response: "",
+			status:   http.StatusNotFound,
+		},
+		{
+			desc:     "nonadmin can't see accounts",
+			method:   "GET",
+			path:     "/api/v1/accounts",
+			data:     "",
+			auth:     nonAdminToken,
+			response: "",
+			status:   http.StatusForbidden,
+		},
+		{
+			desc:     "admin can see accounts",
+			method:   "GET",
+			path:     "/api/v1/accounts",
+			data:     "",
+			auth:     adminToken,
+			response: `[{"id":1,"username":"testadmin","permissions":1},{"id":2,"username":"testuser","permissions":0}]`,
+			status:   http.StatusOK,
+		},
+		{
+			desc:     "nonadmin can't delete admin account",
+			method:   "DELETE",
+			path:     "/api/v1/accounts/1",
+			data:     "",
+			auth:     nonAdminToken,
+			response: "",
+			status:   http.StatusForbidden,
+		},
+		{
+			desc:     "user can't change admin password",
+			method:   "POST",
+			path:     "/api/v1/accounts/1/change_password",
+			data:     `{"password":"Pwnd123!"}`,
+			auth:     nonAdminToken,
+			response: "",
+			status:   http.StatusForbidden,
+		},
+		{
+			desc:     "admin can't delete itself",
+			method:   "DELETE",
+			path:     "/api/v1/accounts/1",
+			data:     "",
+			auth:     adminToken,
+			response: "error: can't delete admin account",
+			status:   http.StatusConflict,
+		},
+		{
+			desc:     "admin can delete nonuser",
+			method:   "DELETE",
+			path:     "/api/v1/accounts/2",
+			data:     "",
+			auth:     adminToken,
+			response: "1",
+			status:   http.StatusAccepted,
+		},
+	}
+	for _, tC := range testCases {
+		t.Run(tC.desc, func(t *testing.T) {
+			req, err := http.NewRequest(tC.method, ts.URL+tC.path, strings.NewReader(tC.data))
+			req.Header.Add("Authorization", "Bearer "+tC.auth)
+			if err != nil {
+				t.Fatal(err)
+			}
+			res, err := client.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			resBody, err := io.ReadAll(res.Body)
+			res.Body.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if res.StatusCode != tC.status || !strings.Contains(string(resBody), tC.response) {
+				t.Errorf("expected response did not match.\nExpected vs Received status code: %d vs %d\nExpected vs Received body: \n%s\nvs\n%s\n", tC.status, res.StatusCode, tC.response, string(resBody))
+			}
+			if tC.desc == "Create no password user success" {
+				match, _ := regexp.MatchString(`"password":"[!-~]{16}"`, string(resBody))
+				if !match {
+					t.Errorf("password does not match expected format or length: got %s", string(resBody))
+				}
+			}
+		})
+	}
+}
+
+func prepareUserAccounts(url string, client *http.Client, adminToken, nonAdminToken *string) func(*testing.T) {
+	return func(t *testing.T) {
+		req, err := http.NewRequest("POST", url+"/api/v1/accounts", strings.NewReader(adminUser))
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err := client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = io.ReadAll(res.Body)
+		res.Body.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.StatusCode != http.StatusCreated {
+			t.Fatalf("creating the first request should succeed when unauthorized. status code received: %d", res.StatusCode)
+		}
+		req, err = http.NewRequest("POST", url+"/api/v1/accounts", strings.NewReader(validUser))
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err = client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = io.ReadAll(res.Body)
+		res.Body.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("the second request should have been rejected. status code received: %d", res.StatusCode)
+		}
+		req, err = http.NewRequest("POST", url+"/login", strings.NewReader(adminUser))
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err = client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resBody, err := io.ReadAll(res.Body)
+		res.Body.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.StatusCode != http.StatusOK {
+			t.Fatalf("the admin login request should have succeeded. status code received: %d", res.StatusCode)
+		}
+		*adminToken = string(resBody)
+		req, err = http.NewRequest("POST", url+"/api/v1/accounts", strings.NewReader(validUser))
+		req.Header.Set("Authorization", "Bearer "+*adminToken)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err = client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = io.ReadAll(res.Body)
+		res.Body.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.StatusCode != http.StatusCreated {
+			t.Fatalf("creating the second request should have succeeded when given the admin auth header. status code received: %d", res.StatusCode)
+		}
+		req, err = http.NewRequest("POST", url+"/login", strings.NewReader(validUser))
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err = client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resBody, err = io.ReadAll(res.Body)
+		res.Body.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.StatusCode != http.StatusOK {
+			t.Errorf("the admin login request should have succeeded. status code received: %d", res.StatusCode)
+		}
+		*nonAdminToken = string(resBody)
 	}
 }

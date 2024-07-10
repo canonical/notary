@@ -107,7 +107,7 @@ func authMiddleware(ctx *middlewareContext) middleware {
 				next.ServeHTTP(w, r)
 				return
 			}
-			if r.Method == "POST" && r.URL.Path == "accounts" && !ctx.firstAccountIssued {
+			if r.Method == "POST" && strings.HasSuffix(r.URL.Path, "accounts") && !ctx.firstAccountIssued {
 				ctx.firstAccountIssued = true
 				next.ServeHTTP(w, r)
 				return
@@ -141,13 +141,14 @@ func authMiddleware(ctx *middlewareContext) middleware {
 						return
 					}
 					if r.Method == v.method && matched {
-						w.WriteHeader(http.StatusNotFound)
-						if _, err := w.Write([]byte("404 page not found")); err != nil {
-							logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
-						}
+						logErrorAndWriteResponse("forbidden", http.StatusForbidden, w)
 						return
 					}
 				}
+			}
+			if claims.Permissions == 1 && r.Method == "DELETE" && strings.HasSuffix(r.URL.Path, "accounts/1") {
+				logErrorAndWriteResponse("can't delete admin account", http.StatusConflict, w)
+				return
 			}
 			next.ServeHTTP(w, r)
 		})

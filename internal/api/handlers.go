@@ -42,20 +42,20 @@ func NewGoCertRouter(env *Environment) http.Handler {
 	apiV1Router.HandleFunc("DELETE /accounts/{id}", DeleteUserAccount(env))
 	apiV1Router.HandleFunc("POST /accounts/{id}/change_password", ChangeUserAccountPassword(env))
 
-	apiV1Router.HandleFunc("POST /login", Login(env))
-
 	m := metrics.NewMetricsSubsystem(env.DB)
 	frontendHandler := newFrontendFileServer()
 
 	router := http.NewServeMux()
+	router.HandleFunc("POST /login", Login(env))
 	router.HandleFunc("/status", HealthCheck)
 	router.Handle("/metrics", m.Handler)
 	router.Handle("/api/v1/", http.StripPrefix("/api/v1", apiV1Router))
 	router.Handle("/", frontendHandler)
 
 	ctx := middlewareContext{
-		metrics:   m,
-		jwtSecret: env.JWTSecret,
+		metrics:            m,
+		jwtSecret:          env.JWTSecret,
+		firstAccountIssued: false,
 	}
 	middleware := createMiddlewareStack(
 		authMiddleware(&ctx),

@@ -1,11 +1,14 @@
 package server
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/canonical/gocert/internal/metrics"
+	"github.com/golang-jwt/jwt"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -16,6 +19,7 @@ type middlewareContext struct {
 	responseStatusCode int
 	metrics            *metrics.PrometheusMetrics
 	jwtSecret          []byte
+	firstAccountIssued bool
 }
 
 // The responseWriterCloner struct wraps the http.ResponseWriter struct, and extracts the status
@@ -82,6 +86,70 @@ func loggingMiddleware(ctx *middlewareContext) middleware {
 			}
 
 			ctx.responseStatusCode = clonedWriter.statusCode
+		})
+	}
+}
+
+// authMiddleware intercepts requests that need authorization to check if the user's token exists and is
+// permitted to use the endpoint
+func authMiddleware(ctx *middlewareContext) middleware {
+	AdminOnlyPaths := []struct{ method, path string }{
+		{"POST", `accounts`},
+		{"GET", `accounts`},
+		{"GET", `accounts\/\d+$`},
+		{"DELETE", `accounts\/\d+$`},
+		{"POST", `accounts\/\d+\/change_password$`},
+	}
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasPrefix(r.URL.Path, "/metrics") || strings.HasPrefix(r.URL.Path, "/status") || strings.HasPrefix(r.URL.Path, "/login") {
+				next.ServeHTTP(w, r)
+				return
+			}
+			if r.Method == "POST" && r.URL.Path == "accounts" && !ctx.firstAccountIssued {
+				ctx.firstAccountIssued = true
+				next.ServeHTTP(w, r)
+				return
+			}
+			authHeader := r.Header.Get("Authorization")
+			if authHeader == "" {
+				logErrorAndWriteResponse("authorization header not found", http.StatusUnauthorized, w)
+				return
+			}
+			bearerToken := strings.Split(authHeader, " ")
+			if len(bearerToken) != 2 || bearerToken[0] != "Bearer" {
+				logErrorAndWriteResponse("authorization header couldn't be processed. The expected format is 'Bearer <token>'", http.StatusUnauthorized, w)
+				return
+			}
+			claims := jwtGocertClaims{}
+			token, err := jwt.ParseWithClaims(bearerToken[1], &claims, func(token *jwt.Token) (interface{}, error) {
+				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+					return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+				}
+				return ctx.jwtSecret, nil
+			})
+			if err != nil || !token.Valid {
+				logErrorAndWriteResponse(fmt.Sprintf("token is not valid: %s", err.Error()), http.StatusUnauthorized, w)
+				return
+			}
+			if claims.Permissions == 0 {
+				for _, v := range AdminOnlyPaths {
+					matched, err := regexp.Match(v.path, []byte(r.URL.Path))
+					if err != nil {
+						logErrorAndWriteResponse(fmt.Sprintf("ran into issue parsing path: %s", err.Error()), http.StatusInternalServerError, w)
+						return
+					}
+					if r.Method == v.method && matched {
+						w.WriteHeader(http.StatusNotFound)
+						if _, err := w.Write([]byte("404 page not found")); err != nil {
+							logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+						}
+						return
+					}
+				}
+			}
+			next.ServeHTTP(w, r)
 		})
 	}
 }

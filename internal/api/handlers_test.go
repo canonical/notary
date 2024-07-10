@@ -527,7 +527,7 @@ func TestLogin(t *testing.T) {
 	}
 	env := &server.Environment{}
 	env.DB = testdb
-	env.JWTSecret = "secret"
+	env.JWTSecret = []byte("secret")
 	ts := httptest.NewTLSServer(server.NewGoCertRouter(env))
 	defer ts.Close()
 

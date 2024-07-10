@@ -53,8 +53,12 @@ func NewGoCertRouter(env *Environment) http.Handler {
 	router.Handle("/api/v1/", http.StripPrefix("/api/v1", apiV1Router))
 	router.Handle("/", frontendHandler)
 
-	ctx := middlewareContext{metrics: m}
+	ctx := middlewareContext{
+		metrics:   m,
+		jwtSecret: env.JWTSecret,
+	}
 	middleware := createMiddlewareStack(
+		authMiddleware(&ctx),
 		metricsMiddleware(&ctx),
 		loggingMiddleware(&ctx),
 	)
@@ -550,13 +554,13 @@ func validatePassword(password string) bool {
 }
 
 // Helper function to generate a JWT
-func generateJWT(username, jwtSecret string, permissions int) (string, error) {
+func generateJWT(username string, jwtSecret []byte, permissions int) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"username":    username,
 		"permissions": permissions,
 		"exp":         time.Now().Add(time.Hour * 1).Unix(),
 	})
-	tokenString, err := token.SignedString([]byte(jwtSecret))
+	tokenString, err := token.SignedString(jwtSecret)
 	if err != nil {
 		return "", err
 	}

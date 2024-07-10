@@ -15,6 +15,7 @@ type middleware func(http.Handler) http.Handler
 type middlewareContext struct {
 	responseStatusCode int
 	metrics            *metrics.PrometheusMetrics
+	jwtSecret          []byte
 }
 
 // The responseWriterCloner struct wraps the http.ResponseWriter struct, and extracts the status

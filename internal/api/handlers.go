@@ -329,7 +329,8 @@ func PostUserAccount(env *Environment) http.HandlerFunc {
 			logErrorAndWriteResponse("Username is required", http.StatusBadRequest, w)
 			return
 		}
-		if user.Password == "" {
+		var shouldGeneratePassword = user.Password == ""
+		if shouldGeneratePassword {
 			generatedPassword, err := generatePassword()
 			if err != nil {
 				logErrorAndWriteResponse("Failed to generate password", http.StatusInternalServerError, w)
@@ -339,7 +340,7 @@ func PostUserAccount(env *Environment) http.HandlerFunc {
 		}
 		if !validatePassword(user.Password) {
 			logErrorAndWriteResponse(
-				"Password does not meet requirements. It must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
+				"Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
 				http.StatusBadRequest,
 				w,
 			)
@@ -367,7 +368,10 @@ func PostUserAccount(env *Environment) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		response, err := json.Marshal(map[string]any{"id": id, "password": user.Password})
+		response, err := json.Marshal(map[string]any{"id": id})
+		if shouldGeneratePassword {
+			response, err = json.Marshal(map[string]any{"id": id, "password": user.Password})
+		}
 		if err != nil {
 			logErrorAndWriteResponse("Error marshaling response", http.StatusInternalServerError, w)
 		}
@@ -412,7 +416,7 @@ func ChangeUserAccountPassword(env *Environment) http.HandlerFunc {
 		}
 		if !validatePassword(user.Password) {
 			logErrorAndWriteResponse(
-				"Password does not meet requirements. It must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
+				"Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
 				http.StatusBadRequest,
 				w,
 			)

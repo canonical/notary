@@ -122,14 +122,8 @@ func authMiddleware(ctx *middlewareContext) middleware {
 				logErrorAndWriteResponse("authorization header couldn't be processed. The expected format is 'Bearer <token>'", http.StatusUnauthorized, w)
 				return
 			}
-			claims := jwtGocertClaims{}
-			token, err := jwt.ParseWithClaims(bearerToken[1], &claims, func(token *jwt.Token) (interface{}, error) {
-				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-					return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-				}
-				return ctx.jwtSecret, nil
-			})
-			if err != nil || !token.Valid {
+			claims, err := getClaimsFromJWT(bearerToken[1], ctx.jwtSecret)
+			if err != nil {
 				logErrorAndWriteResponse(fmt.Sprintf("token is not valid: %s", err.Error()), http.StatusUnauthorized, w)
 				return
 			}
@@ -153,4 +147,18 @@ func authMiddleware(ctx *middlewareContext) middleware {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func getClaimsFromJWT(bearerToken string, jwtSecret []byte) (*jwtGocertClaims, error) {
+	claims := jwtGocertClaims{}
+	token, err := jwt.ParseWithClaims(bearerToken, &claims, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return jwtSecret, nil
+	})
+	if err != nil || !token.Valid {
+		return nil, err
+	}
+	return &claims, nil
 }

@@ -43,7 +43,7 @@ jobs:
         id: test_notify
         run : |
           curl -XPOST -k -d '{"username":"admin", "password": "Admin1234"}' https://localhost:3000/api/v1/accounts
-          export ADMIN_TOKEN=(curl -XPOST -k -d '{"username":"admin", "password": "Admin1234"}' https://localhost:3000/login)
+          export ADMIN_TOKEN=$(curl -XPOST -k -d '{"username":"admin", "password": "Admin1234"}' https://localhost:3000/login)
           curl -XPOST -k -d '-----BEGIN CERTIFICATE REQUEST-----
           MIIC5zCCAc8CAQAwRzEWMBQGA1UEAwwNMTAuMTUyLjE4My41MzEtMCsGA1UELQwk
           MzlhY2UxOTUtZGM1YS00MzJiLTgwOTAtYWZlNmFiNGI0OWNmMIIBIjANBgkqhkiG

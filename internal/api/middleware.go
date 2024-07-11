@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/canonical/gocert/internal/metrics"
@@ -108,8 +109,10 @@ func authMiddleware(ctx *middlewareContext) middleware {
 				return
 			}
 			if r.Method == "POST" && strings.HasSuffix(r.URL.Path, "accounts") && !ctx.firstAccountIssued {
-				ctx.firstAccountIssued = true
 				next.ServeHTTP(w, r)
+				if strings.HasPrefix(strconv.Itoa(ctx.responseStatusCode), "2") {
+					ctx.firstAccountIssued = true
+				}
 				return
 			}
 			authHeader := r.Header.Get("Authorization")

@@ -94,14 +94,16 @@ func loggingMiddleware(ctx *middlewareContext) middleware {
 // authMiddleware intercepts requests that need authorization to check if the user's token exists and is
 // permitted to use the endpoint
 func authMiddleware(ctx *middlewareContext) middleware {
-	AdminOnlyPaths := []struct{ method, path string }{
-		{"POST", `accounts`},
-		{"GET", `accounts`},
-		{"GET", `accounts\/\d+$`},
-		{"DELETE", `accounts\/\d+$`},
-		{"POST", `accounts\/\d+\/change_password$`},
+	RestrictedPaths := []struct {
+		method, pathRegex     string
+		SelfAuthorizedAllowed bool
+	}{
+		{"POST", `accounts$`, false},
+		{"GET", `accounts$`, false},
+		{"DELETE", `accounts\/(\d+)$`, false},
+		{"GET", `accounts\/(\d+)$`, true},
+		{"POST", `accounts\/(\d+)\/change_password$`, true},
 	}
-
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if !strings.HasPrefix(r.URL.Path, "/api/v1/") {
@@ -115,41 +117,74 @@ func authMiddleware(ctx *middlewareContext) middleware {
 				}
 				return
 			}
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
-				logErrorAndWriteResponse("authorization header not found", http.StatusUnauthorized, w)
-				return
-			}
-			bearerToken := strings.Split(authHeader, " ")
-			if len(bearerToken) != 2 || bearerToken[0] != "Bearer" {
-				logErrorAndWriteResponse("authorization header couldn't be processed. The expected format is 'Bearer <token>'", http.StatusUnauthorized, w)
-				return
-			}
-			claims, err := getClaimsFromJWT(bearerToken[1], ctx.jwtSecret)
+			claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), ctx.jwtSecret)
 			if err != nil {
-				logErrorAndWriteResponse(fmt.Sprintf("token is not valid: %s", err.Error()), http.StatusUnauthorized, w)
+				logErrorAndWriteResponse(fmt.Sprintf("auth failed: %s", err.Error()), http.StatusUnauthorized, w)
 				return
 			}
 			if claims.Permissions == 0 {
-				for _, v := range AdminOnlyPaths {
-					matched, err := regexp.Match(v.path, []byte(r.URL.Path))
+				for _, v := range RestrictedPaths {
+					pathMatched, idMatchedIfExistsInPath, err := permitter(claims, v.pathRegex, r.URL.Path, v.SelfAuthorizedAllowed)
 					if err != nil {
-						logErrorAndWriteResponse(fmt.Sprintf("ran into issue parsing path: %s", err.Error()), http.StatusInternalServerError, w)
+						logErrorAndWriteResponse(fmt.Sprintf("error processing path: %s", err.Error()), http.StatusInternalServerError, w)
 						return
 					}
-					if r.Method == v.method && matched {
+					if pathMatched && !v.SelfAuthorizedAllowed {
+						logErrorAndWriteResponse("forbidden", http.StatusForbidden, w)
+						return
+					}
+					if pathMatched && v.SelfAuthorizedAllowed && !idMatchedIfExistsInPath {
 						logErrorAndWriteResponse("forbidden", http.StatusForbidden, w)
 						return
 					}
 				}
 			}
-			if claims.Permissions == 1 && r.Method == "DELETE" && strings.HasSuffix(r.URL.Path, "accounts/1") {
+			if r.Method == "DELETE" && strings.HasSuffix(r.URL.Path, "accounts/1") {
 				logErrorAndWriteResponse("can't delete admin account", http.StatusConflict, w)
 				return
 			}
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func getClaimsFromAuthorizationHeader(header string, jwtSecret []byte) (*jwtGocertClaims, error) {
+	if header == "" {
+		return nil, fmt.Errorf("authorization header not found")
+	}
+	bearerToken := strings.Split(header, " ")
+	if len(bearerToken) != 2 || bearerToken[0] != "Bearer" {
+		return nil, fmt.Errorf("authorization header couldn't be processed. The expected format is 'Bearer <token>'")
+	}
+	claims, err := getClaimsFromJWT(bearerToken[1], jwtSecret)
+	if err != nil {
+		return nil, fmt.Errorf("token is not valid: %s", err)
+	}
+	return claims, nil
+}
+
+func permitter(claims *jwtGocertClaims, regex, path string, SelfAuthorizedAllowed bool) (pathMatched, idMatchedIfExistsInPath bool, err error) {
+	regexChallenge, err := regexp.Compile(regex)
+	if err != nil {
+		return pathMatched, idMatchedIfExistsInPath, fmt.Errorf("regex couldn't compile: %s", err)
+	}
+	matches := regexChallenge.FindStringSubmatch(path)
+	if len(matches) > 0 {
+		pathMatched = true
+	}
+	if len(matches) == 1 {
+		idMatchedIfExistsInPath = true
+	}
+	if len(matches) > 1 && SelfAuthorizedAllowed {
+		matchedID, err := strconv.Atoi(matches[1])
+		if err != nil {
+			return pathMatched, idMatchedIfExistsInPath, fmt.Errorf("error converting url id to string: %s", err)
+		}
+		if matchedID == claims.ID {
+			idMatchedIfExistsInPath = true
+		}
+	}
+	return pathMatched, idMatchedIfExistsInPath, nil
 }
 
 func getClaimsFromJWT(bearerToken string, jwtSecret []byte) (*jwtGocertClaims, error) {

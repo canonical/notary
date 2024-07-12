@@ -36,9 +36,9 @@ func NewGoCertRouter(env *Environment) http.Handler {
 	apiV1Router.HandleFunc("POST /certificate_requests/{id}/certificate/reject", RejectCertificate(env))
 	apiV1Router.HandleFunc("DELETE /certificate_requests/{id}/certificate", DeleteCertificate(env))
 
-	apiV1Router.HandleFunc("GET /accounts/{id}", GetUserAccount(env))
 	apiV1Router.HandleFunc("GET /accounts", GetUserAccounts(env))
 	apiV1Router.HandleFunc("POST /accounts", PostUserAccount(env))
+	apiV1Router.HandleFunc("GET /accounts/{id}", GetUserAccount(env))
 	apiV1Router.HandleFunc("DELETE /accounts/{id}", DeleteUserAccount(env))
 	apiV1Router.HandleFunc("POST /accounts/{id}/change_password", ChangeUserAccountPassword(env))
 
@@ -300,7 +300,17 @@ func GetUserAccounts(env *Environment) http.HandlerFunc {
 func GetUserAccount(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		userAccount, err := env.DB.RetrieveUser(id)
+		var userAccount certdb.User
+		var err error
+		if id == "me" {
+			claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
+			if headerErr != nil {
+				logErrorAndWriteResponse(headerErr.Error(), http.StatusUnauthorized, w)
+			}
+			userAccount, err = env.DB.RetrieveUserByUsername(claims.Username)
+		} else {
+			userAccount, err = env.DB.RetrieveUser(id)
+		}
 		if err != nil {
 			if errors.Is(err, certdb.ErrIdNotFound) {
 				logErrorAndWriteResponse(err.Error(), http.StatusNotFound, w)
@@ -409,6 +419,17 @@ func DeleteUserAccount(env *Environment) http.HandlerFunc {
 func ChangeUserAccountPassword(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
+		if id == "me" {
+			claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
+			if err != nil {
+				logErrorAndWriteResponse(err.Error(), http.StatusUnauthorized, w)
+			}
+			userAccount, err := env.DB.RetrieveUserByUsername(claims.Username)
+			if err != nil {
+				logErrorAndWriteResponse(err.Error(), http.StatusUnauthorized, w)
+			}
+			id = strconv.Itoa(userAccount.ID)
+		}
 		var user certdb.User
 		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 			logErrorAndWriteResponse("Invalid JSON format", http.StatusBadRequest, w)
@@ -471,7 +492,7 @@ func Login(env *Environment) http.HandlerFunc {
 			logErrorAndWriteResponse("The username or password is incorrect. Try again.", http.StatusUnauthorized, w)
 			return
 		}
-		jwt, err := generateJWT(userRequest.Username, env.JWTSecret, userAccount.Permissions)
+		jwt, err := generateJWT(userAccount.ID, userAccount.Username, env.JWTSecret, userAccount.Permissions)
 		if err != nil {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
@@ -489,6 +510,7 @@ func logErrorAndWriteResponse(msg string, status int, w http.ResponseWriter) {
 	log.Println(errMsg)
 	w.WriteHeader(status)
 	if _, err := w.Write([]byte(errMsg)); err != nil {
+		// TODO: how did this get merged?
 		logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 	}
 }
@@ -554,8 +576,9 @@ func validatePassword(password string) bool {
 }
 
 // Helper function to generate a JWT
-func generateJWT(username string, jwtSecret []byte, permissions int) (string, error) {
+func generateJWT(id int, username string, jwtSecret []byte, permissions int) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtGocertClaims{
+		ID:          id,
 		Username:    username,
 		Permissions: permissions,
 		StandardClaims: jwt.StandardClaims{
@@ -571,6 +594,7 @@ func generateJWT(username string, jwtSecret []byte, permissions int) (string, er
 }
 
 type jwtGocertClaims struct {
+	ID          int    `json:"id"`
 	Username    string `json:"username"`
 	Permissions int    `json:"permissions"`
 	jwt.StandardClaims

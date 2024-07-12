@@ -42,19 +42,23 @@ func NewGoCertRouter(env *Environment) http.Handler {
 	apiV1Router.HandleFunc("DELETE /accounts/{id}", DeleteUserAccount(env))
 	apiV1Router.HandleFunc("POST /accounts/{id}/change_password", ChangeUserAccountPassword(env))
 
-	apiV1Router.HandleFunc("POST /login", Login(env))
-
 	m := metrics.NewMetricsSubsystem(env.DB)
 	frontendHandler := newFrontendFileServer()
 
 	router := http.NewServeMux()
+	router.HandleFunc("POST /login", Login(env))
 	router.HandleFunc("/status", HealthCheck)
 	router.Handle("/metrics", m.Handler)
 	router.Handle("/api/v1/", http.StripPrefix("/api/v1", apiV1Router))
 	router.Handle("/", frontendHandler)
 
-	ctx := middlewareContext{metrics: m}
+	ctx := middlewareContext{
+		metrics:            m,
+		jwtSecret:          env.JWTSecret,
+		firstAccountIssued: false,
+	}
 	middleware := createMiddlewareStack(
+		authMiddleware(&ctx),
 		metricsMiddleware(&ctx),
 		loggingMiddleware(&ctx),
 	)
@@ -550,16 +554,24 @@ func validatePassword(password string) bool {
 }
 
 // Helper function to generate a JWT
-func generateJWT(username, jwtSecret string, permissions int) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"username":    username,
-		"permissions": permissions,
-		"exp":         time.Now().Add(time.Hour * 1).Unix(),
+func generateJWT(username string, jwtSecret []byte, permissions int) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtGocertClaims{
+		Username:    username,
+		Permissions: permissions,
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: time.Now().Add(time.Hour * 1).Unix(),
+		},
 	})
-	tokenString, err := token.SignedString([]byte(jwtSecret))
+	tokenString, err := token.SignedString(jwtSecret)
 	if err != nil {
 		return "", err
 	}
 
 	return tokenString, nil
+}
+
+type jwtGocertClaims struct {
+	Username    string `json:"username"`
+	Permissions int    `json:"permissions"`
+	jwt.StandardClaims
 }

@@ -42,6 +42,8 @@ jobs:
       - name: Test if pebble notify fires correctly
         id: test_notify
         run : |
+          curl -XPOST -k -d '{"username":"admin", "password": "Admin1234"}' https://localhost:3000/api/v1/accounts
+          export ADMIN_TOKEN=$(curl -XPOST -k -d '{"username":"admin", "password": "Admin1234"}' https://localhost:3000/login)
           curl -XPOST -k -d '-----BEGIN CERTIFICATE REQUEST-----
           MIIC5zCCAc8CAQAwRzEWMBQGA1UEAwwNMTAuMTUyLjE4My41MzEtMCsGA1UELQwk
           MzlhY2UxOTUtZGM1YS00MzJiLTgwOTAtYWZlNmFiNGI0OWNmMIIBIjANBgkqhkiG
@@ -59,7 +61,7 @@ jobs:
           cAQXk3fvTWuikHiCHqqdSdjDYj/8cyiwCrQWpV245VSbOE0WesWoEnSdFXVUfE1+
           RSKeTRuuJMcdGqBkDnDI22myj0bjt7q8eqBIjTiLQLnAFnQYpcCrhc8dKU9IJlv1
           H9Hay4ZO9LRew3pEtlx2WrExw/gpUcWM8rTI
-          -----END CERTIFICATE REQUEST-----' 'https://localhost:3000/api/v1/certificate_requests'
+          -----END CERTIFICATE REQUEST-----' -H "Authorization: Bearer $ADMIN_TOKEN" 'https://localhost:3000/api/v1/certificate_requests'
           curl -XPOST -k -d '-----BEGIN CERTIFICATE-----
           MIIDrDCCApSgAwIBAgIURKr+jf7hj60SyAryIeN++9wDdtkwDQYJKoZIhvcNAQEL
           BQAwOTELMAkGA1UEBhMCVVMxKjAoBgNVBAMMIXNlbGYtc2lnbmVkLWNlcnRpZmlj
@@ -81,7 +83,7 @@ jobs:
           gCX3nqYpp70oZIFDrhmYwE5ij5KXlHD4/1IOfNUKCDmQDgGPLI1tVtwQLjeRq7Hg
           XVelpl/LXTQawmJyvDaVT/Q9P+WqoDiMjrqF6Sy7DzNeeccWVqvqX5TVS6Ky56iS
           Mvo/+PAJHkBciR5Xn+Wg2a+7vrZvT6CBoRSOTozlLSM=
-          -----END CERTIFICATE-----' 'https://localhost:3000/api/v1/certificate_requests/1/certificate'
+          -----END CERTIFICATE-----' -H "Authorization: Bearer $ADMIN_TOKEN" 'https://localhost:3000/api/v1/certificate_requests/1/certificate'
           docker exec gocert /usr/bin/pebble notices
           docker exec gocert /usr/bin/pebble notices | grep gocert\\.com/certificate/update
           docker exec gocert /usr/bin/pebble notice 3

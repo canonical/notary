@@ -1,11 +1,15 @@
 package server
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/canonical/gocert/internal/metrics"
+	"github.com/golang-jwt/jwt"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -15,6 +19,8 @@ type middleware func(http.Handler) http.Handler
 type middlewareContext struct {
 	responseStatusCode int
 	metrics            *metrics.PrometheusMetrics
+	jwtSecret          []byte
+	firstAccountIssued bool
 }
 
 // The responseWriterCloner struct wraps the http.ResponseWriter struct, and extracts the status
@@ -83,4 +89,79 @@ func loggingMiddleware(ctx *middlewareContext) middleware {
 			ctx.responseStatusCode = clonedWriter.statusCode
 		})
 	}
+}
+
+// authMiddleware intercepts requests that need authorization to check if the user's token exists and is
+// permitted to use the endpoint
+func authMiddleware(ctx *middlewareContext) middleware {
+	AdminOnlyPaths := []struct{ method, path string }{
+		{"POST", `accounts`},
+		{"GET", `accounts`},
+		{"GET", `accounts\/\d+$`},
+		{"DELETE", `accounts\/\d+$`},
+		{"POST", `accounts\/\d+\/change_password$`},
+	}
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !strings.HasPrefix(r.URL.Path, "/api/v1/") {
+				next.ServeHTTP(w, r)
+				return
+			}
+			if r.Method == "POST" && strings.HasSuffix(r.URL.Path, "accounts") && !ctx.firstAccountIssued {
+				next.ServeHTTP(w, r)
+				if strings.HasPrefix(strconv.Itoa(ctx.responseStatusCode), "2") {
+					ctx.firstAccountIssued = true
+				}
+				return
+			}
+			authHeader := r.Header.Get("Authorization")
+			if authHeader == "" {
+				logErrorAndWriteResponse("authorization header not found", http.StatusUnauthorized, w)
+				return
+			}
+			bearerToken := strings.Split(authHeader, " ")
+			if len(bearerToken) != 2 || bearerToken[0] != "Bearer" {
+				logErrorAndWriteResponse("authorization header couldn't be processed. The expected format is 'Bearer <token>'", http.StatusUnauthorized, w)
+				return
+			}
+			claims, err := getClaimsFromJWT(bearerToken[1], ctx.jwtSecret)
+			if err != nil {
+				logErrorAndWriteResponse(fmt.Sprintf("token is not valid: %s", err.Error()), http.StatusUnauthorized, w)
+				return
+			}
+			if claims.Permissions == 0 {
+				for _, v := range AdminOnlyPaths {
+					matched, err := regexp.Match(v.path, []byte(r.URL.Path))
+					if err != nil {
+						logErrorAndWriteResponse(fmt.Sprintf("ran into issue parsing path: %s", err.Error()), http.StatusInternalServerError, w)
+						return
+					}
+					if r.Method == v.method && matched {
+						logErrorAndWriteResponse("forbidden", http.StatusForbidden, w)
+						return
+					}
+				}
+			}
+			if claims.Permissions == 1 && r.Method == "DELETE" && strings.HasSuffix(r.URL.Path, "accounts/1") {
+				logErrorAndWriteResponse("can't delete admin account", http.StatusConflict, w)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func getClaimsFromJWT(bearerToken string, jwtSecret []byte) (*jwtGocertClaims, error) {
+	claims := jwtGocertClaims{}
+	token, err := jwt.ParseWithClaims(bearerToken, &claims, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return jwtSecret, nil
+	})
+	if err != nil || !token.Valid {
+		return nil, err
+	}
+	return &claims, nil
 }

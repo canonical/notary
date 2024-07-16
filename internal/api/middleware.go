@@ -124,16 +124,12 @@ func authMiddleware(ctx *middlewareContext) middleware {
 			}
 			if claims.Permissions == 0 {
 				for _, v := range RestrictedPaths {
-					pathMatched, idMatchedIfExistsInPath, err := permitter(claims, v.pathRegex, r.URL.Path, v.SelfAuthorizedAllowed)
+					pathMatched, requestAllowed, err := AllowRequest(claims, v.pathRegex, r.URL.Path, v.SelfAuthorizedAllowed)
 					if err != nil {
 						logErrorAndWriteResponse(fmt.Sprintf("error processing path: %s", err.Error()), http.StatusInternalServerError, w)
 						return
 					}
-					if pathMatched && !v.SelfAuthorizedAllowed {
-						logErrorAndWriteResponse("forbidden", http.StatusForbidden, w)
-						return
-					}
-					if pathMatched && v.SelfAuthorizedAllowed && !idMatchedIfExistsInPath {
+					if pathMatched && !requestAllowed {
 						logErrorAndWriteResponse("forbidden", http.StatusForbidden, w)
 						return
 					}
@@ -163,10 +159,22 @@ func getClaimsFromAuthorizationHeader(header string, jwtSecret []byte) (*jwtGoce
 	return claims, nil
 }
 
-func permitter(claims *jwtGocertClaims, regex, path string, SelfAuthorizedAllowed bool) (pathMatched, idMatchedIfExistsInPath bool, err error) {
+// AllowRequest looks at the user data to determine the following things:
+// Is this user trying to access a path that's restricted? The answer to this question is the pathMatched variable
+//
+// There are two types of restricted paths: admin only paths that only admins can access, and self authorized paths,
+// which users are allowed to use only if they are taking an action on their own user ID. The second question answers the
+// question "If the path requires an ID, is the user attempting to access their own ID?"
+//
+// For all endpoints and permission permutations, there are only 2 cases when users are allowed to use endpoints:
+// If the URL path is not restricted to admins
+// If the URL path is restricted to self authorized endpoints, and the user is taking action to their own ID
+// This function returns if the URL matches the restricted path, and if that request should be allowed according to the conditions above.
+func AllowRequest(claims *jwtGocertClaims, regex, path string, SelfAuthorizedAllowed bool) (pathMatched, requestAllowed bool, err error) {
+	var idMatchedIfExistsInPath bool
 	regexChallenge, err := regexp.Compile(regex)
 	if err != nil {
-		return pathMatched, idMatchedIfExistsInPath, fmt.Errorf("regex couldn't compile: %s", err)
+		return pathMatched, requestAllowed, fmt.Errorf("regex couldn't compile: %s", err)
 	}
 	matches := regexChallenge.FindStringSubmatch(path)
 	if len(matches) > 0 {
@@ -178,13 +186,19 @@ func permitter(claims *jwtGocertClaims, regex, path string, SelfAuthorizedAllowe
 	if len(matches) > 1 && SelfAuthorizedAllowed {
 		matchedID, err := strconv.Atoi(matches[1])
 		if err != nil {
-			return pathMatched, idMatchedIfExistsInPath, fmt.Errorf("error converting url id to string: %s", err)
+			return pathMatched, requestAllowed, fmt.Errorf("error converting url id to string: %s", err)
 		}
 		if matchedID == claims.ID {
 			idMatchedIfExistsInPath = true
 		}
 	}
-	return pathMatched, idMatchedIfExistsInPath, nil
+	if pathMatched && !SelfAuthorizedAllowed {
+		return pathMatched, false, nil
+	}
+	if pathMatched && SelfAuthorizedAllowed && !idMatchedIfExistsInPath {
+		return pathMatched, false, nil
+	}
+	return pathMatched, true, nil
 }
 
 func getClaimsFromJWT(bearerToken string, jwtSecret []byte) (*jwtGocertClaims, error) {

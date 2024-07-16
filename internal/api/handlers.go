@@ -510,8 +510,7 @@ func logErrorAndWriteResponse(msg string, status int, w http.ResponseWriter) {
 	log.Println(errMsg)
 	w.WriteHeader(status)
 	if _, err := w.Write([]byte(errMsg)); err != nil {
-		// TODO: how did this get merged?
-		logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+		log.Printf("error writing response: %s", err.Error())
 	}
 }
 

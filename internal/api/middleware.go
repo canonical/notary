@@ -99,16 +99,6 @@ func loggingMiddleware(ctx *middlewareContext) middleware {
 // authMiddleware intercepts requests that need authorization to check if the user's token exists and is
 // permitted to use the endpoint
 func authMiddleware(ctx *middlewareContext) middleware {
-	RestrictedPaths := []struct {
-		method, pathRegex     string
-		SelfAuthorizedAllowed bool
-	}{
-		{"POST", `accounts$`, false},
-		{"GET", `accounts$`, false},
-		{"DELETE", `accounts\/(\d+)$`, false},
-		{"GET", `accounts\/(\d+)$`, true},
-		{"POST", `accounts\/(\d+)\/change_password$`, true},
-	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if !strings.HasPrefix(r.URL.Path, "/api/v1/") {
@@ -128,7 +118,7 @@ func authMiddleware(ctx *middlewareContext) middleware {
 				return
 			}
 			if claims.Permissions == USER_ACCOUNT {
-				requestAllowed, err := AllowRequest(claims, r.Method, r.URL.Path, RestrictedPaths)
+				requestAllowed, err := AllowRequest(claims, r.Method, r.URL.Path)
 				if err != nil {
 					logErrorAndWriteResponse(fmt.Sprintf("error processing path: %s", err.Error()), http.StatusInternalServerError, w)
 					return
@@ -173,12 +163,18 @@ func getClaimsFromAuthorizationHeader(header string, jwtSecret []byte) (*jwtGoce
 // If the URL path is not restricted to admins
 // If the URL path is restricted to self authorized endpoints, and the user is taking action with their own ID
 // This function validates that the user the with the given claims is allowed to use the endpoints by passing the above checks.
-func AllowRequest(claims *jwtGocertClaims, method, path string, permissionRestrictions []struct {
-	method                string
-	pathRegex             string
-	SelfAuthorizedAllowed bool
-}) (bool, error) {
-	for _, pr := range permissionRestrictions {
+func AllowRequest(claims *jwtGocertClaims, method, path string) (bool, error) {
+	restrictedPaths := []struct {
+		method, pathRegex     string
+		SelfAuthorizedAllowed bool
+	}{
+		{"POST", `accounts$`, false},
+		{"GET", `accounts$`, false},
+		{"DELETE", `accounts\/(\d+)$`, false},
+		{"GET", `accounts\/(\d+)$`, true},
+		{"POST", `accounts\/(\d+)\/change_password$`, true},
+	}
+	for _, pr := range restrictedPaths {
 		regexChallenge, err := regexp.Compile(pr.pathRegex)
 		if err != nil {
 			return false, fmt.Errorf("regex couldn't compile: %s", err)

@@ -13,6 +13,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+const (
+	USER_ACCOUNT  = 0
+	ADMIN_ACCOUNT = 1
+)
+
 type middleware func(http.Handler) http.Handler
 
 // The middlewareContext type helps middleware receive and pass along information through the middleware chain.
@@ -122,17 +127,15 @@ func authMiddleware(ctx *middlewareContext) middleware {
 				logErrorAndWriteResponse(fmt.Sprintf("auth failed: %s", err.Error()), http.StatusUnauthorized, w)
 				return
 			}
-			if claims.Permissions == 0 {
-				for _, v := range RestrictedPaths {
-					pathMatched, requestAllowed, err := AllowRequest(claims, v.pathRegex, r.URL.Path, v.SelfAuthorizedAllowed)
-					if err != nil {
-						logErrorAndWriteResponse(fmt.Sprintf("error processing path: %s", err.Error()), http.StatusInternalServerError, w)
-						return
-					}
-					if pathMatched && !requestAllowed {
-						logErrorAndWriteResponse("forbidden", http.StatusForbidden, w)
-						return
-					}
+			if claims.Permissions == USER_ACCOUNT {
+				requestAllowed, err := AllowRequest(claims, r.Method, r.URL.Path, RestrictedPaths)
+				if err != nil {
+					logErrorAndWriteResponse(fmt.Sprintf("error processing path: %s", err.Error()), http.StatusInternalServerError, w)
+					return
+				}
+				if !requestAllowed {
+					logErrorAndWriteResponse("forbidden", http.StatusForbidden, w)
+					return
 				}
 			}
 			if r.Method == "DELETE" && strings.HasSuffix(r.URL.Path, "accounts/1") {
@@ -160,45 +163,49 @@ func getClaimsFromAuthorizationHeader(header string, jwtSecret []byte) (*jwtGoce
 }
 
 // AllowRequest looks at the user data to determine the following things:
-// Is this user trying to access a path that's restricted? The answer to this question is the pathMatched variable
+// The first question is "Is this user trying to access a path that's restricted?"
 //
 // There are two types of restricted paths: admin only paths that only admins can access, and self authorized paths,
-// which users are allowed to use only if they are taking an action on their own user ID. The second question answers the
-// question "If the path requires an ID, is the user attempting to access their own ID?"
+// which users are allowed to use only if they are taking an action on their own user ID. The second question is
+// "If the path requires an ID, is the user attempting to access their own ID?"
 //
 // For all endpoints and permission permutations, there are only 2 cases when users are allowed to use endpoints:
 // If the URL path is not restricted to admins
-// If the URL path is restricted to self authorized endpoints, and the user is taking action to their own ID
-// This function returns if the URL matches the restricted path, and if that request should be allowed according to the conditions above.
-func AllowRequest(claims *jwtGocertClaims, regex, path string, SelfAuthorizedAllowed bool) (pathMatched, requestAllowed bool, err error) {
-	var idMatchedIfExistsInPath bool
-	regexChallenge, err := regexp.Compile(regex)
-	if err != nil {
-		return pathMatched, requestAllowed, fmt.Errorf("regex couldn't compile: %s", err)
-	}
-	matches := regexChallenge.FindStringSubmatch(path)
-	if len(matches) > 0 {
-		pathMatched = true
-	}
-	if len(matches) == 1 {
-		idMatchedIfExistsInPath = true
-	}
-	if len(matches) > 1 && SelfAuthorizedAllowed {
+// If the URL path is restricted to self authorized endpoints, and the user is taking action with their own ID
+// This function validates that the user the with the given claims is allowed to use the endpoints by passing the above checks.
+func AllowRequest(claims *jwtGocertClaims, method, path string, permissionRestrictions []struct {
+	method                string
+	pathRegex             string
+	SelfAuthorizedAllowed bool
+}) (bool, error) {
+	for _, pr := range permissionRestrictions {
+		regexChallenge, err := regexp.Compile(pr.pathRegex)
+		if err != nil {
+			return false, fmt.Errorf("regex couldn't compile: %s", err)
+		}
+		matches := regexChallenge.FindStringSubmatch(path)
+		restrictedPathMatchedToRequestedPath := len(matches) > 0 && method == pr.method
+		if !restrictedPathMatchedToRequestedPath {
+			continue
+		}
+		if !pr.SelfAuthorizedAllowed {
+			return false, nil
+		}
 		matchedID, err := strconv.Atoi(matches[1])
 		if err != nil {
-			return pathMatched, requestAllowed, fmt.Errorf("error converting url id to string: %s", err)
+			return true, fmt.Errorf("error converting url id to string: %s", err)
 		}
+		var requestedIDMatchesTheClaimant bool
 		if matchedID == claims.ID {
-			idMatchedIfExistsInPath = true
+			requestedIDMatchesTheClaimant = true
 		}
+		IDRequiredForPath := len(matches) > 1
+		if IDRequiredForPath && !requestedIDMatchesTheClaimant {
+			return false, nil
+		}
+		return true, nil
 	}
-	if pathMatched && !SelfAuthorizedAllowed {
-		return pathMatched, false, nil
-	}
-	if pathMatched && SelfAuthorizedAllowed && !idMatchedIfExistsInPath {
-		return pathMatched, false, nil
-	}
-	return pathMatched, true, nil
+	return true, nil
 }
 
 func getClaimsFromJWT(bearerToken string, jwtSecret []byte) (*jwtGocertClaims, error) {

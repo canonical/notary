@@ -1,5 +1,5 @@
 import { useContext, useState, Dispatch, SetStateAction } from "react"
-import { AsideContext } from "../nav"
+import { AsideContext } from "../aside"
 import Row from "./row"
 import { CSREntry } from "../types"
 

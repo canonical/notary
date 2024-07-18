@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "react-query"
 import { ConfirmationModalData } from "./row"
 import { extractCert, csrMatchesCertificate } from "../utils"
 import { postCertToID } from "../queries"
+import { useCookies } from "react-cookie"
 
 interface ConfirmationModalProps {
     modalData: ConfirmationModalData
@@ -12,7 +13,7 @@ interface ConfirmationModalProps {
 
 export function ConfirmationModal({ modalData, setModalData }: ConfirmationModalProps) {
     const confirmQuery = () => {
-        modalData?.func()
+        modalData?.onMouseDownFunc()
         setModalData(null)
     }
     return (
@@ -68,8 +69,9 @@ interface SubmitCertificateModalProps {
     setFormOpen: Dispatch<SetStateAction<boolean>>
 }
 export function SubmitCertificateModal({ id, csr, cert, setFormOpen }: SubmitCertificateModalProps) {
+    const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
     const queryClient = useQueryClient()
-    const mutation = useMutation(postCertToID(id), {
+    const mutation = useMutation(postCertToID, {
         onSuccess: () => {
             queryClient.invalidateQueries('csrs')
         },
@@ -93,7 +95,7 @@ export function SubmitCertificateModal({ id, csr, cert, setFormOpen }: SubmitCer
         }
     };
     const handleSubmit = () => {
-        mutation.mutate(certificatePEMString)
+        mutation.mutate({ id: id, authToken: cookies.user_token, cert: certificatePEMString })
         setFormOpen(false)
     }
     return (

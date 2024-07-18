@@ -4,6 +4,7 @@ import { useQuery } from "react-query"
 import { CertificateRequestsTable } from "./table"
 import { getCertificateRequests } from "../queries"
 import { CSREntry } from "../types"
+import { useCookies } from "react-cookie"
 
 function Error({ msg }: { msg: string }) {
     return (
@@ -35,7 +36,11 @@ function Loading() {
 }
 
 export default function CertificateRequests() {
-    const query = useQuery<CSREntry[], Error>('csrs', getCertificateRequests)
+    const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
+    const query = useQuery<CSREntry[], Error>({
+        queryKey: ['csrs', cookies.user_token],
+        queryFn: () => getCertificateRequests({ authToken: cookies.user_token })
+    })
     if (query.status == "loading") { return <Loading /> }
     if (query.status == "error") { return <Error msg={query.error.message} /> }
     const csrs = Array.from(query.data ? query.data : [])

@@ -13,6 +13,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+const (
+	USER_ACCOUNT  = 0
+	ADMIN_ACCOUNT = 1
+)
+
 type middleware func(http.Handler) http.Handler
 
 // The middlewareContext type helps middleware receive and pass along information through the middleware chain.
@@ -94,14 +99,6 @@ func loggingMiddleware(ctx *middlewareContext) middleware {
 // authMiddleware intercepts requests that need authorization to check if the user's token exists and is
 // permitted to use the endpoint
 func authMiddleware(ctx *middlewareContext) middleware {
-	AdminOnlyPaths := []struct{ method, path string }{
-		{"POST", `accounts`},
-		{"GET", `accounts`},
-		{"GET", `accounts\/\d+$`},
-		{"DELETE", `accounts\/\d+$`},
-		{"POST", `accounts\/\d+\/change_password$`},
-	}
-
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if !strings.HasPrefix(r.URL.Path, "/api/v1/") {
@@ -115,41 +112,96 @@ func authMiddleware(ctx *middlewareContext) middleware {
 				}
 				return
 			}
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
-				logErrorAndWriteResponse("authorization header not found", http.StatusUnauthorized, w)
-				return
-			}
-			bearerToken := strings.Split(authHeader, " ")
-			if len(bearerToken) != 2 || bearerToken[0] != "Bearer" {
-				logErrorAndWriteResponse("authorization header couldn't be processed. The expected format is 'Bearer <token>'", http.StatusUnauthorized, w)
-				return
-			}
-			claims, err := getClaimsFromJWT(bearerToken[1], ctx.jwtSecret)
+			claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), ctx.jwtSecret)
 			if err != nil {
-				logErrorAndWriteResponse(fmt.Sprintf("token is not valid: %s", err.Error()), http.StatusUnauthorized, w)
+				logErrorAndWriteResponse(fmt.Sprintf("auth failed: %s", err.Error()), http.StatusUnauthorized, w)
 				return
 			}
-			if claims.Permissions == 0 {
-				for _, v := range AdminOnlyPaths {
-					matched, err := regexp.Match(v.path, []byte(r.URL.Path))
-					if err != nil {
-						logErrorAndWriteResponse(fmt.Sprintf("ran into issue parsing path: %s", err.Error()), http.StatusInternalServerError, w)
-						return
-					}
-					if r.Method == v.method && matched {
-						logErrorAndWriteResponse("forbidden", http.StatusForbidden, w)
-						return
-					}
+			if claims.Permissions == USER_ACCOUNT {
+				requestAllowed, err := AllowRequest(claims, r.Method, r.URL.Path)
+				if err != nil {
+					logErrorAndWriteResponse(fmt.Sprintf("error processing path: %s", err.Error()), http.StatusInternalServerError, w)
+					return
+				}
+				if !requestAllowed {
+					logErrorAndWriteResponse("forbidden", http.StatusForbidden, w)
+					return
 				}
 			}
-			if claims.Permissions == 1 && r.Method == "DELETE" && strings.HasSuffix(r.URL.Path, "accounts/1") {
+			if r.Method == "DELETE" && strings.HasSuffix(r.URL.Path, "accounts/1") {
 				logErrorAndWriteResponse("can't delete admin account", http.StatusConflict, w)
 				return
 			}
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func getClaimsFromAuthorizationHeader(header string, jwtSecret []byte) (*jwtGocertClaims, error) {
+	if header == "" {
+		return nil, fmt.Errorf("authorization header not found")
+	}
+	bearerToken := strings.Split(header, " ")
+	if len(bearerToken) != 2 || bearerToken[0] != "Bearer" {
+		return nil, fmt.Errorf("authorization header couldn't be processed. The expected format is 'Bearer <token>'")
+	}
+	claims, err := getClaimsFromJWT(bearerToken[1], jwtSecret)
+	if err != nil {
+		return nil, fmt.Errorf("token is not valid: %s", err)
+	}
+	return claims, nil
+}
+
+// AllowRequest looks at the user data to determine the following things:
+// The first question is "Is this user trying to access a path that's restricted?"
+//
+// There are two types of restricted paths: admin only paths that only admins can access, and self authorized paths,
+// which users are allowed to use only if they are taking an action on their own user ID. The second question is
+// "If the path requires an ID, is the user attempting to access their own ID?"
+//
+// For all endpoints and permission permutations, there are only 2 cases when users are allowed to use endpoints:
+// If the URL path is not restricted to admins
+// If the URL path is restricted to self authorized endpoints, and the user is taking action with their own ID
+// This function validates that the user the with the given claims is allowed to use the endpoints by passing the above checks.
+func AllowRequest(claims *jwtGocertClaims, method, path string) (bool, error) {
+	restrictedPaths := []struct {
+		method, pathRegex     string
+		SelfAuthorizedAllowed bool
+	}{
+		{"POST", `accounts$`, false},
+		{"GET", `accounts$`, false},
+		{"DELETE", `accounts\/(\d+)$`, false},
+		{"GET", `accounts\/(\d+)$`, true},
+		{"POST", `accounts\/(\d+)\/change_password$`, true},
+	}
+	for _, pr := range restrictedPaths {
+		regexChallenge, err := regexp.Compile(pr.pathRegex)
+		if err != nil {
+			return false, fmt.Errorf("regex couldn't compile: %s", err)
+		}
+		matches := regexChallenge.FindStringSubmatch(path)
+		restrictedPathMatchedToRequestedPath := len(matches) > 0 && method == pr.method
+		if !restrictedPathMatchedToRequestedPath {
+			continue
+		}
+		if !pr.SelfAuthorizedAllowed {
+			return false, nil
+		}
+		matchedID, err := strconv.Atoi(matches[1])
+		if err != nil {
+			return true, fmt.Errorf("error converting url id to string: %s", err)
+		}
+		var requestedIDMatchesTheClaimant bool
+		if matchedID == claims.ID {
+			requestedIDMatchesTheClaimant = true
+		}
+		IDRequiredForPath := len(matches) > 1
+		if IDRequiredForPath && !requestedIDMatchesTheClaimant {
+			return false, nil
+		}
+		return true, nil
+	}
+	return true, nil
 }
 
 func getClaimsFromJWT(bearerToken string, jwtSecret []byte) (*jwtGocertClaims, error) {

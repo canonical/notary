@@ -5,14 +5,9 @@ import { QueryClient, QueryClientProvider } from "react-query";
 import Image from "next/image";
 import { Aside, AsideContext } from "./aside";
 import { AccountTab } from "./login"
+import { usePathname } from "next/navigation";
 
-export function SideBar({ sidebarVisible, setSidebarVisible }: { sidebarVisible: boolean, setSidebarVisible: Dispatch<SetStateAction<boolean>> }) {
-    const [activeTab, setActiveTab] = useState<string>("");
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            setActiveTab(location.pathname.split('/')[1]);
-        }
-    }, []);
+export function SideBar({ activePath, sidebarVisible, setSidebarVisible }: { activePath: string, sidebarVisible: boolean, setSidebarVisible: Dispatch<SetStateAction<boolean>> }) {
     return (
         <header className={sidebarVisible ? "l-navigation" : "l-navigation is-collapsed"}>
             <div className="l-navigation__drawer">
@@ -29,7 +24,7 @@ export function SideBar({ sidebarVisible, setSidebarVisible }: { sidebarVisible:
                             <nav aria-label="Main">
                                 <ul className="p-side-navigation__list">
                                     <li className="p-side-navigation__item">
-                                        <a className="p-side-navigation__link" href="/certificate_requests" aria-current={activeTab === "certificate_requests" ? "page" : "false"} >
+                                        <a className="p-side-navigation__link" href="/certificate_requests" aria-current={activePath.startsWith("/certificate_requests") ? "page" : "false"} >
                                             <i className="p-icon--security is-light p-side-navigation__icon"></i>
                                             <span className="p-side-navigation__label">
                                                 <span className="p-side-navigation__label">Certificate Requests</span>
@@ -90,13 +85,26 @@ export default function Navigation({
 }: Readonly<{
     children: React.ReactNode;
 }>) {
+    const activePath = usePathname()
+    console.log(activePath)
+    const noNavRoutes = ['/login'];
+
+    const shouldRenderNavigation = !noNavRoutes.includes(activePath);
     const [sidebarVisible, setSidebarVisible] = useState<boolean>(true)
     const [asideOpen, setAsideOpen] = useState<boolean>(false)
     return (
         <QueryClientProvider client={queryClient}>
             <div className="l-application" role="presentation">
-                <TopBar setSidebarVisible={setSidebarVisible} />
-                <SideBar sidebarVisible={sidebarVisible} setSidebarVisible={setSidebarVisible} />
+                {
+                    shouldRenderNavigation ? (
+                        <>
+                            <TopBar setSidebarVisible={setSidebarVisible} />
+                            <SideBar activePath={activePath} sidebarVisible={sidebarVisible} setSidebarVisible={setSidebarVisible} />
+                        </>
+                    ) : (
+                        <></>
+                    )
+                }
                 <main className="l-main">
                     <AsideContext.Provider value={{ isOpen: asideOpen, setIsOpen: setAsideOpen }}>
                         {children}

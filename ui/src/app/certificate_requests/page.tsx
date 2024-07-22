@@ -5,6 +5,7 @@ import { CertificateRequestsTable } from "./table"
 import { getCertificateRequests } from "../queries"
 import { CSREntry } from "../types"
 import { useCookies } from "react-cookie"
+import { useRouter } from "next/navigation"
 
 function Error({ msg }: { msg: string }) {
     return (
@@ -36,7 +37,11 @@ function Loading() {
 }
 
 export default function CertificateRequests() {
+    const router = useRouter()
     const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
+    if (!cookies.user_token) {
+        router.push("/login")
+    }
     const query = useQuery<CSREntry[], Error>({
         queryKey: ['csrs', cookies.user_token],
         queryFn: () => getCertificateRequests({ authToken: cookies.user_token }),

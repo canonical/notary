@@ -83,7 +83,6 @@ function parseExtensions(extensions: Extensions) {
                 }
             });
         } else if (extensionName === "Basic Constraint") {
-            console.log(extension);
             is_ca = extension.parsedValue.cA;
         }
     });

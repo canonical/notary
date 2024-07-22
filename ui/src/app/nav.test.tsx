@@ -1,7 +1,13 @@
-import { expect, describe, it } from "vitest";
+import { expect, describe, it, vi } from "vitest";
 import { render, fireEvent, screen } from '@testing-library/react'
 import Navigation from "./nav";
 import { CertificateRequestsTable } from "./certificate_requests/table";
+
+vi.mock('next/navigation', () => ({
+  usePathname: () => {
+    return "/certificate_requests"
+  },
+}));
 
 describe('Navigation', () => {
   it('should open aside when clicking button', () => {

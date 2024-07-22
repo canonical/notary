@@ -1,6 +1,6 @@
 "use client"
 
-import { SetStateAction, Dispatch, useState, useEffect } from "react"
+import { SetStateAction, Dispatch, useState } from "react"
 import { QueryClient, QueryClientProvider } from "react-query";
 import Image from "next/image";
 import { Aside, AsideContext } from "./aside";
@@ -86,7 +86,6 @@ export default function Navigation({
     children: React.ReactNode;
 }>) {
     const activePath = usePathname()
-    console.log(activePath)
     const noNavRoutes = ['/login'];
 
     const shouldRenderNavigation = !noNavRoutes.includes(activePath);

@@ -1,4 +1,5 @@
 import { CSREntry } from "./types"
+import { HTTPStatus } from "./utils"
 
 export type RequiredParams = {
     id: string
@@ -12,12 +13,12 @@ export async function getCertificateRequests(params: { authToken: string }): Pro
         headers: { "Authorization": "Bearer " + params.authToken }
     })
     if (!response.ok) {
-        throw new Error('Network response was not ok')
+        throw new Error(`${response.status} ${HTTPStatus(response.status)}`)
     }
     return response.json()
 }
 
-export async function postCSR(params: {authToken: string, csr: string}) {
+export async function postCSR(params: { authToken: string, csr: string }) {
     if (!params.csr) {
         throw new Error('CSR not provided')
     }
@@ -30,7 +31,7 @@ export async function postCSR(params: {authToken: string, csr: string}) {
         body: params.csr.trim()
     })
     if (!response.ok) {
-        throw new Error('Network response was not ok')
+        throw new Error(`${response.status} ${HTTPStatus(response.status)}`)
     }
     return response.json()
 }
@@ -48,7 +49,7 @@ export async function postCertToID(params: RequiredParams) {
         body: params.cert.trim()
     })
     if (!response.ok) {
-        throw new Error('Network response was not ok')
+        throw new Error(`${response.status} ${HTTPStatus(response.status)}`)
     }
     return response.json()
 }
@@ -61,7 +62,7 @@ export async function deleteCSR(params: RequiredParams) {
         }
     })
     if (!response.ok) {
-        throw new Error('Network response was not ok')
+        throw new Error(`${response.status} ${HTTPStatus(response.status)}`)
     }
     return response.json()
 }
@@ -74,7 +75,7 @@ export async function rejectCSR(params: RequiredParams) {
         }
     })
     if (!response.ok) {
-        throw new Error('Network response was not ok')
+        throw new Error(`${response.status} ${HTTPStatus(response.status)}`)
     }
     return response.json()
 }
@@ -87,7 +88,7 @@ export async function revokeCertificate(params: RequiredParams) {
         }
     })
     if (!response.ok) {
-        throw new Error('Network response was not ok')
+        throw new Error(`${response.status} ${HTTPStatus(response.status)}`)
     }
     return response.json()
 }
@@ -97,9 +98,9 @@ export async function login(userForm: { username: string, password: string }) {
         method: "POST",
         body: JSON.stringify({ "username": userForm.username, "password": userForm.password })
     })
+    const responseText = await response.text()
     if (!response.ok) {
-        const responseText = await response.text()
-        throw new Error(responseText)
+        throw new Error(`${response.status} ${HTTPStatus(response.status)}. ${responseText}`)
     }
-    return response.text()
+    return responseText
 }

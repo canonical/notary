@@ -42,7 +42,12 @@ export default function CertificateRequests() {
         queryFn: () => getCertificateRequests({ authToken: cookies.user_token })
     })
     if (query.status == "loading") { return <Loading /> }
-    if (query.status == "error") { return <Error msg={query.error.message} /> }
+    if (query.status == "error") {
+        if (query.error.message.includes("401")) {
+            removeCookie("user_token")
+        }
+        return <Error msg={query.error.message} />
+    }
     const csrs = Array.from(query.data ? query.data : [])
     return (
         <CertificateRequestsTable csrs={csrs} />

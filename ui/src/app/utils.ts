@@ -1,4 +1,4 @@
-import { CertificationRequest, Certificate, Extension, Extensions, GeneralName, GeneralNames } from "pkijs";
+import { CertificationRequest, Certificate, Extensions } from "pkijs";
 import { fromBER } from "asn1js";
 import * as pvutils from "pvutils";
 
@@ -233,4 +233,14 @@ export const csrMatchesCertificate = (csrPemString: string, certPemString: strin
     const csrPKbytes = csr.subjectPublicKeyInfo.subjectPublicKey.valueBeforeDecodeView
     const certPKbytes = cert.subjectPublicKeyInfo.subjectPublicKey.valueBeforeDecodeView
     return csrPKbytes.toString() == certPKbytes.toString()
+}
+
+export const HTTPStatus = (code: number): string => {
+    const map: { [key: number]: string } = {
+        401: "Unauthorized",
+    }
+    if (!(code in map)) {
+        throw new Error("code not recognized: " + code)
+    }
+    return map[code]
 }

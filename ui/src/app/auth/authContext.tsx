@@ -9,10 +9,9 @@ import { useRouter } from 'next/navigation';
 
 type AuthContextType = {
     user: User | null
-    setUser: Dispatch<SetStateAction<User | null>>
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null, setUser: () => { } });
+const AuthContext = createContext<AuthContextType>({ user: null });
 
 export const AuthProvider = ({ children }: Readonly<{ children: React.ReactNode }>) => {
     const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
@@ -30,7 +29,7 @@ export const AuthProvider = ({ children }: Readonly<{ children: React.ReactNode 
     }, [cookies.user_token, router]);
 
     return (
-        <AuthContext.Provider value={{ user, setUser }}>
+        <AuthContext.Provider value={{ user }}>
             {children}
         </AuthContext.Provider>
     );

@@ -13,7 +13,7 @@ export async function getCertificateRequests(params: { authToken: string }): Pro
         headers: { "Authorization": "Bearer " + params.authToken }
     })
     if (!response.ok) {
-        throw new Error(`${response.status} ${HTTPStatus(response.status)}`)
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
     }
     return response.json()
 }
@@ -31,7 +31,7 @@ export async function postCSR(params: { authToken: string, csr: string }) {
         body: params.csr.trim()
     })
     if (!response.ok) {
-        throw new Error(`${response.status} ${HTTPStatus(response.status)}`)
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
     }
     return response.json()
 }
@@ -49,7 +49,7 @@ export async function postCertToID(params: RequiredParams) {
         body: params.cert.trim()
     })
     if (!response.ok) {
-        throw new Error(`${response.status} ${HTTPStatus(response.status)}`)
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
     }
     return response.json()
 }
@@ -62,7 +62,7 @@ export async function deleteCSR(params: RequiredParams) {
         }
     })
     if (!response.ok) {
-        throw new Error(`${response.status} ${HTTPStatus(response.status)}`)
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
     }
     return response.json()
 }
@@ -75,7 +75,7 @@ export async function rejectCSR(params: RequiredParams) {
         }
     })
     if (!response.ok) {
-        throw new Error(`${response.status} ${HTTPStatus(response.status)}`)
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
     }
     return response.json()
 }
@@ -88,7 +88,7 @@ export async function revokeCertificate(params: RequiredParams) {
         }
     })
     if (!response.ok) {
-        throw new Error(`${response.status} ${HTTPStatus(response.status)}`)
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
     }
     return response.json()
 }
@@ -100,7 +100,7 @@ export async function login(userForm: { username: string, password: string }) {
     })
     const responseText = await response.text()
     if (!response.ok) {
-        throw new Error(`${response.status} ${HTTPStatus(response.status)}. ${responseText}`)
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${responseText}`)
     }
     return responseText
 }

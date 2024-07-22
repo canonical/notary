@@ -1,24 +1,25 @@
-import { jwtDecode } from "jwt-decode";
-import { useState } from "react";
-import { useCookies } from "react-cookie"
+import { useAuth } from "./auth/authContext";
 
-type UserObject = {
-    exp: number
-    id: number
-    permissions: number
-    username: string
-}
-
-export function Login() {
-    const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
-    var userObject: UserObject | null = null
-    if (cookies.user_token) {
-        userObject = jwtDecode(cookies.user_token)
-    }
+export function AccountTab() {
+    const authDetails = useAuth()
     return (
         <>
             {
-                cookies.user_token ? <p>{userObject?.username}</p> : <a className="p-button u-float-right" style={{ marginRight: "5px" }} href="login">Login</a>
+                authDetails.user ?
+                    <div className="p-side-navigation__item" aria-current="false">
+                        <i className="p-icon--user is-light p-side-navigation__icon"></i>
+                        <span className="p-side-navigation__label">
+                            <span className="p-side-navigation__label">{authDetails.user.username}</span>
+                        </span>
+                        <i className="p-icon--menu" style={{ marginLeft: "auto", marginTop: "auto", marginBottom: "auto" }}></i>
+                    </div>
+                    :
+                    <a className="p-side-navigation__link" href="/login" aria-current="false">
+                        <i className="p-icon--user is-light p-side-navigation__icon"></i>
+                        <span className="p-side-navigation__label">
+                            <span className="p-side-navigation__label">Login</span>
+                        </span>
+                    </a>
             }
         </>)
 }

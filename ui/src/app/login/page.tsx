@@ -4,8 +4,10 @@ import { useMutation } from "react-query"
 import { login } from "../queries"
 import { useState, ChangeEvent } from "react"
 import { useCookies } from "react-cookie"
+import { useRouter } from "next/navigation"
 
 export default function LoginPage() {
+    const router = useRouter()
     const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
     const mutation = useMutation(login, {
         onSuccess: (e) => {
@@ -15,6 +17,7 @@ export default function LoginPage() {
                 secure: true,
                 expires: new Date(new Date().getTime() + 60 * 60 * 1000),
             })
+            router.push('/certificate_requests')
         },
         onError: (e: Error) => {
             setErrorText(e.message)

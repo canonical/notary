@@ -4,7 +4,7 @@ import { SetStateAction, Dispatch, useState, useEffect } from "react"
 import { QueryClient, QueryClientProvider } from "react-query";
 import Image from "next/image";
 import { Aside, AsideContext } from "./aside";
-import { Login } from "./login"
+import { AccountTab } from "./login"
 
 export function SideBar({ sidebarVisible, setSidebarVisible }: { sidebarVisible: boolean, setSidebarVisible: Dispatch<SetStateAction<boolean>> }) {
     const [activeTab, setActiveTab] = useState<string>("");
@@ -27,7 +27,7 @@ export function SideBar({ sidebarVisible, setSidebarVisible }: { sidebarVisible:
                     <div className="p-panel__content">
                         <div className="p-side-navigation--icons" id="drawer-icons">
                             <nav aria-label="Main">
-                                <ul className="p-side-navigation__list sidenav-top-ul">
+                                <ul className="p-side-navigation__list">
                                     <li className="p-side-navigation__item">
                                         <a className="p-side-navigation__link" href="/certificate_requests" aria-current={activeTab === "certificate_requests" ? "page" : "false"} >
                                             <i className="p-icon--security is-light p-side-navigation__icon"></i>
@@ -37,9 +37,9 @@ export function SideBar({ sidebarVisible, setSidebarVisible }: { sidebarVisible:
                                         </a>
                                     </li>
                                 </ul>
-                                <ul className="p-side-navigation__list sidenav-bottom-ul">
-                                    <li className="p-side-navigation__item">
-                                        <Login />
+                                <ul className="p-side-navigation__list" style={{ bottom: 0, position: "absolute", width: "100%" }}>
+                                    <li className="p-side-navigation__item" >
+                                        <AccountTab />
                                     </li>
                                 </ul>
                             </nav>

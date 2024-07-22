@@ -39,7 +39,13 @@ export default function CertificateRequests() {
     const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
     const query = useQuery<CSREntry[], Error>({
         queryKey: ['csrs', cookies.user_token],
-        queryFn: () => getCertificateRequests({ authToken: cookies.user_token })
+        queryFn: () => getCertificateRequests({ authToken: cookies.user_token }),
+        retry: (failureCount, error): boolean => {
+            if (error.message.includes("401")) {
+                return false
+            }
+            return true
+        },
     })
     if (query.status == "loading") { return <Loading /> }
     if (query.status == "error") {

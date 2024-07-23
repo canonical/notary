@@ -42,7 +42,7 @@ export default function LoginPage() {
                 <div className="p-panel__content">
                     <div className="u-fixed-width">
                         <form>
-                            <label htmlFor="InputUsername">User Name</label>
+                            <label htmlFor="InputUsername">Username</label>
                             <input type="text" id="InputUsername" name="InputUsername" onChange={handleUsernameChange} />
                             <label htmlFor="InputPassword">Password</label>
                             <input type="password" id="InputPassword" name="InputPassword" placeholder="******" autoComplete="current-password" onChange={handlePasswordChange} />

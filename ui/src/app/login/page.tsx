@@ -30,11 +30,17 @@ export default function LoginPage() {
     const handleUsernameChange = (event: ChangeEvent<HTMLInputElement>) => { setUsername(event.target.value) }
     const handlePasswordChange = (event: ChangeEvent<HTMLInputElement>) => { setPassword(event.target.value) }
     return (
-        <div>
+        <div style={{
+            display: "flex",
+            alignContent: "center",
+            justifyContent: "center",
+            flexWrap: "wrap",
+            height: "100vh",
+        }}>
             <div className="p-panel" style={{
                 width: "25rem",
                 minWidth: "min-content",
-                margin: "auto"
+                minHeight: "min-content",
             }}>
                 <div className="p-panel__header is-sticky">
                     <h4 className="p-panel__title">Login</h4>

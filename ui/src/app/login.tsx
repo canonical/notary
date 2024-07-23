@@ -6,7 +6,7 @@ export function AccountTab() {
         <>
             {
                 authDetails.user ?
-                    <div className="p-side-navigation__link" aria-current="false">
+                    <div className="p-side-navigation__link" aria-current="false" style={{ cursor: "pointer" }}>
                         <i className="p-icon--user is-light p-side-navigation__icon"></i>
                         <span className="p-side-navigation__label">
                             <span className="p-side-navigation__label">{authDetails.user.username}</span>

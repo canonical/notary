@@ -24,7 +24,7 @@ export function SideBar({ activePath, sidebarVisible, setSidebarVisible }: { act
                             <nav aria-label="Main">
                                 <ul className="p-side-navigation__list">
                                     <li className="p-side-navigation__item">
-                                        <a className="p-side-navigation__link" href="/certificate_requests" aria-current={activePath.startsWith("/certificate_requests") ? "page" : "false"} >
+                                        <a className="p-side-navigation__link" href="/certificate_requests" aria-current={activePath.startsWith("/certificate_requests") ? "page" : "false"}  style={{ cursor: "pointer" }}>
                                             <i className="p-icon--security is-light p-side-navigation__icon"></i>
                                             <span className="p-side-navigation__label">
                                                 <span className="p-side-navigation__label">Certificate Requests</span>

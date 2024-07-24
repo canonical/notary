@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useAuth } from "./auth/authContext";
 import { useCookies } from "react-cookie";
+import { useRouter } from "next/navigation";
 
 export function AccountTab() {
+    const router = useRouter()
     const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
     const [menuOpen, setMenuOpen] = useState<boolean>(false)
     const authDetails = useAuth()
@@ -19,7 +21,7 @@ export function AccountTab() {
                             <i className="p-icon--menu"></i>
                             <span className="p-contextual-menu__dropdown" id="menu-3" aria-hidden={!menuOpen} style={{ bottom: "40px" }}>
                                 <span className="p-contextual-menu__group">
-                                    <button className="p-contextual-menu__link">Change Password</button>
+                                    <button className="p-contextual-menu__link" onMouseDown={() => router.push("/change_password")}>Change Password</button>
                                     <button className="p-contextual-menu__link" onMouseDown={() => removeCookie("user_token")}>Log Out</button>
                                 </span>
                             </span>

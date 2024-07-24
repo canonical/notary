@@ -96,7 +96,23 @@ export async function revokeCertificate(params: RequiredParams) {
 export async function login(userForm: { username: string, password: string }) {
     const response = await fetch("/login", {
         method: "POST",
+
         body: JSON.stringify({ "username": userForm.username, "password": userForm.password })
+    })
+    const responseText = await response.text()
+    if (!response.ok) {
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${responseText}`)
+    }
+    return responseText
+}
+
+export async function changePassword(changePasswordForm: { authToken: string, username: string, password: string }) {
+    const response = await fetch("/api/v1/accounts/me/change_password", {
+        method: "POST",
+        headers: {
+            'Authorization': 'Bearer ' + changePasswordForm.authToken
+        },
+        body: JSON.stringify({ "username": changePasswordForm.username, "password": changePasswordForm.password })
     })
     const responseText = await response.text()
     if (!response.ok) {

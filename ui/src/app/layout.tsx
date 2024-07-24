@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import './globals.scss'
 import Navigation from "@/app/nav";
-
+import { AuthProvider } from "./auth/authContext";
 
 export const metadata: Metadata = {
   title: "GoCert",
@@ -19,9 +19,11 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
       <body>
-        <Navigation>
-          {children}
-        </Navigation>
+        <AuthProvider>
+          <Navigation>
+            {children}
+          </Navigation>
+        </AuthProvider>
       </body>
     </html>
   );

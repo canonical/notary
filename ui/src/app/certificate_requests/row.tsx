@@ -1,9 +1,10 @@
 import { useState, Dispatch, SetStateAction, useEffect, useRef } from "react"
 import { UseMutationResult, useMutation, useQueryClient } from "react-query"
 import { extractCSR, extractCert } from "../utils"
-import { deleteCSR, rejectCSR, revokeCertificate } from "../queries"
+import { RequiredParams, deleteCSR, rejectCSR, revokeCertificate } from "../queries"
 import { ConfirmationModal, SubmitCertificateModal, SuccessNotification } from "./components"
 import "./../globals.scss"
+import { useCookies } from "react-cookie"
 
 type rowProps = {
     id: number,
@@ -13,12 +14,14 @@ type rowProps = {
     ActionMenuExpanded: number
     setActionMenuExpanded: Dispatch<SetStateAction<number>>
 }
+
 export type ConfirmationModalData = {
-    func: () => void
+    onMouseDownFunc: () => void
     warningText: string
 } | null
 
 export default function Row({ id, csr, certificate, ActionMenuExpanded, setActionMenuExpanded }: rowProps) {
+    const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
     const red = "rgba(199, 22, 43, 1)"
     const green = "rgba(14, 132, 32, 0.35)"
     const yellow = "rgba(249, 155, 17, 0.45)"
@@ -40,8 +43,8 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
     const revokeMutation = useMutation(revokeCertificate, {
         onSuccess: () => queryClient.invalidateQueries('csrs')
     })
-    const mutationFunc = (mutation: UseMutationResult<any, unknown, string, unknown>) => {
-        mutation.mutate(id.toString())
+    const mutationFunc = (mutation: UseMutationResult<any, unknown, RequiredParams, unknown>, params: RequiredParams) => {
+        mutation.mutate(params)
     }
 
     const handleCopy = () => {
@@ -66,19 +69,19 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
     };
     const handleReject = () => {
         setConfirmationModalData({
-            func: () => mutationFunc(rejectMutation),
+            onMouseDownFunc: () => mutationFunc(rejectMutation, { id: id.toString(), authToken: cookies.user_token }),
             warningText: "Rejecting a Certificate Request means the CSR will remain in this application, but its status will be moved to rejected and the associated certificate will be deleted if there is any. This action cannot be undone."
         })
     }
     const handleDelete = () => {
         setConfirmationModalData({
-            func: () => mutationFunc(deleteMutation),
+            onMouseDownFunc: () => mutationFunc(deleteMutation, { id: id.toString(), authToken: cookies.user_token }),
             warningText: "Deleting a Certificate Request means this row will be completely removed from the application. This action cannot be undone."
         })
     }
     const handleRevoke = () => {
         setConfirmationModalData({
-            func: () => mutationFunc(revokeMutation),
+            onMouseDownFunc: () => mutationFunc(revokeMutation, { id: id.toString(), authToken: cookies.user_token }),
             warningText: "Revoking a Certificate will delete it from the table. This action cannot be undone."
         })
     }

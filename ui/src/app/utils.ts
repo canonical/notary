@@ -1,4 +1,4 @@
-import { CertificationRequest, Certificate, Extension, Extensions, GeneralName, GeneralNames } from "pkijs";
+import { CertificationRequest, Certificate, Extensions } from "pkijs";
 import { fromBER } from "asn1js";
 import * as pvutils from "pvutils";
 
@@ -83,7 +83,6 @@ function parseExtensions(extensions: Extensions) {
                 }
             });
         } else if (extensionName === "Basic Constraint") {
-            console.log(extension);
             is_ca = extension.parsedValue.cA;
         }
     });
@@ -233,4 +232,18 @@ export const csrMatchesCertificate = (csrPemString: string, certPemString: strin
     const csrPKbytes = csr.subjectPublicKeyInfo.subjectPublicKey.valueBeforeDecodeView
     const certPKbytes = cert.subjectPublicKeyInfo.subjectPublicKey.valueBeforeDecodeView
     return csrPKbytes.toString() == certPKbytes.toString()
+}
+
+export const HTTPStatus = (code: number): string => {
+    const map: { [key: number]: string } = {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        500: "Internal Server Error",
+    }
+    if (!(code in map)) {
+        throw new Error("code not recognized: " + code)
+    }
+    return map[code]
 }

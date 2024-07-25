@@ -1,4 +1,4 @@
-import { CSREntry } from "./types"
+import { CSREntry, UserEntry } from "./types"
 import { HTTPStatus } from "./utils"
 
 export type RequiredParams = {
@@ -119,4 +119,14 @@ export async function changePassword(changePasswordForm: { authToken: string, us
         throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${responseText}`)
     }
     return responseText
+}
+
+export async function getUsers(params: { authToken: string }): Promise<UserEntry[]> {
+    const response = await fetch("/api/v1/accounts", {
+        headers: { "Authorization": "Bearer " + params.authToken }
+    })
+    if (!response.ok) {
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
+    }
+    return response.json()
 }

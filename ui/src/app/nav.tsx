@@ -6,8 +6,10 @@ import Image from "next/image";
 import { Aside, AsideContext } from "./aside";
 import { AccountTab } from "./login"
 import { usePathname } from "next/navigation";
+import { useAuth } from "./auth/authContext";
 
 export function SideBar({ activePath, sidebarVisible, setSidebarVisible }: { activePath: string, sidebarVisible: boolean, setSidebarVisible: Dispatch<SetStateAction<boolean>> }) {
+    const auth = useAuth()
     return (
         <header className={sidebarVisible ? "l-navigation" : "l-navigation is-collapsed"}>
             <div className="l-navigation__drawer">
@@ -31,6 +33,16 @@ export function SideBar({ activePath, sidebarVisible, setSidebarVisible }: { act
                                             </span>
                                         </a>
                                     </li>
+                                    {auth.user?.permissions == 1 &&
+                                        <li className="p-side-navigation__item">
+                                            <a className="p-side-navigation__link" href="/users" aria-current={activePath.startsWith("/users") ? "page" : "false"} style={{ cursor: "pointer" }}>
+                                                <i className="p-icon--user is-light p-side-navigation__icon"></i>
+                                                <span className="p-side-navigation__label">
+                                                    <span className="p-side-navigation__label">Users</span>
+                                                </span>
+                                            </a>
+                                        </li>
+                                    }
                                 </ul>
                                 <ul className="p-side-navigation__list" style={{ bottom: 0, position: "absolute", width: "100%" }}>
                                     <li className="p-side-navigation__item" >

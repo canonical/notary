@@ -11,3 +11,8 @@ export type User = {
     username: string
     authToken: string
 }
+
+export type UserEntry = {
+    id: number
+    username: string
+}

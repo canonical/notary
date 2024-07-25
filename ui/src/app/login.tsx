@@ -17,7 +17,7 @@ export function AccountTab() {
                         </span>
                         <div className="p-side-navigation__status">
                             <i className="p-icon--menu"></i>
-                            <span className="p-contextual-menu__dropdown" id="menu-3" aria-hidden={!menuOpen}>
+                            <span className="p-contextual-menu__dropdown" id="menu-3" aria-hidden={!menuOpen} style={{ bottom: "40px" }}>
                                 <span className="p-contextual-menu__group">
                                     <button className="p-contextual-menu__link">Change Password</button>
                                     <button className="p-contextual-menu__link" onMouseDown={() => removeCookie("user_token")}>Log Out</button>

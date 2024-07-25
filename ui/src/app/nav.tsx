@@ -32,7 +32,7 @@ export function SideBar({ activePath, sidebarVisible, setSidebarVisible }: { act
                                         </a>
                                     </li>
                                 </ul>
-                                <ul className="p-side-navigation__list">
+                                <ul className="p-side-navigation__list" style={{ bottom: 0, position: "absolute", width: "100%" }}>
                                     <li className="p-side-navigation__item" >
                                         <AccountTab />
                                     </li>

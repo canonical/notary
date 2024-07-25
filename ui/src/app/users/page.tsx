@@ -5,6 +5,7 @@ import { getUsers } from "../queries"
 import { UserEntry } from "../types"
 import { useCookies } from "react-cookie"
 import { useRouter } from "next/navigation"
+import { UsersTable } from "./table"
 
 function Error({ msg }: { msg: string }) {
     return (
@@ -59,13 +60,5 @@ export default function CertificateRequests() {
         return <Error msg={query.error.message} />
     }
     const users = Array.from(query.data ? query.data : [])
-    return (
-        <>
-            {
-                users.map((user) => {
-                    return <div key={user.id}>{user.username}</div>
-                })
-            }
-        </>
-    )
+    return  <UsersTable users={users} />
 }

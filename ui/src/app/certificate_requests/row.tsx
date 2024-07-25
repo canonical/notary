@@ -1,7 +1,7 @@
 import { useState, Dispatch, SetStateAction, useEffect, useRef } from "react"
 import { UseMutationResult, useMutation, useQueryClient } from "react-query"
 import { extractCSR, extractCert } from "../utils"
-import { RequiredParams, deleteCSR, rejectCSR, revokeCertificate } from "../queries"
+import { RequiredCSRParams, deleteCSR, rejectCSR, revokeCertificate } from "../queries"
 import { ConfirmationModal, SubmitCertificateModal, SuccessNotification } from "./components"
 import "./../globals.scss"
 import { useCookies } from "react-cookie"
@@ -43,7 +43,7 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
     const revokeMutation = useMutation(revokeCertificate, {
         onSuccess: () => queryClient.invalidateQueries('csrs')
     })
-    const mutationFunc = (mutation: UseMutationResult<any, unknown, RequiredParams, unknown>, params: RequiredParams) => {
+    const mutationFunc = (mutation: UseMutationResult<any, unknown, RequiredCSRParams, unknown>, params: RequiredCSRParams) => {
         mutation.mutate(params)
     }
 

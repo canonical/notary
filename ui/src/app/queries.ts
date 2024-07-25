@@ -1,7 +1,7 @@
 import { CSREntry, UserEntry } from "./types"
 import { HTTPStatus } from "./utils"
 
-export type RequiredParams = {
+export type RequiredCSRParams = {
     id: string
     authToken: string
     csr?: string
@@ -36,7 +36,7 @@ export async function postCSR(params: { authToken: string, csr: string }) {
     return response.json()
 }
 
-export async function postCertToID(params: RequiredParams) {
+export async function postCertToID(params: RequiredCSRParams) {
     if (!params.cert) {
         throw new Error('Certificate not provided')
     }
@@ -54,7 +54,7 @@ export async function postCertToID(params: RequiredParams) {
     return response.json()
 }
 
-export async function deleteCSR(params: RequiredParams) {
+export async function deleteCSR(params: RequiredCSRParams) {
     const response = await fetch("/api/v1/certificate_requests/" + params.id, {
         method: 'delete',
         headers: {
@@ -67,7 +67,7 @@ export async function deleteCSR(params: RequiredParams) {
     return response.json()
 }
 
-export async function rejectCSR(params: RequiredParams) {
+export async function rejectCSR(params: RequiredCSRParams) {
     const response = await fetch("/api/v1/certificate_requests/" + params.id + "/certificate/reject", {
         method: 'post',
         headers: {
@@ -80,7 +80,7 @@ export async function rejectCSR(params: RequiredParams) {
     return response.json()
 }
 
-export async function revokeCertificate(params: RequiredParams) {
+export async function revokeCertificate(params: RequiredCSRParams) {
     const response = await fetch("/api/v1/certificate_requests/" + params.id + "/certificate/reject", {
         method: 'post',
         headers: {
@@ -124,6 +124,19 @@ export async function changePassword(changePasswordForm: { authToken: string, us
 export async function getUsers(params: { authToken: string }): Promise<UserEntry[]> {
     const response = await fetch("/api/v1/accounts", {
         headers: { "Authorization": "Bearer " + params.authToken }
+    })
+    if (!response.ok) {
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
+    }
+    return response.json()
+}
+
+export async function deleteUser(params: { authToken: string, id: string }) {
+    const response = await fetch("/api/v1/accounts/" + params.id, {
+        method: 'delete',
+        headers: {
+            'Authorization': "Bearer " + params.authToken
+        }
     })
     if (!response.ok) {
         throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)

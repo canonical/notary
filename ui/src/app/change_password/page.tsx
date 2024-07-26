@@ -46,7 +46,7 @@ export default function ChangePasswordPage() {
             }}>
                 <div className="p-panel__content">
                     <div className="u-fixed-width">
-                        <form className={"p-form-validation " + (!passwordsMatch ? "is-error" : "")}>
+                        <form className={"p-form-validation " + ((!passwordsMatch || !passwordIsValid(password1)) && password2 != "" ? "is-error" : "")}>
                             <fieldset>
                                 <h4 className="p-panel__title">Change Password</h4>
                                 <label className="p-form__label">New Password</label>
@@ -73,8 +73,8 @@ export default function ChangePasswordPage() {
                                 </p>
                                 <label htmlFor="p-form__label">Confirm New Password</label>
                                 <input className="p-form-validation__input" type="password" id="InputPassword" name="password2" placeholder="******" autoComplete="current-password" onChange={handlePassword2Change} />
-                                {!passwordsMatch && <p className="p-form-validation__message">Passwords do not match</p>}
-                                {/* {passwordsMatch && !passwordIsValid(password1) && <p className="p-form-validation__message">Password is not valid</p>} */}
+                                {!passwordsMatch && password2 != "" && <p className="p-form-validation__message">Passwords do not match</p>}
+                                {passwordsMatch && !passwordIsValid(password1) && password2 != "" && <p className="p-form-validation__message">Password is not valid</p>}
                                 {errorText &&
                                     <div className="p-notification--negative">
                                         <div className="p-notification__content">

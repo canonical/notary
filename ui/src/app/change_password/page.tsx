@@ -48,7 +48,7 @@ export default function ChangePasswordPage() {
                 <div className="p-panel__content">
                     <div className="u-fixed-width">
                         <form className={"p-form-validation " + (!passwordsMatch ? "is-error" : "")}>
-                            <label className="p-form__label">Password</label>
+                            <label className="p-form__label">New Password</label>
                             <input className="p-form-validation__input" type="password" id="password1" name="password" placeholder="******" autoComplete="current-password" required={true} onChange={handlePassword1Change} />
                             <p className="p-form-help-text">
                                 Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.

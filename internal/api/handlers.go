@@ -47,7 +47,7 @@ func NewGoCertRouter(env *Environment) http.Handler {
 
 	router := http.NewServeMux()
 	router.HandleFunc("POST /login", Login(env))
-	router.HandleFunc("/status", HealthCheck)
+	router.HandleFunc("/status", HealthCheck(env))
 	router.Handle("/metrics", m.Handler)
 	router.Handle("/api/v1/", http.StripPrefix("/api/v1", apiV1Router))
 	router.Handle("/", frontendHandler)
@@ -86,9 +86,25 @@ func newFrontendFileServer() http.Handler {
 	})
 }
 
-// the health check endpoint simply returns a http.StatusOK
-func HealthCheck(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK) //nolint:errcheck
+// the health check endpoint returns a http.StatusOK alongside info about the server
+// initialized means the first user has been created
+func HealthCheck(env *Environment) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		users, err := env.DB.RetrieveAllUsers()
+		if err != nil {
+			logErrorAndWriteResponse("couldn't generate status", http.StatusInternalServerError, w)
+			return
+		}
+		response, err := json.Marshal(map[string]any{
+			"initialized": len(users) > 0,
+		})
+		if err != nil {
+			logErrorAndWriteResponse("couldn't generate status", http.StatusInternalServerError, w)
+			return
+		}
+		w.Write(response)            //nolint:errcheck
+		w.WriteHeader(http.StatusOK) //nolint:errcheck
+	}
 }
 
 // GetCertificateRequests returns all of the Certificate Requests
@@ -379,7 +395,6 @@ func PostUserAccount(env *Environment) http.HandlerFunc {
 			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
-
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		response, err := json.Marshal(map[string]any{"id": id})
@@ -400,6 +415,17 @@ func PostUserAccount(env *Environment) http.HandlerFunc {
 func DeleteUserAccount(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
+		user, err := env.DB.RetrieveUser(id)
+		if err != nil {
+			if !errors.Is(err, certdb.ErrIdNotFound) {
+				logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+				return
+			}
+		}
+		if user.Permissions == 1 {
+			logErrorAndWriteResponse("deleting an Admin account is not allowed.", http.StatusBadRequest, w)
+			return
+		}
 		insertId, err := env.DB.DeleteUser(id)
 		if err != nil {
 			if errors.Is(err, certdb.ErrIdNotFound) {

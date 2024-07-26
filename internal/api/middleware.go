@@ -128,10 +128,6 @@ func authMiddleware(ctx *middlewareContext) middleware {
 					return
 				}
 			}
-			if r.Method == "DELETE" && strings.HasSuffix(r.URL.Path, "accounts/1") {
-				logErrorAndWriteResponse("can't delete admin account", http.StatusConflict, w)
-				return
-			}
 			next.ServeHTTP(w, r)
 		})
 	}

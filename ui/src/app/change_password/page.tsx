@@ -53,7 +53,7 @@ export default function ChangePasswordPage() {
                             <p className="p-form-help-text">
                                 Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.
                             </p>
-                            <label htmlFor="p-form__label">Password Again</label>
+                            <label htmlFor="p-form__label">Confirm New Password</label>
                             <input className="p-form-validation__input" type="password" id="InputPassword" name="password2" placeholder="******" autoComplete="current-password" onChange={handlePassword2Change} />
                             {!passwordsMatch &&<p className="p-form-validation__message">Passwords do not match</p>}
                             {errorText &&

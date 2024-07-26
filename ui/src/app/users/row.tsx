@@ -35,9 +35,9 @@ export default function Row({ id, username }: rowProps) {
                 <td className="" aria-label="username">{username}</td>
                 <td className="" aria-label="delete-button">
                     {id == 1 ?
-                        <button className="p-button--negative has-icon" onClick={handleDelete} disabled={true}><i className="p-icon--error"></i></button>
+                        <button className="p-button--negative has-icon is-dense" onClick={handleDelete} disabled={true}><i className="p-icon--error"></i></button>
                         :
-                        <button className="p-button--negative has-icon" onClick={handleDelete}><i className="p-icon--error"></i></button>
+                        <button className="p-button--negative has-icon is-dense" onClick={handleDelete}><i className="p-icon--error"></i></button>
                     }
                 </td>
                 {confirmationModalData != null && <ConfirmationModal modalData={confirmationModalData} setModalData={setConfirmationModalData} />}

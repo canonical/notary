@@ -8,6 +8,14 @@ export type RequiredCSRParams = {
     cert?: string
 }
 
+export async function getStatus() {
+    const response = await fetch("/status")
+    if (!response.ok) {
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
+    }
+    return response.json()
+}
+
 export async function getCertificateRequests(params: { authToken: string }): Promise<CSREntry[]> {
     const response = await fetch("/api/v1/certificate_requests", {
         headers: { "Authorization": "Bearer " + params.authToken }
@@ -159,13 +167,30 @@ export async function deleteUser(params: { authToken: string, id: string }) {
     return response.json()
 }
 
-export async function postUser(userForm: { authToken: string, username: string, password: string }) {
+export async function postFirstUser(userForm: { username: string, password: string }) {
     const response = await fetch("/api/v1/accounts", {
         method: "POST",
         headers: {
             'Authorization': "Bearer " + userForm.authToken
         },
         body: JSON.stringify({ "username": userForm.username, "password": userForm.password })
+    })
+    const responseText = await response.text()
+    if (!response.ok) {
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${responseText}`)
+    }
+    return responseText
+}
+
+export async function postUser(userForm: { authToken: string, username: string, password: string }) {
+    const response = await fetch("/api/v1/accounts", {
+        method: "POST",
+        body: JSON.stringify({
+            "username": userForm.username, "password": userForm.password
+        }),
+        headers: {
+            'Authorization': "Bearer " + userForm.authToken
+        }
     })
     const responseText = await response.text()
     if (!response.ok) {

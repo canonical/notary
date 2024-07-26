@@ -85,10 +85,10 @@ export default function ChangePasswordPage() {
                                 }
                                 {!passwordsMatch || !passwordIsValid(password1) ? (
                                     <>
-                                        <button className="p-button--positive" type="submit" name="submit" disabled={true}>Change Password</button>
+                                        <button className="p-button--positive" type="submit" name="submit" disabled={true}>Submit</button>
                                     </>
                                 ) : (
-                                    <button className="p-button--positive" type="submit" name="submit" onClick={(event) => { event.preventDefault(); mutation.mutate({ authToken: (auth.user ? auth.user.authToken : ""), username: (auth.user ? auth.user.username : ""), password: password1 }) }}>Change Password</button>
+                                    <button className="p-button--positive" type="submit" name="submit" onClick={(event) => { event.preventDefault(); mutation.mutate({ authToken: (auth.user ? auth.user.authToken : ""), username: (auth.user ? auth.user.username : ""), password: password1 }) }}>Submit</button>
                                 )}
                             </fieldset>
                         </form>

@@ -9,4 +9,5 @@ export type User = {
     id: number
     permissions: number
     username: string
+    authToken: string
 }

@@ -7,6 +7,11 @@ vi.mock('next/navigation', () => ({
   usePathname: () => {
     return "/certificate_requests"
   },
+  useRouter: () => {
+    return {
+
+    }
+  }
 }));
 
 describe('Navigation', () => {

@@ -21,6 +21,7 @@ export const AuthProvider = ({ children }: Readonly<{ children: React.ReactNode 
         const token = cookies.user_token;
         if (token) {
             let userObject = jwtDecode(cookies.user_token) as User
+            userObject.authToken = cookies.user_token
             setUser(userObject);
         } else {
             setUser(null)

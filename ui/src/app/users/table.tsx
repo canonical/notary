@@ -9,6 +9,7 @@ type TableProps = {
 
 export function UsersTable({ users: rows }: TableProps) {
     const { isOpen: isAsideOpen, setIsOpen: setAsideIsOpen } = useContext(AsideContext)
+    const [actionsMenuExpanded, setActionsMenuExpanded] = useState<number>(0)
     return (
         <div className="p-panel">
             <div className="p-panel__header is-sticky">
@@ -24,13 +25,13 @@ export function UsersTable({ users: rows }: TableProps) {
                             <tr>
                                 <th>ID</th>
                                 <th>Username</th>
-                                <th>Delete</th>
+                                <th className="has-overflow">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {
                                 rows.map((row) => (
-                                    <Row key={row.id} id={row.id} username={row.username} />
+                                    <Row key={row.id} id={row.id} username={row.username} ActionMenuExpanded={actionsMenuExpanded} setActionMenuExpanded={setActionsMenuExpanded} />
                                 )
                                 )}
                         </tbody>

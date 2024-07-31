@@ -8,9 +8,12 @@ import { useAuth } from "../auth/authContext"
 type rowProps = {
     id: number,
     username: string,
+
+    ActionMenuExpanded: number
+    setActionMenuExpanded: Dispatch<SetStateAction<number>>
 }
 
-export default function Row({ id, username }: rowProps) {
+export default function Row({ id, username, ActionMenuExpanded, setActionMenuExpanded }: rowProps) {
     const auth = useAuth()
     const [confirmationModalData, setConfirmationModalData] = useState<ConfirmationModalData>(null)
     const queryClient = useQueryClient()
@@ -33,12 +36,29 @@ export default function Row({ id, username }: rowProps) {
             <tr>
                 <td className="" width={5} aria-label="id">{id}</td>
                 <td className="" aria-label="username">{username}</td>
-                <td className="" aria-label="delete-button">
-                    {id == 1 ?
-                        <button className="p-button--negative has-icon is-dense" onClick={handleDelete} disabled={true}><i className="p-icon--error"></i></button>
-                        :
-                        <button className="p-button--negative has-icon is-dense" onClick={handleDelete}><i className="p-icon--error"></i></button>
-                    }
+                <td className="has-overflow" data-heading="Actions">
+                    <span className="p-contextual-menu--center u-no-margin--bottom">
+                        <button
+                            className="p-contextual-menu__toggle p-button--base is-small u-no-margin--bottom"
+                            aria-label="action-menu-button"
+                            aria-controls="action-menu"
+                            aria-expanded={ActionMenuExpanded == id ? "true" : "false"}
+                            aria-haspopup="true"
+                            onClick={() => setActionMenuExpanded(id)}
+                            onBlur={() => setActionMenuExpanded(0)}>
+                            <i className="p-icon--menu p-contextual-menu__indicator"></i>
+                        </button>
+                        <span className="p-contextual-menu__dropdown" id="action-menu" aria-hidden={ActionMenuExpanded == id ? "false" : "true"}>
+                            <span className="p-contextual-menu__group">
+                                {id == 1 ?
+                                    <button className="p-contextual-menu__link" onMouseDown={handleDelete} disabled={true}>Delete User</button>
+                                    :
+                                    <button className="p-contextual-menu__link" onMouseDown={handleDelete}>Delete User</button>
+                                }
+                                <button className="p-contextual-menu__link" >Change Password</button>
+                            </span>
+                        </span>
+                    </span>
                 </td>
                 {confirmationModalData != null && <ConfirmationModal modalData={confirmationModalData} setModalData={setConfirmationModalData} />}
             </tr>

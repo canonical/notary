@@ -148,8 +148,8 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                             aria-controls="action-menu"
                             aria-expanded={ActionMenuExpanded == id ? "true" : "false"}
                             aria-haspopup="true"
-                            onClick={toggleActionMenu}
-                            onBlur={toggleActionMenu}>
+                            onClick={() => setActionMenuExpanded(id)}
+                            onBlur={() => setActionMenuExpanded(0)}>
                             <i className="p-icon--menu p-contextual-menu__indicator"></i>
                         </button>
                         {successNotification && <SuccessNotification successMessage={successNotification} />}

@@ -80,10 +80,10 @@ export default function UploadUserAsidePanel() {
                         }
                         {!passwordsMatch || !passwordIsValid(password1) ? (
                             <>
-                                <button type="submit" name="submit" disabled={true}>Submit</button>
+                                <button className="p-button--positive" type="submit" name="submit" disabled={true}>Submit</button>
                             </>
                         ) : (
-                            <button type="submit" name="submit" onClick={(event) => { event.preventDefault(); mutation.mutate({ authToken: (auth.user ? auth.user.authToken : ""), username: username, password: password1 }) }}>Submit</button>
+                            <button className="p-button--positive" type="submit" name="submit" onClick={(event) => { event.preventDefault(); mutation.mutate({ authToken: (auth.user ? auth.user.authToken : ""), username: username, password: password1 }) }}>Submit</button>
                         )
                         }
                     </div>
@@ -92,14 +92,3 @@ export default function UploadUserAsidePanel() {
         </div >
     )
 }
-
-// function SubmitUser({ csrText, onClickFunc }: { csrText: string, onClickFunc: any }) {
-//     const validationComponent = csrText == "" ? <></> : csrIsValid ? <div><i className="p-icon--success"></i>Valid CSR</div> : <div><i className="p-icon--error"></i>Invalid CSR</div>
-//     const buttonComponent = csrIsValid ? <button className="p-button--positive u-float-right" name="submit" onClick={onClickFunc} >Submit</button> : <button className="p-button--positive u-float-right" name="submit" disabled={true} onClick={onClickFunc} >Submit</button>
-//     return (
-//         <>
-//             {validationComponent}
-//             {buttonComponent}
-//         </>
-//     )
-// }

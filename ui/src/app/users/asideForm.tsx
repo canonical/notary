@@ -39,7 +39,7 @@ export default function UploadUserAsidePanel() {
             <div className="p-panel__content">
                 <form className={"p-form-validation " + ((!passwordIsValid(password1) && password1 != "") || (!passwordsMatch && password2 != "") ? "is-error" : "")}>
                     <div className="p-form__group row">
-                        <label className="p-form__label">User Name</label>
+                        <label className="p-form__label">Username</label>
                         <input type="text" id="InputUsername" name="InputUsername" onChange={handleUsernameChange} />
                         <div>
 

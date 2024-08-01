@@ -1,6 +1,6 @@
 "use client"
 
-import { SetStateAction, Dispatch, useState } from "react"
+import { SetStateAction, Dispatch, useState, useContext } from "react"
 import { QueryClient, QueryClientProvider } from "react-query";
 import Image from "next/image";
 import { Aside, AsideContext } from "./aside";
@@ -9,6 +9,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "./auth/authContext";
 import UploadCSRAsidePanel from "./certificate_requests/asideForm";
 import UploadUserAsidePanel from "./users/asideForm";
+import { ChangePasswordModalData, ChangePasswordModal, ChangePasswordModalContext } from "./users/components";
 
 export function SideBar({ activePath, sidebarVisible, setSidebarVisible }: { activePath: string, sidebarVisible: boolean, setSidebarVisible: Dispatch<SetStateAction<boolean>> }) {
     const auth = useAuth()
@@ -56,7 +57,6 @@ export function SideBar({ activePath, sidebarVisible, setSidebarVisible }: { act
                     </div>
                 </div>
             </div>
-
         </header >
     )
 }
@@ -106,6 +106,7 @@ export default function Navigation({
     const [sidebarVisible, setSidebarVisible] = useState<boolean>(true)
     const [asideOpen, setAsideOpen] = useState<boolean>(false)
     const [asideData, setAsideData] = useState<any>(null)
+    const [changePasswordModalData, setChangePasswordModalData] = useState<ChangePasswordModalData>(null)
     let asideForm = UploadCSRAsidePanel
     if (activePath == "/users") {
         asideForm = UploadUserAsidePanel
@@ -114,18 +115,21 @@ export default function Navigation({
         <QueryClientProvider client={queryClient}>
             <div className="l-application" role="presentation">
                 <AsideContext.Provider value={{ isOpen: asideOpen, setIsOpen: setAsideOpen, extraData: asideData, setExtraData: setAsideData }}>
-                    {
-                        shouldRenderNavigation ? (
-                            <>
-                                <TopBar setSidebarVisible={setSidebarVisible} />
-                                <SideBar activePath={activePath} sidebarVisible={sidebarVisible} setSidebarVisible={setSidebarVisible} />
-                            </>
-                        ) : (
-                            <></>
-                        )
-                    }
+                    <ChangePasswordModalContext.Provider value={{ modalData: changePasswordModalData, setModalData: setChangePasswordModalData }}>
+                        {
+                            shouldRenderNavigation ? (
+                                <>
+                                    <TopBar setSidebarVisible={setSidebarVisible} />
+                                    <SideBar activePath={activePath} sidebarVisible={sidebarVisible} setSidebarVisible={setSidebarVisible} />
+                                </>
+                            ) : (
+                                <></>
+                            )
+                        }
+                    </ChangePasswordModalContext.Provider>
                     <main className="l-main">
                         {children}
+                        {changePasswordModalData != null && <ChangePasswordModal modalData={changePasswordModalData} setModalData={setChangePasswordModalData} />}
                     </main>
                     <Aside FormComponent={asideForm} />
                 </AsideContext.Provider>

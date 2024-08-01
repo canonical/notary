@@ -1,7 +1,7 @@
 import { useState, Dispatch, SetStateAction, useEffect, useRef, useContext } from "react"
 import { UseMutationResult, useMutation, useQueryClient } from "react-query"
 import { RequiredCSRParams, deleteUser } from "../queries"
-import { ConfirmationModalData, ConfirmationModal } from "./components"
+import { ConfirmationModalData, ConfirmationModal, ChangePasswordModalData, ChangePasswordModal } from "./components"
 import "./../globals.scss"
 import { useAuth } from "../auth/authContext"
 import { AsideContext } from "../aside"
@@ -18,6 +18,7 @@ export default function Row({ id, username, ActionMenuExpanded, setActionMenuExp
     const auth = useAuth()
     const asideContext = useContext(AsideContext)
     const [confirmationModalData, setConfirmationModalData] = useState<ConfirmationModalData>(null)
+    const [changePasswordModalData, setChangePasswordModalData] = useState<ChangePasswordModalData>(null)
     const queryClient = useQueryClient()
     const deleteMutation = useMutation(deleteUser, {
         onSuccess: () => queryClient.invalidateQueries('users')
@@ -32,8 +33,9 @@ export default function Row({ id, username, ActionMenuExpanded, setActionMenuExp
         })
     }
     const handleChangePassword = () => {
-        asideContext.setExtraData({ "user": { "id": id, "username": username } })
-        asideContext.setIsOpen(true)
+        // asideContext.setExtraData({ "user": { "id": id, "username": username } })
+        // asideContext.setIsOpen(true)
+        setChangePasswordModalData({ "id": id.toString(), "username": username })
     }
 
     return (
@@ -66,6 +68,7 @@ export default function Row({ id, username, ActionMenuExpanded, setActionMenuExp
                     </span>
                 </td>
                 {confirmationModalData != null && <ConfirmationModal modalData={confirmationModalData} setModalData={setConfirmationModalData} />}
+                {changePasswordModalData != null && <ChangePasswordModal modalData={changePasswordModalData} setModalData={setChangePasswordModalData} />}
             </tr>
         </>
     )

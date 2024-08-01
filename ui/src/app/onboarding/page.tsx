@@ -5,13 +5,16 @@ import { postFirstUser } from "../queries"
 import { useMutation } from "react-query"
 import { useRouter } from "next/navigation"
 import { passwordIsValid } from "../utils"
+import { useAuth } from "../auth/authContext"
 
 
 export default function Onboarding() {
     const router = useRouter()
+    const auth = useAuth()
     const mutation = useMutation(postFirstUser, {
         onSuccess: () => {
             setErrorText("")
+            auth.setFirstUserCreated(true)
             router.push("/login")
         },
         onError: (e: Error) => {

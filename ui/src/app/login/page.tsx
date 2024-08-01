@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "react-query"
 import { useState, ChangeEvent } from "react"
 import { useCookies } from "react-cookie"
 import { useRouter } from "next/navigation"
+import { useAuth } from "../auth/authContext"
 
 type statusResponse = {
     initialized: boolean
@@ -12,11 +13,12 @@ type statusResponse = {
 
 export default function LoginPage() {
     const router = useRouter()
+    const auth = useAuth()
     const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
     const statusQuery = useQuery<statusResponse, Error>({
         queryFn: () => getStatus()
     })
-    if (statusQuery.data && !statusQuery.data.initialized) {
+    if (!auth.firstUserCreated && (statusQuery.data && !statusQuery.data.initialized)) {
         router.push("/onboarding")
     }
     const mutation = useMutation(login, {

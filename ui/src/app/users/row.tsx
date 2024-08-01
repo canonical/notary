@@ -28,7 +28,7 @@ export default function Row({ id, username, ActionMenuExpanded, setActionMenuExp
     const handleDelete = () => {
         setConfirmationModalData({
             onMouseDownFunc: () => mutationFunc(deleteMutation, { id: id.toString(), authToken: auth.user ? auth.user.authToken : "" }),
-            warningText: "Deleting a user cannot be undone."
+            warningText: `Deleting user: "${username}". This action cannot be undone.`
         })
     }
     const handleChangePassword = () => {

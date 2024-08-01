@@ -170,9 +170,6 @@ export async function deleteUser(params: { authToken: string, id: string }) {
 export async function postFirstUser(userForm: { username: string, password: string }) {
     const response = await fetch("/api/v1/accounts", {
         method: "POST",
-        headers: {
-            'Authorization': "Bearer " + userForm.authToken
-        },
         body: JSON.stringify({ "username": userForm.username, "password": userForm.password })
     })
     const responseText = await response.text()

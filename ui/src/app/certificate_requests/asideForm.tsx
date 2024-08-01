@@ -5,7 +5,7 @@ import { postCSR } from "../queries";
 import { ChangeEvent, useContext, useState } from "react";
 import { AsideContext } from "../aside";
 
-export default function UploadCSRAsidePanel(): JSX.Element {
+export default function CertificateRequestsAsidePanel(): JSX.Element {
     const asideContext = useContext(AsideContext)
     const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
     const queryClient = useQueryClient()

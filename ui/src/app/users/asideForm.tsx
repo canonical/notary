@@ -1,12 +1,11 @@
 import { useMutation, useQueryClient } from "react-query";
 import { extractCSR, passwordIsValid } from "../utils";
-import { useCookies } from "react-cookie";
 import { postUser } from "../queries";
 import { ChangeEvent, useContext, useState } from "react";
 import { AsideContext } from "../aside";
 import { useAuth } from "../auth/authContext";
 
-export default function UploadUserAsidePanel() {
+export default function UsersPageAsidePanel() {
     const asideContext = useContext(AsideContext)
     const auth = useAuth()
     const queryClient = useQueryClient()
@@ -42,7 +41,6 @@ export default function UploadUserAsidePanel() {
                         <label className="p-form__label">Username</label>
                         <input type="text" id="InputUsername" name="InputUsername" onChange={handleUsernameChange} />
                         <div>
-
                             <label className="p-form__label">Password</label>
                             <button className="p-button--base u-no-margin--bottom has-icon" style={{ float: "right" }} aria-live="polite" aria-controls="password" onClick={(e) => { e.preventDefault(); setShowPassword1(!showPassword1) }}>
                                 {showPassword1 ? (

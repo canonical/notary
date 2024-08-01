@@ -1,9 +1,10 @@
-import { useState, Dispatch, SetStateAction, useEffect, useRef } from "react"
+import { useState, Dispatch, SetStateAction, useEffect, useRef, useContext } from "react"
 import { UseMutationResult, useMutation, useQueryClient } from "react-query"
 import { RequiredCSRParams, deleteUser } from "../queries"
 import { ConfirmationModalData, ConfirmationModal } from "./components"
 import "./../globals.scss"
 import { useAuth } from "../auth/authContext"
+import { AsideContext } from "../aside"
 
 type rowProps = {
     id: number,
@@ -15,6 +16,7 @@ type rowProps = {
 
 export default function Row({ id, username, ActionMenuExpanded, setActionMenuExpanded }: rowProps) {
     const auth = useAuth()
+    const asideContext = useContext(AsideContext)
     const [confirmationModalData, setConfirmationModalData] = useState<ConfirmationModalData>(null)
     const queryClient = useQueryClient()
     const deleteMutation = useMutation(deleteUser, {
@@ -23,12 +25,15 @@ export default function Row({ id, username, ActionMenuExpanded, setActionMenuExp
     const mutationFunc = (mutation: UseMutationResult<any, unknown, RequiredCSRParams, unknown>, params: RequiredCSRParams) => {
         mutation.mutate(params)
     }
-
     const handleDelete = () => {
         setConfirmationModalData({
             onMouseDownFunc: () => mutationFunc(deleteMutation, { id: id.toString(), authToken: auth.user ? auth.user.authToken : "" }),
             warningText: "Deleting a user cannot be undone."
         })
+    }
+    const handleChangePassword = () => {
+        asideContext.setExtraData({"username":username})
+        asideContext.setIsOpen(true)
     }
 
     return (
@@ -55,7 +60,7 @@ export default function Row({ id, username, ActionMenuExpanded, setActionMenuExp
                                     :
                                     <button className="p-contextual-menu__link" onMouseDown={handleDelete}>Delete User</button>
                                 }
-                                <button className="p-contextual-menu__link" >Change Password</button>
+                                <button className="p-contextual-menu__link" onMouseDown={handleChangePassword} >Change Password</button>
                             </span>
                         </span>
                     </span>

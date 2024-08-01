@@ -7,8 +7,8 @@ import { Aside, AsideContext } from "./aside";
 import { AccountTab } from "./login"
 import { usePathname } from "next/navigation";
 import { useAuth } from "./auth/authContext";
-import UploadCSRAsidePanel from "./certificate_requests/asideForm";
-import UploadUserAsidePanel from "./users/asideForm";
+import CertificateRequestsAsidePanel from "./certificate_requests/asideForm";
+import UsersPageAsidePanel from "./users/asideForm";
 
 export function SideBar({ activePath, sidebarVisible, setSidebarVisible }: { activePath: string, sidebarVisible: boolean, setSidebarVisible: Dispatch<SetStateAction<boolean>> }) {
     const auth = useAuth()
@@ -105,14 +105,15 @@ export default function Navigation({
     const shouldRenderNavigation = !noNavRoutes.includes(activePath);
     const [sidebarVisible, setSidebarVisible] = useState<boolean>(true)
     const [asideOpen, setAsideOpen] = useState<boolean>(false)
-    let asideForm = UploadCSRAsidePanel
+    const [asideData, setAsideData] = useState<any>(null)
+    let asideForm = CertificateRequestsAsidePanel
     if (activePath == "/users") {
-        asideForm = UploadUserAsidePanel
+        asideForm = UsersPageAsidePanel
     }
     return (
         <QueryClientProvider client={queryClient}>
             <div className="l-application" role="presentation">
-                <AsideContext.Provider value={{ isOpen: asideOpen, setIsOpen: setAsideOpen }}>
+                <AsideContext.Provider value={{ isOpen: asideOpen, setIsOpen: setAsideOpen, extraData: asideData, setExtraData: setAsideData }}>
                     {
                         shouldRenderNavigation ? (
                             <>
@@ -124,9 +125,9 @@ export default function Navigation({
                         )
                     }
                     <main className="l-main">
-                            {children}
+                        {children}
                     </main>
-                    <Aside FormComponent={asideForm} formProps={null} />
+                    <Aside FormComponent={asideForm} />
                 </AsideContext.Provider>
             </div >
         </QueryClientProvider>

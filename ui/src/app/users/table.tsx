@@ -9,13 +9,14 @@ type TableProps = {
 
 export function UsersTable({ users: rows }: TableProps) {
     const { isOpen: isAsideOpen, setIsOpen: setAsideIsOpen } = useContext(AsideContext)
+    const asideContext = useContext(AsideContext)
     const [actionsMenuExpanded, setActionsMenuExpanded] = useState<number>(0)
     return (
         <div className="p-panel">
             <div className="p-panel__header is-sticky">
                 <h4 className="p-panel__title">Users</h4>
                 <div className="p-panel__controls">
-                    {rows.length > 0 && <button className="u-no-margin--bottom p-button--positive" aria-label="add-csr-button" onClick={() => setAsideIsOpen(true)}>Create New User</button>}
+                    {rows.length > 0 && <button className="u-no-margin--bottom p-button--positive" aria-label="add-csr-button" onClick={() => {asideContext.setExtraData(null);setAsideIsOpen(true)}}>Create New User</button>}
                 </div>
             </div>
             <div className="p-panel__content">

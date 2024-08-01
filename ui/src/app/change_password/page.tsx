@@ -1,11 +1,12 @@
 "use client"
 
-import { changePassword } from "../queries"
+import { changeSelfPassword } from "../queries"
 import { useMutation } from "react-query"
-import { useState, ChangeEvent } from "react"
+import { useState, ChangeEvent, useContext } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "../auth/authContext"
 import { passwordIsValid } from "../utils"
+import { AsideContext } from "../aside"
 
 export default function ChangePasswordPage() {
     const router = useRouter()
@@ -14,7 +15,7 @@ export default function ChangePasswordPage() {
         router.push('/login')
     }
 
-    const mutation = useMutation(changePassword, {
+    const mutation = useMutation(changeSelfPassword, {
         onSuccess: (e) => {
             setErrorText("")
             router.push('/certificate_requests')
@@ -88,7 +89,7 @@ export default function ChangePasswordPage() {
                                         <button className="p-button--positive" type="submit" name="submit" disabled={true}>Submit</button>
                                     </>
                                 ) : (
-                                    <button className="p-button--positive" type="submit" name="submit" onClick={(event) => { event.preventDefault(); mutation.mutate({ authToken: (auth.user ? auth.user.authToken : ""), username: (auth.user ? auth.user.username : ""), password: password1 }) }}>Submit</button>
+                                    <button className="p-button--positive" type="submit" name="submit" onClick={(event) => { event.preventDefault(); mutation.mutate({ authToken: (auth.user ? auth.user.authToken : ""), password: password1 }) }}>Submit</button>
                                 )}
                             </fieldset>
                         </form>

@@ -32,7 +32,7 @@ export default function Row({ id, username, ActionMenuExpanded, setActionMenuExp
         })
     }
     const handleChangePassword = () => {
-        asideContext.setExtraData({"username":username})
+        asideContext.setExtraData({ "user": { "id": id, "username": username } })
         asideContext.setIsOpen(true)
     }
 

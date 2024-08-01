@@ -7,8 +7,8 @@ import { Aside, AsideContext } from "./aside";
 import { AccountTab } from "./login"
 import { usePathname } from "next/navigation";
 import { useAuth } from "./auth/authContext";
-import CertificateRequestsAsidePanel from "./certificate_requests/asideForm";
-import UsersPageAsidePanel from "./users/asideForm";
+import UploadCSRAsidePanel from "./certificate_requests/asideForm";
+import UploadUserAsidePanel from "./users/asideForm";
 
 export function SideBar({ activePath, sidebarVisible, setSidebarVisible }: { activePath: string, sidebarVisible: boolean, setSidebarVisible: Dispatch<SetStateAction<boolean>> }) {
     const auth = useAuth()
@@ -106,9 +106,9 @@ export default function Navigation({
     const [sidebarVisible, setSidebarVisible] = useState<boolean>(true)
     const [asideOpen, setAsideOpen] = useState<boolean>(false)
     const [asideData, setAsideData] = useState<any>(null)
-    let asideForm = CertificateRequestsAsidePanel
+    let asideForm = UploadCSRAsidePanel
     if (activePath == "/users") {
-        asideForm = UsersPageAsidePanel
+        asideForm = UploadUserAsidePanel
     }
     return (
         <QueryClientProvider client={queryClient}>

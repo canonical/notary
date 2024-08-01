@@ -1,4 +1,5 @@
 import { SetStateAction, Dispatch, createContext, useContext, ComponentType } from "react"
+import { useAuth } from "./auth/authContext"
 
 type AsideContextType = {
     isOpen: boolean,
@@ -17,9 +18,10 @@ export const AsideContext = createContext<AsideContextType>({
 })
 
 export function Aside({ FormComponent }: { FormComponent: React.ComponentType<any> }) {
+    const auth = useAuth()
     const asideContext = useContext(AsideContext)
     return (
-        <aside className={"l-aside" + (asideContext.isOpen ? "" : " is-collapsed")} id="aside-panel" aria-label="aside-panel" >
+        <aside className={"l-aside" + (auth.user && asideContext.isOpen ? "" : " is-collapsed")} id="aside-panel" aria-label="aside-panel" >
             <FormComponent />
         </aside >
     )

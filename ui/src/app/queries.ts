@@ -106,13 +106,28 @@ export async function login(userForm: { username: string, password: string }) {
     return responseText
 }
 
-export async function changePassword(changePasswordForm: { authToken: string, username: string, password: string }) {
+export async function changeSelfPassword(changePasswordForm: { authToken: string, password: string }) {
     const response = await fetch("/api/v1/accounts/me/change_password", {
         method: "POST",
         headers: {
             'Authorization': 'Bearer ' + changePasswordForm.authToken
         },
-        body: JSON.stringify({ "username": changePasswordForm.username, "password": changePasswordForm.password })
+        body: JSON.stringify({ "password": changePasswordForm.password })
+    })
+    const responseText = await response.text()
+    if (!response.ok) {
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${responseText}`)
+    }
+    return responseText
+}
+
+export async function changePassword(changePasswordForm: { authToken: string, id: string, password: string }) {
+    const response = await fetch("/api/v1/accounts/" + changePasswordForm.id + "/change_password", {
+        method: "POST",
+        headers: {
+            'Authorization': 'Bearer ' + changePasswordForm.authToken
+        },
+        body: JSON.stringify({ "password": changePasswordForm.password })
     })
     const responseText = await response.text()
     if (!response.ok) {

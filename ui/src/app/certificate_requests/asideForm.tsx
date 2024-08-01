@@ -11,6 +11,7 @@ export default function CertificateRequestsAsidePanel(): JSX.Element {
     const queryClient = useQueryClient()
     const mutation = useMutation(postCSR, {
         onSuccess: () => {
+            asideContext.setIsOpen(false)
             queryClient.invalidateQueries('csrs')
         },
     })

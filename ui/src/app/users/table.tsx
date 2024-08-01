@@ -16,7 +16,7 @@ export function UsersTable({ users: rows }: TableProps) {
             <div className="p-panel__header is-sticky">
                 <h4 className="p-panel__title">Users</h4>
                 <div className="p-panel__controls">
-                    {rows.length > 0 && <button className="u-no-margin--bottom p-button--positive" aria-label="add-csr-button" onClick={() => {asideContext.setExtraData(null);setAsideIsOpen(true)}}>Create New User</button>}
+                    {rows.length > 0 && <button className="u-no-margin--bottom p-button--positive" aria-label="add-csr-button" onClick={() => { asideContext.setExtraData(null); setAsideIsOpen(true) }}>Create New User</button>}
                 </div>
             </div>
             <div className="p-panel__content">
@@ -33,8 +33,7 @@ export function UsersTable({ users: rows }: TableProps) {
                             {
                                 rows.map((row) => (
                                     <Row key={row.id} id={row.id} username={row.username} ActionMenuExpanded={actionsMenuExpanded} setActionMenuExpanded={setActionsMenuExpanded} />
-                                )
-                                )}
+                                ))}
                         </tbody>
                     </table>
                 </div>

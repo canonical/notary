@@ -1,13 +1,18 @@
 "use client"
 
-import { SetStateAction, Dispatch, useState } from "react"
+import { SetStateAction, Dispatch, useState, useContext } from "react"
 import { QueryClient, QueryClientProvider } from "react-query";
 import Image from "next/image";
 import { Aside, AsideContext } from "./aside";
 import { AccountTab } from "./login"
 import { usePathname } from "next/navigation";
+import { useAuth } from "./auth/authContext";
+import UploadCSRAsidePanel from "./certificate_requests/asideForm";
+import UploadUserAsidePanel from "./users/asideForm";
+import { ChangePasswordModalData, ChangePasswordModal, ChangePasswordModalContext } from "./users/components";
 
 export function SideBar({ activePath, sidebarVisible, setSidebarVisible }: { activePath: string, sidebarVisible: boolean, setSidebarVisible: Dispatch<SetStateAction<boolean>> }) {
+    const auth = useAuth()
     return (
         <header className={sidebarVisible ? "l-navigation" : "l-navigation is-collapsed"}>
             <div className="l-navigation__drawer">
@@ -31,6 +36,16 @@ export function SideBar({ activePath, sidebarVisible, setSidebarVisible }: { act
                                             </span>
                                         </a>
                                     </li>
+                                    {auth.user?.permissions == 1 &&
+                                        <li className="p-side-navigation__item">
+                                            <a className="p-side-navigation__link" href="/users" aria-current={activePath.startsWith("/users") ? "page" : "false"} style={{ cursor: "pointer" }}>
+                                                <i className="p-icon--user is-light p-side-navigation__icon"></i>
+                                                <span className="p-side-navigation__label">
+                                                    <span className="p-side-navigation__label">Users</span>
+                                                </span>
+                                            </a>
+                                        </li>
+                                    }
                                 </ul>
                                 <ul className="p-side-navigation__list" style={{ bottom: 0, position: "absolute", width: "100%" }}>
                                     <li className="p-side-navigation__item" >
@@ -42,7 +57,6 @@ export function SideBar({ activePath, sidebarVisible, setSidebarVisible }: { act
                     </div>
                 </div>
             </div>
-
         </header >
     )
 }
@@ -91,25 +105,34 @@ export default function Navigation({
     const shouldRenderNavigation = !noNavRoutes.includes(activePath);
     const [sidebarVisible, setSidebarVisible] = useState<boolean>(true)
     const [asideOpen, setAsideOpen] = useState<boolean>(false)
+    const [asideData, setAsideData] = useState<any>(null)
+    const [changePasswordModalData, setChangePasswordModalData] = useState<ChangePasswordModalData>(null)
+    let asideForm = UploadCSRAsidePanel
+    if (activePath == "/users") {
+        asideForm = UploadUserAsidePanel
+    }
     return (
         <QueryClientProvider client={queryClient}>
             <div className="l-application" role="presentation">
-                {
-                    shouldRenderNavigation ? (
-                        <>
-                            <TopBar setSidebarVisible={setSidebarVisible} />
-                            <SideBar activePath={activePath} sidebarVisible={sidebarVisible} setSidebarVisible={setSidebarVisible} />
-                        </>
-                    ) : (
-                        <></>
-                    )
-                }
-                <main className="l-main">
-                    <AsideContext.Provider value={{ isOpen: asideOpen, setIsOpen: setAsideOpen }}>
+                <AsideContext.Provider value={{ isOpen: asideOpen, setIsOpen: setAsideOpen, extraData: asideData, setExtraData: setAsideData }}>
+                    <ChangePasswordModalContext.Provider value={{ modalData: changePasswordModalData, setModalData: setChangePasswordModalData }}>
+                        {
+                            shouldRenderNavigation ? (
+                                <>
+                                    <TopBar setSidebarVisible={setSidebarVisible} />
+                                    <SideBar activePath={activePath} sidebarVisible={sidebarVisible} setSidebarVisible={setSidebarVisible} />
+                                </>
+                            ) : (
+                                <></>
+                            )
+                        }
+                    </ChangePasswordModalContext.Provider>
+                    <main className="l-main">
                         {children}
-                    </AsideContext.Provider>
-                </main>
-                <Aside isOpen={asideOpen} setIsOpen={setAsideOpen} />
+                        {changePasswordModalData != null && <ChangePasswordModal modalData={changePasswordModalData} setModalData={setChangePasswordModalData} />}
+                    </main>
+                    <Aside FormComponent={asideForm} />
+                </AsideContext.Provider>
             </div >
         </QueryClientProvider>
     )

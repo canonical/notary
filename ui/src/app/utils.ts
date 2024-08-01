@@ -270,7 +270,6 @@ export const passwordIsValid = (pw: string) => {
     if (/[^A-Za-z0-9]/.test(pw)) {
         result.hasSymbol = true;
     }
-    console.log(result)
 
     if (result.hasCapital && result.hasLowercase && (result.hasSymbol || result.hasNumber)) {
         return true

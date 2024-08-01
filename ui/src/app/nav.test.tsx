@@ -2,6 +2,7 @@ import { expect, describe, it, vi } from "vitest";
 import { render, fireEvent, screen } from '@testing-library/react'
 import Navigation from "./nav";
 import { CertificateRequestsTable } from "./certificate_requests/table";
+import { User } from "./types";
 
 vi.mock('next/navigation', () => ({
   usePathname: () => {
@@ -13,6 +14,11 @@ vi.mock('next/navigation', () => ({
     }
   }
 }));
+vi.mock('./auth/authContext', () => ({
+  useAuth: () => {
+    return { "user": {"id": 0, "username": "adman" } as User}
+  }
+}))
 
 describe('Navigation', () => {
   it('should open aside when clicking button', () => {

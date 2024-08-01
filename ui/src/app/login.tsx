@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { useAuth } from "./auth/authContext";
 import { useCookies } from "react-cookie";
 import { useRouter } from "next/navigation";
+import { ChangePasswordModal, ChangePasswordModalContext, ChangePasswordModalData } from "./users/components";
+
+
 
 export function AccountTab() {
-    const router = useRouter()
     const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
     const [menuOpen, setMenuOpen] = useState<boolean>(false)
+    const changePasswordModalContext = useContext(ChangePasswordModalContext)
     const authDetails = useAuth()
     return (
         <>
@@ -21,7 +24,7 @@ export function AccountTab() {
                             <i className="p-icon--menu"></i>
                             <span className="p-contextual-menu__dropdown" id="menu-3" aria-hidden={!menuOpen} style={{ bottom: "40px" }}>
                                 <span className="p-contextual-menu__group">
-                                    <button className="p-contextual-menu__link" onMouseDown={() => router.push("/change_password")}>Change Password</button>
+                                    <button className="p-contextual-menu__link" onMouseDown={() => changePasswordModalContext.setModalData({ "id": authDetails.user ? authDetails.user.id.toString() : "", "username": authDetails.user ? authDetails.user.username : "" })}>Change Password</button>
                                     <button className="p-contextual-menu__link" onMouseDown={() => removeCookie("user_token")}>Log Out</button>
                                 </span>
                             </span>

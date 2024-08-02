@@ -44,13 +44,13 @@ export default function Onboarding() {
                 minWidth: "min-content",
                 minHeight: "min-content",
             }}>
-                <div className="p-panel__header">
-                    <h1 className="p-panel__title">Welcome to GoCert</h1>
-                </div>
-                <div className="p-panel__content">
-                    <h5>Please create an admin user to get started</h5>
-                    <form className={"p-form-validation " + ((!passwordIsValid(password1) && password1 != "") || (!passwordsMatch && password2 != "") ? "is-error" : "")}>
-                        <fieldset>
+                <fieldset>
+                    <div className="p-panel__header">
+                        <h2>Initialize GoCert</h2>
+                    </div>
+                    <div className="p-panel__content">
+                        <h4>Create the initial admin user</h4>
+                        <form className={"p-form-validation " + ((!passwordIsValid(password1) && password1 != "") || (!passwordsMatch && password2 != "") ? "is-error" : "")}>
                             <div className="p-form__group row">
                                 <label className="p-form__label">Username</label>
                                 <input type="text" id="InputUsername" name="InputUsername" onChange={handleUsernameChange} />
@@ -98,9 +98,9 @@ export default function Onboarding() {
                                     <button className="p-button--positive" type="submit" name="submit" onClick={(event) => { event.preventDefault(); mutation.mutate({ username: username, password: password1 }) }}>Submit</button>
                                 )}
                             </div>
-                        </fieldset>
-                    </form>
-                </div>
+                        </form>
+                    </div>
+                </fieldset>
             </div >
         </div>
     )

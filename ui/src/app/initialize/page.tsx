@@ -11,7 +11,7 @@ import { useCookies } from "react-cookie"
 import { statusResponse } from "../types"
 
 
-export default function Onboarding() {
+export default function Initialize() {
     const router = useRouter()
     const auth = useAuth()
     const [cookies, setCookie, removeCookie] = useCookies(['user_token']);

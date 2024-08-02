@@ -18,7 +18,6 @@ export default function Onboarding() {
     const statusQuery = useQuery<statusResponse, Error>({
         queryFn: () => getStatus()
     })
-    console.log(statusQuery.data)
     if (statusQuery.data && statusQuery.data.initialized) {
         auth.setFirstUserCreated(true)
         router.push("/login")
@@ -80,9 +79,9 @@ export default function Onboarding() {
                             <h2>Initialize GoCert</h2>
                         </div>
                         <div className="p-panel__content">
-                            <h4>Create the initial admin user</h4>
                             <form className={"p-form-validation " + ((!passwordIsValid(password1) && password1 != "") || (!passwordsMatch && password2 != "") ? "is-error" : "")}>
                                 <div className="p-form__group row">
+                                    <h4>Create the initial admin user</h4>
                                     <label className="p-form__label">Username</label>
                                     <input type="text" id="InputUsername" name="InputUsername" onChange={handleUsernameChange} />
                                     <div>

@@ -42,7 +42,7 @@ export default function LoginPage() {
     const handlePasswordChange = (event: ChangeEvent<HTMLInputElement>) => { setPassword(event.target.value) }
     return (
         <>
-            <div style={{ backgroundColor: "#262626", height: "7.5vh" }}>
+            <div style={{ backgroundColor: "#262626", height: "6.5vh" }}>
                 <div style={{ marginLeft: "30px" }}>
                     <Logo />
                 </div>
@@ -52,7 +52,7 @@ export default function LoginPage() {
                 alignContent: "center",
                 justifyContent: "center",
                 flexWrap: "wrap",
-                height: "92.5vh",
+                height: "93.5vh",
             }}>
                 <div className="p-panel" style={{
                     width: "35rem",

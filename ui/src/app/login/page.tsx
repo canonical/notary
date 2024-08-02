@@ -6,10 +6,8 @@ import { useState, ChangeEvent } from "react"
 import { useCookies } from "react-cookie"
 import { useRouter } from "next/navigation"
 import { useAuth } from "../auth/authContext"
+import { statusResponse } from "../types"
 
-type statusResponse = {
-    initialized: boolean
-}
 
 export default function LoginPage() {
     const router = useRouter()

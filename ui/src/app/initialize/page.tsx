@@ -1,22 +1,47 @@
 "use client"
 
 import { useState, ChangeEvent } from "react"
-import { postFirstUser } from "../queries"
-import { useMutation } from "react-query"
+import { getStatus, login, postFirstUser } from "../queries"
+import { useMutation, useQuery } from "react-query"
 import { useRouter } from "next/navigation"
 import { passwordIsValid } from "../utils"
 import { useAuth } from "../auth/authContext"
 import { Logo } from "../nav"
+import { useCookies } from "react-cookie"
+import { statusResponse } from "../types"
 
 
 export default function Onboarding() {
     const router = useRouter()
     const auth = useAuth()
-    const mutation = useMutation(postFirstUser, {
+    const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
+    const statusQuery = useQuery<statusResponse, Error>({
+        queryFn: () => getStatus()
+    })
+    console.log(statusQuery.data)
+    if (statusQuery.data && statusQuery.data.initialized) {
+        auth.setFirstUserCreated(true)
+        router.push("/login")
+    }
+    const loginMutation = useMutation(login, {
+        onSuccess: (e) => {
+            setErrorText("")
+            setCookie('user_token', e, {
+                sameSite: true,
+                secure: true,
+                expires: new Date(new Date().getTime() + 60 * 60 * 1000),
+            })
+            router.push('/certificate_requests')
+        },
+        onError: (e: Error) => {
+            setErrorText(e.message)
+        }
+    })
+    const postUserMutation = useMutation(postFirstUser, {
         onSuccess: () => {
             setErrorText("")
             auth.setFirstUserCreated(true)
-            router.push("/login")
+            loginMutation.mutate({ username: username, password: password1 })
         },
         onError: (e: Error) => {
             setErrorText(e.message)
@@ -101,7 +126,7 @@ export default function Onboarding() {
                                             <button className="p-button--positive" type="submit" name="submit" disabled={true}>Submit</button>
                                         </>
                                     ) : (
-                                        <button className="p-button--positive" type="submit" name="submit" onClick={(event) => { event.preventDefault(); mutation.mutate({ username: username, password: password1 }) }}>Submit</button>
+                                        <button className="p-button--positive" type="submit" name="submit" onClick={(event) => { event.preventDefault(); postUserMutation.mutate({ username: username, password: password1 }) }}>Submit</button>
                                     )}
                                 </div>
                             </form>

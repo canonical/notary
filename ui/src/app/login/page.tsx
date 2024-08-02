@@ -1,14 +1,24 @@
 "use client"
 
-import { login } from "../queries"
-import { useMutation } from "react-query"
+import { getStatus, login } from "../queries"
+import { useMutation, useQuery } from "react-query"
 import { useState, ChangeEvent } from "react"
 import { useCookies } from "react-cookie"
 import { useRouter } from "next/navigation"
+import { useAuth } from "../auth/authContext"
+import { statusResponse } from "../types"
+
 
 export default function LoginPage() {
     const router = useRouter()
+    const auth = useAuth()
     const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
+    const statusQuery = useQuery<statusResponse, Error>({
+        queryFn: () => getStatus()
+    })
+    if (!auth.firstUserCreated && (statusQuery.data && !statusQuery.data.initialized)) {
+        router.push("/initialize")
+    }
     const mutation = useMutation(login, {
         onSuccess: (e) => {
             setErrorText("")

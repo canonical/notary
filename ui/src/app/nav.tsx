@@ -100,7 +100,7 @@ export default function Navigation({
     children: React.ReactNode;
 }>) {
     const activePath = usePathname()
-    const noNavRoutes = ['/login'];
+    const noNavRoutes = ['/login', '/initialize'];
 
     const shouldRenderNavigation = !noNavRoutes.includes(activePath);
     const [sidebarVisible, setSidebarVisible] = useState<boolean>(true)

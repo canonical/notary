@@ -101,8 +101,7 @@ function AddNewUserForm() {
                     </>
                 ) : (
                     <button className="p-button--positive" type="submit" name="submit" onClick={(event) => { event.preventDefault(); mutation.mutate({ authToken: (auth.user ? auth.user.authToken : ""), username: username, password: password1 }) }}>Submit</button>
-                )
-                }
+                )}
             </div>
         </form>
     )

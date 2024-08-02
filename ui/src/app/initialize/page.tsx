@@ -6,6 +6,7 @@ import { useMutation } from "react-query"
 import { useRouter } from "next/navigation"
 import { passwordIsValid } from "../utils"
 import { useAuth } from "../auth/authContext"
+import { Logo } from "../nav"
 
 
 export default function Onboarding() {

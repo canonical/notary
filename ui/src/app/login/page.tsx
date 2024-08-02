@@ -19,7 +19,7 @@ export default function LoginPage() {
         queryFn: () => getStatus()
     })
     if (!auth.firstUserCreated && (statusQuery.data && !statusQuery.data.initialized)) {
-        router.push("/onboarding")
+        router.push("/initialize")
     }
     const mutation = useMutation(login, {
         onSuccess: (e) => {

@@ -76,9 +76,7 @@ func newFrontendFileServer() http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		if strings.HasSuffix(path, "/") || path == "/" {
-			path = "/certificate_requests.html"
-		} else if !strings.Contains(path, ".") {
+		if !strings.HasSuffix(path, "/") && !strings.Contains(path, ".") {
 			path += ".html"
 		}
 		r.URL.Path = path

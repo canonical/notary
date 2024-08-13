@@ -2,13 +2,6 @@
 
 GoCert is a certificate management tool.
 
-## Installation
-
-```bash
-docker pull ghcr.io/canonical/gocert:latest
-docker run -it ghcr.io/canonical/gocert:latest
-```
-
 ## Requirements
 
 GoCert requires 3 files to operate:
@@ -36,9 +29,31 @@ The config file requires the following parameters:
 An example config file may look like:
 
 ```yaml
-key_path:  "./key.pem"
-cert_path: "./cert.pem"
-db_path: "./certs.db"
+key_path:  "/gocert/key.pem"
+cert_path: "/gocert/cert.pem"
+db_path: "/gocert/certs.db"
 port: 3000
 pebble_notifications: true
 ```
+
+## Installation
+
+### From OCI Image
+
+You can run GoCert in docker by doing:
+
+```bash
+docker pull ghcr.io/canonical/gocert:latest
+docker run -it ghcr.io/canonical/gocert:latest
+```
+
+You will then need to push the 3 required files before it will launch successfully. You can do this by
+```bash
+docker exec gocert /usr/bin/pebble mkdir /etc/config
+docker cp key.pem gocert:/etc/config/key.pem
+docker cp cert.pem gocert:/etc/config/cert.pem
+docker cp config.yaml gocert:/etc/config/config.yaml
+docker restart gocert
+```
+
+### Build from Source

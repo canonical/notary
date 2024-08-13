@@ -10,7 +10,7 @@ GoCert requires 3 files to operate:
 * A YAML config file with the required parameters
 
 You can generate the cert and the associated key by running:
-```
+```bash
 openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 1 -out cert.pem -subj "/CN=example.com"
 ```
 
@@ -29,9 +29,9 @@ The config file requires the following parameters:
 An example config file may look like:
 
 ```yaml
-key_path:  "/gocert/key.pem"
-cert_path: "/gocert/cert.pem"
-db_path: "/gocert/certs.db"
+key_path:  "/etc/gocert/config/key.pem"
+cert_path: "/etc/gocert/config/cert.pem"
+db_path: "/var/lib/gocert/database/certs.db"
 port: 3000
 pebble_notifications: true
 ```
@@ -40,20 +40,24 @@ pebble_notifications: true
 
 ### From OCI Image
 
-You can run GoCert in docker by doing:
-
 ```bash
+# Pull the OCI image from github and run it in docker
 docker pull ghcr.io/canonical/gocert:latest
-docker run -it ghcr.io/canonical/gocert:latest
-```
-
-You will then need to push the 3 required files before it will launch successfully. You can do this by
-```bash
-docker exec gocert /usr/bin/pebble mkdir /etc/config
-docker cp key.pem gocert:/etc/config/key.pem
-docker cp cert.pem gocert:/etc/config/cert.pem
-docker cp config.yaml gocert:/etc/config/config.yaml
+docker run -d --name gocert -p 3000:3000 ghcr.io/canonical/gocert:latest
+# Push the 3 required files and restart the workload
+docker exec gocert /usr/bin/pebble mkdir -p /etc/gocert/config
+docker cp key.pem gocert:/etc/gocert/config/key.pem
+docker cp cert.pem gocert:/etc/gocert/config/cert.pem
+docker cp config.yaml gocert:/etc/gocert/config/config.yaml
 docker restart gocert
 ```
 
-### Build from Source
+### From Source
+
+go and npm CLI tools need to be installed in order to build gocert from source.
+You will need to build the frontend first, and then install gocert with Go.
+
+```bash
+npm install --prefix ui && npm run build --prefix ui && go install ./...
+gocert -config ./config.yaml
+```

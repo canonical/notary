@@ -46,6 +46,7 @@ docker pull ghcr.io/canonical/gocert:latest
 docker run -d --name gocert -p 3000:3000 ghcr.io/canonical/gocert:latest
 # Push the 3 required files and restart the workload
 docker exec gocert /usr/bin/pebble mkdir -p /etc/gocert/config
+docker exec gocert /usr/bin/pebble mkdir -p /var/lib/gocert/database
 docker cp key.pem gocert:/etc/gocert/config/key.pem
 docker cp cert.pem gocert:/etc/gocert/config/cert.pem
 docker cp config.yaml gocert:/etc/gocert/config/config.yaml

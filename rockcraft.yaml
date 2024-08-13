@@ -1,7 +1,7 @@
 name: gocert
 base: bare
 build-base: ubuntu@24.04
-version: '0.0.2'
+version: '0.0.3'
 summary: A certificate management tool
 description: |
   A certificate management tool.
@@ -12,7 +12,7 @@ platforms:
 
 services:
   gocert:
-    command: gocert [ -config /etc/config/config.yaml ]
+    command: gocert [ -config /etc/gocert/config/config.yaml ]
     override: replace
     startup: enabled
 

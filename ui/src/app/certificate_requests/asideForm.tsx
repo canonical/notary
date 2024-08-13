@@ -22,6 +22,7 @@ export default function CertificateRequestsAsidePanel(): JSX.Element {
     })
     const [CSRPEMString, setCSRPEMString] = useState<string>("")
     const handleTextChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
+        setErrorText("")
         setCSRPEMString(event.target.value);
     }
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {

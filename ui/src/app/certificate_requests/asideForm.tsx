@@ -8,12 +8,17 @@ import { AsideContext } from "../aside";
 export default function CertificateRequestsAsidePanel(): JSX.Element {
     const asideContext = useContext(AsideContext)
     const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
+    const [errorText, setErrorText] = useState<string>("")
     const queryClient = useQueryClient()
     const mutation = useMutation(postCSR, {
         onSuccess: () => {
+            setErrorText("")
             asideContext.setIsOpen(false)
             queryClient.invalidateQueries('csrs')
         },
+        onError: (e: Error) => {
+            setErrorText(e.message)
+        }
     })
     const [CSRPEMString, setCSRPEMString] = useState<string>("")
     const handleTextChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
@@ -53,7 +58,7 @@ export default function CertificateRequestsAsidePanel(): JSX.Element {
                         <input type="file" name="upload" accept=".pem,.csr" onChange={handleFileChange}></input>
                     </div>
                     <div className="p-form__group row">
-                        <SubmitCSR csrText={CSRPEMString} onClickFunc={() => mutation.mutate({ authToken: cookies.user_token, csr: CSRPEMString })} />
+                        <SubmitCSR csrText={CSRPEMString} errorText={errorText} onClickFunc={() => mutation.mutate({ authToken: cookies.user_token, csr: CSRPEMString })} />
                     </div>
                 </form>
             </div>
@@ -61,18 +66,28 @@ export default function CertificateRequestsAsidePanel(): JSX.Element {
     )
 }
 
-function SubmitCSR({ csrText, onClickFunc }: { csrText: string, onClickFunc: any }) {
+function SubmitCSR({ csrText, errorText, onClickFunc }: { csrText: string, errorText: string, onClickFunc: any }) {
     let csrIsValid = false
     try {
         extractCSR(csrText.trim())
         csrIsValid = true
     }
     catch { }
-
     const validationComponent = csrText == "" ? <></> : csrIsValid ? <div><i className="p-icon--success"></i>Valid CSR</div> : <div><i className="p-icon--error"></i>Invalid CSR</div>
-    const buttonComponent = csrIsValid ? <button className="p-button--positive u-float-right" name="submit" onClick={onClickFunc} >Submit</button> : <button className="p-button--positive u-float-right" name="submit" disabled={true} onClick={onClickFunc} >Submit</button>
+    const buttonComponent = csrIsValid ? (
+        <button className="p-button--positive u-float-right" name="submit" onClick={(e) => { e.preventDefault(); onClickFunc() }} > Submit</button >
+    ) : (
+        <button className="p-button--positive u-float-right" name="submit" disabled={true} onClick={(e) => { e.preventDefault(); onClickFunc() }} >Submit</button>)
     return (
         <>
+            {errorText != "" &&
+                <div className="p-notification--negative">
+                    <div className="p-notification__content">
+                        <h5 className="p-notification__title">Error</h5>
+                        <p className="p-notification__message">{errorText.split("error: ")}</p>
+                    </div>
+                </div>
+            }
             {validationComponent}
             {buttonComponent}
         </>

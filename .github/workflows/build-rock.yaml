@@ -20,7 +20,7 @@ jobs:
 
       - name: Create files required by GoCert
         run: |
-          printf 'key_path:  "/etc/config/key.pem"\ncert_path: "/etc/config/cert.pem"\ndb_path: "/etc/config/certs.db"\nport: 3000\npebble_notifications: true\n' > config.yaml
+          printf 'key_path:  "/etc/gocert/config/key.pem"\ncert_path: "/etc/gocert/config/cert.pem"\ndb_path: "/var/lib/gocert/database/certs.db"\nport: 3000\npebble_notifications: true\n' > config.yaml
           openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 1 -out cert.pem -subj "/CN=githubaction.example"
 
       - name: Run the image
@@ -28,10 +28,11 @@ jobs:
           docker run -d -p 3000:3000 --name gocert gocert:latest
       - name: Load config
         run: |
-          docker exec gocert /usr/bin/pebble mkdir /etc/config
-          docker cp key.pem gocert:/etc/config/key.pem
-          docker cp cert.pem gocert:/etc/config/cert.pem
-          docker cp config.yaml gocert:/etc/config/config.yaml
+          docker exec gocert /usr/bin/pebble mkdir -p /etc/gocert/config
+          docker exec gocert /usr/bin/pebble mkdir -p /var/lib/gocert/database
+          docker cp key.pem gocert:/etc/gocert/config/key.pem
+          docker cp cert.pem gocert:/etc/gocert/config/cert.pem
+          docker cp config.yaml gocert:/etc/gocert/config/config.yaml
           docker restart gocert
       - name: Check if GoCert frontend is loaded
         run: |

@@ -1,6 +1,7 @@
 # Contributing
 
 ## Getting Started
+You can build and run the program by following these steps:
 
 1. Install Go and Nodejs
 2. Fork the repository on GitHub
@@ -11,31 +12,36 @@
 7. Run the project: `gocert -config config.yaml`
 
 Commands assume you're running them from the top level git repo directory
+
 ## Testing
 
 ### Unit Tests
 
-Go:
+Run go unit tests by running:
 ```bash
 go test ./...
 ```
-Frontend:
+
+Run frontend vitest test suite by running:
 ```bash
-npm run test
+npm run test --prefix ui
 ```
 
 ### Lint
 
-Go:
+Run the linter for golang by running:
 ```bash
 golangci-lint run ./...
 ```
-Frontend:
+Run the linter for typescript by running:
 ```bash
 npm run lint
 ```
 
-## Container image
+## Creating the Container Image
+
+We use rockcraft to create OCI images for use in container technologies like docker. 
+You can create the container and import it into docker by running:
 
 ```bash
 rockcraft pack -v

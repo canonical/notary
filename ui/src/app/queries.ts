@@ -39,7 +39,8 @@ export async function postCSR(params: { authToken: string, csr: string }) {
         body: params.csr.trim()
     })
     if (!response.ok) {
-        throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
+        const responseText = await response.text()
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${responseText}`)
     }
     return response.json()
 }

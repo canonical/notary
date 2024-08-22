@@ -51,18 +51,27 @@ func TestPrometheusHandler(t *testing.T) {
 }
 
 // Generates a CSR and Certificate with the given days remaining
-func generateCertPair(daysRemaining int) (string, string) {
+func generateCertPair(daysRemaining int) (string, string, string) {
 	NotAfterTime := time.Now().AddDate(0, 0, daysRemaining)
-	key, _ := rsa.GenerateKey(rand.Reader, 2048)
+	certKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	caKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 
 	csrTemplate := x509.CertificateRequest{}
+	caTemplate := x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		NotAfter:              time.Now().AddDate(1, 0, 0),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+	}
 	certTemplate := x509.Certificate{
-		SerialNumber: big.NewInt(1),
+		SerialNumber: big.NewInt(2),
 		NotAfter:     NotAfterTime,
 	}
 
-	csrBytes, _ := x509.CreateCertificateRequest(rand.Reader, &csrTemplate, key)
-	certBytes, _ := x509.CreateCertificate(rand.Reader, &certTemplate, &certTemplate, &key.PublicKey, key)
+	csrBytes, _ := x509.CreateCertificateRequest(rand.Reader, &csrTemplate, certKey)
+	caBytes, _ := x509.CreateCertificate(rand.Reader, &caTemplate, &caTemplate, &caKey.PublicKey, caKey)
+	caCertificate, _ := x509.ParseCertificate(caBytes)
+	certBytes, _ := x509.CreateCertificate(rand.Reader, &certTemplate, caCertificate, &certKey.PublicKey, caKey)
 
 	var buff bytes.Buffer
 	pem.Encode(&buff, &pem.Block{ //nolint:errcheck
@@ -76,19 +85,25 @@ func generateCertPair(daysRemaining int) (string, string) {
 		Bytes: certBytes,
 	})
 	cert := buff.String()
-	return csr, cert
+	buff.Reset()
+	pem.Encode(&buff, &pem.Block{ //nolint:errcheck
+		Type:  "CERTIFICATE",
+		Bytes: caBytes,
+	})
+	ca := buff.String()
+	return csr, cert, ca
 }
 
 func initializeTestDB(t *testing.T, db *certdb.CertificateRequestsRepository) {
 	for i, v := range []int{5, 10, 32} {
-		csr, cert := generateCertPair(v)
+		csr, cert, ca := generateCertPair(v)
 		_, err := db.CreateCSR(csr)
 		if err != nil {
-			t.Fatalf("couldn't create test csr:%s", err)
+			t.Fatalf("couldn't create test csr: %s", err)
 		}
-		_, err = db.UpdateCSR(fmt.Sprint(i+1), cert)
+		_, err = db.UpdateCSR(fmt.Sprint(i+1), fmt.Sprintf("%s%s", cert, ca))
 		if err != nil {
-			t.Fatalf("couldn't create test cert:%s", err)
+			t.Fatalf("couldn't create test cert: %s", err)
 		}
 	}
 }

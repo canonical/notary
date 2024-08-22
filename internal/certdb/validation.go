@@ -1,10 +1,12 @@
 package certdb
 
 import (
+	"bytes"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"fmt"
 )
 
 // ValidateCertificateRequest validates the given CSR string to the following:
@@ -27,19 +29,50 @@ func ValidateCertificateRequest(csr string) error {
 }
 
 // ValidateCertificate validates the given Cert string to the following:
-// The cert string must be a valid PEM string, and should be of type CERTIFICATE
-// The PEM string should be able to be parsed into a x509 Certificate
+//
+// The string must include 2 or more PEM formatted certificate strings.
+// Each cert must be a valid PEM string, and should be capable of being parsed into type x509 CERTIFICATE
+// Each subsequent certificate in the string should be the issuer of the previous string, which means:
+//
+// All except the first certificate should have the "is a CA" Basic Constraint.
+// The public key of the certificate should match the public key of the following certificate.
+// The issuer field of the certificate should match the subject field of the following certificate.
 func ValidateCertificate(cert string) error {
-	certBlock, _ := pem.Decode([]byte(cert))
-	if certBlock == nil {
-		return errors.New("PEM Certificate string not found or malformed")
+	certData := []byte(cert)
+	certificates := []*x509.Certificate{}
+	for {
+		certBlock, rest := pem.Decode(certData)
+		if certBlock == nil {
+			break
+		}
+		if certBlock.Type != "CERTIFICATE" {
+			return errors.New("a given PEM string was not a certificate")
+		}
+		certificate, err := x509.ParseCertificate(certBlock.Bytes)
+		if err != nil {
+			return err
+		}
+		certificates = append(certificates, certificate)
+		certData = rest
 	}
-	if certBlock.Type != "CERTIFICATE" {
-		return errors.New("given PEM string not a certificate")
+	if len(certificates) < 2 {
+		return errors.New("less than 2 certificate PEM strings were found")
 	}
-	_, err := x509.ParseCertificate(certBlock.Bytes)
-	if err != nil {
-		return err
+	for i := 0; i < len(certificates)-1; i++ {
+		firstCert := certificates[i]
+		secondCert := certificates[i+1]
+		if !bytes.Equal(firstCert.RawIssuer, secondCert.RawSubject) {
+			return fmt.Errorf("invalid certificate chain: certificate %d, certificate %d: subjects do not match", i, i+1)
+		}
+		if err := firstCert.CheckSignatureFrom(secondCert); err != nil {
+			return fmt.Errorf("invalid certificate chain: certificate %d, certificate %d: keys do not match: %s", i, i+1, err.Error())
+		}
+	}
+	for i := 1; i < len(certificates)-1; i++ {
+		cert := certificates[i]
+		if !cert.IsCA {
+			return fmt.Errorf("invalid certificate chain: certificate %d is not a certificate authority", i)
+		}
 	}
 	// TODO: We should validate the actual certificate parameters here too. (Has the required fields etc)
 	return nil
@@ -47,7 +80,7 @@ func ValidateCertificate(cert string) error {
 
 // CertificateMatchesCSR makes sure that the given certificate and CSR match.
 // The given CSR and Cert must pass their respective validation functions
-// The given cert and CSR must share the same public key
+// The given CSR and Cert must share the same public key
 func CertificateMatchesCSR(cert string, csr string) error {
 	if err := ValidateCertificateRequest(csr); err != nil {
 		return err

@@ -16,91 +16,128 @@ import (
 )
 
 const (
-	validCSR1 = `-----BEGIN CERTIFICATE REQUEST-----
-MIICszCCAZsCAQAwFjEUMBIGA1UEAwwLZXhhbXBsZS5jb20wggEiMA0GCSqGSIb3
-DQEBAQUAA4IBDwAwggEKAoIBAQDC5KgrADpuOUPwSh0YLmpWF66VTcciIGC2HcGn
-oJknL7pm5q9qhfWGIdvKKlIA6cBB32jPd0QcYDsx7+AvzEvBuO7mq7v2Q1sPU4Q+
-L0s2pLJges6/cnDWvk/p5eBjDLOqHhUNzpMUga9SgIod8yymTZm3eqQvt1ABdwTg
-FzBs5QdSm2Ny1fEbbcRE+Rv5rqXyJb2isXSujzSuS22VqslDIyqnY5WaLg+pjZyR
-+0j13ecJsdh6/MJMUZWheimV2Yv7SFtxzFwbzBMO9YFS098sy4F896eBHLNe9cUC
-+d1JDtLaewlMogjHBHAxmP54dhe6vvc78anElKKP4hm5N5nlAgMBAAGgWDBWBgkq
-hkiG9w0BCQ4xSTBHMA4GA1UdDwEB/wQEAwIFoDAdBgNVHSUEFjAUBggrBgEFBQcD
-AQYIKwYBBQUHAwIwFgYDVR0RBA8wDYILZXhhbXBsZS5jb20wDQYJKoZIhvcNAQEL
-BQADggEBACP1VKEGVYKoVLMDJS+EZ0CPwIYWsO4xBXgK6atHe8WIChVn/8I7eo60
-cuMDiy4LR70G++xL1tpmYGRbx21r9d/shL2ehp9VdClX06qxlcGxiC/F8eThRuS5
-zHcdNqSVyMoLJ0c7yWHJahN5u2bn1Lov34yOEqGGpWCGF/gT1nEvM+p/v30s89f2
-Y/uPl4g3jpGqLCKTASWJDGnZLroLICOzYTVs5P3oj+VueSUwYhGK5tBnS2x5FHID
-uMNMgwl0fxGMQZjrlXyCBhXBm1k6PmwcJGJF5LQ31c+5aTTMFU7SyZhlymctB8mS
-y+ErBQsRpcQho6Ok+HTXQQUcx7WNcwI=
+	AppleCSR = `-----BEGIN CERTIFICATE REQUEST-----
+MIICsTCCAZkCAQAwbDELMAkGA1UEBhMCQ0ExFDASBgNVBAgMC05vdmEgU2NvdGlh
+MRAwDgYDVQQHDAdIYWxpZmF4MSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0
+eSBMdGQxEjAQBgNVBAMMCWFwcGxlLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEP
+ADCCAQoCggEBAOhDSpNbeFiXMQzQcobExHqYMEGzqpX8N9+AR6/HPZWBybgx1hr3
+ejqsKornzpVph/dO9UC7O9aBlG071O9VQGHt3OU3rkZIk2009vYwLuSrAlJtnUne
+p7KKn2lZGvh7jVyZE5RkS0X27vlT0soANsmcVq/82VneHrF/nbDcK6DOjQpS5o5l
+EiNk2CIpYGUkw3WnQF4pBk8t4bNOl3nfpaAOfnmNuBX3mWyfPnaKMCENMpDqL9FR
+V/O5bIPLmyH30OHUEJUkWOmFt9GFi+QfMoM0fR34KmRbDz79hZZb/yVPZZJl7l6i
+FWXkNR3gxdEnwCZkTgWk5OqS9dCJOtsDE8ECAwEAAaAAMA0GCSqGSIb3DQEBCwUA
+A4IBAQCqBX5WaNv/HjkzAyNXYuCToCb8GjmiMqL54t+1nEI1QTm6axQXivEbQT3x
+GIh7uQYC06wHE23K6Znc1/G+o3y6lID07rvhBNal1qoXUiq6CsAqk+DXYdd8MEh5
+joerEedFqcW+WTUDcqddfIyDAGPqrM9j6/E+aFYyZjJ/xRuMf1zlWMljRiwj1NI9
+NxqjsYYQ3zxfUjv8gxXm0hN8Up1O9saoEF+zbuWNdiUWd6Ih3/3u5VBNSxgVOrDQ
+CeXyyzkMx1pWTx0rWa7NSa+DMKVVzv46pck/9kLB4gPL8zqvIOMQsf74N0VcbVfd
+9jQR8mPXQYPUERl1ZhNrkzkyA0kd
 -----END CERTIFICATE REQUEST-----`
-	validCSR2 = `-----BEGIN CERTIFICATE REQUEST-----
-MIIC5zCCAc8CAQAwRzEWMBQGA1UEAwwNMTAuMTUyLjE4My41MzEtMCsGA1UELQwk
-MzlhY2UxOTUtZGM1YS00MzJiLTgwOTAtYWZlNmFiNGI0OWNmMIIBIjANBgkqhkiG
-9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjM5Wz+HRtDveRzeDkEDM4ornIaefe8d8nmFi
-pUat9qCU3U9798FR460DHjCLGxFxxmoRitzHtaR4ew5H036HlGB20yas/CMDgSUI
-69DyAsyPwEJqOWBGO1LL50qXdl5/jOkO2voA9j5UsD1CtWSklyhbNhWMpYqj2ObW
-XcaYj9Gx/TwYhw8xsJ/QRWyCrvjjVzH8+4frfDhBVOyywN7sq+I3WwCbyBBcN8uO
-yae0b/q5+UJUiqgpeOAh/4Y7qI3YarMj4cm7dwmiCVjedUwh65zVyHtQUfLd8nFW
-Kl9775mNBc1yicvKDU3ZB5hZ1MZtpbMBwaA1yMSErs/fh5KaXwIDAQABoFswWQYJ
-KoZIhvcNAQkOMUwwSjBIBgNVHREEQTA/hwQKmLc1gjd2YXVsdC1rOHMtMC52YXVs
-dC1rOHMtZW5kcG9pbnRzLnZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsMA0GCSqGSIb3
-DQEBCwUAA4IBAQCJt8oVDbiuCsik4N5AOJIT7jKsMb+j0mizwjahKMoCHdx+zv0V
-FGkhlf0VWPAdEu3gHdJfduX88WwzJ2wBBUK38UuprAyvfaZfaYUgFJQNC6DH1fIa
-uHYEhvNJBdFJHaBvW7lrSFi57fTA9IEPrB3m/XN3r2F4eoHnaJJqHZmMwqVHck87
-cAQXk3fvTWuikHiCHqqdSdjDYj/8cyiwCrQWpV245VSbOE0WesWoEnSdFXVUfE1+
-RSKeTRuuJMcdGqBkDnDI22myj0bjt7q8eqBIjTiLQLnAFnQYpcCrhc8dKU9IJlv1
-H9Hay4ZO9LRew3pEtlx2WrExw/gpUcWM8rTI
+	BananaCSR = `-----BEGIN CERTIFICATE REQUEST-----
+MIICrjCCAZYCAQAwaTELMAkGA1UEBhMCVFIxDjAMBgNVBAgMBUl6bWlyMRIwEAYD
+VQQHDAlOYXJsaWRlcmUxITAfBgNVBAoMGEludGVybmV0IFdpZGdpdHMgUHR5IEx0
+ZDETMBEGA1UEAwwKYmFuYW5hLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCC
+AQoCggEBAK+vJMxO1GTty09/E4M/RbTCPABleCuYc/uzj72KWaIvoDaanuJ4NBWM
+2aUiepxWdMNTR6oe31gLq4agLYT309tXwCeBLQnOxvBFWONmBG1qo0fQkvT5kSoq
+AO29D7hkQ0gVwg7EF3qOd0JgbDm/yvexKpYLVvWMQAngHwZRnd5vHGk6M3P7G4oG
+mIj/CL2bF6va7GWODYHb+a7jI1nkcsrk+vapc+doVszcoJ+2ryoK6JndOSGjt9SD
+uxulWZHQO32XC0btyub63pom4QxRtRXmb1mjM37XEwXJSsQO1HOnmc6ycqUK53p0
+jF8Qbs0m8y/p2NHFGTUfiyNYA3EdkjUCAwEAAaAAMA0GCSqGSIb3DQEBCwUAA4IB
+AQA+hq8kS2Y1Y6D8qH97Mnnc6Ojm61Q5YJ4MghaTD+XXbueTCx4DfK7ujYzK3IEF
+pH1AnSeJCsQeBdjT7p6nv5GcwqWXWztNKn9zibXiASK/yYKwqvQpjSjSeqGEh+Sa
+9C9SHeaPhZrJRj0i3NkqmN8moWasF9onW6MNKBX0B+pvBB+igGPcjCIFIFGUUaky
+upMXY9IG3LlWvlt+HTfuMZV+zSOZgD9oyqkh5K9XRKNq/mnNz/1llUCBZRmfeRBY
++sJ4M6MJRztiyX4/Fjb8UHQviH931rkiEGtG826IvWIyiRSnAeE8B/VzL0GlT9Zq
+ge6lFRxB1FlDuU4Blef8FnOI
 -----END CERTIFICATE REQUEST-----`
-	validCSR3 = `-----BEGIN CERTIFICATE REQUEST-----
-MIICszCCAZsCAQAwFjEUMBIGA1UEAwwLZXhhbXBsZS5jb20wggEiMA0GCSqGSIb3
-DQEBAQUAA4IBDwAwggEKAoIBAQDN7tHggWTtxiT5Sh5Npoif8J2BdpJjtMdpZ7Vu
-NVzMxW/eojSRlq0p3nafmpjnSdSH1k/XMmPsgmv9txxEHMw1LIUJUef2QVrQTI6J
-4ueu9NvexZWXZ+UxFip63PKyn/CkZRFiHCRIGzDDPxM2aApjghXy9ISMtGqDVSnr
-5hQDu2U1CEiUWKMoTpyk/KlBZliDDOzaGm3cQuzKWs6Stjzpq+uX4ecJAXZg5Cj+
-+JUETH93A/VOfsiiHXoKeTnFMCsmJgEHz2DZixw8EN8XgpOp5BA2n8Y/xS+Ren5R
-ZH7uNJI/SmQ0yrR+2bYR6hm+4bCzspyCfzbiuI5IS9+2eXA/AgMBAAGgWDBWBgkq
-hkiG9w0BCQ4xSTBHMA4GA1UdDwEB/wQEAwIFoDAdBgNVHSUEFjAUBggrBgEFBQcD
-AQYIKwYBBQUHAwIwFgYDVR0RBA8wDYILZXhhbXBsZS5jb20wDQYJKoZIhvcNAQEL
-BQADggEBAB/aPfYLbnCubYyKnxLRipoLr3TBSYFnRfcxiZR1o+L3/tuv2NlrXJjY
-K13xzzPhwuZwd6iKfX3xC33sKgnUNFawyE8IuAmyhJ2cl97iA2lwoYcyuWP9TOEx
-LT60zxp7PHsKo53gqaqRJ5B9RZtiv1jYdUZvynHP4J5JG7Zwaa0VNi/Cx5cwGW8K
-rfvNABPUAU6xIqqYgd2heDPF6kjvpoNiOl056qIAbk0dbmpqOJf/lxKBRfqlHhSC
-0qRScGu70l2Oxl89YSsfGtUyQuzTkLshI2VkEUM+W/ZauXbxLd8SyWveH3/7mDC+
-Sgi7T+lz+c1Tw+XFgkqryUwMeG2wxt8=
+	StrawberryCSR = `-----BEGIN CERTIFICATE REQUEST-----
+MIICrzCCAZcCAQAwajELMAkGA1UEBhMCSVQxDzANBgNVBAgMBlBhZG92YTEOMAwG
+A1UEBwwFUGFkdWExITAfBgNVBAoMGEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDEX
+MBUGA1UEAwwOc3RyYXdiZXJyeS5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw
+ggEKAoIBAQDXXHpy+3LLRCImyEQitM9eUdgYkexLz2PcAf89tTpkpt3L1woJw0bv
++YR80UcR2Pg+7uUVm4XSKFvcdyWg8yADHIDDZkEmKFEbrOLUsWWTQEsCpFt5MU4u
+6YnYXV0YflPXmRsJRd90NOen+wlM2ajK1gGTtLPdJ6axz15LdcT2uXXIvWhncjgL
+CvVpd/x44AMxD/BPf/d27VO5hEjxR//DtcOmS/jA+Zf1+dyIAWs2LH+ctsaPLOcg
+1rBiRrHtGL8wmPwgwK9b+QLiq9Ik+dx1Jl6BvC36LRk2CxTxfZ6e4UdYVhtnjMW2
+VEUAVg9LtowvXTexESUv6Mh4uQF6pW5ZAgMBAAGgADANBgkqhkiG9w0BAQsFAAOC
+AQEAW40HaxjVSDNKeWJ8StWGfstdvk3dwqjsfLgmnBBZSLcGppYEnnRlJxhMJ9Ks
+x2IYw7wJ55kOJ7V+SunKPPoY+7PwNDV9Llxp58vvE8CFnOc3WcL9pA2V5LbTXwtT
+R7jID5GZjOv0bn3x1WXuKVW5tkYdT6sW14rfGut1T+r1kYls+JQ5ap+BzfMtThZz
+38PCnEMmSo0/KmgUu5/LakPoy3JPaFB0bCgViZSWlxiSR44YZPsVaRL8E7Zt/qjJ
+glRL/48q/tORtxv18/Girl6oiQholkADaH3j2gB3t/fCLp8guAVLWB9DzhwrqWwP
+GFl9zB5HDoij2l0kHrb44TuonQ==
 -----END CERTIFICATE REQUEST-----`
-	validCert2 = `-----BEGIN CERTIFICATE-----
-MIIDrDCCApSgAwIBAgIURKr+jf7hj60SyAryIeN++9wDdtkwDQYJKoZIhvcNAQEL
-BQAwOTELMAkGA1UEBhMCVVMxKjAoBgNVBAMMIXNlbGYtc2lnbmVkLWNlcnRpZmlj
-YXRlcy1vcGVyYXRvcjAeFw0yNDAzMjcxMjQ4MDRaFw0yNTAzMjcxMjQ4MDRaMEcx
-FjAUBgNVBAMMDTEwLjE1Mi4xODMuNTMxLTArBgNVBC0MJDM5YWNlMTk1LWRjNWEt
-NDMyYi04MDkwLWFmZTZhYjRiNDljZjCCASIwDQYJKoZIhvcNAQEBBQADggEPADCC
-AQoCggEBAIzOVs/h0bQ73kc3g5BAzOKK5yGnn3vHfJ5hYqVGrfaglN1Pe/fBUeOt
-Ax4wixsRccZqEYrcx7WkeHsOR9N+h5RgdtMmrPwjA4ElCOvQ8gLMj8BCajlgRjtS
-y+dKl3Zef4zpDtr6APY+VLA9QrVkpJcoWzYVjKWKo9jm1l3GmI/Rsf08GIcPMbCf
-0EVsgq7441cx/PuH63w4QVTsssDe7KviN1sAm8gQXDfLjsmntG/6uflCVIqoKXjg
-If+GO6iN2GqzI+HJu3cJoglY3nVMIeuc1ch7UFHy3fJxVipfe++ZjQXNconLyg1N
-2QeYWdTGbaWzAcGgNcjEhK7P34eSml8CAwEAAaOBnTCBmjAhBgNVHSMEGjAYgBYE
-FN/vgl9cAapV7hH9lEyM7qYS958aMB0GA1UdDgQWBBRJJDZkHr64VqTC24DPQVld
-Ba3iPDAMBgNVHRMBAf8EAjAAMEgGA1UdEQRBMD+CN3ZhdWx0LWs4cy0wLnZhdWx0
-LWs4cy1lbmRwb2ludHMudmF1bHQuc3ZjLmNsdXN0ZXIubG9jYWyHBAqYtzUwDQYJ
-KoZIhvcNAQELBQADggEBAEH9NTwDiSsoQt/QXkWPMBrB830K0dlwKl5WBNgVxFP+
-hSfQ86xN77jNSp2VxOksgzF9J9u/ubAXvSFsou4xdP8MevBXoFJXeqMERq5RW3gc
-WyhXkzguv3dwH+n43GJFP6MQ+n9W/nPZCUQ0Iy7ueAvj0HFhGyZzAE2wxNFZdvCs
-gCX3nqYpp70oZIFDrhmYwE5ij5KXlHD4/1IOfNUKCDmQDgGPLI1tVtwQLjeRq7Hg
-XVelpl/LXTQawmJyvDaVT/Q9P+WqoDiMjrqF6Sy7DzNeeccWVqvqX5TVS6Ky56iS
-Mvo/+PAJHkBciR5Xn+Wg2a+7vrZvT6CBoRSOTozlLSM=
+	BananaCert = `-----BEGIN CERTIFICATE-----
+MIIEUTCCAjkCFE8lmuBE85/RPw2M17Kzl93O+9IIMA0GCSqGSIb3DQEBCwUAMGEx
+CzAJBgNVBAYTAlRSMQ4wDAYDVQQIDAVJem1pcjESMBAGA1UEBwwJTmFybGlkZXJl
+MSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQxCzAJBgNVBAMMAm1l
+MB4XDTI0MDYyODA4NDIyMFoXDTI1MDYyODA4NDIyMFowaTELMAkGA1UEBhMCVFIx
+DjAMBgNVBAgMBUl6bWlyMRIwEAYDVQQHDAlOYXJsaWRlcmUxITAfBgNVBAoMGElu
+dGVybmV0IFdpZGdpdHMgUHR5IEx0ZDETMBEGA1UEAwwKYmFuYW5hLmNvbTCCASIw
+DQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAK+vJMxO1GTty09/E4M/RbTCPABl
+eCuYc/uzj72KWaIvoDaanuJ4NBWM2aUiepxWdMNTR6oe31gLq4agLYT309tXwCeB
+LQnOxvBFWONmBG1qo0fQkvT5kSoqAO29D7hkQ0gVwg7EF3qOd0JgbDm/yvexKpYL
+VvWMQAngHwZRnd5vHGk6M3P7G4oGmIj/CL2bF6va7GWODYHb+a7jI1nkcsrk+vap
+c+doVszcoJ+2ryoK6JndOSGjt9SDuxulWZHQO32XC0btyub63pom4QxRtRXmb1mj
+M37XEwXJSsQO1HOnmc6ycqUK53p0jF8Qbs0m8y/p2NHFGTUfiyNYA3EdkjUCAwEA
+ATANBgkqhkiG9w0BAQsFAAOCAgEAVZJZD0/ojZSOVIesZvrjLG0agSp0tsXY+hEt
+I/knpYLvRcAd8b3Jx9gk+ug+FwDQ4IBIkTX18qhK2fgVUuMR/ubfpQeCMbp64N3Q
+kmN/E1eu0bl6hhHAL7jEbi0DE3vAN9huQxAIu5pCyLvZIrPJtvuyj2jOpJBZwGoP
+539lfEM++XALzI4qKQ6Z0a0rJZ4HoruKiYwEFZ7VkmRLD0uef6NMZRqa/Vx+o0uT
+1TjH4AeDDmJmP/aHlHbpXkHQ9h9rfTa6Qbypo+T9pGDhd02O1tEqrHfiQyNWJxb0
+rbR+owT32iCfayzKKqhmAYSF2d9XKWEhulgxWDaXgvUbq4Y+fgfU2qMVz5uusTDh
+a9Mp9dsYWySWEUcEa4v2w6FfaaVXE1S9ubm+HoIVtotuutL5fn86q19pAAePYjLQ
+ybiETp5LU3chuYmMlCiDRNGHYhN5nvGcttqRdWIBe454RRPNo4iGVl13l6aG8rmI
+xDfk5lIwObalbELv+mEIGI1j/j4//nJFXByxlLHm5/BF8rmvHDj1aPtPRw9DLgSX
+ejhjjec1xnkBR+JF0g474hLdPjCnA0aqLQInZbjJJm5iXzyXBg1cy7KvIBy3ZkrR
+Pp7ObjaWxjCT3O6nEH3w6Ozsyg2cHXQIdVXLvNnV1bxUbPnfhQosKGKgU6s+lcLM
+SRhHB2k=
 -----END CERTIFICATE-----`
+	IssuerCert = `-----BEGIN CERTIFICATE-----
+MIIFozCCA4ugAwIBAgIUDjtO3bEluUX3tzvrckATlycRVfwwDQYJKoZIhvcNAQEL
+BQAwYTELMAkGA1UEBhMCVFIxDjAMBgNVBAgMBUl6bWlyMRIwEAYDVQQHDAlOYXJs
+aWRlcmUxITAfBgNVBAoMGEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDELMAkGA1UE
+AwwCbWUwHhcNMjQwNjI4MDYwNTQ5WhcNMzQwNjI2MDYwNTQ5WjBhMQswCQYDVQQG
+EwJUUjEOMAwGA1UECAwFSXptaXIxEjAQBgNVBAcMCU5hcmxpZGVyZTEhMB8GA1UE
+CgwYSW50ZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMQswCQYDVQQDDAJtZTCCAiIwDQYJ
+KoZIhvcNAQEBBQADggIPADCCAgoCggIBAJU+5YaFlpn+bWvVri5L6EkmbAPuavsI
+/KXY7ufRmc5qb08o1na9lLJ/7TuMD4K36Idnq20n1JohSlrdymBpNZ8O3m5fYYtk
+hx5WADlBZsKnC5aZJIChEb4bYcOFLP+d3PooVsAKBxW0Q6TECviQcK7GxaxEZw0L
+7FRhX2c9+CxbvRGP6OGVggXZxwkZik/JJ9aym+fltt9QvlxQVBq/GlFYZYC+H8jV
+Z6RnUjugnWcTm9PAsQ6+EHEevAW+dWaDP+gr9AgKKz1EXbc1mVKAVOLHjb+Ue7RC
+vFoar/YxYIszD58dOSB/GuAxn+JAjWbnOu7jeX3XeWlKOagUJF9L9TgMIUWdiuJG
+8Uu/kK2MjyRFdT8opnPFAXrK7vSuMBzhRtswAlWc8xoZWeSQF+NpjU+swbg8ySYT
+LfZxVB+s/ftxnGU3RM/RWdbZhb0DAuIBsFAGCbnj+Q61/cK4i58JVjUqzLk+XOwR
+55LAyS0Y5pj9jDc5mqvS0z7ot7s2OBM1+o8e3KJgdMSXorYkv3toHMGEIUmPQZCX
+JtRCjFNgnoWeLDc+oLiN6BlPx7bS4MDN9tMPCJwF6vnxFzLAzdRqY3D7uRS3chsx
+7ClMR9MDsSxplC7tptXgv8UTzh1XZjWGCeZq0Gbe927Hmwy2q8k/BFwnR4PIVSiE
+7YAZPb0CPmrfAgMBAAGjUzBRMB0GA1UdDgQWBBRgLXukRHTovOG6g9Z5eCaeh6Sx
+aTAfBgNVHSMEGDAWgBRgLXukRHTovOG6g9Z5eCaeh6SxaTAPBgNVHRMBAf8EBTAD
+AQH/MA0GCSqGSIb3DQEBCwUAA4ICAQA9TpgTrGmnyxKB2ne76LNQadiijVPpS6/U
+OPFAX4EPJ0V5DhDreJjsZJC6Is2Q9+qsPpn/nlW7bvZUVHGodUKcE+TQWFiMtLvu
+8ifzk8x1R46aqhTyxb7WBBFfvbvdmlEENKTmTS6A/C3nYgmkfk5N7x84iTowmsVl
+Yzz9iRzxkqQ+mU3L2/Sp5nXPYWfzV9WXIJdxWcot7f4CJ79eVFu4D9hYfzcPQ9P9
+0qCBRbH/01D2E/3uTHhZPPmK2Tp1ao5SuGLppjMPX8VWVL5CMTXOj+1LF0nJJc/J
+9MrqXwtlLyKGP6HX8qALbaXwcv7db6bF+aEsgWmIEB+0ecGk9IR3XQn7I379CO3v
+J2oUCZ++lV9e2tcRehUprE1v8i+DFhPtS1iNjrO7KnDYkXimR5zI+3sGFI9/9wY0
+4PAV/roZFiEJHe5kA49vwIihJaDgy/SPIYgG/vhdj+WeIbi1ilEi12ou7VF0tyiE
+j3eXaMAL8EAKxCUZbXcuwmK9qistAYXBFFEK9M08FwLH8HM4LoPjshMg3II9Ncs8
+p3to8U99/ZeFbJRzEUF9poZ7VwxBEcgfWD1RV0+gNLC3Au2yuc4C3anknOv7Db/r
+jdzVA8yTI8cZ/RtRohp5H/s+j2tcdfB3Zt+wfS4nLxqN/kf7qv2VSdPbXyTyz/ft
+btZkbfdL5A==
+-----END CERTIFICATE-----
+`
 )
 
-const (
-	expectedGetAllCertsResponseBody1 = "[{\"id\":1,\"csr\":\"-----BEGIN CERTIFICATE REQUEST-----\\nMIICszCCAZsCAQAwFjEUMBIGA1UEAwwLZXhhbXBsZS5jb20wggEiMA0GCSqGSIb3\\nDQEBAQUAA4IBDwAwggEKAoIBAQDC5KgrADpuOUPwSh0YLmpWF66VTcciIGC2HcGn\\noJknL7pm5q9qhfWGIdvKKlIA6cBB32jPd0QcYDsx7+AvzEvBuO7mq7v2Q1sPU4Q+\\nL0s2pLJges6/cnDWvk/p5eBjDLOqHhUNzpMUga9SgIod8yymTZm3eqQvt1ABdwTg\\nFzBs5QdSm2Ny1fEbbcRE+Rv5rqXyJb2isXSujzSuS22VqslDIyqnY5WaLg+pjZyR\\n+0j13ecJsdh6/MJMUZWheimV2Yv7SFtxzFwbzBMO9YFS098sy4F896eBHLNe9cUC\\n+d1JDtLaewlMogjHBHAxmP54dhe6vvc78anElKKP4hm5N5nlAgMBAAGgWDBWBgkq\\nhkiG9w0BCQ4xSTBHMA4GA1UdDwEB/wQEAwIFoDAdBgNVHSUEFjAUBggrBgEFBQcD\\nAQYIKwYBBQUHAwIwFgYDVR0RBA8wDYILZXhhbXBsZS5jb20wDQYJKoZIhvcNAQEL\\nBQADggEBACP1VKEGVYKoVLMDJS+EZ0CPwIYWsO4xBXgK6atHe8WIChVn/8I7eo60\\ncuMDiy4LR70G++xL1tpmYGRbx21r9d/shL2ehp9VdClX06qxlcGxiC/F8eThRuS5\\nzHcdNqSVyMoLJ0c7yWHJahN5u2bn1Lov34yOEqGGpWCGF/gT1nEvM+p/v30s89f2\\nY/uPl4g3jpGqLCKTASWJDGnZLroLICOzYTVs5P3oj+VueSUwYhGK5tBnS2x5FHID\\nuMNMgwl0fxGMQZjrlXyCBhXBm1k6PmwcJGJF5LQ31c+5aTTMFU7SyZhlymctB8mS\\ny+ErBQsRpcQho6Ok+HTXQQUcx7WNcwI=\\n-----END CERTIFICATE REQUEST-----\",\"certificate\":\"\"}]"
-	expectedGetAllCertsResponseBody2 = "[{\"id\":1,\"csr\":\"-----BEGIN CERTIFICATE REQUEST-----\\nMIICszCCAZsCAQAwFjEUMBIGA1UEAwwLZXhhbXBsZS5jb20wggEiMA0GCSqGSIb3\\nDQEBAQUAA4IBDwAwggEKAoIBAQDC5KgrADpuOUPwSh0YLmpWF66VTcciIGC2HcGn\\noJknL7pm5q9qhfWGIdvKKlIA6cBB32jPd0QcYDsx7+AvzEvBuO7mq7v2Q1sPU4Q+\\nL0s2pLJges6/cnDWvk/p5eBjDLOqHhUNzpMUga9SgIod8yymTZm3eqQvt1ABdwTg\\nFzBs5QdSm2Ny1fEbbcRE+Rv5rqXyJb2isXSujzSuS22VqslDIyqnY5WaLg+pjZyR\\n+0j13ecJsdh6/MJMUZWheimV2Yv7SFtxzFwbzBMO9YFS098sy4F896eBHLNe9cUC\\n+d1JDtLaewlMogjHBHAxmP54dhe6vvc78anElKKP4hm5N5nlAgMBAAGgWDBWBgkq\\nhkiG9w0BCQ4xSTBHMA4GA1UdDwEB/wQEAwIFoDAdBgNVHSUEFjAUBggrBgEFBQcD\\nAQYIKwYBBQUHAwIwFgYDVR0RBA8wDYILZXhhbXBsZS5jb20wDQYJKoZIhvcNAQEL\\nBQADggEBACP1VKEGVYKoVLMDJS+EZ0CPwIYWsO4xBXgK6atHe8WIChVn/8I7eo60\\ncuMDiy4LR70G++xL1tpmYGRbx21r9d/shL2ehp9VdClX06qxlcGxiC/F8eThRuS5\\nzHcdNqSVyMoLJ0c7yWHJahN5u2bn1Lov34yOEqGGpWCGF/gT1nEvM+p/v30s89f2\\nY/uPl4g3jpGqLCKTASWJDGnZLroLICOzYTVs5P3oj+VueSUwYhGK5tBnS2x5FHID\\nuMNMgwl0fxGMQZjrlXyCBhXBm1k6PmwcJGJF5LQ31c+5aTTMFU7SyZhlymctB8mS\\ny+ErBQsRpcQho6Ok+HTXQQUcx7WNcwI=\\n-----END CERTIFICATE REQUEST-----\",\"certificate\":\"\"},{\"id\":2,\"csr\":\"-----BEGIN CERTIFICATE REQUEST-----\\nMIIC5zCCAc8CAQAwRzEWMBQGA1UEAwwNMTAuMTUyLjE4My41MzEtMCsGA1UELQwk\\nMzlhY2UxOTUtZGM1YS00MzJiLTgwOTAtYWZlNmFiNGI0OWNmMIIBIjANBgkqhkiG\\n9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjM5Wz+HRtDveRzeDkEDM4ornIaefe8d8nmFi\\npUat9qCU3U9798FR460DHjCLGxFxxmoRitzHtaR4ew5H036HlGB20yas/CMDgSUI\\n69DyAsyPwEJqOWBGO1LL50qXdl5/jOkO2voA9j5UsD1CtWSklyhbNhWMpYqj2ObW\\nXcaYj9Gx/TwYhw8xsJ/QRWyCrvjjVzH8+4frfDhBVOyywN7sq+I3WwCbyBBcN8uO\\nyae0b/q5+UJUiqgpeOAh/4Y7qI3YarMj4cm7dwmiCVjedUwh65zVyHtQUfLd8nFW\\nKl9775mNBc1yicvKDU3ZB5hZ1MZtpbMBwaA1yMSErs/fh5KaXwIDAQABoFswWQYJ\\nKoZIhvcNAQkOMUwwSjBIBgNVHREEQTA/hwQKmLc1gjd2YXVsdC1rOHMtMC52YXVs\\ndC1rOHMtZW5kcG9pbnRzLnZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsMA0GCSqGSIb3\\nDQEBCwUAA4IBAQCJt8oVDbiuCsik4N5AOJIT7jKsMb+j0mizwjahKMoCHdx+zv0V\\nFGkhlf0VWPAdEu3gHdJfduX88WwzJ2wBBUK38UuprAyvfaZfaYUgFJQNC6DH1fIa\\nuHYEhvNJBdFJHaBvW7lrSFi57fTA9IEPrB3m/XN3r2F4eoHnaJJqHZmMwqVHck87\\ncAQXk3fvTWuikHiCHqqdSdjDYj/8cyiwCrQWpV245VSbOE0WesWoEnSdFXVUfE1+\\nRSKeTRuuJMcdGqBkDnDI22myj0bjt7q8eqBIjTiLQLnAFnQYpcCrhc8dKU9IJlv1\\nH9Hay4ZO9LRew3pEtlx2WrExw/gpUcWM8rTI\\n-----END CERTIFICATE REQUEST-----\",\"certificate\":\"\"}]"
-	expectedGetAllCertsResponseBody3 = "[{\"id\":2,\"csr\":\"-----BEGIN CERTIFICATE REQUEST-----\\nMIIC5zCCAc8CAQAwRzEWMBQGA1UEAwwNMTAuMTUyLjE4My41MzEtMCsGA1UELQwk\\nMzlhY2UxOTUtZGM1YS00MzJiLTgwOTAtYWZlNmFiNGI0OWNmMIIBIjANBgkqhkiG\\n9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjM5Wz+HRtDveRzeDkEDM4ornIaefe8d8nmFi\\npUat9qCU3U9798FR460DHjCLGxFxxmoRitzHtaR4ew5H036HlGB20yas/CMDgSUI\\n69DyAsyPwEJqOWBGO1LL50qXdl5/jOkO2voA9j5UsD1CtWSklyhbNhWMpYqj2ObW\\nXcaYj9Gx/TwYhw8xsJ/QRWyCrvjjVzH8+4frfDhBVOyywN7sq+I3WwCbyBBcN8uO\\nyae0b/q5+UJUiqgpeOAh/4Y7qI3YarMj4cm7dwmiCVjedUwh65zVyHtQUfLd8nFW\\nKl9775mNBc1yicvKDU3ZB5hZ1MZtpbMBwaA1yMSErs/fh5KaXwIDAQABoFswWQYJ\\nKoZIhvcNAQkOMUwwSjBIBgNVHREEQTA/hwQKmLc1gjd2YXVsdC1rOHMtMC52YXVs\\ndC1rOHMtZW5kcG9pbnRzLnZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsMA0GCSqGSIb3\\nDQEBCwUAA4IBAQCJt8oVDbiuCsik4N5AOJIT7jKsMb+j0mizwjahKMoCHdx+zv0V\\nFGkhlf0VWPAdEu3gHdJfduX88WwzJ2wBBUK38UuprAyvfaZfaYUgFJQNC6DH1fIa\\nuHYEhvNJBdFJHaBvW7lrSFi57fTA9IEPrB3m/XN3r2F4eoHnaJJqHZmMwqVHck87\\ncAQXk3fvTWuikHiCHqqdSdjDYj/8cyiwCrQWpV245VSbOE0WesWoEnSdFXVUfE1+\\nRSKeTRuuJMcdGqBkDnDI22myj0bjt7q8eqBIjTiLQLnAFnQYpcCrhc8dKU9IJlv1\\nH9Hay4ZO9LRew3pEtlx2WrExw/gpUcWM8rTI\\n-----END CERTIFICATE REQUEST-----\",\"certificate\":\"-----BEGIN CERTIFICATE-----\\nMIIDrDCCApSgAwIBAgIURKr+jf7hj60SyAryIeN++9wDdtkwDQYJKoZIhvcNAQEL\\nBQAwOTELMAkGA1UEBhMCVVMxKjAoBgNVBAMMIXNlbGYtc2lnbmVkLWNlcnRpZmlj\\nYXRlcy1vcGVyYXRvcjAeFw0yNDAzMjcxMjQ4MDRaFw0yNTAzMjcxMjQ4MDRaMEcx\\nFjAUBgNVBAMMDTEwLjE1Mi4xODMuNTMxLTArBgNVBC0MJDM5YWNlMTk1LWRjNWEt\\nNDMyYi04MDkwLWFmZTZhYjRiNDljZjCCASIwDQYJKoZIhvcNAQEBBQADggEPADCC\\nAQoCggEBAIzOVs/h0bQ73kc3g5BAzOKK5yGnn3vHfJ5hYqVGrfaglN1Pe/fBUeOt\\nAx4wixsRccZqEYrcx7WkeHsOR9N+h5RgdtMmrPwjA4ElCOvQ8gLMj8BCajlgRjtS\\ny+dKl3Zef4zpDtr6APY+VLA9QrVkpJcoWzYVjKWKo9jm1l3GmI/Rsf08GIcPMbCf\\n0EVsgq7441cx/PuH63w4QVTsssDe7KviN1sAm8gQXDfLjsmntG/6uflCVIqoKXjg\\nIf+GO6iN2GqzI+HJu3cJoglY3nVMIeuc1ch7UFHy3fJxVipfe++ZjQXNconLyg1N\\n2QeYWdTGbaWzAcGgNcjEhK7P34eSml8CAwEAAaOBnTCBmjAhBgNVHSMEGjAYgBYE\\nFN/vgl9cAapV7hH9lEyM7qYS958aMB0GA1UdDgQWBBRJJDZkHr64VqTC24DPQVld\\nBa3iPDAMBgNVHRMBAf8EAjAAMEgGA1UdEQRBMD+CN3ZhdWx0LWs4cy0wLnZhdWx0\\nLWs4cy1lbmRwb2ludHMudmF1bHQuc3ZjLmNsdXN0ZXIubG9jYWyHBAqYtzUwDQYJ\\nKoZIhvcNAQELBQADggEBAEH9NTwDiSsoQt/QXkWPMBrB830K0dlwKl5WBNgVxFP+\\nhSfQ86xN77jNSp2VxOksgzF9J9u/ubAXvSFsou4xdP8MevBXoFJXeqMERq5RW3gc\\nWyhXkzguv3dwH+n43GJFP6MQ+n9W/nPZCUQ0Iy7ueAvj0HFhGyZzAE2wxNFZdvCs\\ngCX3nqYpp70oZIFDrhmYwE5ij5KXlHD4/1IOfNUKCDmQDgGPLI1tVtwQLjeRq7Hg\\nXVelpl/LXTQawmJyvDaVT/Q9P+WqoDiMjrqF6Sy7DzNeeccWVqvqX5TVS6Ky56iS\\nMvo/+PAJHkBciR5Xn+Wg2a+7vrZvT6CBoRSOTozlLSM=\\n-----END CERTIFICATE-----\"},{\"id\":3,\"csr\":\"-----BEGIN CERTIFICATE REQUEST-----\\nMIICszCCAZsCAQAwFjEUMBIGA1UEAwwLZXhhbXBsZS5jb20wggEiMA0GCSqGSIb3\\nDQEBAQUAA4IBDwAwggEKAoIBAQDN7tHggWTtxiT5Sh5Npoif8J2BdpJjtMdpZ7Vu\\nNVzMxW/eojSRlq0p3nafmpjnSdSH1k/XMmPsgmv9txxEHMw1LIUJUef2QVrQTI6J\\n4ueu9NvexZWXZ+UxFip63PKyn/CkZRFiHCRIGzDDPxM2aApjghXy9ISMtGqDVSnr\\n5hQDu2U1CEiUWKMoTpyk/KlBZliDDOzaGm3cQuzKWs6Stjzpq+uX4ecJAXZg5Cj+\\n+JUETH93A/VOfsiiHXoKeTnFMCsmJgEHz2DZixw8EN8XgpOp5BA2n8Y/xS+Ren5R\\nZH7uNJI/SmQ0yrR+2bYR6hm+4bCzspyCfzbiuI5IS9+2eXA/AgMBAAGgWDBWBgkq\\nhkiG9w0BCQ4xSTBHMA4GA1UdDwEB/wQEAwIFoDAdBgNVHSUEFjAUBggrBgEFBQcD\\nAQYIKwYBBQUHAwIwFgYDVR0RBA8wDYILZXhhbXBsZS5jb20wDQYJKoZIhvcNAQEL\\nBQADggEBAB/aPfYLbnCubYyKnxLRipoLr3TBSYFnRfcxiZR1o+L3/tuv2NlrXJjY\\nK13xzzPhwuZwd6iKfX3xC33sKgnUNFawyE8IuAmyhJ2cl97iA2lwoYcyuWP9TOEx\\nLT60zxp7PHsKo53gqaqRJ5B9RZtiv1jYdUZvynHP4J5JG7Zwaa0VNi/Cx5cwGW8K\\nrfvNABPUAU6xIqqYgd2heDPF6kjvpoNiOl056qIAbk0dbmpqOJf/lxKBRfqlHhSC\\n0qRScGu70l2Oxl89YSsfGtUyQuzTkLshI2VkEUM+W/ZauXbxLd8SyWveH3/7mDC+\\nSgi7T+lz+c1Tw+XFgkqryUwMeG2wxt8=\\n-----END CERTIFICATE REQUEST-----\",\"certificate\":\"\"},{\"id\":4,\"csr\":\"-----BEGIN CERTIFICATE REQUEST-----\\nMIICszCCAZsCAQAwFjEUMBIGA1UEAwwLZXhhbXBsZS5jb20wggEiMA0GCSqGSIb3\\nDQEBAQUAA4IBDwAwggEKAoIBAQDC5KgrADpuOUPwSh0YLmpWF66VTcciIGC2HcGn\\noJknL7pm5q9qhfWGIdvKKlIA6cBB32jPd0QcYDsx7+AvzEvBuO7mq7v2Q1sPU4Q+\\nL0s2pLJges6/cnDWvk/p5eBjDLOqHhUNzpMUga9SgIod8yymTZm3eqQvt1ABdwTg\\nFzBs5QdSm2Ny1fEbbcRE+Rv5rqXyJb2isXSujzSuS22VqslDIyqnY5WaLg+pjZyR\\n+0j13ecJsdh6/MJMUZWheimV2Yv7SFtxzFwbzBMO9YFS098sy4F896eBHLNe9cUC\\n+d1JDtLaewlMogjHBHAxmP54dhe6vvc78anElKKP4hm5N5nlAgMBAAGgWDBWBgkq\\nhkiG9w0BCQ4xSTBHMA4GA1UdDwEB/wQEAwIFoDAdBgNVHSUEFjAUBggrBgEFBQcD\\nAQYIKwYBBQUHAwIwFgYDVR0RBA8wDYILZXhhbXBsZS5jb20wDQYJKoZIhvcNAQEL\\nBQADggEBACP1VKEGVYKoVLMDJS+EZ0CPwIYWsO4xBXgK6atHe8WIChVn/8I7eo60\\ncuMDiy4LR70G++xL1tpmYGRbx21r9d/shL2ehp9VdClX06qxlcGxiC/F8eThRuS5\\nzHcdNqSVyMoLJ0c7yWHJahN5u2bn1Lov34yOEqGGpWCGF/gT1nEvM+p/v30s89f2\\nY/uPl4g3jpGqLCKTASWJDGnZLroLICOzYTVs5P3oj+VueSUwYhGK5tBnS2x5FHID\\nuMNMgwl0fxGMQZjrlXyCBhXBm1k6PmwcJGJF5LQ31c+5aTTMFU7SyZhlymctB8mS\\ny+ErBQsRpcQho6Ok+HTXQQUcx7WNcwI=\\n-----END CERTIFICATE REQUEST-----\",\"certificate\":\"rejected\"}]"
-	expectedGetAllCertsResponseBody4 = "[{\"id\":2,\"csr\":\"-----BEGIN CERTIFICATE REQUEST-----\\nMIIC5zCCAc8CAQAwRzEWMBQGA1UEAwwNMTAuMTUyLjE4My41MzEtMCsGA1UELQwk\\nMzlhY2UxOTUtZGM1YS00MzJiLTgwOTAtYWZlNmFiNGI0OWNmMIIBIjANBgkqhkiG\\n9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjM5Wz+HRtDveRzeDkEDM4ornIaefe8d8nmFi\\npUat9qCU3U9798FR460DHjCLGxFxxmoRitzHtaR4ew5H036HlGB20yas/CMDgSUI\\n69DyAsyPwEJqOWBGO1LL50qXdl5/jOkO2voA9j5UsD1CtWSklyhbNhWMpYqj2ObW\\nXcaYj9Gx/TwYhw8xsJ/QRWyCrvjjVzH8+4frfDhBVOyywN7sq+I3WwCbyBBcN8uO\\nyae0b/q5+UJUiqgpeOAh/4Y7qI3YarMj4cm7dwmiCVjedUwh65zVyHtQUfLd8nFW\\nKl9775mNBc1yicvKDU3ZB5hZ1MZtpbMBwaA1yMSErs/fh5KaXwIDAQABoFswWQYJ\\nKoZIhvcNAQkOMUwwSjBIBgNVHREEQTA/hwQKmLc1gjd2YXVsdC1rOHMtMC52YXVs\\ndC1rOHMtZW5kcG9pbnRzLnZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsMA0GCSqGSIb3\\nDQEBCwUAA4IBAQCJt8oVDbiuCsik4N5AOJIT7jKsMb+j0mizwjahKMoCHdx+zv0V\\nFGkhlf0VWPAdEu3gHdJfduX88WwzJ2wBBUK38UuprAyvfaZfaYUgFJQNC6DH1fIa\\nuHYEhvNJBdFJHaBvW7lrSFi57fTA9IEPrB3m/XN3r2F4eoHnaJJqHZmMwqVHck87\\ncAQXk3fvTWuikHiCHqqdSdjDYj/8cyiwCrQWpV245VSbOE0WesWoEnSdFXVUfE1+\\nRSKeTRuuJMcdGqBkDnDI22myj0bjt7q8eqBIjTiLQLnAFnQYpcCrhc8dKU9IJlv1\\nH9Hay4ZO9LRew3pEtlx2WrExw/gpUcWM8rTI\\n-----END CERTIFICATE REQUEST-----\",\"certificate\":\"\"},{\"id\":3,\"csr\":\"-----BEGIN CERTIFICATE REQUEST-----\\nMIICszCCAZsCAQAwFjEUMBIGA1UEAwwLZXhhbXBsZS5jb20wggEiMA0GCSqGSIb3\\nDQEBAQUAA4IBDwAwggEKAoIBAQDN7tHggWTtxiT5Sh5Npoif8J2BdpJjtMdpZ7Vu\\nNVzMxW/eojSRlq0p3nafmpjnSdSH1k/XMmPsgmv9txxEHMw1LIUJUef2QVrQTI6J\\n4ueu9NvexZWXZ+UxFip63PKyn/CkZRFiHCRIGzDDPxM2aApjghXy9ISMtGqDVSnr\\n5hQDu2U1CEiUWKMoTpyk/KlBZliDDOzaGm3cQuzKWs6Stjzpq+uX4ecJAXZg5Cj+\\n+JUETH93A/VOfsiiHXoKeTnFMCsmJgEHz2DZixw8EN8XgpOp5BA2n8Y/xS+Ren5R\\nZH7uNJI/SmQ0yrR+2bYR6hm+4bCzspyCfzbiuI5IS9+2eXA/AgMBAAGgWDBWBgkq\\nhkiG9w0BCQ4xSTBHMA4GA1UdDwEB/wQEAwIFoDAdBgNVHSUEFjAUBggrBgEFBQcD\\nAQYIKwYBBQUHAwIwFgYDVR0RBA8wDYILZXhhbXBsZS5jb20wDQYJKoZIhvcNAQEL\\nBQADggEBAB/aPfYLbnCubYyKnxLRipoLr3TBSYFnRfcxiZR1o+L3/tuv2NlrXJjY\\nK13xzzPhwuZwd6iKfX3xC33sKgnUNFawyE8IuAmyhJ2cl97iA2lwoYcyuWP9TOEx\\nLT60zxp7PHsKo53gqaqRJ5B9RZtiv1jYdUZvynHP4J5JG7Zwaa0VNi/Cx5cwGW8K\\nrfvNABPUAU6xIqqYgd2heDPF6kjvpoNiOl056qIAbk0dbmpqOJf/lxKBRfqlHhSC\\n0qRScGu70l2Oxl89YSsfGtUyQuzTkLshI2VkEUM+W/ZauXbxLd8SyWveH3/7mDC+\\nSgi7T+lz+c1Tw+XFgkqryUwMeG2wxt8=\\n-----END CERTIFICATE REQUEST-----\",\"certificate\":\"\"},{\"id\":4,\"csr\":\"-----BEGIN CERTIFICATE REQUEST-----\\nMIICszCCAZsCAQAwFjEUMBIGA1UEAwwLZXhhbXBsZS5jb20wggEiMA0GCSqGSIb3\\nDQEBAQUAA4IBDwAwggEKAoIBAQDC5KgrADpuOUPwSh0YLmpWF66VTcciIGC2HcGn\\noJknL7pm5q9qhfWGIdvKKlIA6cBB32jPd0QcYDsx7+AvzEvBuO7mq7v2Q1sPU4Q+\\nL0s2pLJges6/cnDWvk/p5eBjDLOqHhUNzpMUga9SgIod8yymTZm3eqQvt1ABdwTg\\nFzBs5QdSm2Ny1fEbbcRE+Rv5rqXyJb2isXSujzSuS22VqslDIyqnY5WaLg+pjZyR\\n+0j13ecJsdh6/MJMUZWheimV2Yv7SFtxzFwbzBMO9YFS098sy4F896eBHLNe9cUC\\n+d1JDtLaewlMogjHBHAxmP54dhe6vvc78anElKKP4hm5N5nlAgMBAAGgWDBWBgkq\\nhkiG9w0BCQ4xSTBHMA4GA1UdDwEB/wQEAwIFoDAdBgNVHSUEFjAUBggrBgEFBQcD\\nAQYIKwYBBQUHAwIwFgYDVR0RBA8wDYILZXhhbXBsZS5jb20wDQYJKoZIhvcNAQEL\\nBQADggEBACP1VKEGVYKoVLMDJS+EZ0CPwIYWsO4xBXgK6atHe8WIChVn/8I7eo60\\ncuMDiy4LR70G++xL1tpmYGRbx21r9d/shL2ehp9VdClX06qxlcGxiC/F8eThRuS5\\nzHcdNqSVyMoLJ0c7yWHJahN5u2bn1Lov34yOEqGGpWCGF/gT1nEvM+p/v30s89f2\\nY/uPl4g3jpGqLCKTASWJDGnZLroLICOzYTVs5P3oj+VueSUwYhGK5tBnS2x5FHID\\nuMNMgwl0fxGMQZjrlXyCBhXBm1k6PmwcJGJF5LQ31c+5aTTMFU7SyZhlymctB8mS\\ny+ErBQsRpcQho6Ok+HTXQQUcx7WNcwI=\\n-----END CERTIFICATE REQUEST-----\",\"certificate\":\"rejected\"}]"
-	expectedGetCertReqResponseBody1  = "{\"id\":2,\"csr\":\"-----BEGIN CERTIFICATE REQUEST-----\\nMIIC5zCCAc8CAQAwRzEWMBQGA1UEAwwNMTAuMTUyLjE4My41MzEtMCsGA1UELQwk\\nMzlhY2UxOTUtZGM1YS00MzJiLTgwOTAtYWZlNmFiNGI0OWNmMIIBIjANBgkqhkiG\\n9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjM5Wz+HRtDveRzeDkEDM4ornIaefe8d8nmFi\\npUat9qCU3U9798FR460DHjCLGxFxxmoRitzHtaR4ew5H036HlGB20yas/CMDgSUI\\n69DyAsyPwEJqOWBGO1LL50qXdl5/jOkO2voA9j5UsD1CtWSklyhbNhWMpYqj2ObW\\nXcaYj9Gx/TwYhw8xsJ/QRWyCrvjjVzH8+4frfDhBVOyywN7sq+I3WwCbyBBcN8uO\\nyae0b/q5+UJUiqgpeOAh/4Y7qI3YarMj4cm7dwmiCVjedUwh65zVyHtQUfLd8nFW\\nKl9775mNBc1yicvKDU3ZB5hZ1MZtpbMBwaA1yMSErs/fh5KaXwIDAQABoFswWQYJ\\nKoZIhvcNAQkOMUwwSjBIBgNVHREEQTA/hwQKmLc1gjd2YXVsdC1rOHMtMC52YXVs\\ndC1rOHMtZW5kcG9pbnRzLnZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsMA0GCSqGSIb3\\nDQEBCwUAA4IBAQCJt8oVDbiuCsik4N5AOJIT7jKsMb+j0mizwjahKMoCHdx+zv0V\\nFGkhlf0VWPAdEu3gHdJfduX88WwzJ2wBBUK38UuprAyvfaZfaYUgFJQNC6DH1fIa\\nuHYEhvNJBdFJHaBvW7lrSFi57fTA9IEPrB3m/XN3r2F4eoHnaJJqHZmMwqVHck87\\ncAQXk3fvTWuikHiCHqqdSdjDYj/8cyiwCrQWpV245VSbOE0WesWoEnSdFXVUfE1+\\nRSKeTRuuJMcdGqBkDnDI22myj0bjt7q8eqBIjTiLQLnAFnQYpcCrhc8dKU9IJlv1\\nH9Hay4ZO9LRew3pEtlx2WrExw/gpUcWM8rTI\\n-----END CERTIFICATE REQUEST-----\",\"certificate\":\"\"}"
-	expectedGetCertReqResponseBody2  = "{\"id\":4,\"csr\":\"-----BEGIN CERTIFICATE REQUEST-----\\nMIICszCCAZsCAQAwFjEUMBIGA1UEAwwLZXhhbXBsZS5jb20wggEiMA0GCSqGSIb3\\nDQEBAQUAA4IBDwAwggEKAoIBAQDC5KgrADpuOUPwSh0YLmpWF66VTcciIGC2HcGn\\noJknL7pm5q9qhfWGIdvKKlIA6cBB32jPd0QcYDsx7+AvzEvBuO7mq7v2Q1sPU4Q+\\nL0s2pLJges6/cnDWvk/p5eBjDLOqHhUNzpMUga9SgIod8yymTZm3eqQvt1ABdwTg\\nFzBs5QdSm2Ny1fEbbcRE+Rv5rqXyJb2isXSujzSuS22VqslDIyqnY5WaLg+pjZyR\\n+0j13ecJsdh6/MJMUZWheimV2Yv7SFtxzFwbzBMO9YFS098sy4F896eBHLNe9cUC\\n+d1JDtLaewlMogjHBHAxmP54dhe6vvc78anElKKP4hm5N5nlAgMBAAGgWDBWBgkq\\nhkiG9w0BCQ4xSTBHMA4GA1UdDwEB/wQEAwIFoDAdBgNVHSUEFjAUBggrBgEFBQcD\\nAQYIKwYBBQUHAwIwFgYDVR0RBA8wDYILZXhhbXBsZS5jb20wDQYJKoZIhvcNAQEL\\nBQADggEBACP1VKEGVYKoVLMDJS+EZ0CPwIYWsO4xBXgK6atHe8WIChVn/8I7eo60\\ncuMDiy4LR70G++xL1tpmYGRbx21r9d/shL2ehp9VdClX06qxlcGxiC/F8eThRuS5\\nzHcdNqSVyMoLJ0c7yWHJahN5u2bn1Lov34yOEqGGpWCGF/gT1nEvM+p/v30s89f2\\nY/uPl4g3jpGqLCKTASWJDGnZLroLICOzYTVs5P3oj+VueSUwYhGK5tBnS2x5FHID\\nuMNMgwl0fxGMQZjrlXyCBhXBm1k6PmwcJGJF5LQ31c+5aTTMFU7SyZhlymctB8mS\\ny+ErBQsRpcQho6Ok+HTXQQUcx7WNcwI=\\n-----END CERTIFICATE REQUEST-----\",\"certificate\":\"\"}"
-	expectedGetCertReqResponseBody3  = "{\"id\":2,\"csr\":\"-----BEGIN CERTIFICATE REQUEST-----\\nMIIC5zCCAc8CAQAwRzEWMBQGA1UEAwwNMTAuMTUyLjE4My41MzEtMCsGA1UELQwk\\nMzlhY2UxOTUtZGM1YS00MzJiLTgwOTAtYWZlNmFiNGI0OWNmMIIBIjANBgkqhkiG\\n9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjM5Wz+HRtDveRzeDkEDM4ornIaefe8d8nmFi\\npUat9qCU3U9798FR460DHjCLGxFxxmoRitzHtaR4ew5H036HlGB20yas/CMDgSUI\\n69DyAsyPwEJqOWBGO1LL50qXdl5/jOkO2voA9j5UsD1CtWSklyhbNhWMpYqj2ObW\\nXcaYj9Gx/TwYhw8xsJ/QRWyCrvjjVzH8+4frfDhBVOyywN7sq+I3WwCbyBBcN8uO\\nyae0b/q5+UJUiqgpeOAh/4Y7qI3YarMj4cm7dwmiCVjedUwh65zVyHtQUfLd8nFW\\nKl9775mNBc1yicvKDU3ZB5hZ1MZtpbMBwaA1yMSErs/fh5KaXwIDAQABoFswWQYJ\\nKoZIhvcNAQkOMUwwSjBIBgNVHREEQTA/hwQKmLc1gjd2YXVsdC1rOHMtMC52YXVs\\ndC1rOHMtZW5kcG9pbnRzLnZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsMA0GCSqGSIb3\\nDQEBCwUAA4IBAQCJt8oVDbiuCsik4N5AOJIT7jKsMb+j0mizwjahKMoCHdx+zv0V\\nFGkhlf0VWPAdEu3gHdJfduX88WwzJ2wBBUK38UuprAyvfaZfaYUgFJQNC6DH1fIa\\nuHYEhvNJBdFJHaBvW7lrSFi57fTA9IEPrB3m/XN3r2F4eoHnaJJqHZmMwqVHck87\\ncAQXk3fvTWuikHiCHqqdSdjDYj/8cyiwCrQWpV245VSbOE0WesWoEnSdFXVUfE1+\\nRSKeTRuuJMcdGqBkDnDI22myj0bjt7q8eqBIjTiLQLnAFnQYpcCrhc8dKU9IJlv1\\nH9Hay4ZO9LRew3pEtlx2WrExw/gpUcWM8rTI\\n-----END CERTIFICATE REQUEST-----\",\"certificate\":\"-----BEGIN CERTIFICATE-----\\nMIIDrDCCApSgAwIBAgIURKr+jf7hj60SyAryIeN++9wDdtkwDQYJKoZIhvcNAQEL\\nBQAwOTELMAkGA1UEBhMCVVMxKjAoBgNVBAMMIXNlbGYtc2lnbmVkLWNlcnRpZmlj\\nYXRlcy1vcGVyYXRvcjAeFw0yNDAzMjcxMjQ4MDRaFw0yNTAzMjcxMjQ4MDRaMEcx\\nFjAUBgNVBAMMDTEwLjE1Mi4xODMuNTMxLTArBgNVBC0MJDM5YWNlMTk1LWRjNWEt\\nNDMyYi04MDkwLWFmZTZhYjRiNDljZjCCASIwDQYJKoZIhvcNAQEBBQADggEPADCC\\nAQoCggEBAIzOVs/h0bQ73kc3g5BAzOKK5yGnn3vHfJ5hYqVGrfaglN1Pe/fBUeOt\\nAx4wixsRccZqEYrcx7WkeHsOR9N+h5RgdtMmrPwjA4ElCOvQ8gLMj8BCajlgRjtS\\ny+dKl3Zef4zpDtr6APY+VLA9QrVkpJcoWzYVjKWKo9jm1l3GmI/Rsf08GIcPMbCf\\n0EVsgq7441cx/PuH63w4QVTsssDe7KviN1sAm8gQXDfLjsmntG/6uflCVIqoKXjg\\nIf+GO6iN2GqzI+HJu3cJoglY3nVMIeuc1ch7UFHy3fJxVipfe++ZjQXNconLyg1N\\n2QeYWdTGbaWzAcGgNcjEhK7P34eSml8CAwEAAaOBnTCBmjAhBgNVHSMEGjAYgBYE\\nFN/vgl9cAapV7hH9lEyM7qYS958aMB0GA1UdDgQWBBRJJDZkHr64VqTC24DPQVld\\nBa3iPDAMBgNVHRMBAf8EAjAAMEgGA1UdEQRBMD+CN3ZhdWx0LWs4cy0wLnZhdWx0\\nLWs4cy1lbmRwb2ludHMudmF1bHQuc3ZjLmNsdXN0ZXIubG9jYWyHBAqYtzUwDQYJ\\nKoZIhvcNAQELBQADggEBAEH9NTwDiSsoQt/QXkWPMBrB830K0dlwKl5WBNgVxFP+\\nhSfQ86xN77jNSp2VxOksgzF9J9u/ubAXvSFsou4xdP8MevBXoFJXeqMERq5RW3gc\\nWyhXkzguv3dwH+n43GJFP6MQ+n9W/nPZCUQ0Iy7ueAvj0HFhGyZzAE2wxNFZdvCs\\ngCX3nqYpp70oZIFDrhmYwE5ij5KXlHD4/1IOfNUKCDmQDgGPLI1tVtwQLjeRq7Hg\\nXVelpl/LXTQawmJyvDaVT/Q9P+WqoDiMjrqF6Sy7DzNeeccWVqvqX5TVS6Ky56iS\\nMvo/+PAJHkBciR5Xn+Wg2a+7vrZvT6CBoRSOTozlLSM=\\n-----END CERTIFICATE-----\"}"
-	expectedGetCertReqResponseBody4  = "{\"id\":2,\"csr\":\"-----BEGIN CERTIFICATE REQUEST-----\\nMIIC5zCCAc8CAQAwRzEWMBQGA1UEAwwNMTAuMTUyLjE4My41MzEtMCsGA1UELQwk\\nMzlhY2UxOTUtZGM1YS00MzJiLTgwOTAtYWZlNmFiNGI0OWNmMIIBIjANBgkqhkiG\\n9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjM5Wz+HRtDveRzeDkEDM4ornIaefe8d8nmFi\\npUat9qCU3U9798FR460DHjCLGxFxxmoRitzHtaR4ew5H036HlGB20yas/CMDgSUI\\n69DyAsyPwEJqOWBGO1LL50qXdl5/jOkO2voA9j5UsD1CtWSklyhbNhWMpYqj2ObW\\nXcaYj9Gx/TwYhw8xsJ/QRWyCrvjjVzH8+4frfDhBVOyywN7sq+I3WwCbyBBcN8uO\\nyae0b/q5+UJUiqgpeOAh/4Y7qI3YarMj4cm7dwmiCVjedUwh65zVyHtQUfLd8nFW\\nKl9775mNBc1yicvKDU3ZB5hZ1MZtpbMBwaA1yMSErs/fh5KaXwIDAQABoFswWQYJ\\nKoZIhvcNAQkOMUwwSjBIBgNVHREEQTA/hwQKmLc1gjd2YXVsdC1rOHMtMC52YXVs\\ndC1rOHMtZW5kcG9pbnRzLnZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsMA0GCSqGSIb3\\nDQEBCwUAA4IBAQCJt8oVDbiuCsik4N5AOJIT7jKsMb+j0mizwjahKMoCHdx+zv0V\\nFGkhlf0VWPAdEu3gHdJfduX88WwzJ2wBBUK38UuprAyvfaZfaYUgFJQNC6DH1fIa\\nuHYEhvNJBdFJHaBvW7lrSFi57fTA9IEPrB3m/XN3r2F4eoHnaJJqHZmMwqVHck87\\ncAQXk3fvTWuikHiCHqqdSdjDYj/8cyiwCrQWpV245VSbOE0WesWoEnSdFXVUfE1+\\nRSKeTRuuJMcdGqBkDnDI22myj0bjt7q8eqBIjTiLQLnAFnQYpcCrhc8dKU9IJlv1\\nH9Hay4ZO9LRew3pEtlx2WrExw/gpUcWM8rTI\\n-----END CERTIFICATE REQUEST-----\",\"certificate\":\"\"}"
+var (
+	expectedGetAllCertsResponseBody1 = fmt.Sprintf("[{\"id\":1,\"csr\":\"%s\",\"certificate\":\"\"}]", trimmed(AppleCSR))
+	expectedGetAllCertsResponseBody2 = fmt.Sprintf("[{\"id\":1,\"csr\":\"%s\",\"certificate\":\"\"},{\"id\":2,\"csr\":\"%s\",\"certificate\":\"\"}]", trimmed(AppleCSR), trimmed(BananaCSR))
+	expectedGetAllCertsResponseBody3 = fmt.Sprintf("[{\"id\":2,\"csr\":\"%s\",\"certificate\":\"%s\\n%s\\n\"},{\"id\":3,\"csr\":\"%s\",\"certificate\":\"\"},{\"id\":4,\"csr\":\"%s\",\"certificate\":\"rejected\"}]", trimmed(BananaCSR), trimmed(BananaCert), trimmed(IssuerCert), trimmed(StrawberryCSR), trimmed(AppleCSR))
+	expectedGetAllCertsResponseBody4 = fmt.Sprintf("[{\"id\":2,\"csr\":\"%s\",\"certificate\":\"\"},{\"id\":3,\"csr\":\"%s\",\"certificate\":\"\"},{\"id\":4,\"csr\":\"%s\",\"certificate\":\"rejected\"}]", trimmed(BananaCSR), trimmed(StrawberryCSR), trimmed(AppleCSR))
+	expectedGetCertReqResponseBody1  = fmt.Sprintf("{\"id\":2,\"csr\":\"%s\",\"certificate\":\"\"}", trimmed(BananaCSR))
+	expectedGetCertReqResponseBody2  = fmt.Sprintf("{\"id\":4,\"csr\":\"%s\",\"certificate\":\"\"}", trimmed(AppleCSR))
+	expectedGetCertReqResponseBody3  = fmt.Sprintf("{\"id\":2,\"csr\":\"%s\",\"certificate\":\"%s\\n%s\\n\"}", trimmed(BananaCSR), trimmed(BananaCert), trimmed(IssuerCert))
+	expectedGetCertReqResponseBody4  = fmt.Sprintf("{\"id\":2,\"csr\":\"%s\",\"certificate\":\"\"}", trimmed(BananaCSR))
 )
 
 const (
@@ -132,6 +169,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 	t.Run("prepare user accounts and tokens", prepareUserAccounts(ts.URL, client, &adminToken, &nonAdminToken))
 
 	testCases := []struct {
+		step     int
 		desc     string
 		method   string
 		path     string
@@ -140,6 +178,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 		status   int
 	}{
 		{
+			step:     1,
 			desc:     "healthcheck success",
 			method:   "GET",
 			path:     "/status",
@@ -148,6 +187,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
+			step:     2,
 			desc:     "empty get csrs success",
 			method:   "GET",
 			path:     "/api/v1/certificate_requests",
@@ -156,6 +196,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
+			step:     3,
 			desc:     "post csr1 fail",
 			method:   "POST",
 			path:     "/api/v1/certificate_requests",
@@ -164,14 +205,16 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusBadRequest,
 		},
 		{
+			step:     4,
 			desc:     "post csr1 success",
 			method:   "POST",
 			path:     "/api/v1/certificate_requests",
-			data:     validCSR1,
+			data:     AppleCSR,
 			response: "1",
 			status:   http.StatusCreated,
 		},
 		{
+			step:     5,
 			desc:     "get csrs 1 success",
 			method:   "GET",
 			path:     "/api/v1/certificate_requests",
@@ -180,14 +223,16 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
+			step:     6,
 			desc:     "post csr2 success",
 			method:   "POST",
 			path:     "/api/v1/certificate_requests",
-			data:     validCSR2,
+			data:     BananaCSR,
 			response: "2",
 			status:   http.StatusCreated,
 		},
 		{
+			step:     7,
 			desc:     "get csrs 2 success",
 			method:   "GET",
 			path:     "/api/v1/certificate_requests",
@@ -196,22 +241,25 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
+			step:     8,
 			desc:     "post csr2 fail",
 			method:   "POST",
 			path:     "/api/v1/certificate_requests",
-			data:     validCSR2,
+			data:     BananaCSR,
 			response: "error: given csr already recorded",
 			status:   http.StatusBadRequest,
 		},
 		{
+			step:     9,
 			desc:     "post csr3 success",
 			method:   "POST",
 			path:     "/api/v1/certificate_requests",
-			data:     validCSR3,
+			data:     StrawberryCSR,
 			response: "3",
 			status:   http.StatusCreated,
 		},
 		{
+			step:     10,
 			desc:     "delete csr1 success",
 			method:   "DELETE",
 			path:     "/api/v1/certificate_requests/1",
@@ -220,6 +268,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusAccepted,
 		},
 		{
+			step:     11,
 			desc:     "delete csr5 fail",
 			method:   "DELETE",
 			path:     "/api/v1/certificate_requests/5",
@@ -228,6 +277,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusNotFound,
 		},
 		{
+			step:     12,
 			desc:     "get csr1 fail",
 			method:   "GET",
 			path:     "/api/v1/certificate_requests/1",
@@ -236,6 +286,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusNotFound,
 		},
 		{
+			step:     13,
 			desc:     "get csr2 success",
 			method:   "GET",
 			path:     "/api/v1/certificate_requests/2",
@@ -244,14 +295,16 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
+			step:     14,
 			desc:     "post csr4 success",
 			method:   "POST",
 			path:     "/api/v1/certificate_requests",
-			data:     validCSR1,
+			data:     AppleCSR,
 			response: "4",
 			status:   http.StatusCreated,
 		},
 		{
+			step:     15,
 			desc:     "get csr4 success",
 			method:   "GET",
 			path:     "/api/v1/certificate_requests/4",
@@ -260,30 +313,34 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
+			step:     16,
 			desc:     "post cert2 fail 1",
 			method:   "POST",
 			path:     "/api/v1/certificate_requests/4/certificate",
-			data:     validCert2,
-			response: "error: cert validation failed: certificate does not match CSR",
+			data:     BananaCert,
+			response: "error: cert validation failed: less than 2 certificate PEM strings were found",
 			status:   http.StatusBadRequest,
 		},
 		{
+			step:     17,
 			desc:     "post cert2 fail 2",
 			method:   "POST",
 			path:     "/api/v1/certificate_requests/4/certificate",
 			data:     "some random data that's clearly not a cert",
-			response: "error: cert validation failed: PEM Certificate string not found or malformed",
+			response: "error: cert validation failed: less than 2 certificate PEM strings were found",
 			status:   http.StatusBadRequest,
 		},
 		{
+			step:     18,
 			desc:     "post cert2 success",
 			method:   "POST",
 			path:     "/api/v1/certificate_requests/2/certificate",
-			data:     validCert2,
+			data:     fmt.Sprintf("%s\n%s", BananaCert, IssuerCert),
 			response: "1",
 			status:   http.StatusCreated,
 		},
 		{
+			step:     19,
 			desc:     "get csr2 success",
 			method:   "GET",
 			path:     "/api/v1/certificate_requests/2",
@@ -292,6 +349,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
+			step:     20,
 			desc:     "reject csr4 success",
 			method:   "POST",
 			path:     "/api/v1/certificate_requests/4/certificate/reject",
@@ -300,6 +358,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusAccepted,
 		},
 		{
+			step:     21,
 			desc:     "get all csrs success",
 			method:   "GET",
 			path:     "/api/v1/certificate_requests",
@@ -308,6 +367,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
+			step:     22,
 			desc:     "delete csr2 cert success",
 			method:   "DELETE",
 			path:     "/api/v1/certificate_requests/2/certificate",
@@ -316,6 +376,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusAccepted,
 		},
 		{
+			step:     23,
 			desc:     "get csr2 success",
 			method:   "GET",
 			path:     "/api/v1/certificate_requests/2",
@@ -324,6 +385,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
+			step:     24,
 			desc:     "get csrs 3 success",
 			method:   "GET",
 			path:     "/api/v1/certificate_requests",
@@ -332,6 +394,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
+			step:     25,
 			desc:     "healthcheck success",
 			method:   "GET",
 			path:     "/status",
@@ -340,6 +403,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
+			step:     26,
 			desc:     "metrics endpoint success",
 			method:   "GET",
 			path:     "/metrics",
@@ -349,7 +413,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 		},
 	}
 	for _, tC := range testCases {
-		t.Run(tC.desc, func(t *testing.T) {
+		t.Run(fmt.Sprintf("step %d: %s", tC.step, tC.desc), func(t *testing.T) {
 			req, err := http.NewRequest(tC.method, ts.URL+tC.path, strings.NewReader(tC.data))
 			req.Header.Set("Authorization", "Bearer "+adminToken)
 			if err != nil {
@@ -889,4 +953,9 @@ func prepareUserAccounts(url string, client *http.Client, adminToken, nonAdminTo
 		}
 		*nonAdminToken = string(resBody)
 	}
+}
+
+// Flatten removes all whitespace and newlines from a given string
+func trimmed(s string) string {
+	return strings.ReplaceAll(strings.TrimSpace(s), "\n", "\\n")
 }

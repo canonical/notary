@@ -112,7 +112,10 @@ func sanitizeCertificateBundle(cert string) string {
 		if certBlock == nil {
 			break
 		}
-		pem.Encode(&buff, certBlock)
+		err := pem.Encode(&buff, certBlock)
+		if err != nil {
+			return ""
+		}
 		certData = rest
 	}
 	return strings.TrimSpace(buff.String())

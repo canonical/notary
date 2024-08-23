@@ -127,7 +127,7 @@ func (db *CertificateRequestsRepository) UpdateCSR(id string, cert string) (int6
 			return 0, errors.New("cert validation failed: " + err.Error())
 		}
 	}
-	result, err := db.conn.Exec(fmt.Sprintf(queryUpdateCSR, db.certificateTable), cert, csr.ID)
+	result, err := db.conn.Exec(fmt.Sprintf(queryUpdateCSR, db.certificateTable), sanitizeCertificateBundle(cert), csr.ID)
 	if err != nil {
 		return 0, err
 	}

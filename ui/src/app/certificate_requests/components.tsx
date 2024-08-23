@@ -144,7 +144,7 @@ export function SubmitCertificateModal({ id, csr, cert, setFormOpen }: SubmitCer
                             </div>
                         </div>
                     }
-                    <SubmitCertificate existingCSRText={csr.trim()} existingCertText={cert.trim()} certText={certificatePEMString.trim()} onClickFunc={() => mutation.mutate({ id: id, authToken: cookies.user_token, cert: splitBundle(certificatePEMString).join("\n") })} />
+                    <SubmitCertificate existingCSRText={csr.trim()} existingCertText={cert.trim()} certText={certificatePEMString.trim()} onClickFunc={() => mutation.mutate({ id: id, authToken: cookies.user_token, cert: certificatePEMString })} />
                     <button className="u-no-margin--bottom" aria-controls="modal" onMouseDown={() => setFormOpen(false)}>Cancel</button>
                 </footer>
             </section>

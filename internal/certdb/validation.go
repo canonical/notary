@@ -7,6 +7,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // ValidateCertificateRequest validates the given CSR string to the following:
@@ -98,4 +99,21 @@ func CertificateMatchesCSR(cert string, csr string) error {
 		return errors.New("certificate does not match CSR")
 	}
 	return nil
+}
+
+// SanitizeCertificateBundle takes in a valid certificate string and formats it
+// The final string has no trailing or leading whitespace, and only a single
+// newline character between certificate PEM strings
+func sanitizeCertificateBundle(cert string) string {
+	var buff bytes.Buffer
+	certData := []byte(cert)
+	for {
+		certBlock, rest := pem.Decode(certData)
+		if certBlock == nil {
+			break
+		}
+		pem.Encode(&buff, certBlock)
+		certData = rest
+	}
+	return strings.TrimSpace(buff.String())
 }

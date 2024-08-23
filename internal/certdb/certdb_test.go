@@ -61,13 +61,14 @@ func TestCSRsEndToEnd(t *testing.T) {
 	if len(res) != 2 {
 		t.Fatalf("CSR's weren't deleted from the DB properly")
 	}
-	_, err = db.UpdateCSR(strconv.FormatInt(id2, 10), fmt.Sprintf("%s%s", BananaCert, IssuerCert))
+	var BananaCertBundle = strings.TrimSpace(fmt.Sprintf("%s%s", BananaCert, IssuerCert))
+	_, err = db.UpdateCSR(strconv.FormatInt(id2, 10), BananaCertBundle)
 	if err != nil {
 		t.Fatalf("Couldn't complete Update: %s", err)
 	}
 	retrievedCSR, _ = db.RetrieveCSR(strconv.FormatInt(id2, 10))
-	if retrievedCSR.Certificate != fmt.Sprintf("%s%s", BananaCert, IssuerCert) {
-		t.Fatalf("The certificate that was uploaded does not match the certificate that was given.\n Retrieved: %s\nGiven: %s", retrievedCSR.Certificate, BananaCert)
+	if retrievedCSR.Certificate != BananaCertBundle {
+		t.Fatalf("The certificate that was uploaded does not match the certificate that was given.\n Retrieved: %s\nGiven: %s", retrievedCSR.Certificate, BananaCertBundle)
 	}
 	_, err = db.UpdateCSR(strconv.FormatInt(id2, 10), "")
 	if err != nil {

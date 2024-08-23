@@ -132,11 +132,11 @@ btZkbfdL5A==
 var (
 	expectedGetAllCertsResponseBody1 = fmt.Sprintf("[{\"id\":1,\"csr\":\"%s\",\"certificate\":\"\"}]", trimmed(AppleCSR))
 	expectedGetAllCertsResponseBody2 = fmt.Sprintf("[{\"id\":1,\"csr\":\"%s\",\"certificate\":\"\"},{\"id\":2,\"csr\":\"%s\",\"certificate\":\"\"}]", trimmed(AppleCSR), trimmed(BananaCSR))
-	expectedGetAllCertsResponseBody3 = fmt.Sprintf("[{\"id\":2,\"csr\":\"%s\",\"certificate\":\"%s\\n%s\\n\"},{\"id\":3,\"csr\":\"%s\",\"certificate\":\"\"},{\"id\":4,\"csr\":\"%s\",\"certificate\":\"rejected\"}]", trimmed(BananaCSR), trimmed(BananaCert), trimmed(IssuerCert), trimmed(StrawberryCSR), trimmed(AppleCSR))
+	expectedGetAllCertsResponseBody3 = fmt.Sprintf("[{\"id\":2,\"csr\":\"%s\",\"certificate\":\"%s\\n%s\"},{\"id\":3,\"csr\":\"%s\",\"certificate\":\"\"},{\"id\":4,\"csr\":\"%s\",\"certificate\":\"rejected\"}]", trimmed(BananaCSR), trimmed(BananaCert), trimmed(IssuerCert), trimmed(StrawberryCSR), trimmed(AppleCSR))
 	expectedGetAllCertsResponseBody4 = fmt.Sprintf("[{\"id\":2,\"csr\":\"%s\",\"certificate\":\"\"},{\"id\":3,\"csr\":\"%s\",\"certificate\":\"\"},{\"id\":4,\"csr\":\"%s\",\"certificate\":\"rejected\"}]", trimmed(BananaCSR), trimmed(StrawberryCSR), trimmed(AppleCSR))
 	expectedGetCertReqResponseBody1  = fmt.Sprintf("{\"id\":2,\"csr\":\"%s\",\"certificate\":\"\"}", trimmed(BananaCSR))
 	expectedGetCertReqResponseBody2  = fmt.Sprintf("{\"id\":4,\"csr\":\"%s\",\"certificate\":\"\"}", trimmed(AppleCSR))
-	expectedGetCertReqResponseBody3  = fmt.Sprintf("{\"id\":2,\"csr\":\"%s\",\"certificate\":\"%s\\n%s\\n\"}", trimmed(BananaCSR), trimmed(BananaCert), trimmed(IssuerCert))
+	expectedGetCertReqResponseBody3  = fmt.Sprintf("{\"id\":2,\"csr\":\"%s\",\"certificate\":\"%s\\n%s\"}", trimmed(BananaCSR), trimmed(BananaCert), trimmed(IssuerCert))
 	expectedGetCertReqResponseBody4  = fmt.Sprintf("{\"id\":2,\"csr\":\"%s\",\"certificate\":\"\"}", trimmed(BananaCSR))
 )
 

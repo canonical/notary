@@ -1,7 +1,7 @@
-import { Dispatch, SetStateAction, useState, ChangeEvent } from "react"
+import { Dispatch, SetStateAction, useState, ChangeEvent, useEffect } from "react"
 import { useMutation, useQueryClient } from "react-query"
 import { ConfirmationModalData } from "./row"
-import { extractCert, csrMatchesCertificate } from "../utils"
+import { csrMatchesCertificate, splitBundle, validateBundle } from "../utils"
 import { postCertToID } from "../queries"
 import { useCookies } from "react-cookie"
 
@@ -33,27 +33,43 @@ export function ConfirmationModal({ modalData, setModalData }: ConfirmationModal
 }
 
 function SubmitCertificate({ existingCSRText, existingCertText, certText, onClickFunc }: { existingCSRText: string, existingCertText: string, certText: string, onClickFunc: any }) {
-    let certIsValid = false
-    let certMatchesCSR = false
-    try {
-        extractCert(certText)
-        certIsValid = true
-        if (csrMatchesCertificate(existingCSRText, certText)) {
-            certMatchesCSR = true
+    const [validationErrorText, setValidationErrorText] = useState<string>("")
+    useEffect(() => {
+        const validateCertificate = async () => {
+            try {
+                const certs = splitBundle(certText)
+                if (certs.length < 2) {
+                    setValidationErrorText("bundle with 2 certificates required")
+                    return
+                }
+                if (!csrMatchesCertificate(existingCSRText, certs[0])) {
+                    setValidationErrorText("Certificate does not match request")
+                    return
+                }
+                let a = await validateBundle(certText)
+                if (await validateBundle(certText)) {
+                    setValidationErrorText("Bundle validation failed: " + a)
+                    return
+                }
+            }
+            catch {
+                setValidationErrorText("A certificate is invalid")
+                return
+            }
+            setValidationErrorText("")
         }
-    }
-    catch { }
+        validateCertificate()
+    }, [existingCSRText, existingCertText, certText])
 
-    const validationComponent = certText == "" ?
-        <></> :
-        !certIsValid ?
-            <div><i className="p-icon--error"></i> Invalid Certificate</div> :
-            existingCertText == certText ?
-                <div><i className="p-icon--error"></i> Certificate is identical to the one uploaded</div> :
-                !certMatchesCSR ?
-                    <div><i className="p-icon--error"></i> Certificate does not match the request</div> :
-                    <div><i className="p-icon--success"></i> Valid Certificate</div>
-    const buttonComponent = certIsValid && certMatchesCSR && existingCertText != certText ? <button className="p-button--positive" name="submit" onClick={onClickFunc} >Submit</button> : <button className="p-button--positive" name="submit" disabled={true} onClick={onClickFunc} >Submit</button>
+    const validationComponent = certText != "" && validationErrorText == "" ? (
+        <div><i className="p-icon--success"></i> Valid Certificate</div>
+    ) : (
+        <div><i className="p-icon--error"></i> {validationErrorText}</div>)
+    const buttonComponent = validationErrorText == "" ? (
+        <button className="p-button--positive" name="submit" onClick={onClickFunc} >Submit</button>
+    ) : (
+        <button className="p-button--positive" name="submit" disabled={true} onClick={onClickFunc} >Submit</button>
+    )
     return (
         <>
             {validationComponent}
@@ -70,11 +86,17 @@ interface SubmitCertificateModalProps {
 }
 export function SubmitCertificateModal({ id, csr, cert, setFormOpen }: SubmitCertificateModalProps) {
     const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
+    const [errorText, setErrorText] = useState<string>("")
     const queryClient = useQueryClient()
     const mutation = useMutation(postCertToID, {
         onSuccess: () => {
             queryClient.invalidateQueries('csrs')
+            setErrorText("")
+            setFormOpen(false)
         },
+        onError: (e: Error) => {
+            setErrorText(e.message)
+        }
     })
     const [certificatePEMString, setCertificatePEMString] = useState<string>("")
     const handleTextChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
@@ -94,10 +116,6 @@ export function SubmitCertificateModal({ id, csr, cert, setFormOpen }: SubmitCer
             reader.readAsText(file);
         }
     };
-    const handleSubmit = () => {
-        mutation.mutate({ id: id, authToken: cookies.user_token, cert: certificatePEMString })
-        setFormOpen(false)
-    }
     return (
         <div className="p-modal" id="modal">
             <section className="p-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-description">
@@ -118,7 +136,15 @@ export function SubmitCertificateModal({ id, csr, cert, setFormOpen }: SubmitCer
                     </div>
                 </form>
                 <footer className="p-modal__footer">
-                    <SubmitCertificate existingCSRText={csr.trim()} existingCertText={cert.trim()} certText={certificatePEMString.trim()} onClickFunc={handleSubmit} />
+                    {errorText != "" &&
+                        <div className="p-notification--negative">
+                            <div className="p-notification__content">
+                                <h5 className="p-notification__title">Error</h5>
+                                <p className="p-notification__message">{errorText.split("error: ")}</p>
+                            </div>
+                        </div>
+                    }
+                    <SubmitCertificate existingCSRText={csr.trim()} existingCertText={cert.trim()} certText={certificatePEMString.trim()} onClickFunc={() => mutation.mutate({ id: id, authToken: cookies.user_token, cert: splitBundle(certificatePEMString).join("\n") })} />
                     <button className="u-no-margin--bottom" aria-controls="modal" onMouseDown={() => setFormOpen(false)}>Cancel</button>
                 </footer>
             </section>

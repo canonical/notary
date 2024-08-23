@@ -1,4 +1,4 @@
-import { CertificationRequest, Certificate, Extensions } from "pkijs";
+import { CertificationRequest, Certificate, Extensions, CertificateChainValidationEngine } from "pkijs";
 import { fromBER } from "asn1js";
 import * as pvutils from "pvutils";
 
@@ -275,4 +275,26 @@ export const passwordIsValid = (pw: string) => {
         return true
     }
     return false
+}
+
+export const splitBundle = (bundle: string): string[] => {
+    const pemPattern = /-----BEGIN CERTIFICATE-----(?:.|\n)*?-----END CERTIFICATE-----/g;
+    const pemMatches = bundle.match(pemPattern);
+    return pemMatches ? pemMatches.map((e) => e.toString()) : [];
+}
+
+export const validateBundle = async (bundle: string) => {
+    const bundleList = splitBundle(bundle)
+    const extractedCerts = bundleList.map((cert) => loadCertificate(cert))
+    const rootCa = extractedCerts.at(-1)
+    if (rootCa == undefined) {
+        return "less than 2 certificates found."
+    }
+    const chainEngine = new CertificateChainValidationEngine({
+        certs: extractedCerts,
+        trustedCerts: [rootCa]
+    })
+    const result = await chainEngine.verify()
+    console.log(result)
+    return result.resultMessage
 }

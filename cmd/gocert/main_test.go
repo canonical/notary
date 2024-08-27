@@ -151,13 +151,13 @@ func TestGoCertFail(t *testing.T) {
 		}
 		flag.CommandLine = flag.NewFlagSet(tc.Name, flag.ExitOnError)
 		cmd := exec.Command("gocert", tc.Args...)
-		stderr, _ := cmd.StderrPipe()
+		stdout, _ := cmd.StdoutPipe()
 
 		if err := cmd.Start(); err != nil {
 			t.Errorf("Failed running command")
 		}
 
-		slurp, _ := io.ReadAll(stderr)
+		slurp, _ := io.ReadAll(stdout)
 
 		if err := cmd.Wait(); err == nil {
 			t.Errorf("Command did not fail")

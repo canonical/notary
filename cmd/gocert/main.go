@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	log.SetOutput(os.Stderr)
+	log.SetOutput(os.Stdout)
 	configFilePtr := flag.String("config", "", "The config file to be provided to the server")
 	flag.Parse()
 	if *configFilePtr == "" {

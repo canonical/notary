@@ -928,7 +928,7 @@ func prepareUserAccounts(url string, client *http.Client, adminToken, nonAdminTo
 	}
 }
 
-// Flatten removes all whitespace and newlines from a given string
+// trimmed removes all whitespace and newlines from a given string
 func trimmed(s string) string {
 	return strings.ReplaceAll(strings.TrimSpace(s), "\n", "\\n")
 }

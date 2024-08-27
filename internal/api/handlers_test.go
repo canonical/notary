@@ -169,7 +169,6 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 	t.Run("prepare user accounts and tokens", prepareUserAccounts(ts.URL, client, &adminToken, &nonAdminToken))
 
 	testCases := []struct {
-		step     int
 		desc     string
 		method   string
 		path     string
@@ -178,8 +177,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 		status   int
 	}{
 		{
-			step:     1,
-			desc:     "healthcheck success",
+			desc:     "1: healthcheck success",
 			method:   "GET",
 			path:     "/status",
 			data:     "",
@@ -187,8 +185,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
-			step:     2,
-			desc:     "empty get csrs success",
+			desc:     "2: empty get csrs success",
 			method:   "GET",
 			path:     "/api/v1/certificate_requests",
 			data:     "",
@@ -196,8 +193,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
-			step:     3,
-			desc:     "post csr1 fail",
+			desc:     "3: post csr1 fail",
 			method:   "POST",
 			path:     "/api/v1/certificate_requests",
 			data:     "this is very clearly not a csr",
@@ -205,8 +201,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusBadRequest,
 		},
 		{
-			step:     4,
-			desc:     "post csr1 success",
+			desc:     "4: post csr1 success",
 			method:   "POST",
 			path:     "/api/v1/certificate_requests",
 			data:     AppleCSR,
@@ -214,8 +209,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusCreated,
 		},
 		{
-			step:     5,
-			desc:     "get csrs 1 success",
+			desc:     "5: get csrs 1 success",
 			method:   "GET",
 			path:     "/api/v1/certificate_requests",
 			data:     "",
@@ -223,8 +217,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
-			step:     6,
-			desc:     "post csr2 success",
+			desc:     "6: post csr2 success",
 			method:   "POST",
 			path:     "/api/v1/certificate_requests",
 			data:     BananaCSR,
@@ -232,8 +225,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusCreated,
 		},
 		{
-			step:     7,
-			desc:     "get csrs 2 success",
+			desc:     "7: get csrs 2 success",
 			method:   "GET",
 			path:     "/api/v1/certificate_requests",
 			data:     "",
@@ -241,8 +233,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
-			step:     8,
-			desc:     "post csr2 fail",
+			desc:     "8: post csr2 fail",
 			method:   "POST",
 			path:     "/api/v1/certificate_requests",
 			data:     BananaCSR,
@@ -250,8 +241,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusBadRequest,
 		},
 		{
-			step:     9,
-			desc:     "post csr3 success",
+			desc:     "9: post csr3 success",
 			method:   "POST",
 			path:     "/api/v1/certificate_requests",
 			data:     StrawberryCSR,
@@ -259,8 +249,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusCreated,
 		},
 		{
-			step:     10,
-			desc:     "delete csr1 success",
+			desc:     "10: delete csr1 success",
 			method:   "DELETE",
 			path:     "/api/v1/certificate_requests/1",
 			data:     "",
@@ -268,8 +257,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusAccepted,
 		},
 		{
-			step:     11,
-			desc:     "delete csr5 fail",
+			desc:     "11: delete csr5 fail",
 			method:   "DELETE",
 			path:     "/api/v1/certificate_requests/5",
 			data:     "",
@@ -277,8 +265,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusNotFound,
 		},
 		{
-			step:     12,
-			desc:     "get csr1 fail",
+			desc:     "12: get csr1 fail",
 			method:   "GET",
 			path:     "/api/v1/certificate_requests/1",
 			data:     "",
@@ -286,8 +273,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusNotFound,
 		},
 		{
-			step:     13,
-			desc:     "get csr2 success",
+			desc:     "13: get csr2 success",
 			method:   "GET",
 			path:     "/api/v1/certificate_requests/2",
 			data:     "",
@@ -295,8 +281,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
-			step:     14,
-			desc:     "post csr4 success",
+			desc:     "14: post csr4 success",
 			method:   "POST",
 			path:     "/api/v1/certificate_requests",
 			data:     AppleCSR,
@@ -304,8 +289,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusCreated,
 		},
 		{
-			step:     15,
-			desc:     "get csr4 success",
+			desc:     "15: get csr4 success",
 			method:   "GET",
 			path:     "/api/v1/certificate_requests/4",
 			data:     "",
@@ -313,8 +297,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
-			step:     16,
-			desc:     "post cert2 fail 1",
+			desc:     "16: post cert2 fail 1",
 			method:   "POST",
 			path:     "/api/v1/certificate_requests/4/certificate",
 			data:     BananaCert,
@@ -322,8 +305,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusBadRequest,
 		},
 		{
-			step:     17,
-			desc:     "post cert2 fail 2",
+			desc:     "17: post cert2 fail 2",
 			method:   "POST",
 			path:     "/api/v1/certificate_requests/4/certificate",
 			data:     "some random data that's clearly not a cert",
@@ -331,8 +313,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusBadRequest,
 		},
 		{
-			step:     18,
-			desc:     "post cert2 success",
+			desc:     "18: post cert2 success",
 			method:   "POST",
 			path:     "/api/v1/certificate_requests/2/certificate",
 			data:     fmt.Sprintf("%s\n%s", BananaCert, IssuerCert),
@@ -340,8 +321,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusCreated,
 		},
 		{
-			step:     19,
-			desc:     "get csr2 success",
+			desc:     "19: get csr2 success",
 			method:   "GET",
 			path:     "/api/v1/certificate_requests/2",
 			data:     "",
@@ -349,8 +329,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
-			step:     20,
-			desc:     "reject csr4 success",
+			desc:     "20: reject csr4 success",
 			method:   "POST",
 			path:     "/api/v1/certificate_requests/4/certificate/reject",
 			data:     "",
@@ -358,8 +337,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusAccepted,
 		},
 		{
-			step:     21,
-			desc:     "get all csrs success",
+			desc:     "21: get all csrs success",
 			method:   "GET",
 			path:     "/api/v1/certificate_requests",
 			data:     "",
@@ -367,8 +345,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
-			step:     22,
-			desc:     "delete csr2 cert success",
+			desc:     "22: delete csr2 cert success",
 			method:   "DELETE",
 			path:     "/api/v1/certificate_requests/2/certificate",
 			data:     "",
@@ -376,8 +353,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusAccepted,
 		},
 		{
-			step:     23,
-			desc:     "get csr2 success",
+			desc:     "23: get csr2 success",
 			method:   "GET",
 			path:     "/api/v1/certificate_requests/2",
 			data:     "",
@@ -385,8 +361,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
-			step:     24,
-			desc:     "get csrs 3 success",
+			desc:     "24: get csrs 3 success",
 			method:   "GET",
 			path:     "/api/v1/certificate_requests",
 			data:     "",
@@ -394,8 +369,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
-			step:     25,
-			desc:     "healthcheck success",
+			desc:     "25: healthcheck success",
 			method:   "GET",
 			path:     "/status",
 			data:     "",
@@ -403,8 +377,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 			status:   http.StatusOK,
 		},
 		{
-			step:     26,
-			desc:     "metrics endpoint success",
+			desc:     "26: metrics endpoint success",
 			method:   "GET",
 			path:     "/metrics",
 			data:     "",
@@ -413,7 +386,7 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 		},
 	}
 	for _, tC := range testCases {
-		t.Run(fmt.Sprintf("step %d: %s", tC.step, tC.desc), func(t *testing.T) {
+		t.Run(fmt.Sprintf("step %s", tC.desc), func(t *testing.T) {
 			req, err := http.NewRequest(tC.method, ts.URL+tC.path, strings.NewReader(tC.data))
 			req.Header.Set("Authorization", "Bearer "+adminToken)
 			if err != nil {

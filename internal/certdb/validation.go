@@ -64,17 +64,14 @@ func ValidateCertificate(cert string) error {
 
 	for i, firstCert := range certificates[:len(certificates)-1] {
 		secondCert := certificates[i+1]
+		if !secondCert.IsCA {
+			return fmt.Errorf("invalid certificate chain: certificate %d is not a certificate authority", i)
+		}
 		if !bytes.Equal(firstCert.RawIssuer, secondCert.RawSubject) {
 			return fmt.Errorf("invalid certificate chain: certificate %d, certificate %d: subjects do not match", i, i+1)
 		}
 		if err := firstCert.CheckSignatureFrom(secondCert); err != nil {
 			return fmt.Errorf("invalid certificate chain: certificate %d, certificate %d: keys do not match: %s", i, i+1, err.Error())
-		}
-	}
-
-	for i, cert := range certificates[1 : len(certificates)-1] {
-		if !cert.IsCA {
-			return fmt.Errorf("invalid certificate chain: certificate %d is not a certificate authority", i)
 		}
 	}
 	// TODO: We should validate the actual certificate parameters here too. (Has the required fields etc)

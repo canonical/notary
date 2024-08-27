@@ -59,8 +59,7 @@ func ValidateCertificate(cert string) error {
 	if len(certificates) < 2 {
 		return errors.New("less than 2 certificate PEM strings were found")
 	}
-	for i := 0; i < len(certificates)-1; i++ {
-		firstCert := certificates[i]
+	for i, firstCert := range certificates[:len(certificates)-1] {
 		secondCert := certificates[i+1]
 		if !bytes.Equal(firstCert.RawIssuer, secondCert.RawSubject) {
 			return fmt.Errorf("invalid certificate chain: certificate %d, certificate %d: subjects do not match", i, i+1)
@@ -69,8 +68,7 @@ func ValidateCertificate(cert string) error {
 			return fmt.Errorf("invalid certificate chain: certificate %d, certificate %d: keys do not match: %s", i, i+1, err.Error())
 		}
 	}
-	for i := 1; i < len(certificates)-1; i++ {
-		cert := certificates[i]
+	for i, cert := range certificates[1 : len(certificates)-1] {
 		if !cert.IsCA {
 			return fmt.Errorf("invalid certificate chain: certificate %d is not a certificate authority", i)
 		}

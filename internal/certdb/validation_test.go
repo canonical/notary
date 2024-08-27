@@ -91,6 +91,33 @@ Pp7ObjaWxjCT3O6nEH3w6Ozsyg2cHXQIdVXLvNnV1bxUbPnfhQosKGKgU6s+lcLM
 SRhHB2k=
 -----END CERTIFICATE-----
 `
+	StrawberryCert string = `-----BEGIN CERTIFICATE-----
+MIIEUjCCAjoCFE8lmuBE85/RPw2M17Kzl93O+9IJMA0GCSqGSIb3DQEBCwUAMGEx
+CzAJBgNVBAYTAlRSMQ4wDAYDVQQIDAVJem1pcjESMBAGA1UEBwwJTmFybGlkZXJl
+MSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQxCzAJBgNVBAMMAm1l
+MB4XDTI0MDYyODA4NDIzN1oXDTI1MDYyODA4NDIzN1owajELMAkGA1UEBhMCSVQx
+DzANBgNVBAgMBlBhZG92YTEOMAwGA1UEBwwFUGFkdWExITAfBgNVBAoMGEludGVy
+bmV0IFdpZGdpdHMgUHR5IEx0ZDEXMBUGA1UEAwwOc3RyYXdiZXJyeS5jb20wggEi
+MA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDXXHpy+3LLRCImyEQitM9eUdgY
+kexLz2PcAf89tTpkpt3L1woJw0bv+YR80UcR2Pg+7uUVm4XSKFvcdyWg8yADHIDD
+ZkEmKFEbrOLUsWWTQEsCpFt5MU4u6YnYXV0YflPXmRsJRd90NOen+wlM2ajK1gGT
+tLPdJ6axz15LdcT2uXXIvWhncjgLCvVpd/x44AMxD/BPf/d27VO5hEjxR//DtcOm
+S/jA+Zf1+dyIAWs2LH+ctsaPLOcg1rBiRrHtGL8wmPwgwK9b+QLiq9Ik+dx1Jl6B
+vC36LRk2CxTxfZ6e4UdYVhtnjMW2VEUAVg9LtowvXTexESUv6Mh4uQF6pW5ZAgMB
+AAEwDQYJKoZIhvcNAQELBQADggIBAIZP5KCkgnoZ8SvnRpQT1rA1d1aneiRdnIKI
+WznmGdZAJOWGDVjP0fywdDmpxbK9+6qljzwvAm/cRVEGBJXKHfPvpNtLgO/TCKIG
+KOhNVttvgyIKB/LhcN36+qdfZrSUD0XqB2e+y5tzY/WSUy00zHVqohHcBydL//xe
+mKiHiOwZ1QwZkjmYv2Lqd1xHaU28B98k7wvQuhxKSB2lvlCKBm5NjiQx+ZyG/NMC
+W9zGSBRjz+elrSFJFJiIO5gLVBJXOQz029yBdju+PrGG4i5fLAvJSSyCVgNKAK8S
+9x17WmsGBxdAEWiOrYYSUbaJGGlJ+GV5z/2hjGx7SDGV6I4YaHBnD7ZvLQ684uka
+K8LNVT06RmvkvisdW9edJzzZzzu+B8GuGCV49CUUWInCIVTfIk/FtViUDOiXL8gM
+Wk5OqODXJcGI4oK6N+4zfT25XBOMgON6O6JUF6cJtte5/Pv6EZhZeNjkxOGZMy9b
+Dh+wnIt2whBkOv4YmE5/P5h4K4xom+XCz3ec0llP/1ehvY5nCFsDNe7qQ2Zlroi3
+dYaWAI3cEWYFs2BkcL6yoC/o2lGUnFGzg+zPU0KTwypAseQurBabmbdNXggqhXWZ
+X2iP1fzriAc7Go/uLVH4qezAhR+KisfUrkCw8Jyma8lbkmY0f0OWir6cfWxBfuDf
+JUdt8AH0
+-----END CERTIFICATE-----
+	`
 
 	IssuerCert string = `-----BEGIN CERTIFICATE-----
 MIIFozCCA4ugAwIBAgIUDjtO3bEluUX3tzvrckATlycRVfwwDQYJKoZIhvcNAQEL
@@ -266,6 +293,8 @@ func TestCertValidationFail(t *testing.T) {
 	var issuerCertPKDoesNotMatchErr = "invalid certificate chain: certificate 0, certificate 1: keys do not match"
 	var issuerCertSubjectDoesNotMatch = fmt.Sprintf("%s\n%s", BananaCert, WrongSubjectIssuerCert)
 	var issuerCertSubjectDoesNotMatchErr = "invalid certificate chain: certificate 0, certificate 1: subjects do not match"
+	var issuerCertNotCA = fmt.Sprintf("%s\n%s", BananaCert, StrawberryCert)
+	var issuerCertNotCaErr = "invalid certificate chain: certificate 1 is not a certificate authority"
 
 	cases := []struct {
 		inputCert   string
@@ -294,6 +323,10 @@ func TestCertValidationFail(t *testing.T) {
 		{
 			inputCert:   issuerCertSubjectDoesNotMatch,
 			expectedErr: issuerCertSubjectDoesNotMatchErr,
+		},
+		{
+			inputCert:   issuerCertNotCA,
+			expectedErr: issuerCertNotCaErr,
 		},
 	}
 

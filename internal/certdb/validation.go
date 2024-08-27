@@ -65,7 +65,7 @@ func ValidateCertificate(cert string) error {
 	for i, firstCert := range certificates[:len(certificates)-1] {
 		secondCert := certificates[i+1]
 		if !secondCert.IsCA {
-			return fmt.Errorf("invalid certificate chain: certificate %d is not a certificate authority", i)
+			return fmt.Errorf("invalid certificate chain: certificate %d is not a certificate authority", i+1)
 		}
 		if !bytes.Equal(firstCert.RawIssuer, secondCert.RawSubject) {
 			return fmt.Errorf("invalid certificate chain: certificate %d, certificate %d: subjects do not match", i, i+1)

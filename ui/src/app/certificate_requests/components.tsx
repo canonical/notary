@@ -46,9 +46,9 @@ function SubmitCertificate({ existingCSRText, existingCertText, certText, onClic
                     setValidationErrorText("Certificate does not match request")
                     return
                 }
-                let a = await validateBundle(certText)
-                if (await validateBundle(certText)) {
-                    setValidationErrorText("Bundle validation failed: " + a)
+                let validationMessage = await validateBundle(certText)
+                if (validationMessage != "") {
+                    setValidationErrorText("Bundle validation failed: " + validationMessage)
                     return
                 }
             }

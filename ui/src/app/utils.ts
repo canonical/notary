@@ -295,6 +295,5 @@ export const validateBundle = async (bundle: string) => {
         trustedCerts: [rootCa]
     })
     const result = await chainEngine.verify()
-    console.log(result)
     return result.resultMessage
 }

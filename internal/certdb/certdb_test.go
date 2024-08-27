@@ -1,6 +1,7 @@
 package certdb_test
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -25,15 +26,15 @@ func TestCSRsEndToEnd(t *testing.T) {
 	}
 	defer db.Close()
 
-	id1, err := db.CreateCSR(ValidCSR1)
+	id1, err := db.CreateCSR(AppleCSR)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
-	id2, err := db.CreateCSR(ValidCSR2)
+	id2, err := db.CreateCSR(BananaCSR)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
-	id3, err := db.CreateCSR(ValidCSR3)
+	id3, err := db.CreateCSR(StrawberryCSR)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
@@ -49,7 +50,7 @@ func TestCSRsEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete Retrieve: %s", err)
 	}
-	if retrievedCSR.CSR != ValidCSR1 {
+	if retrievedCSR.CSR != AppleCSR {
 		t.Fatalf("The CSR from the database doesn't match the CSR that was given")
 	}
 
@@ -60,14 +61,14 @@ func TestCSRsEndToEnd(t *testing.T) {
 	if len(res) != 2 {
 		t.Fatalf("CSR's weren't deleted from the DB properly")
 	}
-
-	_, err = db.UpdateCSR(strconv.FormatInt(id2, 10), ValidCert2)
+	var BananaCertBundle = strings.TrimSpace(fmt.Sprintf("%s%s", BananaCert, IssuerCert))
+	_, err = db.UpdateCSR(strconv.FormatInt(id2, 10), BananaCertBundle)
 	if err != nil {
 		t.Fatalf("Couldn't complete Update: %s", err)
 	}
 	retrievedCSR, _ = db.RetrieveCSR(strconv.FormatInt(id2, 10))
-	if retrievedCSR.Certificate != ValidCert2 {
-		t.Fatalf("The certificate that was uploaded does not match the certificate that was given.\n Retrieved: %s\nGiven: %s", retrievedCSR.Certificate, ValidCert2)
+	if retrievedCSR.Certificate != BananaCertBundle {
+		t.Fatalf("The certificate that was uploaded does not match the certificate that was given.\n Retrieved: %s\nGiven: %s", retrievedCSR.Certificate, BananaCertBundle)
 	}
 	_, err = db.UpdateCSR(strconv.FormatInt(id2, 10), "")
 	if err != nil {
@@ -87,13 +88,13 @@ func TestCreateFails(t *testing.T) {
 	db, _ := certdb.NewCertificateRequestsRepository(":memory:", "CertificateReqs") //nolint:errcheck
 	defer db.Close()
 
-	InvalidCSR := strings.ReplaceAll(ValidCSR1, "/", "+")
+	InvalidCSR := strings.ReplaceAll(AppleCSR, "M", "i")
 	if _, err := db.CreateCSR(InvalidCSR); err == nil {
 		t.Fatalf("Expected error due to invalid CSR")
 	}
 
-	db.CreateCSR(ValidCSR1) //nolint:errcheck
-	if _, err := db.CreateCSR(ValidCSR1); err == nil {
+	db.CreateCSR(AppleCSR) //nolint:errcheck
+	if _, err := db.CreateCSR(AppleCSR); err == nil {
 		t.Fatalf("Expected error due to duplicate CSR")
 	}
 }
@@ -102,13 +103,13 @@ func TestUpdateFails(t *testing.T) {
 	db, _ := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests") //nolint:errcheck
 	defer db.Close()
 
-	id1, _ := db.CreateCSR(ValidCSR1) //nolint:errcheck
-	id2, _ := db.CreateCSR(ValidCSR2) //nolint:errcheck
-	InvalidCert := strings.ReplaceAll(ValidCert2, "/", "+")
+	id1, _ := db.CreateCSR(AppleCSR)  //nolint:errcheck
+	id2, _ := db.CreateCSR(BananaCSR) //nolint:errcheck
+	InvalidCert := strings.ReplaceAll(BananaCert, "/", "+")
 	if _, err := db.UpdateCSR(strconv.FormatInt(id2, 10), InvalidCert); err == nil {
 		t.Fatalf("Expected updating with invalid cert to fail")
 	}
-	if _, err := db.UpdateCSR(strconv.FormatInt(id1, 10), ValidCert2); err == nil {
+	if _, err := db.UpdateCSR(strconv.FormatInt(id1, 10), BananaCert); err == nil {
 		t.Fatalf("Expected updating with mismatched cert to fail")
 	}
 }
@@ -117,7 +118,7 @@ func TestRetrieve(t *testing.T) {
 	db, _ := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests") //nolint:errcheck
 	defer db.Close()
 
-	db.CreateCSR(ValidCSR1) //nolint:errcheck
+	db.CreateCSR(AppleCSR) //nolint:errcheck
 	if _, err := db.RetrieveCSR("this is definitely not an id"); err == nil {
 		t.Fatalf("Expected failure looking for nonexistent CSR")
 	}
@@ -181,19 +182,19 @@ func Example() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	_, err = db.CreateCSR(ValidCSR2)
+	_, err = db.CreateCSR(BananaCSR)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	_, err = db.UpdateCSR(ValidCSR2, ValidCert2)
+	_, err = db.UpdateCSR(BananaCSR, BananaCert)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	entry, err := db.RetrieveCSR(ValidCSR2)
+	entry, err := db.RetrieveCSR(BananaCSR)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	if entry.Certificate != ValidCert2 {
+	if entry.Certificate != BananaCert {
 		log.Fatalln("Retrieved Certificate doesn't match Stored Certificate")
 	}
 	err = db.Close()

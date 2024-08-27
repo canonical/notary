@@ -1,6 +1,6 @@
 import { useState, Dispatch, SetStateAction, useEffect, useRef } from "react"
 import { UseMutationResult, useMutation, useQueryClient } from "react-query"
-import { extractCSR, extractCert } from "../utils"
+import { extractCSR, extractCert, splitBundle } from "../utils"
 import { RequiredCSRParams, deleteCSR, rejectCSR, revokeCertificate } from "../queries"
 import { ConfirmationModal, SubmitCertificateModal, SuccessNotification } from "./components"
 import "./../globals.scss"
@@ -31,7 +31,9 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
     const [confirmationModalData, setConfirmationModalData] = useState<ConfirmationModalData>(null)
 
     const csrObj = extractCSR(csr)
-    const certObj = extractCert(certificate)
+    const certs = splitBundle(certificate)
+    const clientCertificate = certs.at(0)
+    const certObj = clientCertificate ? extractCert(clientCertificate) : null
 
     const queryClient = useQueryClient()
     const deleteMutation = useMutation(deleteCSR, {
@@ -61,7 +63,7 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
         const blob = new Blob([csr], { type: 'text/plain' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = "csr-" + id.toString() + ".pem"; // TODO: change this to <csr-commonname>.pem
+        link.download = "csr-" + (csrObj.commonName !== undefined ? csrObj.commonName : id.toString()) + ".pem";
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -84,15 +86,6 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
             onMouseDownFunc: () => mutationFunc(revokeMutation, { id: id.toString(), authToken: cookies.user_token }),
             warningText: "Revoking a Certificate will delete it from the table. This action cannot be undone."
         })
-    }
-
-
-    const toggleActionMenu = () => {
-        if (ActionMenuExpanded == id) {
-            setActionMenuExpanded(0)
-        } else {
-            setActionMenuExpanded(id)
-        }
     }
 
     const getFieldDisplay = (label: string, field: string | undefined, compareField?: string | undefined) => {

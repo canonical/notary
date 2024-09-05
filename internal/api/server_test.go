@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	server "github.com/canonical/gocert/internal/api"
+	server "github.com/canonical/notary/internal/api"
 )
 
 const (

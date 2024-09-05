@@ -4,7 +4,7 @@ import Navigation from "@/app/nav";
 import { AuthProvider } from "./auth/authContext";
 
 export const metadata: Metadata = {
-  title: "GoCert",
+  title: "Notary",
   description: "A certificate management application",
 };
 

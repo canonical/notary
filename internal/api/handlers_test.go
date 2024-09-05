@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	server "github.com/canonical/gocert/internal/api"
-	"github.com/canonical/gocert/internal/certdb"
+	server "github.com/canonical/notary/internal/api"
+	"github.com/canonical/notary/internal/certdb"
 	"github.com/golang-jwt/jwt"
 )
 
@@ -152,14 +152,14 @@ const (
 	notExistingUser        = `{"username": "not_existing", "password": "user"}`
 )
 
-func TestGoCertCertificatesHandlers(t *testing.T) {
+func TestNotaryCertificatesHandlers(t *testing.T) {
 	testdb, err := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests")
 	if err != nil {
 		log.Fatalf("couldn't create test sqlite db: %s", err)
 	}
 	env := &server.Environment{}
 	env.DB = testdb
-	ts := httptest.NewTLSServer(server.NewGoCertRouter(env))
+	ts := httptest.NewTLSServer(server.NewNotaryRouter(env))
 	defer ts.Close()
 
 	client := ts.Client()
@@ -409,14 +409,14 @@ func TestGoCertCertificatesHandlers(t *testing.T) {
 
 }
 
-func TestGoCertUsersHandlers(t *testing.T) {
+func TestNotaryUsersHandlers(t *testing.T) {
 	testdb, err := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests")
 	if err != nil {
 		log.Fatalf("couldn't create test sqlite db: %s", err)
 	}
 	env := &server.Environment{}
 	env.DB = testdb
-	ts := httptest.NewTLSServer(server.NewGoCertRouter(env))
+	ts := httptest.NewTLSServer(server.NewNotaryRouter(env))
 	defer ts.Close()
 
 	client := ts.Client()
@@ -580,7 +580,7 @@ func TestLogin(t *testing.T) {
 	env := &server.Environment{}
 	env.DB = testdb
 	env.JWTSecret = []byte("secret")
-	ts := httptest.NewTLSServer(server.NewGoCertRouter(env))
+	ts := httptest.NewTLSServer(server.NewNotaryRouter(env))
 	defer ts.Close()
 
 	client := ts.Client()
@@ -694,7 +694,7 @@ func TestAuthorization(t *testing.T) {
 	env := &server.Environment{}
 	env.DB = testdb
 	env.JWTSecret = []byte("secret")
-	ts := httptest.NewTLSServer(server.NewGoCertRouter(env))
+	ts := httptest.NewTLSServer(server.NewNotaryRouter(env))
 	defer ts.Close()
 
 	client := ts.Client()

@@ -1,4 +1,4 @@
-// Package server provides a server object that represents the GoCert backend
+// Package server provides a server object that represents the Notary backend
 package server
 
 import (
@@ -11,7 +11,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/canonical/gocert/internal/certdb"
+	"github.com/canonical/notary/internal/certdb"
 )
 
 type Environment struct {
@@ -55,7 +55,7 @@ func NewServer(port int, cert []byte, key []byte, dbPath string, pebbleNotificat
 	env.DB = db
 	env.SendPebbleNotifications = pebbleNotificationsEnabled
 	env.JWTSecret = jwtSecret
-	router := NewGoCertRouter(env)
+	router := NewNotaryRouter(env)
 
 	s := &http.Server{
 		Addr: fmt.Sprintf(":%d", port),

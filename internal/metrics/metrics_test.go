@@ -15,8 +15,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/canonical/gocert/internal/certdb"
-	metrics "github.com/canonical/gocert/internal/metrics"
+	"github.com/canonical/notary/internal/certdb"
+	metrics "github.com/canonical/notary/internal/metrics"
 )
 
 // TestPrometheusHandler tests that the Prometheus metrics handler responds correctly to an HTTP request.

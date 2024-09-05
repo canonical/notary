@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/canonical/gocert/internal/certdb"
+	"github.com/canonical/notary/internal/certdb"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"

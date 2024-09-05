@@ -16,28 +16,28 @@ jobs:
   
       - name: Import the image to Docker registry
         run: |
-          sudo rockcraft.skopeo --insecure-policy copy oci-archive:${{ steps.rockcraft.outputs.rock }} docker-daemon:gocert:latest
+          sudo rockcraft.skopeo --insecure-policy copy oci-archive:${{ steps.rockcraft.outputs.rock }} docker-daemon:notary:latest
 
-      - name: Create files required by GoCert
+      - name: Create files required by Notary
         run: |
-          printf 'key_path:  "/etc/gocert/config/key.pem"\ncert_path: "/etc/gocert/config/cert.pem"\ndb_path: "/var/lib/gocert/database/certs.db"\nport: 3000\npebble_notifications: true\n' > config.yaml
+          printf 'key_path:  "/etc/notary/config/key.pem"\ncert_path: "/etc/notary/config/cert.pem"\ndb_path: "/var/lib/notary/database/certs.db"\nport: 3000\npebble_notifications: true\n' > config.yaml
           openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 1 -out cert.pem -subj "/CN=githubaction.example"
 
       - name: Run the image
         run: |
-          docker run -d -p 3000:3000 --name gocert gocert:latest
+          docker run -d -p 3000:3000 --name notary notary:latest
       - name: Load config
         run: |
-          docker exec gocert /usr/bin/pebble mkdir -p /etc/gocert/config
-          docker exec gocert /usr/bin/pebble mkdir -p /var/lib/gocert/database
-          docker cp key.pem gocert:/etc/gocert/config/key.pem
-          docker cp cert.pem gocert:/etc/gocert/config/cert.pem
-          docker cp config.yaml gocert:/etc/gocert/config/config.yaml
-          docker restart gocert
-      - name: Check if GoCert frontend is loaded
+          docker exec notary /usr/bin/pebble mkdir -p /etc/notary/config
+          docker exec notary /usr/bin/pebble mkdir -p /var/lib/notary/database
+          docker cp key.pem notary:/etc/notary/config/key.pem
+          docker cp cert.pem notary:/etc/notary/config/cert.pem
+          docker cp config.yaml notary:/etc/notary/config/config.yaml
+          docker restart notary
+      - name: Check if Notary frontend is loaded
         run: |
           sleep 30
-          docker logs gocert
+          docker logs notary
           curl -k https://localhost:3000/certificate_requests.html 2>&1 | grep "Certificate Requests"
 
       - name: Test if pebble notify fires correctly
@@ -121,9 +121,9 @@ jobs:
           jdzVA8yTI8cZ/RtRohp5H/s+j2tcdfB3Zt+wfS4nLxqN/kf7qv2VSdPbXyTyz/ft
           btZkbfdL5A==
           -----END CERTIFICATE-----' -H "Authorization: Bearer $ADMIN_TOKEN" 'https://localhost:3000/api/v1/certificate_requests/1/certificate'
-          docker exec gocert /usr/bin/pebble notices
-          docker exec gocert /usr/bin/pebble notices | grep gocert\\.com/certificate/update
-          docker exec gocert /usr/bin/pebble notice 3
+          docker exec notary /usr/bin/pebble notices
+          docker exec notary /usr/bin/pebble notices | grep notary\\.com/certificate/update
+          docker exec notary /usr/bin/pebble notice 3
         
       - uses: actions/upload-artifact@v4
         if: steps.test_notify.outcome == 'success'

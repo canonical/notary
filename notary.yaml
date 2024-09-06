@@ -1,0 +1,5 @@
+key_path:  "key.pem"
+cert_path: "cert.pem"
+db_path: "certs.db"
+port: 3000
+pebble_notifications: false

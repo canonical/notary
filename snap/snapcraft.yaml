@@ -1,0 +1,41 @@
+name: notary
+base: core24
+version: '0.0.3'
+summary: Notary is a certificate management tool.
+description: Notary is a certificate management tool.
+
+grade: stable
+confinement: strict
+
+apps:
+  notary:
+    command: bin/notary
+    plugs:
+      - network
+      - network-bind
+      - home
+  notaryd:
+    daemon: simple
+    install-mode: disable
+    command: bin/notaryd-start
+    refresh-mode: endure
+    plugs:
+      - network
+      - network-bind
+
+parts:
+  notary:
+    plugin: go
+    source: .
+    source-type: local
+    build-snaps:
+      - go/1.22/stable
+      - node/20/stable
+    override-build: |
+      npm install --prefix ui
+      npm run build --prefix ui
+      craftctl default
+
+  service-files:
+    plugin: dump
+    source: service

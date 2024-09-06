@@ -11,28 +11,35 @@ on:
 jobs: 
   unit-test-frontend:
     uses: ./.github/workflows/test-frontend.yaml
-  build-nextjs:
+  nextjs-build:
     uses: ./.github/workflows/build-frontend.yaml
-  unit-test-notary:
-    needs: [build-nextjs]
+  go-unit-test:
+    needs: [nextjs-build]
     uses: ./.github/workflows/test-notary.yaml
   go-vet:
-    needs: [build-nextjs]
+    needs: [nextjs-build]
     uses: ./.github/workflows/go-vet.yaml
   go-lint:
-    needs: [build-nextjs]
+    needs: [nextjs-build]
     uses: ./.github/workflows/go-lint.yaml
-  build-notary:
-    needs: [build-nextjs]
+  go-build:
+    needs: [nextjs-build]
     uses: ./.github/workflows/build-notary.yaml
   rock-build:
-    needs: [build-notary, unit-test-notary, go-vet, go-lint]
+    needs: [go-build, go-unit-test, go-vet, go-lint]
     uses: ./.github/workflows/build-rock.yaml
   rock-scan:
     if: github.ref_name == 'main'
     needs: [rock-build]
     uses: ./.github/workflows/scan-rock.yaml
-  publish:
+  rock-publish:
     if: github.ref_name == 'main'
     needs: [rock-build]
     uses: ./.github/workflows/publish-rock.yaml
+  snap-build:
+    needs: [go-build, go-unit-test, go-vet, go-lint]
+    uses: ./.github/workflows/build-snap.yaml
+  snap-publish:
+    if: github.ref_name == 'main'
+    needs: [snap-build]
+    uses: ./.github/workflows/publish-snap.yaml

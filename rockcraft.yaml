@@ -1,7 +1,7 @@
 name: notary
 base: bare
 build-base: ubuntu@24.04
-version: '0.0.3'
+version: '0.1.0'
 summary: A certificate management tool
 description: |
   A certificate management tool.

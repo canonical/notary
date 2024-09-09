@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"flag"
@@ -131,7 +131,7 @@ func TestMain(m *testing.M) {
 	os.Exit(exitval)
 }
 
-func TestNotaryFail(t *testing.T) {
+func TestStartFail(t *testing.T) {
 	oldArgs := os.Args
 	defer func() { os.Args = oldArgs }()
 	cases := []struct {
@@ -140,9 +140,9 @@ func TestNotaryFail(t *testing.T) {
 		ConfigYAML     string
 		ExpectedOutput string
 	}{
-		{"flags not set", []string{"start"}, validConfig, "Providing a config file is required."},
-		{"config file not valid", []string{"start -config", "config.yaml"}, invalidConfig, "config file validation failed:"},
-		{"database not connectable", []string{"start -config", "config.yaml"}, invalidDBConfig, "Couldn't connect to database:"},
+		{"flags not set", []string{"start"}, validConfig, "providing a config file is required."},
+		{"config file not valid", []string{"start", "-config", "config.yaml"}, invalidConfig, "config file validation failed:"},
+		{"database not connectable", []string{"start", "-config", "config.yaml"}, invalidDBConfig, "Couldn't connect to database:"},
 	}
 	for _, tc := range cases {
 		writeConfigErr := os.WriteFile("config.yaml", []byte(tc.ConfigYAML), 0644)

@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"os"
 )
@@ -12,23 +11,32 @@ type Runner interface {
 	Name() string
 }
 
+func getSupportedCommands() []Runner {
+	return []Runner{
+		NewStartCommand(),
+	}
+}
+
+func getSupportedCommandNames() []string {
+	allowedSubcommands := []string{}
+	for _, cmd := range getSupportedCommands() {
+		allowedSubcommands = append(allowedSubcommands, cmd.Name())
+	}
+	return allowedSubcommands
+}
+
 func Run(args []string) error {
 	if len(args) < 1 {
-		return errors.New("you must pass a subcommand")
-	}
-
-	cmds := []Runner{
-		NewStartCommand(),
+		return fmt.Errorf("you must pass a subcommand. Allowed commands: %v", getSupportedCommandNames())
 	}
 
 	subcommand := os.Args[1]
 
-	for _, cmd := range cmds {
+	for _, cmd := range getSupportedCommands() {
 		if cmd.Name() == subcommand {
 			cmd.Init(os.Args[2:])
 			return cmd.Run()
 		}
 	}
-
-	return fmt.Errorf("unknown subcommand: %s", subcommand)
+	return fmt.Errorf("unknown subcommand: %s. Allowed commands: %v", subcommand, getSupportedCommandNames())
 }

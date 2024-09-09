@@ -34,7 +34,10 @@ func Run(args []string) error {
 
 	for _, cmd := range getSupportedCommands() {
 		if cmd.Name() == subcommand {
-			cmd.Init(os.Args[2:])
+			err := cmd.Init(os.Args[2:])
+			if err != nil {
+				return fmt.Errorf("failed to initialize %s: %w", subcommand, err)
+			}
 			return cmd.Run()
 		}
 	}

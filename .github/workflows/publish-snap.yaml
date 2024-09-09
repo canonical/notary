@@ -2,6 +2,9 @@ name: Publish Snap
 
 on:
   workflow_call:
+    secrets:
+      SNAPCRAFT_STORE_CREDENTIALS:
+        required: true
 
 jobs:
   publish-snap:

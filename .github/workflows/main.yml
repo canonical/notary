@@ -43,3 +43,4 @@ jobs:
     if: github.ref_name == 'main'
     needs: [snap-build]
     uses: ./.github/workflows/publish-snap.yaml
+    secrets: inherit

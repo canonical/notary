@@ -81,3 +81,23 @@ You will need to build the frontend first, and then install notary with Go.
 npm install --prefix ui && npm run build --prefix ui && go install ./...
 notary -config ./config.yaml
 ```
+
+## API
+
+| Endpoint                                               | HTTP Method | Description                                    | Parameters         |
+| ------------------------------------------------------ | ----------- | ---------------------------------------------- | ------------------ |
+| `/api/v1/certificate_requests`                         | GET         | Get all blog certificate requests              |                    |
+| `/api/v1/certificate_requests`                         | POST        | Create a new certificate request               | csr                |
+| `/api/v1/certificate_requests/{id}`                    | GET         | Get a certificate request by id                |                    |
+| `/api/v1/certificate_requests/{id}`                    | DELETE      | Delete a certificate request by id             |                    |
+| `/api/v1/certificate_requests/{id}/certificate`        | POST        | Create a certificate for a certificate request |                    |
+| `/api/v1/certificate_requests/{id}/certificate/reject` | POST        | Reject a certificate for a certificate request |                    |
+| `/api/v1/certificate_requests/{id}/certificate`        | DELETE      | Delete a certificate for a certificate request |                    |
+| `/api/v1/accounts`                                     | GET         | Get all user accounts                          |                    |
+| `/api/v1/accounts`                                     | POST        | Create a new user account                      | username, password |
+| `/api/v1/accounts/{id}`                                | GET         | Get a user account by id                       |                    |
+| `/api/v1/accounts/{id}`                                | DELETE      | Delete a user account by id                    |                    |
+| `/api/v1/accounts/{id}/change_password`                | POST        | Change a user account's password               | password           |
+| `/login`                                               | POST        | Login to the Notary UI                         | username, password |
+| `/status`                                              | GET         | Get the status of the Notary service           |                    |
+| `/metrics`                                             | Get         | Get Prometheus metrics                         |                    |

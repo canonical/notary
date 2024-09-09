@@ -88,7 +88,7 @@ export function Logo() {
                     className="logo-image"
                 />
             </div>
-            <span className="logo-text p-heading--4">GoCert</span>
+            <span className="logo-text p-heading--4">Notary</span>
         </div>
     )
 }

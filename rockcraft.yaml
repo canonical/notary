@@ -1,4 +1,4 @@
-name: gocert
+name: notary
 base: bare
 build-base: ubuntu@24.04
 version: '0.0.3'
@@ -11,13 +11,13 @@ platforms:
   arm64:
 
 services:
-  gocert:
-    command: gocert [ -config /etc/gocert/config/config.yaml ]
+  notary:
+    command: notary [ -config /etc/notary/config/config.yaml ]
     override: replace
     startup: enabled
 
 parts:
-  gocert:
+  notary:
     plugin: go
     source: .
     source-type: local

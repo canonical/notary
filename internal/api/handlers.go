@@ -16,17 +16,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/canonical/gocert/internal/certdb"
-	metrics "github.com/canonical/gocert/internal/metrics"
-	"github.com/canonical/gocert/ui"
+	"github.com/canonical/notary/internal/certdb"
+	metrics "github.com/canonical/notary/internal/metrics"
+	"github.com/canonical/notary/ui"
 	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
 )
 
-// NewGoCertRouter takes in an environment struct, passes it along to any handlers that will need
+// NewNotaryRouter takes in an environment struct, passes it along to any handlers that will need
 // access to it, and takes an http.Handler that will be used to handle metrics.
 // then builds and returns it for a server to consume
-func NewGoCertRouter(env *Environment) http.Handler {
+func NewNotaryRouter(env *Environment) http.Handler {
 	apiV1Router := http.NewServeMux()
 	apiV1Router.HandleFunc("GET /certificate_requests", GetCertificateRequests(env))
 	apiV1Router.HandleFunc("POST /certificate_requests", PostCertificateRequest(env))
@@ -221,7 +221,7 @@ func PostCertificate(env *Environment) http.HandlerFunc {
 		}
 		insertIdStr := strconv.FormatInt(insertId, 10)
 		if env.SendPebbleNotifications {
-			err := SendPebbleNotification("gocert.com/certificate/update", insertIdStr)
+			err := SendPebbleNotification("notary.com/certificate/update", insertIdStr)
 			if err != nil {
 				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
 			}
@@ -247,7 +247,7 @@ func RejectCertificate(env *Environment) http.HandlerFunc {
 		}
 		insertIdStr := strconv.FormatInt(insertId, 10)
 		if env.SendPebbleNotifications {
-			err := SendPebbleNotification("gocert.com/certificate/update", insertIdStr)
+			err := SendPebbleNotification("notary.com/certificate/update", insertIdStr)
 			if err != nil {
 				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
 			}
@@ -275,7 +275,7 @@ func DeleteCertificate(env *Environment) http.HandlerFunc {
 		}
 		insertIdStr := strconv.FormatInt(insertId, 10)
 		if env.SendPebbleNotifications {
-			err := SendPebbleNotification("gocert.com/certificate/update", insertIdStr)
+			err := SendPebbleNotification("notary.com/certificate/update", insertIdStr)
 			if err != nil {
 				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
 			}
@@ -600,7 +600,7 @@ func validatePassword(password string) bool {
 
 // Helper function to generate a JWT
 func generateJWT(id int, username string, jwtSecret []byte, permissions int) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtGocertClaims{
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtNotaryClaims{
 		ID:          id,
 		Username:    username,
 		Permissions: permissions,
@@ -616,7 +616,7 @@ func generateJWT(id int, username string, jwtSecret []byte, permissions int) (st
 	return tokenString, nil
 }
 
-type jwtGocertClaims struct {
+type jwtNotaryClaims struct {
 	ID          int    `json:"id"`
 	Username    string `json:"username"`
 	Permissions int    `json:"permissions"`

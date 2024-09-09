@@ -104,7 +104,7 @@ pebble_notices: false`
 func TestMain(m *testing.M) {
 	cmd := exec.Command("go", "install", "./...")
 	if err := cmd.Run(); err != nil {
-		log.Fatalf("couldn't install the gocert CLI")
+		log.Fatalf("couldn't install the notary CLI")
 	}
 
 	testfolder, err := os.MkdirTemp("./", "configtest-")
@@ -131,7 +131,7 @@ func TestMain(m *testing.M) {
 	os.Exit(exitval)
 }
 
-func TestGoCertFail(t *testing.T) {
+func TestNotaryFail(t *testing.T) {
 	oldArgs := os.Args
 	defer func() { os.Args = oldArgs }()
 	cases := []struct {
@@ -150,7 +150,7 @@ func TestGoCertFail(t *testing.T) {
 			t.Errorf("Failed writing config file")
 		}
 		flag.CommandLine = flag.NewFlagSet(tc.Name, flag.ExitOnError)
-		cmd := exec.Command("gocert", tc.Args...)
+		cmd := exec.Command("notary", tc.Args...)
 		stdout, _ := cmd.StdoutPipe()
 
 		if err := cmd.Start(); err != nil {

@@ -13,20 +13,20 @@ jobs:
     uses: ./.github/workflows/test-frontend.yaml
   build-nextjs:
     uses: ./.github/workflows/build-frontend.yaml
-  unit-test-gocert:
+  unit-test-notary:
     needs: [build-nextjs]
-    uses: ./.github/workflows/test-gocert.yaml
+    uses: ./.github/workflows/test-notary.yaml
   go-vet:
     needs: [build-nextjs]
     uses: ./.github/workflows/go-vet.yaml
   go-lint:
     needs: [build-nextjs]
     uses: ./.github/workflows/go-lint.yaml
-  build-gocert:
+  build-notary:
     needs: [build-nextjs]
-    uses: ./.github/workflows/build-gocert.yaml
+    uses: ./.github/workflows/build-notary.yaml
   rock-build:
-    needs: [build-gocert, unit-test-gocert, go-vet, go-lint]
+    needs: [build-notary, unit-test-notary, go-vet, go-lint]
     uses: ./.github/workflows/build-rock.yaml
   rock-scan:
     if: github.ref_name == 'main'

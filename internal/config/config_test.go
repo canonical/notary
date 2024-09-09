@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/canonical/gocert/internal/config"
+	"github.com/canonical/notary/internal/config"
 )
 
 const (

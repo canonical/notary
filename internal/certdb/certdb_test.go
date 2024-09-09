@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/canonical/gocert/internal/certdb"
+	"github.com/canonical/notary/internal/certdb"
 	"golang.org/x/crypto/bcrypt"
 )
 

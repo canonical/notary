@@ -1,4 +1,4 @@
-module github.com/canonical/gocert
+module github.com/canonical/notary
 
 go 1.22.1
 

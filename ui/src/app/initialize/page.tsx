@@ -76,7 +76,7 @@ export default function Initialize() {
                 }}>
                     <fieldset>
                         <div className="p-panel__header">
-                            <h2>Initialize GoCert</h2>
+                            <h2>Initialize Notary</h2>
                         </div>
                         <div className="p-panel__content">
                             <form className={"p-form-validation " + ((!passwordIsValid(password1) && password1 != "") || (!passwordsMatch && password2 != "") ? "is-error" : "")}>

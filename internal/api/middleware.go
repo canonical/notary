@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/canonical/gocert/internal/metrics"
+	"github.com/canonical/notary/internal/metrics"
 	"github.com/golang-jwt/jwt"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -133,7 +133,7 @@ func authMiddleware(ctx *middlewareContext) middleware {
 	}
 }
 
-func getClaimsFromAuthorizationHeader(header string, jwtSecret []byte) (*jwtGocertClaims, error) {
+func getClaimsFromAuthorizationHeader(header string, jwtSecret []byte) (*jwtNotaryClaims, error) {
 	if header == "" {
 		return nil, fmt.Errorf("authorization header not found")
 	}
@@ -159,7 +159,7 @@ func getClaimsFromAuthorizationHeader(header string, jwtSecret []byte) (*jwtGoce
 // If the URL path is not restricted to admins
 // If the URL path is restricted to self authorized endpoints, and the user is taking action with their own ID
 // This function validates that the user the with the given claims is allowed to use the endpoints by passing the above checks.
-func AllowRequest(claims *jwtGocertClaims, method, path string) (bool, error) {
+func AllowRequest(claims *jwtNotaryClaims, method, path string) (bool, error) {
 	restrictedPaths := []struct {
 		method, pathRegex     string
 		SelfAuthorizedAllowed bool
@@ -200,8 +200,8 @@ func AllowRequest(claims *jwtGocertClaims, method, path string) (bool, error) {
 	return true, nil
 }
 
-func getClaimsFromJWT(bearerToken string, jwtSecret []byte) (*jwtGocertClaims, error) {
-	claims := jwtGocertClaims{}
+func getClaimsFromJWT(bearerToken string, jwtSecret []byte) (*jwtNotaryClaims, error) {
+	claims := jwtNotaryClaims{}
 	token, err := jwt.ParseWithClaims(bearerToken, &claims, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])

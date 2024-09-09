@@ -45,12 +45,12 @@ You will need to build the frontend first, and then install notary with Go.
 
 ```bash
 npm install --prefix ui && npm run build --prefix ui && go install ./...
-notary -config ./config.yaml
+notary start -config ./config.yaml
 ```
 
 ## Configuration
 
-Notary takes a YAML config file as input. The config file can be passed to Notary using the `-config` flag.
+Notary's start command takes a YAML config file as input. The config file can be passed to Notary using the `-config` flag.
 
 The config file requires the following parameters:
 | Key                  | Type              | Description                                                                                                                                                                                                                                         |

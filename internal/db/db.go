@@ -10,7 +10,12 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const queryCreateCSRsTable = `CREATE TABLE IF NOT EXISTS CertificateRequests (
+const (
+	certificateRequestsTableName = "CertificateRequests"
+	usersTableName               = "users"
+)
+
+const queryCreateCSRsTable = `CREATE TABLE IF NOT EXISTS %s (
 	csr TEXT PRIMARY KEY UNIQUE NOT NULL, 
 	certificate TEXT DEFAULT ''
 )`
@@ -23,7 +28,7 @@ const (
 	queryDeleteCSR  = "DELETE FROM %s WHERE rowid=?"
 )
 
-const queryCreateUsersTable = `CREATE TABLE IF NOT EXISTS users (
+const queryCreateUsersTable = `CREATE TABLE IF NOT EXISTS %s (
     user_id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
 	password TEXT NOT NULL,
@@ -31,17 +36,18 @@ const queryCreateUsersTable = `CREATE TABLE IF NOT EXISTS users (
 )`
 
 const (
-	queryGetAllUsers       = "SELECT * FROM users"
-	queryGetUser           = "SELECT * FROM users WHERE user_id=?"
-	queryGetUserByUsername = "SELECT * FROM users WHERE username=?"
-	queryCreateUser        = "INSERT INTO users (username, password, permissions) VALUES (?, ?, ?)"
-	queryUpdateUser        = "UPDATE users SET password=? WHERE user_id=?"
-	queryDeleteUser        = "DELETE FROM users WHERE user_id=?"
+	queryGetAllUsers       = "SELECT * FROM %s"
+	queryGetUser           = "SELECT * FROM %s WHERE user_id=?"
+	queryGetUserByUsername = "SELECT * FROM %s WHERE username=?"
+	queryCreateUser        = "INSERT INTO %s (username, password, permissions) VALUES (?, ?, ?)"
+	queryUpdateUser        = "UPDATE %s SET password=? WHERE user_id=?"
+	queryDeleteUser        = "DELETE FROM %s WHERE user_id=?"
 )
 
 // CertificateRequestRepository is the object used to communicate with the established repository.
 type Database struct {
 	certificateTable string
+	usersTable       string
 	conn             *sql.DB
 }
 
@@ -158,7 +164,7 @@ func (db *Database) DeleteCSR(id string) (int64, error) {
 
 // RetrieveAllUsers returns all of the users and their fields available in the database.
 func (db *Database) RetrieveAllUsers() ([]User, error) {
-	rows, err := db.conn.Query(queryGetAllUsers)
+	rows, err := db.conn.Query(fmt.Sprintf(queryGetAllUsers, db.usersTable))
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +184,7 @@ func (db *Database) RetrieveAllUsers() ([]User, error) {
 // RetrieveUser retrieves the name, password and the permission level of a user.
 func (db *Database) RetrieveUser(id string) (User, error) {
 	var newUser User
-	row := db.conn.QueryRow(queryGetUser, id)
+	row := db.conn.QueryRow(fmt.Sprintf(queryGetUser, db.usersTable), id)
 	if err := row.Scan(&newUser.ID, &newUser.Username, &newUser.Password, &newUser.Permissions); err != nil {
 		if err.Error() == "sql: no rows in result set" {
 			return newUser, ErrIdNotFound
@@ -191,7 +197,7 @@ func (db *Database) RetrieveUser(id string) (User, error) {
 // RetrieveUser retrieves the id, password and the permission level of a user.
 func (db *Database) RetrieveUserByUsername(name string) (User, error) {
 	var newUser User
-	row := db.conn.QueryRow(queryGetUserByUsername, name)
+	row := db.conn.QueryRow(fmt.Sprintf(queryGetUserByUsername, db.usersTable), name)
 	if err := row.Scan(&newUser.ID, &newUser.Username, &newUser.Password, &newUser.Permissions); err != nil {
 		if err.Error() == "sql: no rows in result set" {
 			return newUser, ErrIdNotFound
@@ -209,7 +215,7 @@ func (db *Database) CreateUser(username, password, permissions string) (int64, e
 	if err != nil {
 		return 0, err
 	}
-	result, err := db.conn.Exec(queryCreateUser, username, pw, permissions)
+	result, err := db.conn.Exec(fmt.Sprintf(queryCreateUser, db.usersTable), username, pw, permissions)
 	if err != nil {
 		return 0, err
 	}
@@ -231,7 +237,7 @@ func (db *Database) UpdateUser(id, password string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	result, err := db.conn.Exec(queryUpdateUser, pw, user.ID)
+	result, err := db.conn.Exec(fmt.Sprintf(queryUpdateUser, db.usersTable), pw, user.ID)
 	if err != nil {
 		return 0, err
 	}
@@ -244,7 +250,7 @@ func (db *Database) UpdateUser(id, password string) (int64, error) {
 
 // DeleteUser removes a user from the table.
 func (db *Database) DeleteUser(id string) (int64, error) {
-	result, err := db.conn.Exec(queryDeleteUser, id)
+	result, err := db.conn.Exec(fmt.Sprintf(queryDeleteUser, db.usersTable), id)
 	if err != nil {
 		return 0, err
 	}
@@ -278,13 +284,15 @@ func NewDatabase(databasePath string) (*Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := conn.Exec(queryCreateCSRsTable); err != nil {
+	if _, err := conn.Exec(fmt.Sprintf(queryCreateCSRsTable, certificateRequestsTableName)); err != nil {
 		return nil, err
 	}
-	if _, err := conn.Exec(queryCreateUsersTable); err != nil {
+	if _, err := conn.Exec(fmt.Sprintf(queryCreateUsersTable, usersTableName)); err != nil {
 		return nil, err
 	}
 	db := new(Database)
 	db.conn = conn
+	db.certificateTable = certificateRequestsTableName
+	db.usersTable = usersTableName
 	return db, nil
 }

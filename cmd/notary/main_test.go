@@ -96,7 +96,7 @@ pebble_notices: false`
 goodbye: "world"`
 	invalidDBConfig = `key_path:  "./key_test.pem"
 cert_path: "./cert_test.pem"
-db_path: "/etc/hosts"
+db_path: "./certs.db"
 port: 8000
 pebble_notices: false`
 )

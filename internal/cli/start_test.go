@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"flag"
-	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -132,38 +130,32 @@ func TestMain(m *testing.M) {
 }
 
 func TestStartFail(t *testing.T) {
-	oldArgs := os.Args
-	defer func() { os.Args = oldArgs }()
 	cases := []struct {
 		Name           string
 		Args           []string
 		ConfigYAML     string
 		ExpectedOutput string
 	}{
-		{"flags not set", []string{"start"}, validConfig, "Providing a config file is required."},
-		{"config file not valid", []string{"start", "-config", "config.yaml"}, invalidConfig, "config file validation failed:"},
-		{"database not connectable", []string{"start", "-config", "config.yaml"}, invalidDBConfig, "Couldn't connect to database:"},
+		{"flags not set", []string{}, validConfig, "providing a config file is required"},
+		{"config file not valid", []string{"-config", "config.yaml"}, invalidConfig, "config file validation failed:"},
+		{"database not connectable", []string{"-config", "config.yaml"}, invalidDBConfig, "couldn't connect to database:"},
 	}
 	for _, tc := range cases {
 		writeConfigErr := os.WriteFile("config.yaml", []byte(tc.ConfigYAML), 0o644)
 		if writeConfigErr != nil {
-			t.Errorf("Failed writing config file")
+			t.Fatalf("Failed writing config file")
 		}
-		flag.CommandLine = flag.NewFlagSet(tc.Name, flag.ExitOnError)
-		cmd := exec.Command("notary", tc.Args...)
-		stdout, _ := cmd.StdoutPipe()
-
-		if err := cmd.Start(); err != nil {
-			t.Errorf("Failed running command")
+		cmd := NewStartCommand()
+		err := cmd.Init(tc.Args)
+		if err != nil {
+			t.Fatalf("Failed to initialize start command")
 		}
-
-		slurp, _ := io.ReadAll(stdout)
-
-		if err := cmd.Wait(); err == nil {
-			t.Errorf("Command did not fail")
+		err = cmd.Run()
+		if err == nil {
+			t.Fatalf("Failed to run start command")
 		}
-		if !strings.Contains(string(slurp), tc.ExpectedOutput) {
-			t.Errorf("%s: Expected error not found: %s", tc.Name, slurp)
+		if !strings.Contains(err.Error(), tc.ExpectedOutput) {
+			t.Errorf("%s: Expected error not found: %s", tc.Name, err)
 		}
 	}
 }

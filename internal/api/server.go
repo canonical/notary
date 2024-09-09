@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"os/exec"
 	"time"
@@ -44,7 +43,7 @@ func NewServer(port int, cert []byte, key []byte, dbPath string, pebbleNotificat
 	}
 	db, err := db.NewDatabase(dbPath)
 	if err != nil {
-		log.Fatalf("Couldn't connect to database: %s", err)
+		return nil, fmt.Errorf("couldn't connect to database: %w", err)
 	}
 
 	jwtSecret, err := generateJWTSecret()

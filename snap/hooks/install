@@ -1,0 +1,4 @@
+#!/bin/sh -e
+
+# Create Notary config file
+cp "$SNAP/notary.yaml" "$SNAP_COMMON/notary.yaml"

@@ -38,6 +38,25 @@ pebble_notifications: true
 
 ## Installation
 
+### From Snap
+
+Install the snap:
+```bash
+sudo snap install notary
+```
+
+Generate (or copy) a certificate and private key to the following location:
+```bash
+sudo openssl req -newkey rsa:2048 -nodes -keyout /var/snap/notary/common/key.pem -x509 -days 1 -out /var/snap/notary/common/cert.pem -subj "/CN=example.com"
+```
+
+Start the service:
+```bash
+sudo snap start notary.notaryd
+```
+
+Navigate to `https://localhost:3000` to access the Notary UI.
+
 ### From OCI Image
 
 ```bash

@@ -89,14 +89,14 @@ D7DC34n8CH9+avz9sCRwxpjxKnYW/BeyK0c4n9uZpjI8N4sOVqy6yWBUseww
 -----END RSA PRIVATE KEY-----`
 	validConfig = `key_path:  "./key_test.pem"
 cert_path: "./cert_test.pem"
-db)path: "./certs.db"
+db_path: "./certs.db"
 port: 8000
 pebble_notices: false`
 	invalidConfig = `hello: "world"
 goodbye: "world"`
 	invalidDBConfig = `key_path:  "./key_test.pem"
 cert_path: "./cert_test.pem"
-db_path: "./certs.db"
+db_path: "/etc/hosts"
 port: 8000
 pebble_notices: false`
 )

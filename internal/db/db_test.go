@@ -125,7 +125,7 @@ func TestRetrieve(t *testing.T) {
 }
 
 func TestUsersEndToEnd(t *testing.T) {
-	db, err := db.NewDatabase(":memory:") //nolint:errcheck
+	db, err := db.NewDatabase(":memory:")
 	if err != nil {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}

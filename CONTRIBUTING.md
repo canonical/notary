@@ -9,7 +9,7 @@ You can build and run the program by following these steps:
 4. Build the frontend: `npm i --prefix ui && npm run build --prefix ui`
 5. Install the project: `go install ./...`
 6. Create a `config.yaml` file as described in README.md
-7. Run the project: `notary -config config.yaml`
+7. Run the project: `notary start -config config.yaml`
 
 Commands assume you're running them from the top level git repo directory
 

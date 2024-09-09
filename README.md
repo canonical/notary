@@ -79,5 +79,5 @@ You will need to build the frontend first, and then install notary with Go.
 
 ```bash
 npm install --prefix ui && npm run build --prefix ui && go install ./...
-notary -config ./config.yaml
+notary start -config ./config.yaml
 ```

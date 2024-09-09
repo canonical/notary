@@ -2,4 +2,4 @@
 
 set -ex
 
-"$SNAP"/bin/notary -config "$SNAP_COMMON"/notary.yaml
+"$SNAP"/bin/notary start -config "$SNAP_COMMON"/notary.yaml

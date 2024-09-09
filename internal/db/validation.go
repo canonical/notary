@@ -1,4 +1,4 @@
-package certdb
+package db
 
 import (
 	"bytes"

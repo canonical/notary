@@ -89,7 +89,7 @@ D7DC34n8CH9+avz9sCRwxpjxKnYW/BeyK0c4n9uZpjI8N4sOVqy6yWBUseww
 -----END RSA PRIVATE KEY-----`
 	validConfig = `key_path:  "./key_test.pem"
 cert_path: "./cert_test.pem"
-db)path: "./certs.db"
+db_path: "./certs.db"
 port: 8000
 pebble_notices: false`
 	invalidConfig = `hello: "world"
@@ -111,8 +111,8 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("couldn't create temp directory")
 	}
-	writeCertErr := os.WriteFile(testfolder+"/cert_test.pem", []byte(validCert), 0644)
-	writeKeyErr := os.WriteFile(testfolder+"/key_test.pem", []byte(validPK), 0644)
+	writeCertErr := os.WriteFile(testfolder+"/cert_test.pem", []byte(validCert), 0o644)
+	writeKeyErr := os.WriteFile(testfolder+"/key_test.pem", []byte(validPK), 0o644)
 	if writeCertErr != nil || writeKeyErr != nil {
 		log.Fatalf("couldn't create temp testing file")
 	}
@@ -145,7 +145,7 @@ func TestNotaryFail(t *testing.T) {
 		{"database not connectable", []string{"-config", "config.yaml"}, invalidDBConfig, "Couldn't connect to database:"},
 	}
 	for _, tc := range cases {
-		writeConfigErr := os.WriteFile("config.yaml", []byte(tc.ConfigYAML), 0644)
+		writeConfigErr := os.WriteFile("config.yaml", []byte(tc.ConfigYAML), 0o644)
 		if writeConfigErr != nil {
 			t.Errorf("Failed writing config file")
 		}

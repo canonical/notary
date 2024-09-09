@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	server "github.com/canonical/notary/internal/api"
-	"github.com/canonical/notary/internal/certdb"
+	"github.com/canonical/notary/internal/db"
 	"github.com/golang-jwt/jwt"
 )
 
@@ -153,7 +153,7 @@ const (
 )
 
 func TestNotaryCertificatesHandlers(t *testing.T) {
-	testdb, err := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests")
+	testdb, err := db.NewDatabase(":memory:")
 	if err != nil {
 		log.Fatalf("couldn't create test sqlite db: %s", err)
 	}
@@ -406,11 +406,10 @@ func TestNotaryCertificatesHandlers(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestNotaryUsersHandlers(t *testing.T) {
-	testdb, err := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests")
+	testdb, err := db.NewDatabase(":memory:")
 	if err != nil {
 		log.Fatalf("couldn't create test sqlite db: %s", err)
 	}
@@ -573,7 +572,7 @@ func TestNotaryUsersHandlers(t *testing.T) {
 }
 
 func TestLogin(t *testing.T) {
-	testdb, err := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests")
+	testdb, err := db.NewDatabase(":memory:")
 	if err != nil {
 		log.Fatalf("couldn't create test sqlite db: %s", err)
 	}
@@ -687,7 +686,7 @@ func TestLogin(t *testing.T) {
 }
 
 func TestAuthorization(t *testing.T) {
-	testdb, err := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests")
+	testdb, err := db.NewDatabase(":memory:")
 	if err != nil {
 		log.Fatalf("couldn't create test sqlite db: %s", err)
 	}

@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/canonical/notary/internal/certdb"
+	"github.com/canonical/notary/internal/db"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -31,7 +31,7 @@ type PrometheusMetrics struct {
 }
 
 // NewMetricsSubsystem returns the metrics endpoint HTTP handler and the Prometheus metrics collectors for the server and middleware.
-func NewMetricsSubsystem(db *certdb.CertificateRequestsRepository) *PrometheusMetrics {
+func NewMetricsSubsystem(db *db.Database) *PrometheusMetrics {
 	metricsBackend := newPrometheusMetrics()
 	metricsBackend.Handler = promhttp.HandlerFor(metricsBackend.registry, promhttp.HandlerOpts{})
 	ticker := time.NewTicker(120 * time.Second)
@@ -85,7 +85,7 @@ func newPrometheusMetrics() *PrometheusMetrics {
 
 // GenerateMetrics receives the live list of csrs to calculate the most recent values for the metrics
 // defined for prometheus
-func (pm *PrometheusMetrics) GenerateMetrics(csrs []certdb.CertificateRequest) {
+func (pm *PrometheusMetrics) GenerateMetrics(csrs []db.CertificateRequest) {
 	var csrCount float64 = float64(len(csrs))
 	var outstandingCSRCount float64
 	var certCount float64
@@ -179,6 +179,7 @@ func certificatesExpiringIn7DaysMetric() prometheus.Gauge {
 	})
 	return metric
 }
+
 func certificatesExpiringIn30DaysMetric() prometheus.Gauge {
 	metric := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "certificates_expiring_in_30_days",

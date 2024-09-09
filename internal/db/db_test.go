@@ -1,4 +1,4 @@
-package certdb_test
+package db_test
 
 import (
 	"fmt"
@@ -7,12 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/canonical/notary/internal/certdb"
+	"github.com/canonical/notary/internal/db"
 	"golang.org/x/crypto/bcrypt"
 )
 
 func TestConnect(t *testing.T) {
-	db, err := certdb.NewCertificateRequestsRepository(":memory:", "CertificateReqs")
+	db, err := db.NewDatabase(":memory:")
 	if err != nil {
 		t.Fatalf("Can't connect to SQLite: %s", err)
 	}
@@ -20,9 +20,9 @@ func TestConnect(t *testing.T) {
 }
 
 func TestCSRsEndToEnd(t *testing.T) {
-	db, err := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests") //nolint:errcheck
+	db, err := db.NewDatabase(":memory:")
 	if err != nil {
-		t.Fatalf("Couldn't complete NewCertificateRequestsRepository: %s", err)
+		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}
 	defer db.Close()
 
@@ -61,7 +61,7 @@ func TestCSRsEndToEnd(t *testing.T) {
 	if len(res) != 2 {
 		t.Fatalf("CSR's weren't deleted from the DB properly")
 	}
-	var BananaCertBundle = strings.TrimSpace(fmt.Sprintf("%s%s", BananaCert, IssuerCert))
+	BananaCertBundle := strings.TrimSpace(fmt.Sprintf("%s%s", BananaCert, IssuerCert))
 	_, err = db.UpdateCSR(strconv.FormatInt(id2, 10), BananaCertBundle)
 	if err != nil {
 		t.Fatalf("Couldn't complete Update: %s", err)
@@ -85,7 +85,7 @@ func TestCSRsEndToEnd(t *testing.T) {
 }
 
 func TestCreateFails(t *testing.T) {
-	db, _ := certdb.NewCertificateRequestsRepository(":memory:", "CertificateReqs") //nolint:errcheck
+	db, _ := db.NewDatabase(":memory:")
 	defer db.Close()
 
 	InvalidCSR := strings.ReplaceAll(AppleCSR, "M", "i")
@@ -100,7 +100,7 @@ func TestCreateFails(t *testing.T) {
 }
 
 func TestUpdateFails(t *testing.T) {
-	db, _ := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests") //nolint:errcheck
+	db, _ := db.NewDatabase(":memory:")
 	defer db.Close()
 
 	id1, _ := db.CreateCSR(AppleCSR)  //nolint:errcheck
@@ -115,20 +115,19 @@ func TestUpdateFails(t *testing.T) {
 }
 
 func TestRetrieve(t *testing.T) {
-	db, _ := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests") //nolint:errcheck
+	db, _ := db.NewDatabase(":memory:") //nolint:errcheck
 	defer db.Close()
 
 	db.CreateCSR(AppleCSR) //nolint:errcheck
 	if _, err := db.RetrieveCSR("this is definitely not an id"); err == nil {
 		t.Fatalf("Expected failure looking for nonexistent CSR")
 	}
-
 }
 
 func TestUsersEndToEnd(t *testing.T) {
-	db, err := certdb.NewCertificateRequestsRepository(":memory:", "CertificateRequests") //nolint:errcheck
+	db, err := db.NewDatabase(":memory:") //nolint:errcheck
 	if err != nil {
-		t.Fatalf("Couldn't complete NewCertificateRequestsRepository: %s", err)
+		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}
 	defer db.Close()
 
@@ -178,7 +177,7 @@ func TestUsersEndToEnd(t *testing.T) {
 }
 
 func Example() {
-	db, err := certdb.NewCertificateRequestsRepository("./certs.db", "CertificateReq")
+	db, err := db.NewDatabase("./certs.db")
 	if err != nil {
 		log.Fatalln(err)
 	}

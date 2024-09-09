@@ -11,11 +11,11 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/canonical/notary/internal/certdb"
+	"github.com/canonical/notary/internal/db"
 )
 
 type Environment struct {
-	DB                      *certdb.CertificateRequestsRepository
+	DB                      *db.Database
 	SendPebbleNotifications bool
 	JWTSecret               []byte
 }
@@ -42,7 +42,7 @@ func NewServer(port int, cert []byte, key []byte, dbPath string, pebbleNotificat
 	if err != nil {
 		return nil, err
 	}
-	db, err := certdb.NewCertificateRequestsRepository(dbPath, "CertificateRequests")
+	db, err := db.NewDatabase(dbPath)
 	if err != nil {
 		log.Fatalf("Couldn't connect to database: %s", err)
 	}

@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/canonical/notary/internal/certdb"
+	"github.com/canonical/notary/internal/db"
 	metrics "github.com/canonical/notary/internal/metrics"
 	"github.com/canonical/notary/ui"
 	"github.com/golang-jwt/jwt"
@@ -159,7 +159,7 @@ func GetCertificateRequest(env *Environment) http.HandlerFunc {
 		id := r.PathValue("id")
 		cert, err := env.DB.RetrieveCSR(id)
 		if err != nil {
-			if errors.Is(err, certdb.ErrIdNotFound) {
+			if errors.Is(err, db.ErrIdNotFound) {
 				logErrorAndWriteResponse(err.Error(), http.StatusNotFound, w)
 				return
 			}
@@ -184,7 +184,7 @@ func DeleteCertificateRequest(env *Environment) http.HandlerFunc {
 		id := r.PathValue("id")
 		insertId, err := env.DB.DeleteCSR(id)
 		if err != nil {
-			if errors.Is(err, certdb.ErrIdNotFound) {
+			if errors.Is(err, db.ErrIdNotFound) {
 				logErrorAndWriteResponse(err.Error(), http.StatusNotFound, w)
 				return
 			}
@@ -210,7 +210,7 @@ func PostCertificate(env *Environment) http.HandlerFunc {
 		id := r.PathValue("id")
 		insertId, err := env.DB.UpdateCSR(id, string(cert))
 		if err != nil {
-			if errors.Is(err, certdb.ErrIdNotFound) ||
+			if errors.Is(err, db.ErrIdNotFound) ||
 				err.Error() == "certificate does not match CSR" ||
 				strings.Contains(err.Error(), "cert validation failed") {
 				logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)
@@ -238,7 +238,7 @@ func RejectCertificate(env *Environment) http.HandlerFunc {
 		id := r.PathValue("id")
 		insertId, err := env.DB.UpdateCSR(id, "rejected")
 		if err != nil {
-			if errors.Is(err, certdb.ErrIdNotFound) {
+			if errors.Is(err, db.ErrIdNotFound) {
 				logErrorAndWriteResponse(err.Error(), http.StatusNotFound, w)
 				return
 			}
@@ -266,7 +266,7 @@ func DeleteCertificate(env *Environment) http.HandlerFunc {
 		id := r.PathValue("id")
 		insertId, err := env.DB.UpdateCSR(id, "")
 		if err != nil {
-			if errors.Is(err, certdb.ErrIdNotFound) {
+			if errors.Is(err, db.ErrIdNotFound) {
 				logErrorAndWriteResponse(err.Error(), http.StatusBadRequest, w)
 				return
 			}
@@ -314,7 +314,7 @@ func GetUserAccounts(env *Environment) http.HandlerFunc {
 func GetUserAccount(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		var userAccount certdb.User
+		var userAccount db.User
 		var err error
 		if id == "me" {
 			claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
@@ -326,7 +326,7 @@ func GetUserAccount(env *Environment) http.HandlerFunc {
 			userAccount, err = env.DB.RetrieveUser(id)
 		}
 		if err != nil {
-			if errors.Is(err, certdb.ErrIdNotFound) {
+			if errors.Is(err, db.ErrIdNotFound) {
 				logErrorAndWriteResponse(err.Error(), http.StatusNotFound, w)
 				return
 			}
@@ -348,7 +348,7 @@ func GetUserAccount(env *Environment) http.HandlerFunc {
 // PostUserAccount creates a new User Account, and returns the id of the created row
 func PostUserAccount(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var user certdb.User
+		var user db.User
 		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 			logErrorAndWriteResponse("Invalid JSON format", http.StatusBadRequest, w)
 			return
@@ -357,7 +357,7 @@ func PostUserAccount(env *Environment) http.HandlerFunc {
 			logErrorAndWriteResponse("Username is required", http.StatusBadRequest, w)
 			return
 		}
-		var shouldGeneratePassword = user.Password == ""
+		shouldGeneratePassword := user.Password == ""
 		if shouldGeneratePassword {
 			generatedPassword, err := generatePassword()
 			if err != nil {
@@ -382,7 +382,7 @@ func PostUserAccount(env *Environment) http.HandlerFunc {
 
 		permission := "0"
 		if len(users) == 0 {
-			permission = "1" //if this is the first user it will be admin
+			permission = "1" // if this is the first user it will be admin
 		}
 		id, err := env.DB.CreateUser(user.Username, user.Password, permission)
 		if err != nil {
@@ -415,7 +415,7 @@ func DeleteUserAccount(env *Environment) http.HandlerFunc {
 		id := r.PathValue("id")
 		user, err := env.DB.RetrieveUser(id)
 		if err != nil {
-			if !errors.Is(err, certdb.ErrIdNotFound) {
+			if !errors.Is(err, db.ErrIdNotFound) {
 				logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
 				return
 			}
@@ -426,7 +426,7 @@ func DeleteUserAccount(env *Environment) http.HandlerFunc {
 		}
 		insertId, err := env.DB.DeleteUser(id)
 		if err != nil {
-			if errors.Is(err, certdb.ErrIdNotFound) {
+			if errors.Is(err, db.ErrIdNotFound) {
 				logErrorAndWriteResponse(err.Error(), http.StatusNotFound, w)
 				return
 			}
@@ -454,7 +454,7 @@ func ChangeUserAccountPassword(env *Environment) http.HandlerFunc {
 			}
 			id = strconv.Itoa(userAccount.ID)
 		}
-		var user certdb.User
+		var user db.User
 		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 			logErrorAndWriteResponse("Invalid JSON format", http.StatusBadRequest, w)
 			return
@@ -473,7 +473,7 @@ func ChangeUserAccountPassword(env *Environment) http.HandlerFunc {
 		}
 		ret, err := env.DB.UpdateUser(id, user.Password)
 		if err != nil {
-			if errors.Is(err, certdb.ErrIdNotFound) {
+			if errors.Is(err, db.ErrIdNotFound) {
 				logErrorAndWriteResponse(err.Error(), http.StatusNotFound, w)
 				return
 			}
@@ -489,7 +489,7 @@ func ChangeUserAccountPassword(env *Environment) http.HandlerFunc {
 
 func Login(env *Environment) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var userRequest certdb.User
+		var userRequest db.User
 		if err := json.NewDecoder(r.Body).Decode(&userRequest); err != nil {
 			logErrorAndWriteResponse("Invalid JSON format", http.StatusBadRequest, w)
 			return
@@ -505,7 +505,7 @@ func Login(env *Environment) http.HandlerFunc {
 		userAccount, err := env.DB.RetrieveUserByUsername(userRequest.Username)
 		if err != nil {
 			status := http.StatusInternalServerError
-			if errors.Is(err, certdb.ErrIdNotFound) {
+			if errors.Is(err, db.ErrIdNotFound) {
 				logErrorAndWriteResponse("The username or password is incorrect. Try again.", http.StatusUnauthorized, w)
 				return
 			}

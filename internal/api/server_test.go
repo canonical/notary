@@ -92,8 +92,8 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("couldn't create temp directory")
 	}
-	writeCertErr := os.WriteFile(testfolder+"/cert_test.pem", []byte(validCert), 0644)
-	writeKeyErr := os.WriteFile(testfolder+"/key_test.pem", []byte(validPK), 0644)
+	writeCertErr := os.WriteFile(testfolder+"/cert_test.pem", []byte(validCert), 0o644)
+	writeKeyErr := os.WriteFile(testfolder+"/key_test.pem", []byte(validPK), 0o644)
 	if writeCertErr != nil || writeKeyErr != nil {
 		log.Fatalf("couldn't create temp testing file")
 	}

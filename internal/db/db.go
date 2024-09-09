@@ -1,5 +1,5 @@
-// Package certdb provides a simplistic ORM to communicate with an SQL database for storage
-package certdb
+// Package db provides a simplistic ORM to communicate with an SQL database for storage
+package db
 
 import (
 	"database/sql"
@@ -10,7 +10,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const queryCreateCSRsTable = `CREATE TABLE IF NOT EXISTS %s (
+const queryCreateCSRsTable = `CREATE TABLE IF NOT EXISTS CertificateRequests (
 	csr TEXT PRIMARY KEY UNIQUE NOT NULL, 
 	certificate TEXT DEFAULT ''
 )`
@@ -29,6 +29,7 @@ const queryCreateUsersTable = `CREATE TABLE IF NOT EXISTS users (
 	password TEXT NOT NULL,
 	permissions INTEGER
 )`
+
 const (
 	queryGetAllUsers       = "SELECT * FROM users"
 	queryGetUser           = "SELECT * FROM users WHERE user_id=?"
@@ -39,7 +40,7 @@ const (
 )
 
 // CertificateRequestRepository is the object used to communicate with the established repository.
-type CertificateRequestsRepository struct {
+type Database struct {
 	certificateTable string
 	conn             *sql.DB
 }
@@ -61,7 +62,7 @@ type User struct {
 var ErrIdNotFound = errors.New("id not found")
 
 // RetrieveAllCSRs gets every CertificateRequest entry in the table.
-func (db *CertificateRequestsRepository) RetrieveAllCSRs() ([]CertificateRequest, error) {
+func (db *Database) RetrieveAllCSRs() ([]CertificateRequest, error) {
 	rows, err := db.conn.Query(fmt.Sprintf(queryGetAllCSRs, db.certificateTable))
 	if err != nil {
 		return nil, err
@@ -81,7 +82,7 @@ func (db *CertificateRequestsRepository) RetrieveAllCSRs() ([]CertificateRequest
 
 // RetrieveCSR gets a given CSR from the repository.
 // It returns the row id and matching certificate alongside the CSR in a CertificateRequest object.
-func (db *CertificateRequestsRepository) RetrieveCSR(id string) (CertificateRequest, error) {
+func (db *Database) RetrieveCSR(id string) (CertificateRequest, error) {
 	var newCSR CertificateRequest
 	row := db.conn.QueryRow(fmt.Sprintf(queryGetCSR, db.certificateTable), id)
 	if err := row.Scan(&newCSR.ID, &newCSR.CSR, &newCSR.Certificate); err != nil {
@@ -95,7 +96,7 @@ func (db *CertificateRequestsRepository) RetrieveCSR(id string) (CertificateRequ
 
 // CreateCSR creates a new entry in the repository.
 // The given CSR must be valid and unique
-func (db *CertificateRequestsRepository) CreateCSR(csr string) (int64, error) {
+func (db *Database) CreateCSR(csr string) (int64, error) {
 	if err := ValidateCertificateRequest(csr); err != nil {
 		return 0, errors.New("csr validation failed: " + err.Error())
 	}
@@ -112,7 +113,7 @@ func (db *CertificateRequestsRepository) CreateCSR(csr string) (int64, error) {
 
 // UpdateCSR adds a new cert to the given CSR in the repository.
 // The given certificate must share the public key of the CSR and must be valid.
-func (db *CertificateRequestsRepository) UpdateCSR(id string, cert string) (int64, error) {
+func (db *Database) UpdateCSR(id string, cert string) (int64, error) {
 	csr, err := db.RetrieveCSR(id)
 	if err != nil {
 		return 0, err
@@ -140,7 +141,7 @@ func (db *CertificateRequestsRepository) UpdateCSR(id string, cert string) (int6
 }
 
 // DeleteCSR removes a CSR from the database alongside the certificate that may have been generated for it.
-func (db *CertificateRequestsRepository) DeleteCSR(id string) (int64, error) {
+func (db *Database) DeleteCSR(id string) (int64, error) {
 	result, err := db.conn.Exec(fmt.Sprintf(queryDeleteCSR, db.certificateTable), id)
 	if err != nil {
 		return 0, err
@@ -156,7 +157,7 @@ func (db *CertificateRequestsRepository) DeleteCSR(id string) (int64, error) {
 }
 
 // RetrieveAllUsers returns all of the users and their fields available in the database.
-func (db *CertificateRequestsRepository) RetrieveAllUsers() ([]User, error) {
+func (db *Database) RetrieveAllUsers() ([]User, error) {
 	rows, err := db.conn.Query(queryGetAllUsers)
 	if err != nil {
 		return nil, err
@@ -175,7 +176,7 @@ func (db *CertificateRequestsRepository) RetrieveAllUsers() ([]User, error) {
 }
 
 // RetrieveUser retrieves the name, password and the permission level of a user.
-func (db *CertificateRequestsRepository) RetrieveUser(id string) (User, error) {
+func (db *Database) RetrieveUser(id string) (User, error) {
 	var newUser User
 	row := db.conn.QueryRow(queryGetUser, id)
 	if err := row.Scan(&newUser.ID, &newUser.Username, &newUser.Password, &newUser.Permissions); err != nil {
@@ -188,7 +189,7 @@ func (db *CertificateRequestsRepository) RetrieveUser(id string) (User, error) {
 }
 
 // RetrieveUser retrieves the id, password and the permission level of a user.
-func (db *CertificateRequestsRepository) RetrieveUserByUsername(name string) (User, error) {
+func (db *Database) RetrieveUserByUsername(name string) (User, error) {
 	var newUser User
 	row := db.conn.QueryRow(queryGetUserByUsername, name)
 	if err := row.Scan(&newUser.ID, &newUser.Username, &newUser.Password, &newUser.Permissions); err != nil {
@@ -203,7 +204,7 @@ func (db *CertificateRequestsRepository) RetrieveUserByUsername(name string) (Us
 // CreateUser creates a new user from a given username, password and permission level.
 // The permission level 1 represents an admin, and a 0 represents a regular user.
 // The password passed in should be in plaintext. This function handles hashing and salting the password before storing it in the database.
-func (db *CertificateRequestsRepository) CreateUser(username, password, permissions string) (int64, error) {
+func (db *Database) CreateUser(username, password, permissions string) (int64, error) {
 	pw, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return 0, err
@@ -221,7 +222,7 @@ func (db *CertificateRequestsRepository) CreateUser(username, password, permissi
 
 // UpdateUser updates the password of the given user.
 // Just like with CreateUser, this function handles hashing and salting the password before storage.
-func (db *CertificateRequestsRepository) UpdateUser(id, password string) (int64, error) {
+func (db *Database) UpdateUser(id, password string) (int64, error) {
 	user, err := db.RetrieveUser(id)
 	if err != nil {
 		return 0, err
@@ -242,7 +243,7 @@ func (db *CertificateRequestsRepository) UpdateUser(id, password string) (int64,
 }
 
 // DeleteUser removes a user from the table.
-func (db *CertificateRequestsRepository) DeleteUser(id string) (int64, error) {
+func (db *Database) DeleteUser(id string) (int64, error) {
 	result, err := db.conn.Exec(queryDeleteUser, id)
 	if err != nil {
 		return 0, err
@@ -258,7 +259,7 @@ func (db *CertificateRequestsRepository) DeleteUser(id string) (int64, error) {
 }
 
 // Close closes the connection to the repository cleanly.
-func (db *CertificateRequestsRepository) Close() error {
+func (db *Database) Close() error {
 	if db.conn == nil {
 		return nil
 	}
@@ -268,23 +269,22 @@ func (db *CertificateRequestsRepository) Close() error {
 	return nil
 }
 
-// NewCertificateRequestsRepository connects to a given table in a given database,
+// NewDatabase connects to a given table in a given database,
 // stores the connection information and returns an object containing the information.
 // The database path must be a valid file path or ":memory:".
 // The table will be created if it doesn't exist in the format expected by the package.
-func NewCertificateRequestsRepository(databasePath string, tableName string) (*CertificateRequestsRepository, error) {
+func NewDatabase(databasePath string) (*Database, error) {
 	conn, err := sql.Open("sqlite3", databasePath)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := conn.Exec(fmt.Sprintf(queryCreateCSRsTable, tableName)); err != nil {
+	if _, err := conn.Exec(queryCreateCSRsTable); err != nil {
 		return nil, err
 	}
 	if _, err := conn.Exec(queryCreateUsersTable); err != nil {
 		return nil, err
 	}
-	db := new(CertificateRequestsRepository)
+	db := new(Database)
 	db.conn = conn
-	db.certificateTable = tableName
 	return db, nil
 }

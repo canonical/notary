@@ -42,8 +42,8 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("couldn't create temp directory")
 	}
-	writeCertErr := os.WriteFile(testfolder+"/cert_test.pem", []byte(validCert), 0644)
-	writeKeyErr := os.WriteFile(testfolder+"/key_test.pem", []byte(validPK), 0644)
+	writeCertErr := os.WriteFile(testfolder+"/cert_test.pem", []byte(validCert), 0o644)
+	writeKeyErr := os.WriteFile(testfolder+"/key_test.pem", []byte(validPK), 0o644)
 	if writeCertErr != nil || writeKeyErr != nil {
 		log.Fatalf("couldn't create temp testing file")
 	}
@@ -63,7 +63,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestGoodConfigSuccess(t *testing.T) {
-	writeConfigErr := os.WriteFile("config.yaml", []byte(validConfig), 0644)
+	writeConfigErr := os.WriteFile("config.yaml", []byte(validConfig), 0o644)
 	if writeConfigErr != nil {
 		t.Fatalf("Error writing config file")
 	}
@@ -87,7 +87,6 @@ func TestGoodConfigSuccess(t *testing.T) {
 	if conf.Port != 8000 {
 		t.Fatalf("Port was not configured correctly")
 	}
-
 }
 
 func TestBadConfigFail(t *testing.T) {
@@ -105,7 +104,7 @@ func TestBadConfigFail(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		writeConfigErr := os.WriteFile("config.yaml", []byte(tc.ConfigYAML), 0644)
+		writeConfigErr := os.WriteFile("config.yaml", []byte(tc.ConfigYAML), 0o644)
 		if writeConfigErr != nil {
 			t.Errorf("Failed writing config file")
 		}
@@ -117,6 +116,5 @@ func TestBadConfigFail(t *testing.T) {
 		if !strings.Contains(err.Error(), tc.ExpectedError) {
 			t.Errorf("Expected error not found: %s", err)
 		}
-
 	}
 }

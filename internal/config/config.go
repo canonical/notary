@@ -52,7 +52,7 @@ func Validate(filePath string) (Config, error) {
 	if c.DBPath == "" {
 		return config, errors.Join(validationErr, errors.New("`db_path` is empty"))
 	}
-	dbfile, err := os.OpenFile(c.DBPath, os.O_CREATE|os.O_RDONLY, 0644)
+	dbfile, err := os.OpenFile(c.DBPath, os.O_CREATE|os.O_RDONLY, 0o644)
 	if err != nil {
 		return config, errors.Join(validationErr, err)
 	}

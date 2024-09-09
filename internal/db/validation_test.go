@@ -1,11 +1,11 @@
-package certdb_test
+package db_test
 
 import (
 	"fmt"
 	"strings"
 	"testing"
 
-	"github.com/canonical/notary/internal/certdb"
+	"github.com/canonical/notary/internal/db"
 )
 
 const (
@@ -215,7 +215,7 @@ func TestCSRValidationSuccess(t *testing.T) {
 
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("ValidCSR%d", i), func(t *testing.T) {
-			if err := certdb.ValidateCertificateRequest(c); err != nil {
+			if err := db.ValidateCertificateRequest(c); err != nil {
 				t.Errorf("Couldn't verify valid CSR: %s", err)
 			}
 		})
@@ -223,14 +223,14 @@ func TestCSRValidationSuccess(t *testing.T) {
 }
 
 func TestCSRValidationFail(t *testing.T) {
-	var wrongString = "this is a real csr!!!"
-	var wrongStringErr = "PEM Certificate Request string not found or malformed"
-	var ValidCSRWithoutWhitespace = strings.ReplaceAll(AppleCSR, "\n", "")
-	var ValidCSRWithoutWhitespaceErr = "PEM Certificate Request string not found or malformed"
-	var wrongPemType = strings.ReplaceAll(AppleCSR, "CERTIFICATE REQUEST", "SOME RANDOM PEM TYPE")
-	var wrongPemTypeErr = "given PEM string not a certificate request"
-	var InvalidCSR = strings.ReplaceAll(AppleCSR, "s", "p")
-	var InvalidCSRErr = "asn1: syntax error: data truncated"
+	wrongString := "this is a real csr!!!"
+	wrongStringErr := "PEM Certificate Request string not found or malformed"
+	ValidCSRWithoutWhitespace := strings.ReplaceAll(AppleCSR, "\n", "")
+	ValidCSRWithoutWhitespaceErr := "PEM Certificate Request string not found or malformed"
+	wrongPemType := strings.ReplaceAll(AppleCSR, "CERTIFICATE REQUEST", "SOME RANDOM PEM TYPE")
+	wrongPemTypeErr := "given PEM string not a certificate request"
+	InvalidCSR := strings.ReplaceAll(AppleCSR, "s", "p")
+	InvalidCSRErr := "asn1: syntax error: data truncated"
 
 	cases := []struct {
 		input       string
@@ -256,7 +256,7 @@ func TestCSRValidationFail(t *testing.T) {
 
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("InvalidCSR%d", i), func(t *testing.T) {
-			err := certdb.ValidateCertificateRequest(c.input)
+			err := db.ValidateCertificateRequest(c.input)
 			if err == nil {
 				t.Errorf("No error received. Expected: %s", c.expectedErr)
 				return
@@ -273,7 +273,7 @@ func TestCertValidationSuccess(t *testing.T) {
 
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("ValidCert%d", i), func(t *testing.T) {
-			if err := certdb.ValidateCertificate(c); err != nil {
+			if err := db.ValidateCertificate(c); err != nil {
 				t.Errorf("Couldn't verify valid Cert: %s", err)
 			}
 		})
@@ -281,20 +281,20 @@ func TestCertValidationSuccess(t *testing.T) {
 }
 
 func TestCertValidationFail(t *testing.T) {
-	var wrongCertString = "this is a real cert!!!"
-	var wrongCertStringErr = "less than 2 certificate PEM strings were found"
-	var wrongPemType = strings.ReplaceAll(BananaCert, "CERTIFICATE", "SOME RANDOM PEM TYPE")
-	var wrongPemTypeErr = "a given PEM string was not a certificate"
-	var InvalidCert = strings.ReplaceAll(BananaCert, "M", "i")
-	var InvalidCertErr = "x509: malformed certificate"
-	var singleCert = BananaCert
-	var singleCertErr = "less than 2 certificate PEM strings were found"
-	var issuerCertPKDoesNotMatch = fmt.Sprintf("%s\n%s", BananaCert, WrongPKIssuerCert)
-	var issuerCertPKDoesNotMatchErr = "invalid certificate chain: certificate 0, certificate 1: keys do not match"
-	var issuerCertSubjectDoesNotMatch = fmt.Sprintf("%s\n%s", BananaCert, WrongSubjectIssuerCert)
-	var issuerCertSubjectDoesNotMatchErr = "invalid certificate chain: certificate 0, certificate 1: subjects do not match"
-	var issuerCertNotCA = fmt.Sprintf("%s\n%s", BananaCert, StrawberryCert)
-	var issuerCertNotCaErr = "invalid certificate chain: certificate 1 is not a certificate authority"
+	wrongCertString := "this is a real cert!!!"
+	wrongCertStringErr := "less than 2 certificate PEM strings were found"
+	wrongPemType := strings.ReplaceAll(BananaCert, "CERTIFICATE", "SOME RANDOM PEM TYPE")
+	wrongPemTypeErr := "a given PEM string was not a certificate"
+	InvalidCert := strings.ReplaceAll(BananaCert, "M", "i")
+	InvalidCertErr := "x509: malformed certificate"
+	singleCert := BananaCert
+	singleCertErr := "less than 2 certificate PEM strings were found"
+	issuerCertPKDoesNotMatch := fmt.Sprintf("%s\n%s", BananaCert, WrongPKIssuerCert)
+	issuerCertPKDoesNotMatchErr := "invalid certificate chain: certificate 0, certificate 1: keys do not match"
+	issuerCertSubjectDoesNotMatch := fmt.Sprintf("%s\n%s", BananaCert, WrongSubjectIssuerCert)
+	issuerCertSubjectDoesNotMatchErr := "invalid certificate chain: certificate 0, certificate 1: subjects do not match"
+	issuerCertNotCA := fmt.Sprintf("%s\n%s", BananaCert, StrawberryCert)
+	issuerCertNotCaErr := "invalid certificate chain: certificate 1 is not a certificate authority"
 
 	cases := []struct {
 		inputCert   string
@@ -332,7 +332,7 @@ func TestCertValidationFail(t *testing.T) {
 
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("InvalidCert%d", i), func(t *testing.T) {
-			err := certdb.ValidateCertificate(c.inputCert)
+			err := db.ValidateCertificate(c.inputCert)
 			if err == nil {
 				t.Errorf("No error received. Expected: %s", c.expectedErr)
 				return
@@ -357,7 +357,7 @@ func TestCertificateMatchesCSRSuccess(t *testing.T) {
 
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("InvalidCert%d", i), func(t *testing.T) {
-			err := certdb.CertificateMatchesCSR(c.inputCert, c.inputCSR)
+			err := db.CertificateMatchesCSR(c.inputCert, c.inputCSR)
 			if err != nil {
 				t.Errorf("Certificate did not match when it should have")
 			}
@@ -366,7 +366,7 @@ func TestCertificateMatchesCSRSuccess(t *testing.T) {
 }
 
 func TestCertificateMatchesCSRFail(t *testing.T) {
-	var certificateDoesNotMatchErr = "certificate does not match CSR"
+	certificateDoesNotMatchErr := "certificate does not match CSR"
 
 	cases := []struct {
 		inputCSR    string
@@ -382,7 +382,7 @@ func TestCertificateMatchesCSRFail(t *testing.T) {
 
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("InvalidCert%d", i), func(t *testing.T) {
-			err := certdb.CertificateMatchesCSR(c.inputCert, c.inputCSR)
+			err := db.CertificateMatchesCSR(c.inputCert, c.inputCSR)
 			if err == nil {
 				t.Errorf("No error received. Expected: %s", c.expectedErr)
 				return

@@ -15,13 +15,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/canonical/notary/internal/certdb"
+	"github.com/canonical/notary/internal/db"
 	metrics "github.com/canonical/notary/internal/metrics"
 )
 
 // TestPrometheusHandler tests that the Prometheus metrics handler responds correctly to an HTTP request.
 func TestPrometheusHandler(t *testing.T) {
-	db, err := certdb.NewCertificateRequestsRepository(":memory:", "CertificateReq")
+	db, err := db.NewDatabase(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +94,7 @@ func generateCertPair(daysRemaining int) (string, string, string) {
 	return csr, cert, ca
 }
 
-func initializeTestDB(t *testing.T, db *certdb.CertificateRequestsRepository) {
+func initializeTestDB(t *testing.T, db *db.Database) {
 	for i, v := range []int{5, 10, 32} {
 		csr, cert, ca := generateCertPair(v)
 		_, err := db.CreateCSR(csr)
@@ -117,7 +117,7 @@ func TestMetrics(t *testing.T) {
 	}
 	defer f.Close()
 	defer os.Remove(f.Name())
-	db, err := certdb.NewCertificateRequestsRepository(f.Name(), "CertificateReq")
+	db, err := db.NewDatabase(f.Name())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"os"
 
 	"github.com/canonical/notary/internal/cli"
@@ -9,7 +9,6 @@ import (
 
 func main() {
 	if err := cli.Run(os.Args[1:]); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatalf("Error: %s", err)
 	}
 }

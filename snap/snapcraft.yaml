@@ -2,10 +2,17 @@ name: notary
 base: core24
 version: '0.0.3'
 summary: Notary is a certificate management tool.
-description: Notary is a certificate management tool.
+license: Apache-2.0
+description: |
+  Notary is a simple, reliable, and secure certificate management tool.
+
+  Use it to request, approve, and manage certificate requests for your services. 
 
 grade: stable
 confinement: strict
+
+issues: https://github.com/canonical/notary/issues
+source-code: https://github.com/canonical/notary
 
 apps:
   notary:

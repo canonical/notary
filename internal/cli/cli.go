@@ -29,10 +29,10 @@ func Run(args []string) error {
 		return fmt.Errorf("you must pass a subcommand. Allowed commands: %v", getSupportedCommandNames())
 	}
 
-	subcommand := args[1]
+	subcommand := args[0]
 	for _, cmd := range getSupportedCommands() {
 		if cmd.Name() == subcommand {
-			err := cmd.Init(args[2:])
+			err := cmd.Init(args[1:])
 			if err != nil {
 				return fmt.Errorf("failed to initialize %s: %w", subcommand, err)
 			}

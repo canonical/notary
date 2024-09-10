@@ -28,15 +28,15 @@ func (startCommand *StartCommand) Run() error {
 	}
 	conf, err := config.Validate(startCommand.configPath)
 	if err != nil {
-		return fmt.Errorf("couldn't validate config file: %s", err)
+		return fmt.Errorf("couldn't validate config file: %w", err)
 	}
 	srv, err := server.NewServer(conf.Port, conf.Cert, conf.Key, conf.DBPath, conf.PebbleNotificationsEnabled)
 	if err != nil {
-		return fmt.Errorf("couldn't create server: %s", err)
+		return fmt.Errorf("couldn't create server: %w", err)
 	}
 	log.Printf("Starting server at %s", srv.Addr)
 	if err := srv.ListenAndServeTLS("", ""); err != nil {
-		return fmt.Errorf("server ran into error: %s", err)
+		return fmt.Errorf("server ran into error: %w", err)
 	}
 	return nil
 }

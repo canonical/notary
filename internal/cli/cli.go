@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 )
 
 type Runner interface {
@@ -30,11 +29,10 @@ func Run(args []string) error {
 		return fmt.Errorf("you must pass a subcommand. Allowed commands: %v", getSupportedCommandNames())
 	}
 
-	subcommand := os.Args[1]
-
+	subcommand := args[1]
 	for _, cmd := range getSupportedCommands() {
 		if cmd.Name() == subcommand {
-			err := cmd.Init(os.Args[2:])
+			err := cmd.Init(args[2:])
 			if err != nil {
 				return fmt.Errorf("failed to initialize %s: %w", subcommand, err)
 			}

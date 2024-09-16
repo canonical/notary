@@ -36,7 +36,7 @@ function Loading() {
     )
 }
 
-export default function CertificateRequests() {
+export default function Users() {
     const router = useRouter()
     const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
     if (!cookies.user_token) {
@@ -60,5 +60,5 @@ export default function CertificateRequests() {
         return <Error msg={query.error.message} />
     }
     const users = Array.from(query.data ? query.data : [])
-    return  <UsersTable users={users} />
+    return <UsersTable users={users} />
 }

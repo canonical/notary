@@ -66,7 +66,6 @@ export function UsersTable({ users }: TableProps) {
                                 {
                                     content: (
                                         <ContextualMenu
-
                                             links={[{
                                                 children: "Delete User",
                                                 disabled: user.id === 1,

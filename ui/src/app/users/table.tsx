@@ -3,7 +3,7 @@ import { AsideContext } from "../aside"
 import { UserEntry } from "../types"
 import { useMutation, useQueryClient } from "react-query"
 import { Button, ContextualMenu, MainTable } from "@canonical/react-components";
-import { ConfirmationModalData, ConfirmationModal, ChangePasswordModalData, ChangePasswordModal } from "./components"
+import { ConfirmationModalData, UsersConfirmationModal, ChangePasswordModalData, ChangePasswordModal } from "./components"
 import { useAuth } from "../auth/authContext"
 import { deleteUser } from "../queries"
 
@@ -88,7 +88,7 @@ export function UsersTable({ users }: TableProps) {
                 </div>
             </div>
             {confirmationModalData && (
-                <ConfirmationModal
+                <UsersConfirmationModal
                     modalData={confirmationModalData}
                     setModalData={setConfirmationModalData}
                 />

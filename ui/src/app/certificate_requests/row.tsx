@@ -2,7 +2,7 @@ import { useState, Dispatch, SetStateAction, useEffect, useRef } from "react"
 import { UseMutationResult, useMutation, useQueryClient } from "react-query"
 import { extractCSR, extractCert, splitBundle } from "../utils"
 import { RequiredCSRParams, deleteCSR, rejectCSR, revokeCertificate } from "../queries"
-import { ConfirmationModal, SubmitCertificateModal, SuccessNotification } from "./components"
+import { CertificateRequestConfirmationModal, SubmitCertificateModal, SuccessNotification } from "./components"
 import "./../globals.scss"
 import { useCookies } from "react-cookie"
 
@@ -204,7 +204,7 @@ export default function Row({ id, csr, certificate, ActionMenuExpanded, setActio
                     </div>
                 </td>
             </tr>
-            {confirmationModalData != null && <ConfirmationModal modalData={confirmationModalData} setModalData={setConfirmationModalData} />}
+            {confirmationModalData != null && <CertificateRequestConfirmationModal modalData={confirmationModalData} setModalData={setConfirmationModalData} />}
             {certificateFormOpen && <SubmitCertificateModal id={id.toString()} csr={csr} cert={certificate} setFormOpen={setCertificateFormOpen} />}
         </>
     )

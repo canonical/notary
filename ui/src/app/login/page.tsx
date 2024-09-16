@@ -7,7 +7,7 @@ import { useCookies } from "react-cookie"
 import { useRouter } from "next/navigation"
 import { useAuth } from "../auth/authContext"
 import { statusResponse } from "../types"
-import { Logo } from "../nav"
+import { Navigation, Theme, Input, PasswordToggle, Button, Form, Notification } from "@canonical/react-components";
 
 
 export default function LoginPage() {
@@ -42,11 +42,15 @@ export default function LoginPage() {
     const handlePasswordChange = (event: ChangeEvent<HTMLInputElement>) => { setPassword(event.target.value) }
     return (
         <>
-            <div style={{ backgroundColor: "#262626", height: "6.5vh" }}>
-                <div style={{ marginLeft: "30px" }}>
-                    <Logo />
-                </div>
-            </div>
+            <Navigation
+                items={[]}
+                logo={{
+                    src: 'https://assets.ubuntu.com/v1/82818827-CoF_white.svg',
+                    title: 'Notary',
+                    url: '#'
+                }}
+                theme={Theme.DARK}
+            />
             <div style={{
                 display: "flex",
                 alignContent: "center",
@@ -61,28 +65,44 @@ export default function LoginPage() {
                 }}>
                     <div className="p-panel__content">
                         <div className="u-fixed-width">
-                            <form className="p-form">
+                            <Form>
                                 <fieldset>
                                     <h2 className="p-panel__title">Login</h2>
-                                    <label htmlFor="InputUsername">Username</label>
-                                    <input type="text" id="InputUsername" name="InputUsername" onChange={handleUsernameChange} />
-                                    <label htmlFor="InputPassword">Password</label>
-                                    <input type="password" id="InputPassword" name="InputPassword" placeholder="******" autoComplete="current-password" onChange={handlePasswordChange} />
+                                    <Input
+                                        id="InputUsername"
+                                        label="Username"
+                                        type="text"
+                                        required={true}
+                                        onChange={handleUsernameChange}
+                                    />
+                                    <PasswordToggle
+                                        id="InputPassword"
+                                        label="Password"
+                                        required={true}
+                                        onChange={handlePasswordChange}
+                                    />
                                     {errorText &&
-                                        <div className="p-notification--negative">
-                                            <div className="p-notification__content">
-                                                <h5 className="p-notification__title">Error</h5>
-                                                <p className="p-notification__message">{errorText.split("error: ")}</p>
-                                            </div>
-                                        </div>
+                                        <Notification
+                                            severity="negative"
+                                            title="Error"
+                                        >
+                                            {errorText.split("error: ")}
+                                        </Notification>
                                     }
-                                    {password.length != 0 && username.length != 0 ? (
-                                        <button className="p-button--positive" type="submit" name="submit" onClick={(event) => { event.preventDefault(); mutation.mutate({ username: username, password: password }) }}>Log In</button>
-                                    ) : (
-                                        <button disabled={true} className="p-button--positive" type="submit" name="submit" onClick={(event) => { event.preventDefault(); mutation.mutate({ username: username, password: password }) }}>Log In</button>
-                                    )}
+                                    <Button
+                                        appearance="positive"
+                                        disabled={password.length == 0 || username.length == 0}
+                                        onClick={
+                                            (event) => {
+                                                event.preventDefault();
+                                                mutation.mutate({ username: username, password: password })
+                                            }
+                                        }
+                                    >
+                                        Log In
+                                    </Button>
                                 </fieldset>
-                            </form>
+                            </Form>
                         </div>
                     </div>
                 </div >

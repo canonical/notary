@@ -6,7 +6,6 @@ import { useMutation, useQuery } from "react-query"
 import { useRouter } from "next/navigation"
 import { passwordIsValid } from "../utils"
 import { useAuth } from "../auth/authContext"
-import { Logo } from "../nav"
 import { useCookies } from "react-cookie"
 import { statusResponse } from "../types"
 import { Navigation, Theme, Input, PasswordToggle, Button, Form } from "@canonical/react-components";
@@ -62,7 +61,11 @@ export default function Initialize() {
         <>
             <Navigation
                 items={[]}
-                logo={< Logo />}
+                logo={{
+                    src: 'https://assets.ubuntu.com/v1/82818827-CoF_white.svg',
+                    title: 'Notary',
+                    url: '#'
+                }}
                 theme={Theme.DARK}
             />
             <div style={{
@@ -88,6 +91,7 @@ export default function Initialize() {
                                     id="InputUsername"
                                     label="Username"
                                     type="text"
+                                    required={true}
                                     onChange={handleUsernameChange}
                                 />
                                 <PasswordToggle
@@ -95,12 +99,14 @@ export default function Initialize() {
                                     id="password1"
                                     label="Password"
                                     onChange={handlePassword1Change}
+                                    required={true}
                                     error={password1Error}
                                 />
                                 <PasswordToggle
                                     id="password2"
                                     label="Confirm Password"
                                     onChange={handlePassword2Change}
+                                    required={true}
                                     error={password2Error}
                                 />
                                 <Button

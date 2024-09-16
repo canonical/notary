@@ -12,26 +12,26 @@
   },
   "dependencies": {
     "jwt-decode": "^4.0.0",
-    "next": "14.2.3",
-    "pkijs": "^3.1.0",
+    "next": "14.2.11",
+    "pkijs": "^3.2.4",
     "react": "^18",
-    "react-cookie": "^7.1.4",
+    "react-cookie": "^7.2.0",
     "react-dom": "^18",
     "react-query": "^3.39.3",
-    "sass": "^1.77.4",
-    "vanilla-framework": "^4.11.0"
+    "sass": "^1.78.0",
+    "vanilla-framework": "^4.16.0"
   },
   "devDependencies": {
-    "@testing-library/react": "^15.0.4",
-    "@types/node": "^20",
+    "@testing-library/react": "^16.0.1",
+    "@types/node": "^22",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "@vitejs/plugin-react": "^4.2.1",
+    "@vitejs/plugin-react": "^4.3.1",
     "eslint": "^8",
-    "eslint-config-next": "14.2.3",
-    "jsdom": "^24.0.0",
+    "eslint-config-next": "14.2.11",
+    "jsdom": "^25.0.0",
     "typescript": "^5",
-    "vitest": "^1.5.2"
+    "vitest": "^2.1.1"
   },
   "overrides": {
     "rollup": "npm:@rollup/wasm-node@*"

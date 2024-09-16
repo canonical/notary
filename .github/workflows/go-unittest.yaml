@@ -1,21 +1,22 @@
-name: Build Notary
+name: Go Unit Tests
 
 on:
   workflow_call:
 
-jobs:
-  go-build:
+jobs:  
+  go-unit-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version-file: "go.mod"
-
+      
       - name: Download frontend files
         uses: actions/download-artifact@v4
         with:
           name: frontend-static-files
           path: ui/out
-      - name: Build
-        run: go build ./...
+      - name: Unit tests
+        run: go test -cover ./...
+

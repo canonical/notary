@@ -1,4 +1,4 @@
-name: Publish ROCK
+name: Rock Publish
 
 on:
   workflow_call:

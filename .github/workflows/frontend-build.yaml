@@ -1,10 +1,10 @@
-name: Unit Test Frontend
+name: Frontend Build
 
 on:
   workflow_call:
 
-jobs:  
-  nextjs-unit-tests:
+jobs:
+  nextjs-build:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -17,4 +17,9 @@ jobs:
       - name: Build frontend
         run: |
           npm install
-          npm run test
+          npm run build
+      - name: Upload frontend files
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-static-files
+          path: ui/out

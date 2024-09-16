@@ -1,4 +1,4 @@
-name: Scan
+name: Rock Scan
 
 on:
   workflow_call:

@@ -6,35 +6,8 @@ import { UserEntry } from "../types"
 import { useCookies } from "react-cookie"
 import { useRouter } from "next/navigation"
 import { UsersTable } from "./table"
-
-function Error({ msg }: { msg: string }) {
-    return (
-        <caption>
-            <div className="p-strip">
-                <div className="row">
-                    <div className="u-align--left">
-                        <p className="p-heading--5">An error occured trying to load users</p>
-                        <p>{msg}</p>
-                    </div>
-                </div>
-            </div>
-        </caption>
-    )
-}
-
-function Loading() {
-    return (
-        <caption>
-            <div className="p-strip">
-                <div className="row">
-                    <div className="col-8 col-medium-4 col-small-3">
-                        <p className="p-heading--4 u-no-margin--bottom">Loading...</p>
-                    </div>
-                </div>
-            </div>
-        </caption>
-    )
-}
+import Loading from "../loading"
+import Error from "../error"
 
 export default function Users() {
     const router = useRouter()

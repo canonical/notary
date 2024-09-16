@@ -1,4 +1,4 @@
-name: Vet
+name: Go Vet
 
 on:
   workflow_call:

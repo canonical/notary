@@ -9,38 +9,38 @@ on:
       - main
 
 jobs: 
-  unit-test-frontend:
-    uses: ./.github/workflows/test-frontend.yaml
-  nextjs-build:
-    uses: ./.github/workflows/build-frontend.yaml
+  frontend-unit-test:
+    uses: ./.github/workflows/frontend-unittest.yaml
+  frontend-build:
+    uses: ./.github/workflows/frontend-build.yaml
   go-unit-test:
-    needs: [nextjs-build]
-    uses: ./.github/workflows/test-notary.yaml
+    needs: [frontend-build]
+    uses: ./.github/workflows/go-unittest.yaml
   go-vet:
-    needs: [nextjs-build]
+    needs: [frontend-build]
     uses: ./.github/workflows/go-vet.yaml
   go-lint:
-    needs: [nextjs-build]
+    needs: [frontend-build]
     uses: ./.github/workflows/go-lint.yaml
   go-build:
-    needs: [nextjs-build]
-    uses: ./.github/workflows/build-notary.yaml
+    needs: [frontend-build]
+    uses: ./.github/workflows/go-build.yaml
   rock-build:
     needs: [go-build, go-unit-test, go-vet, go-lint]
-    uses: ./.github/workflows/build-rock.yaml
+    uses: ./.github/workflows/rock-build.yaml
   rock-scan:
     if: github.ref_name == 'main'
     needs: [rock-build]
-    uses: ./.github/workflows/scan-rock.yaml
+    uses: ./.github/workflows/rock-scan.yaml
   rock-publish:
     if: github.ref_name == 'main'
     needs: [rock-build]
-    uses: ./.github/workflows/publish-rock.yaml
+    uses: ./.github/workflows/rock-publish.yaml
   snap-build:
     needs: [go-build, go-unit-test, go-vet, go-lint]
-    uses: ./.github/workflows/build-snap.yaml
+    uses: ./.github/workflows/snap-build.yaml
   snap-publish:
     if: github.ref_name == 'main'
     needs: [snap-build]
-    uses: ./.github/workflows/publish-snap.yaml
+    uses: ./.github/workflows/snap-publish.yaml
     secrets: inherit

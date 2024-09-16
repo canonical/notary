@@ -1,4 +1,4 @@
-name: Build Snap
+name: Snap Build
 
 on:
   workflow_call:

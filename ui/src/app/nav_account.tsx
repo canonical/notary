@@ -2,7 +2,6 @@ import { useContext, useState } from "react";
 import { useAuth } from "./auth/authContext";
 import { useCookies } from "react-cookie";
 import { ChangePasswordModalContext } from "./users/components";
-import { Strip, Button } from "@canonical/react-components";
 
 
 export function AccountTab() {

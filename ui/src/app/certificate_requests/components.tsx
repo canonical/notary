@@ -1,33 +1,33 @@
 import { Dispatch, SetStateAction, useState, ChangeEvent, useEffect } from "react"
 import { useMutation, useQueryClient } from "react-query"
-// import { ConfirmationModalData } from "./row"
+import { ConfirmationModalData } from "./row"
 import { csrMatchesCertificate, splitBundle, validateBundle } from "../utils"
 import { postCertToID } from "../queries"
 import { useCookies } from "react-cookie"
 import { ConfirmationModal, Button, Input, Textarea, Form, Modal } from "@canonical/react-components";
 
 
-// interface ConfirmationModalProps {
-//     modalData: ConfirmationModalData
-//     setModalData: Dispatch<SetStateAction<ConfirmationModalData>>
-// }
+interface ConfirmationModalProps {
+    modalData: ConfirmationModalData
+    setModalData: Dispatch<SetStateAction<ConfirmationModalData>>
+}
 
-// export function CertificateRequestConfirmationModal({ modalData, setModalData }: ConfirmationModalProps) {
-//     const confirmQuery = () => {
-//         modalData?.onMouseDownFunc()
-//         setModalData(null)
-//     }
-//     return (
-//         <ConfirmationModal
-//             title="Confirm Action"
-//             confirmButtonLabel="Confirm"
-//             onConfirm={confirmQuery}
-//             close={() => setModalData(null)}
-//         >
-//             <p>{modalData?.warningText}</p>
-//         </ConfirmationModal>
-//     )
-// }
+export function CertificateRequestConfirmationModal({ modalData, setModalData }: ConfirmationModalProps) {
+    const confirmQuery = () => {
+        modalData?.onMouseDownFunc()
+        setModalData(null)
+    }
+    return (
+        <ConfirmationModal
+            title="Confirm Action"
+            confirmButtonLabel="Confirm"
+            onConfirm={confirmQuery}
+            close={() => setModalData(null)}
+        >
+            <p>{modalData?.warningText}</p>
+        </ConfirmationModal>
+    )
+}
 
 interface SubmitCertificateModalProps {
     id: string

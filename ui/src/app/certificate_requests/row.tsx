@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "react-query";
+import { UseMutationResult, useMutation, useQueryClient } from "react-query"
 import { extractCSR, extractCert, splitBundle } from "../utils";
-import { deleteCSR, rejectCSR, revokeCertificate } from "../queries";
+import { RequiredCSRParams, deleteCSR, rejectCSR, revokeCertificate } from "../queries"
 import { useCookies } from "react-cookie";
 import { ContextualMenu } from "@canonical/react-components";
-import { SubmitCertificateModal, SuccessNotification } from "./components";
+import { CertificateRequestConfirmationModal, SubmitCertificateModal, SuccessNotification } from "./components"
+
 
 type rowProps = {
     id: number;
@@ -12,12 +13,19 @@ type rowProps = {
     certificate: string;
 };
 
+export type ConfirmationModalData = {
+    onMouseDownFunc: () => void
+    warningText: string
+} | null
+
+
 export default function Row({ id, csr, certificate }: rowProps) {
     const [cookies] = useCookies(['user_token']);
-    const [certificateFormOpen, setCertificateFormOpen] = useState<boolean>(false); // State for modal visibility
+    const [certificateFormOpen, setCertificateFormOpen] = useState<boolean>(false);
     const [successNotification, setSuccessNotification] = useState<string | null>(null);
     const [showCSRContent, setShowCSRContent] = useState<boolean>(false);
     const [showCertContent, setShowCertContent] = useState<boolean>(false);
+    const [confirmationModalData, setConfirmationModalData] = useState<ConfirmationModalData>(null)
 
     const csrObj = extractCSR(csr);
     const certs = splitBundle(certificate);
@@ -38,12 +46,20 @@ export default function Row({ id, csr, certificate }: rowProps) {
         onSuccess: () => queryClient.invalidateQueries('csrs')
     });
 
+    const mutationFunc = (mutation: UseMutationResult<any, unknown, RequiredCSRParams, unknown>, params: RequiredCSRParams) => {
+        mutation.mutate(params)
+    }
+
     const handleCopy = () => {
-        navigator.clipboard.writeText(csr).then(() => {
-            setSuccessNotification("CSR copied to clipboard");
-            setTimeout(() => setSuccessNotification(null), 2500);
+        navigator.clipboard.writeText(csr).then(function () {
+            setSuccessNotification("CSR copied to clipboard")
+            setTimeout(() => {
+                setSuccessNotification(null);
+            }, 2500);
+        }, function (err) {
+            console.error('could not copy text: ', err);
         });
-    };
+    }
 
     const handleDownload = () => {
         const blob = new Blob([csr], { type: 'text/plain' });
@@ -54,10 +70,24 @@ export default function Row({ id, csr, certificate }: rowProps) {
         URL.revokeObjectURL(link.href);
     };
 
-    const handleReject = () => rejectMutation.mutate({ id: id.toString(), authToken: cookies.user_token });
-    const handleDelete = () => deleteMutation.mutate({ id: id.toString(), authToken: cookies.user_token });
-    const handleRevoke = () => revokeMutation.mutate({ id: id.toString(), authToken: cookies.user_token });
-
+    const handleReject = () => {
+        setConfirmationModalData({
+            onMouseDownFunc: () => mutationFunc(rejectMutation, { id: id.toString(), authToken: cookies.user_token }),
+            warningText: "Rejecting a Certificate Request means the CSR will remain in this application, but its status will be moved to rejected and the associated certificate will be deleted if there is any. This action cannot be undone."
+        })
+    }
+    const handleDelete = () => {
+        setConfirmationModalData({
+            onMouseDownFunc: () => mutationFunc(deleteMutation, { id: id.toString(), authToken: cookies.user_token }),
+            warningText: "Deleting a Certificate Request means this row will be completely removed from the application. This action cannot be undone."
+        })
+    }
+    const handleRevoke = () => {
+        setConfirmationModalData({
+            onMouseDownFunc: () => mutationFunc(revokeMutation, { id: id.toString(), authToken: cookies.user_token }),
+            warningText: "Revoking a Certificate will delete it from the table. This action cannot be undone."
+        })
+    }
     const getExpiryColor = (notAfter?: string): string => {
         if (!notAfter) return 'inherit';
         const expiryDate = new Date(notAfter);
@@ -73,9 +103,9 @@ export default function Row({ id, csr, certificate }: rowProps) {
     const getFieldDisplay = (label: string, field: string | undefined, compareField?: string | undefined) => {
         const isMismatched = compareField !== undefined && compareField !== field;
         return field ? (
-            <p>
+            <p style={{ marginBottom: "4px" }}>
                 <b>{label}:</b>{" "}
-                <span style={{ color: isMismatched ? "rgba(199, 22, 43, 1)" : 'inherit' }}>
+                <span style={{ color: isMismatched ? "rgba(199, 22, 43, 1)" : "inherit" }}>
                     {field}
                 </span>
             </p>
@@ -108,6 +138,7 @@ export default function Row({ id, csr, certificate }: rowProps) {
             {
                 content: (
                     <>
+                        {successNotification && <SuccessNotification successMessage={successNotification} />}
                         <ContextualMenu
                             links={[
                                 { children: "Copy Certificate Request to Clipboard", onClick: handleCopy },
@@ -127,7 +158,7 @@ export default function Row({ id, csr, certificate }: rowProps) {
                                     onClick: handleReject
                                 },
                                 { children: "Delete Certificate Request", onClick: handleDelete },
-                                { children: "Upload Certificate", onClick: () => setCertificateFormOpen(true) }, // Opens modal
+                                { children: "Upload Certificate", onClick: () => setCertificateFormOpen(true) },
                                 {
                                     children: "Revoke Certificate",
                                     disabled: certificate === "rejected" || certificate === "",
@@ -137,7 +168,7 @@ export default function Row({ id, csr, certificate }: rowProps) {
                             hasToggleIcon
                             position="right"
                         />
-
+                        {confirmationModalData != null && <CertificateRequestConfirmationModal modalData={confirmationModalData} setModalData={setConfirmationModalData} />}
                         {certificateFormOpen && (
                             <SubmitCertificateModal
                                 id={id.toString()}
@@ -153,7 +184,7 @@ export default function Row({ id, csr, certificate }: rowProps) {
         ],
         expanded: showCSRContent || showCertContent,
         expandedContent: (
-            <div>
+            <div >
                 {showCSRContent && (
                     <div >
                         <h4>Certificate Request Content</h4>

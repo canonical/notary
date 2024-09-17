@@ -1,24 +1,25 @@
 import { useContext, useState, Dispatch, SetStateAction } from "react";
 import { AsideContext } from "../aside";
 import { CSREntry } from "../types";
-import { Button, MainTable, Panel, Strip } from "@canonical/react-components";
+import { Button, MainTable, Panel, EmptyState } from "@canonical/react-components";
 import Row from "./row";
 
-function EmptyState({ asideOpen, setAsideOpen }: { asideOpen: boolean; setAsideOpen: Dispatch<SetStateAction<boolean>> }) {
+function CSREmptyState({ setAsideOpen }: { setAsideOpen: Dispatch<SetStateAction<boolean>> }) {
     return (
-        <Strip>
-            <div className="row">
-                <div className="col-8 col-medium-4 col-small-3">
-                    <p className="p-heading--4">No CSRs available yet.</p>
-                    <Button
-                        appearance="positive"
-                        aria-label="add-csr-button"
-                        onClick={() => setAsideOpen(true)}>
-                        Add New CSR
-                    </Button>
-                </div>
-            </div>
-        </Strip>
+        <EmptyState
+            image={""}
+            title="No CSRs available yet."
+        >
+            <p>
+                There are no Certificate Requests in Notary. Request your first certificate!
+            </p>
+            <Button
+                appearance="positive"
+                aria-label="add-csr-button"
+                onClick={() => setAsideOpen(true)}>
+                Add New CSR
+            </Button>
+        </EmptyState>
     );
 }
 
@@ -83,7 +84,7 @@ export function CertificateRequestsTable({ csrs }: TableProps) {
                     })
                 )}
             />
-            {csrs.length === 0 && <EmptyState asideOpen={isAsideOpen} setAsideOpen={setAsideIsOpen} />}
+            {csrs.length === 0 && <CSREmptyState setAsideOpen={setAsideIsOpen} />}
         </Panel>
     );
 }

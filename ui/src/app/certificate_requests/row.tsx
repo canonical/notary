@@ -157,8 +157,14 @@ export default function Row({ id, csr, certificate }: rowProps) {
                                     disabled: certificate === "rejected",
                                     onClick: handleReject
                                 },
-                                { children: "Delete Certificate Request", onClick: handleDelete },
-                                { children: "Upload Certificate", onClick: () => setCertificateFormOpen(true) },
+                                {
+                                    children: "Delete Certificate Request",
+                                    onClick: handleDelete
+                                },
+                                {
+                                    children: "Upload Certificate",
+                                    onClick: () => setCertificateFormOpen(true)
+                                },
                                 {
                                     children: "Revoke Certificate",
                                     disabled: certificate === "rejected" || certificate === "",

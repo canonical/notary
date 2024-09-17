@@ -10,7 +10,10 @@ function EmptyState({ asideOpen, setAsideOpen }: { asideOpen: boolean; setAsideO
             <div className="row">
                 <div className="col-8 col-medium-4 col-small-3">
                     <p className="p-heading--4">No CSRs available yet.</p>
-                    <Button appearance="positive" onClick={() => setAsideOpen(true)}>
+                    <Button
+                        appearance="positive"
+                        aria-label="add-csr-button"
+                        onClick={() => setAsideOpen(true)}>
                         Add New CSR
                     </Button>
                 </div>
@@ -38,7 +41,6 @@ function sortByCertStatus(a: CSREntry, b: CSREntry) {
 export function CertificateRequestsTable({ csrs }: TableProps) {
     const { isOpen: isAsideOpen, setIsOpen: setAsideIsOpen } = useContext(AsideContext);
 
-    const [actionsMenuExpanded, setActionsMenuExpanded] = useState<number>(0);
     const [sortedColumn, setSortedColumn] = useState<string>("none");
     const [sortDescending, setSortDescending] = useState<boolean>(true);
 

@@ -1,12 +1,12 @@
 import { useContext, useState, Dispatch, SetStateAction } from "react";
 import { AsideContext } from "../aside";
 import { CSREntry } from "../types";
-import { Button, MainTable } from "@canonical/react-components";
+import { Button, MainTable, Panel, Strip } from "@canonical/react-components";
 import Row from "./row";
 
 function EmptyState({ asideOpen, setAsideOpen }: { asideOpen: boolean; setAsideOpen: Dispatch<SetStateAction<boolean>> }) {
     return (
-        <div className="p-strip">
+        <Strip>
             <div className="row">
                 <div className="col-8 col-medium-4 col-small-3">
                     <p className="p-heading--4">No CSRs available yet.</p>
@@ -18,7 +18,7 @@ function EmptyState({ asideOpen, setAsideOpen }: { asideOpen: boolean; setAsideO
                     </Button>
                 </div>
             </div>
-        </div>
+        </Strip>
     );
 }
 
@@ -56,39 +56,34 @@ export function CertificateRequestsTable({ csrs }: TableProps) {
     };
 
     return (
-        <div className="p-panel">
-            <div className="p-panel__header is-sticky">
-                <h4 className="p-panel__title">Certificate Requests</h4>
-                <div className="p-panel__controls">
-                    {csrs.length > 0 && (
-                        <Button appearance="positive" onClick={() => setAsideIsOpen(true)}>
-                            Add New CSR
-                        </Button>
-                    )}
-                </div>
-            </div>
-            <div className="p-panel__content">
-                <div className="u-fixed-width">
-                    <MainTable
-                        expanding
-                        headers={[
-                            { content: "ID" },
-                            { content: "Common Name" },
-                            { content: "CSR Status" },
-                            { content: "Certificate Expiry Date" },
-                            { content: "Actions", className: "u-align--right has-overflow" }
-                        ]}
-                        rows={sortedRows().map((csr) =>
-                            Row({
-                                id: csr.id,
-                                csr: csr.csr,
-                                certificate: csr.certificate,
-                            })
-                        )}
-                    />
-                    {csrs.length === 0 && <EmptyState asideOpen={isAsideOpen} setAsideOpen={setAsideIsOpen} />}
-                </div>
-            </div>
-        </div>
+        <Panel
+            stickyHeader
+            title="Certificate Requests"
+            className="u-fixed-width"
+            controls={csrs.length > 0 && (
+                <Button appearance="positive" onClick={() => setAsideIsOpen(true)}>
+                    Add New CSR
+                </Button>
+            )}
+        >
+            <MainTable
+                expanding
+                headers={[
+                    { content: "ID" },
+                    { content: "Common Name" },
+                    { content: "CSR Status" },
+                    { content: "Certificate Expiry Date" },
+                    { content: "Actions", className: "u-align--right has-overflow" }
+                ]}
+                rows={sortedRows().map((csr) =>
+                    Row({
+                        id: csr.id,
+                        csr: csr.csr,
+                        certificate: csr.certificate,
+                    })
+                )}
+            />
+            {csrs.length === 0 && <EmptyState asideOpen={isAsideOpen} setAsideOpen={setAsideIsOpen} />}
+        </Panel>
     );
 }

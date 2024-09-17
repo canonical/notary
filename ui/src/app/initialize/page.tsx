@@ -8,7 +8,7 @@ import { passwordIsValid } from "../utils"
 import { useAuth } from "../auth/authContext"
 import { useCookies } from "react-cookie"
 import { statusResponse } from "../types"
-import { Navigation, Theme, Input, PasswordToggle, Button, Form } from "@canonical/react-components";
+import { Input, PasswordToggle, Button, Form, LoginPageLayout } from "@canonical/react-components";
 
 
 export default function Initialize() {
@@ -59,73 +59,52 @@ export default function Initialize() {
     const handlePassword2Change = (event: ChangeEvent<HTMLInputElement>) => { setPassword2(event.target.value) }
     return (
         <>
-            <Navigation
-                items={[]}
+            <LoginPageLayout
                 logo={{
                     src: 'https://assets.ubuntu.com/v1/82818827-CoF_white.svg',
                     title: 'Notary',
                     url: '#'
                 }}
-                theme={Theme.DARK}
-            />
-            <div style={{
-                display: "flex",
-                alignContent: "center",
-                justifyContent: "center",
-                flexWrap: "wrap",
-                height: "93.5vh",
-            }}>
-                <div className="p-panel" style={{
-                    width: "45rem",
-                    minWidth: "min-content",
-                    minHeight: "min-content",
-                }}>
-                    <fieldset>
-                        <div className="p-panel__header">
-                            <h2>Initialize Notary</h2>
-                        </div>
-                        <div className="p-panel__content">
-                            <Form>
-                                <h4>Create the initial admin user</h4>
-                                <Input
-                                    id="InputUsername"
-                                    label="Username"
-                                    type="text"
-                                    required={true}
-                                    onChange={handleUsernameChange}
-                                />
-                                <PasswordToggle
-                                    help="Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol."
-                                    id="password1"
-                                    label="Password"
-                                    onChange={handlePassword1Change}
-                                    required={true}
-                                    error={password1Error}
-                                />
-                                <PasswordToggle
-                                    id="password2"
-                                    label="Confirm Password"
-                                    onChange={handlePassword2Change}
-                                    required={true}
-                                    error={password2Error}
-                                />
-                                <Button
-                                    appearance="positive"
-                                    disabled={!passwordsMatch || !passwordIsValid(password1)}
-                                    onClick={(event) => {
-                                        event.preventDefault();
-                                        if (passwordsMatch && passwordIsValid(password1)) {
-                                            postUserMutation.mutate({ username: username, password: password1 });
-                                        }
-                                    }}
-                                >
-                                    Submit
-                                </Button>
-                            </Form>
-                        </div>
-                    </fieldset>
-                </div >
-            </div >
+                title="Initialize Notary"
+            >
+                <Form>
+                    <h4>Create the initial admin user</h4>
+                    <Input
+                        id="InputUsername"
+                        label="Username"
+                        type="text"
+                        required={true}
+                        onChange={handleUsernameChange}
+                    />
+                    <PasswordToggle
+                        help="Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol."
+                        id="password1"
+                        label="Password"
+                        onChange={handlePassword1Change}
+                        required={true}
+                        error={password1Error}
+                    />
+                    <PasswordToggle
+                        id="password2"
+                        label="Confirm Password"
+                        onChange={handlePassword2Change}
+                        required={true}
+                        error={password2Error}
+                    />
+                    <Button
+                        appearance="positive"
+                        disabled={!passwordsMatch || !passwordIsValid(password1)}
+                        onClick={(event) => {
+                            event.preventDefault();
+                            if (passwordsMatch && passwordIsValid(password1)) {
+                                postUserMutation.mutate({ username: username, password: password1 });
+                            }
+                        }}
+                    >
+                        Submit
+                    </Button>
+                </Form>
+            </LoginPageLayout>
         </>
     )
 }

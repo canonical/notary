@@ -147,6 +147,8 @@ export function CertificateRequestsTable({ csrs: rows }: TableProps) {
 
         return {
             sortData: {
+                id,
+                common_name: csrObj.commonName,
                 csr_status: certificate === "" ? "outstanding" : (certificate === "rejected" ? "rejected" : "fulfilled"),
                 cert_expiry_date: certObj?.notAfter || "",
             },
@@ -164,8 +166,14 @@ export function CertificateRequestsTable({ csrs: rows }: TableProps) {
                             {successNotificationId === id && <SuccessNotification successMessage="CSR copied to clipboard" />}
                             <ContextualMenu
                                 links={[
-                                    { children: "Copy Certificate Request to Clipboard", onClick: () => handleCopy(csr, id) },
-                                    { children: "Download Certificate Request", onClick: () => handleDownload(csr, id, csrObj) },
+                                    {
+                                        children: "Copy Certificate Request to Clipboard",
+                                        onClick: () => handleCopy(csr, id)
+                                    },
+                                    {
+                                        children: "Download Certificate Request",
+                                        onClick: () => handleDownload(csr, id, csrObj)
+                                    },
                                     {
                                         children: isCSRContentVisible ? "Hide CSR content" : "Show CSR content",
                                         onClick: () => handleExpand(id, 'CSR'),
@@ -263,9 +271,11 @@ export function CertificateRequestsTable({ csrs: rows }: TableProps) {
                 headers={[
                     {
                         content: "ID",
+                        sortKey: "id",
                     },
                     {
                         content: "Common Name",
+                        sortKey: "common_name",
                     },
                     {
                         content: "CSR Status",

@@ -38,7 +38,7 @@ export type ConfirmationModalData = {
 } | null
 
 
-export function CertificateRequestsTable({ csrs }: TableProps) {
+export function CertificateRequestsTable({ csrs: rows }: TableProps) {
     const { isOpen: isAsideOpen, setIsOpen: setAsideIsOpen } = useContext(AsideContext);
     const [cookies] = useCookies(['user_token']);
     const queryClient = useQueryClient();
@@ -135,7 +135,7 @@ export function CertificateRequestsTable({ csrs }: TableProps) {
         ) : null;
     };
 
-    const rows = csrs.map((csrEntry) => {
+    const csrrows = rows.map((csrEntry) => {
         const { id, csr, certificate } = csrEntry;
         const csrObj = extractCSR(csr);
         const certs = splitBundle(certificate);
@@ -250,7 +250,7 @@ export function CertificateRequestsTable({ csrs }: TableProps) {
             stickyHeader
             title="Certificate Requests"
             className="u-fixed-width"
-            controls={csrs.length > 0 && (
+            controls={rows.length > 0 && (
                 <Button appearance="positive" onClick={() => setAsideIsOpen(true)}>
                     Add New CSR
                 </Button>
@@ -280,7 +280,7 @@ export function CertificateRequestsTable({ csrs }: TableProps) {
                         className: "u-align--right has-overflow"
                     }
                 ]}
-                rows={rows}
+                rows={csrrows}
             />
             {confirmationModalData && (
                 <ConfirmationModal

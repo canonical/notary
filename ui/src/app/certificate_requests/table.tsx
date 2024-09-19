@@ -211,6 +211,7 @@ export function CertificateRequestsTable({ csrs: rows }: TableProps) {
                         </>
                     ),
                     className: "u-align--right has-overflow",
+                    style: { height: "58px", overflow: "hidden" },
                 },
             ],
             expanded: isCSRContentVisible || isCertContentVisible,

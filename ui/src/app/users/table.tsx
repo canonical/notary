@@ -74,6 +74,7 @@ export function UsersTable({ users }: TableProps) {
                                         }]}
                                         hasToggleIcon
                                         position="right"
+                                        style={{ height: "40px" }}
                                     />
                                 ),
                                 className: "u-align--right",

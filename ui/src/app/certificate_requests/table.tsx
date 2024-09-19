@@ -165,49 +165,60 @@ export function CertificateRequestsTable({ csrs: rows }: TableProps) {
                         <>
                             {successNotificationId === id && <SuccessNotification successMessage="CSR copied to clipboard" />}
                             <ContextualMenu
-                                links={[
-                                    {
-                                        children: "Copy Certificate Request to Clipboard",
-                                        onClick: () => handleCopy(csr, id)
-                                    },
-                                    {
-                                        children: "Download Certificate Request",
-                                        onClick: () => handleDownload(csr, id, csrObj)
-                                    },
-                                    {
-                                        children: isCSRContentVisible ? "Hide CSR content" : "Show CSR content",
-                                        onClick: () => handleExpand(id, 'CSR'),
-                                    },
-                                    {
-                                        children: isCertContentVisible ? "Hide Certificate content" : "Show Certificate content",
-                                        onClick: () => handleExpand(id, 'Cert'),
-                                        disabled: !certObj,
-                                    },
-                                    {
-                                        children: "Reject Certificate Request",
-                                        disabled: certificate === "rejected",
-                                        onClick: () => handleReject(id),
-                                    },
-                                    {
-                                        children: "Delete Certificate Request",
-                                        onClick: () => handleDelete(id),
-                                    },
-                                    {
-                                        children: "Upload Certificate",
-                                        onClick: () => {
-                                            setCertificateFormOpen(true);
-                                            setSelectedCSR(csrEntry);
-                                        },
-                                    },
-                                    {
-                                        children: "Revoke Certificate",
-                                        disabled: certificate === "rejected" || certificate === "",
-                                        onClick: () => handleRevoke(id),
-                                    },
-                                ]}
                                 hasToggleIcon
                                 position="right"
-                            />
+                            >
+                                <span className="p-contextual-menu__group">
+                                    <Button
+                                        className="p-contextual-menu__link"
+                                        onMouseDown={() => handleCopy(csr, id)}>
+                                        Copy Certificate Request to Clipboard
+                                    </Button>
+                                    <Button
+                                        className="p-contextual-menu__link"
+                                        onMouseDown={() => handleDownload(csr, id, csrObj)}>
+                                        Download Certificate Request
+                                    </Button>
+                                    <Button
+                                        className="p-contextual-menu__link"
+                                        onMouseDown={() => handleExpand(id, 'CSR')}>
+                                        {isCSRContentVisible ? "Hide Certificate Request content" : "Show Certificate Request content"}
+                                    </Button>
+                                    <Button
+                                        className="p-contextual-menu__link"
+                                        disabled={certificate == "rejected"}
+                                        onMouseDown={() => handleReject(id)}>
+                                        Reject Certificate Request
+                                    </Button>
+                                    <Button
+                                        className="p-contextual-menu__link"
+                                        onMouseDown={() => handleDelete(id)}>
+                                        Delete Certificate Request
+                                    </Button>
+                                </span>
+                                <span className="p-contextual-menu__group">
+                                    <Button
+                                        className="p-contextual-menu__link"
+                                        onMouseDown={() => {
+                                            setCertificateFormOpen(true);
+                                            setSelectedCSR(csrEntry);
+                                        }}>
+                                        Upload Certificate
+                                    </Button>
+                                    <Button
+                                        className="p-contextual-menu__link"
+                                        disabled={certificate == "rejected" || certificate == ""}
+                                        onMouseDown={() => handleExpand(id, 'Cert')}>
+                                        {isCSRContentVisible ? "Hide Certificate content" : "Show Certificate content"}
+                                    </Button>
+                                    <Button
+                                        className="p-contextual-menu__link"
+                                        disabled={certificate == "rejected" || certificate == ""}
+                                        onMouseDown={() => handleRevoke(id)}>
+                                        Revoke Certificate
+                                    </Button>
+                                </span>
+                            </ContextualMenu>
                         </>
                     ),
                     className: "u-align--right has-overflow",

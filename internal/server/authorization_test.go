@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	server "github.com/canonical/notary/internal/api"
 	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/server"
 )
 
 func TestAuthorization(t *testing.T) {
@@ -21,7 +21,7 @@ func TestAuthorization(t *testing.T) {
 	env := &server.Environment{}
 	env.DB = testdb
 	env.JWTSecret = []byte("secret")
-	ts := httptest.NewTLSServer(server.NewNotaryRouter(env))
+	ts := httptest.NewTLSServer(server.NewRouter(env))
 	defer ts.Close()
 
 	client := ts.Client()

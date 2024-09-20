@@ -55,7 +55,7 @@ func NewServer(port int, cert []byte, key []byte, dbPath string, pebbleNotificat
 	env.DB = db
 	env.SendPebbleNotifications = pebbleNotificationsEnabled
 	env.JWTSecret = jwtSecret
-	router := NewNotaryRouter(env)
+	router := NewRouter(env)
 
 	s := &http.Server{
 		Addr: fmt.Sprintf(":%d", port),

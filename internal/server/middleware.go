@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	USER_ACCOUNT  = 0
-	ADMIN_ACCOUNT = 1
+	UserPermission  = 0
+	AdminPermission = 1
 )
 
 type middleware func(http.Handler) http.Handler
@@ -117,7 +117,7 @@ func authMiddleware(ctx *middlewareContext) middleware {
 				logErrorAndWriteResponse(fmt.Sprintf("auth failed: %s", err.Error()), http.StatusUnauthorized, w)
 				return
 			}
-			if claims.Permissions == USER_ACCOUNT {
+			if claims.Permissions == UserPermission {
 				requestAllowed, err := AllowRequest(claims, r.Method, r.URL.Path)
 				if err != nil {
 					logErrorAndWriteResponse(fmt.Sprintf("error processing path: %s", err.Error()), http.StatusInternalServerError, w)

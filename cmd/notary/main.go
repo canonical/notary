@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	server "github.com/canonical/notary/internal/api"
 	"github.com/canonical/notary/internal/config"
+	"github.com/canonical/notary/internal/server"
 )
 
 func main() {

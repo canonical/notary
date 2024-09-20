@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	server "github.com/canonical/notary/internal/api"
 	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/server"
 )
 
 const (
@@ -32,7 +32,7 @@ func TestNotaryUsersHandlers(t *testing.T) {
 	}
 	env := &server.Environment{}
 	env.DB = testdb
-	ts := httptest.NewTLSServer(server.NewNotaryRouter(env))
+	ts := httptest.NewTLSServer(server.NewRouter(env))
 	defer ts.Close()
 
 	client := ts.Client()

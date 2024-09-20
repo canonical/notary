@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	server "github.com/canonical/notary/internal/api"
 	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/server"
 	"github.com/golang-jwt/jwt"
 )
 
@@ -22,7 +22,7 @@ func TestLogin(t *testing.T) {
 	env := &server.Environment{}
 	env.DB = testdb
 	env.JWTSecret = []byte("secret")
-	ts := httptest.NewTLSServer(server.NewNotaryRouter(env))
+	ts := httptest.NewTLSServer(server.NewRouter(env))
 	defer ts.Close()
 
 	client := ts.Client()

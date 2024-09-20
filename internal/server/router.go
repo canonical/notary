@@ -6,10 +6,10 @@ import (
 	"github.com/canonical/notary/internal/metrics"
 )
 
-// NewRouter takes in an environment struct, passes it along to any handlers that will need
+// NewHandler takes in an environment struct, passes it along to any handlers that will need
 // access to it, and takes an http.Handler that will be used to handle metrics.
 // then builds and returns it for a server to consume
-func NewRouter(env *Environment) http.Handler {
+func NewHandler(env *Environment) http.Handler {
 	apiV1Router := http.NewServeMux()
 	apiV1Router.HandleFunc("GET /certificate_requests", GetCertificateRequests(env))
 	apiV1Router.HandleFunc("POST /certificate_requests", PostCertificateRequest(env))

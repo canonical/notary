@@ -145,7 +145,7 @@ func TestNotaryCertificatesHandlers(t *testing.T) {
 	}
 	env := &server.Environment{}
 	env.DB = testdb
-	ts := httptest.NewTLSServer(server.NewRouter(env))
+	ts := httptest.NewTLSServer(server.NewHandler(env))
 	defer ts.Close()
 
 	client := ts.Client()

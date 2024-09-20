@@ -265,6 +265,7 @@ func (db *Database) DeleteUser(id string) (int64, error) {
 	return deleteId, nil
 }
 
+// NumUsers returns the number of users in the database.
 func (db *Database) NumUsers() (int, error) {
 	var numUsers int
 	row := db.conn.QueryRow(fmt.Sprintf(queryGetNumUsers, db.usersTable))

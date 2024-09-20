@@ -25,7 +25,6 @@ type middleware func(http.Handler) http.Handler
 // The middlewareContext type helps middleware receive and pass along information through the middleware chain.
 type middlewareContext struct {
 	responseStatusCode int
-	metrics            *metrics.PrometheusMetrics
 	jwtSecret          []byte
 }
 
@@ -173,9 +172,7 @@ func adminOrFirstUser(jwtSecret []byte, db *db.Database, handler func(http.Respo
 				writeError("forbidden: admin access required", http.StatusForbidden, w)
 				return
 			}
-
 		}
-
 		handler(w, r)
 	}
 }

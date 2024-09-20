@@ -36,7 +36,7 @@ func generateJWT(id int, username string, jwtSecret []byte, permissions int) (st
 	return tokenString, nil
 }
 
-func Login(env *Environment) http.HandlerFunc {
+func Login(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var userRequest db.User
 		if err := json.NewDecoder(r.Body).Decode(&userRequest); err != nil {

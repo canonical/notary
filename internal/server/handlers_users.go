@@ -75,7 +75,7 @@ func validatePassword(password string) bool {
 }
 
 // GetUserAccounts returns all users from the database
-func GetUserAccounts(env *Environment) http.HandlerFunc {
+func GetUserAccounts(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		users, err := env.DB.RetrieveAllUsers()
 		if err != nil {
@@ -98,7 +98,7 @@ func GetUserAccounts(env *Environment) http.HandlerFunc {
 
 // GetUserAccount receives an id as a path parameter, and
 // returns the corresponding User Account
-func GetUserAccount(env *Environment) http.HandlerFunc {
+func GetUserAccount(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		var userAccount db.User
@@ -133,7 +133,7 @@ func GetUserAccount(env *Environment) http.HandlerFunc {
 }
 
 // PostUserAccount creates a new User Account, and returns the id of the created row
-func PostUserAccount(env *Environment) http.HandlerFunc {
+func PostUserAccount(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var user db.User
 		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
@@ -197,7 +197,7 @@ func PostUserAccount(env *Environment) http.HandlerFunc {
 
 // DeleteUserAccount handler receives an id as a path parameter,
 // deletes the corresponding User Account, and returns a http.StatusNoContent on success
-func DeleteUserAccount(env *Environment) http.HandlerFunc {
+func DeleteUserAccount(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		user, err := env.DB.RetrieveUser(id)
@@ -227,7 +227,7 @@ func DeleteUserAccount(env *Environment) http.HandlerFunc {
 	}
 }
 
-func ChangeUserAccountPassword(env *Environment) http.HandlerFunc {
+func ChangeUserAccountPassword(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		if id == "me" {

@@ -18,7 +18,7 @@ func TestAuthorization(t *testing.T) {
 	if err != nil {
 		log.Fatalf("couldn't create test sqlite db: %s", err)
 	}
-	env := &server.Environment{}
+	env := &server.HandlerConfig{}
 	env.DB = testdb
 	env.JWTSecret = []byte("secret")
 	ts := httptest.NewTLSServer(server.NewHandler(env))

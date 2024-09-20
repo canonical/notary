@@ -112,8 +112,8 @@ func TestMain(m *testing.M) {
 	os.Exit(exitval)
 }
 
-func TestNewServerSuccess(t *testing.T) {
-	s, err := server.NewServer(8000, []byte(validCert), []byte(validPK), "certs.db", false)
+func TestNewSuccess(t *testing.T) {
+	s, err := server.New(8000, []byte(validCert), []byte(validPK), "certs.db", false)
 	if err != nil {
 		t.Errorf("Error occured: %s", err)
 	}
@@ -123,7 +123,7 @@ func TestNewServerSuccess(t *testing.T) {
 }
 
 func TestInvalidKeyFailure(t *testing.T) {
-	_, err := server.NewServer(8000, []byte(validCert), []byte{}, "certs.db", false)
+	_, err := server.New(8000, []byte(validCert), []byte{}, "certs.db", false)
 	if err == nil {
 		t.Errorf("No error was thrown for invalid key")
 	}

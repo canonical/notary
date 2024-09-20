@@ -13,7 +13,7 @@ import (
 )
 
 // GetCertificateRequests returns all of the Certificate Requests
-func GetCertificateRequests(env *Environment) http.HandlerFunc {
+func GetCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		certs, err := env.DB.RetrieveAllCSRs()
 		if err != nil {
@@ -32,7 +32,7 @@ func GetCertificateRequests(env *Environment) http.HandlerFunc {
 }
 
 // PostCertificateRequest creates a new Certificate Request, and returns the id of the created row
-func PostCertificateRequest(env *Environment) http.HandlerFunc {
+func PostCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		csr, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -61,7 +61,7 @@ func PostCertificateRequest(env *Environment) http.HandlerFunc {
 
 // GetCertificateRequests receives an id as a path parameter, and
 // returns the corresponding Certificate Request
-func GetCertificateRequest(env *Environment) http.HandlerFunc {
+func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		cert, err := env.DB.RetrieveCSR(id)
@@ -86,7 +86,7 @@ func GetCertificateRequest(env *Environment) http.HandlerFunc {
 
 // DeleteCertificateRequest handler receives an id as a path parameter,
 // deletes the corresponding Certificate Request, and returns a http.StatusNoContent on success
-func DeleteCertificateRequest(env *Environment) http.HandlerFunc {
+func DeleteCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		insertId, err := env.DB.DeleteCSR(id)
@@ -107,7 +107,7 @@ func DeleteCertificateRequest(env *Environment) http.HandlerFunc {
 
 // PostCertificate handler receives an id as a path parameter,
 // and attempts to add a given certificate to the corresponding certificate request
-func PostCertificate(env *Environment) http.HandlerFunc {
+func PostCertificate(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cert, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -140,7 +140,7 @@ func PostCertificate(env *Environment) http.HandlerFunc {
 	}
 }
 
-func RejectCertificate(env *Environment) http.HandlerFunc {
+func RejectCertificate(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		insertId, err := env.DB.UpdateCSR(id, "rejected")
@@ -168,7 +168,7 @@ func RejectCertificate(env *Environment) http.HandlerFunc {
 
 // DeleteCertificate handler receives an id as a path parameter,
 // and attempts to add a given certificate to the corresponding certificate request
-func DeleteCertificate(env *Environment) http.HandlerFunc {
+func DeleteCertificate(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		insertId, err := env.DB.UpdateCSR(id, "")

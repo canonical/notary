@@ -90,24 +90,27 @@ D7DC34n8CH9+avz9sCRwxpjxKnYW/BeyK0c4n9uZpjI8N4sOVqy6yWBUseww
 func TestMain(m *testing.M) {
 	testfolder, err := os.MkdirTemp("./", "configtest-")
 	if err != nil {
-		log.Fatalf("couldn't create temp directory")
+		log.Fatalf("couldn't create temp directory: %s", err)
 	}
-	writeCertErr := os.WriteFile(testfolder+"/cert_test.pem", []byte(validCert), 0o644)
-	writeKeyErr := os.WriteFile(testfolder+"/key_test.pem", []byte(validPK), 0o644)
-	if writeCertErr != nil || writeKeyErr != nil {
-		log.Fatalf("couldn't create temp testing file")
+	err = os.WriteFile(testfolder+"/cert_test.pem", []byte(validCert), 0o644)
+	if err != nil {
+		log.Fatalf("couldn't create temp testing file: %s", err)
+	}
+	err = os.WriteFile(testfolder+"/key_test.pem", []byte(validPK), 0o644)
+	if err != nil {
+		log.Fatalf("couldn't create temp testing file: %s", err)
 	}
 	if err := os.Chdir(testfolder); err != nil {
-		log.Fatalf("couldn't enter testing directory")
+		log.Fatalf("couldn't enter testing directory: %s", err)
 	}
 
 	exitval := m.Run()
 
 	if err := os.Chdir("../"); err != nil {
-		log.Fatalf("couldn't change back to parent directory")
+		log.Fatalf("couldn't change back to parent directory: %s", err)
 	}
 	if err := os.RemoveAll(testfolder); err != nil {
-		log.Fatalf("couldn't remove temp testing directory")
+		log.Fatalf("couldn't remove temp testing directory: %s", err)
 	}
 	os.Exit(exitval)
 }

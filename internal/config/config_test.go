@@ -40,24 +40,27 @@ yaml.here`
 func TestMain(m *testing.M) {
 	testfolder, err := os.MkdirTemp("./", "configtest-")
 	if err != nil {
-		log.Fatalf("couldn't create temp directory")
+		log.Fatalf("couldn't create temp directory: %s", err)
 	}
-	writeCertErr := os.WriteFile(testfolder+"/cert_test.pem", []byte(validCert), 0o644)
-	writeKeyErr := os.WriteFile(testfolder+"/key_test.pem", []byte(validPK), 0o644)
-	if writeCertErr != nil || writeKeyErr != nil {
-		log.Fatalf("couldn't create temp testing file")
+	err = os.WriteFile(testfolder+"/cert_test.pem", []byte(validCert), 0o644)
+	if err != nil {
+		log.Fatalf("couldn't create temp testing file: %s", err)
+	}
+	err = os.WriteFile(testfolder+"/key_test.pem", []byte(validPK), 0o644)
+	if err != nil {
+		log.Fatalf("couldn't create temp testing file: %s", err)
 	}
 	if err := os.Chdir(testfolder); err != nil {
-		log.Fatalf("couldn't enter testing directory")
+		log.Fatalf("couldn't enter testing directory: %s", err)
 	}
 
 	exitval := m.Run()
 
 	if err := os.Chdir("../"); err != nil {
-		log.Fatalf("couldn't change back to parent directory")
+		log.Fatalf("couldn't change back to parent directory: %s", err)
 	}
 	if err := os.RemoveAll(testfolder); err != nil {
-		log.Fatalf("couldn't remove temp testing directory")
+		log.Fatalf("couldn't remove temp testing directory: %s", err)
 	}
 	os.Exit(exitval)
 }
@@ -104,11 +107,11 @@ func TestBadConfigFail(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		writeConfigErr := os.WriteFile("config.yaml", []byte(tc.ConfigYAML), 0o644)
-		if writeConfigErr != nil {
-			t.Errorf("Failed writing config file")
+		err := os.WriteFile("config.yaml", []byte(tc.ConfigYAML), 0o644)
+		if err != nil {
+			t.Errorf("Failed writing config file: %v", err)
 		}
-		_, err := config.Validate("config.yaml")
+		_, err = config.Validate("config.yaml")
 		if err == nil {
 			t.Errorf("Expected error, got nil")
 		}

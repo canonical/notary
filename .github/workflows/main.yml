@@ -14,13 +14,10 @@ jobs:
   frontend-build:
     uses: ./.github/workflows/frontend-build.yaml
   go-unit-test:
-    needs: [frontend-build]
     uses: ./.github/workflows/go-unittest.yaml
   go-vet:
-    needs: [frontend-build]
     uses: ./.github/workflows/go-vet.yaml
   go-lint:
-    needs: [frontend-build]
     uses: ./.github/workflows/go-lint.yaml
   go-build:
     needs: [frontend-build]

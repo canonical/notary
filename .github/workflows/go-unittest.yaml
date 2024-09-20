@@ -11,12 +11,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: "go.mod"
-      
-      - name: Download frontend files
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-static-files
-          path: ui/out
+
       - name: Unit tests
         run: go test -cover ./...
-

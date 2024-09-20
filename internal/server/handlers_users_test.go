@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	server "github.com/canonical/notary/internal/api"
 	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/server"
 )
 
 const (
@@ -30,9 +30,9 @@ func TestNotaryUsersHandlers(t *testing.T) {
 	if err != nil {
 		log.Fatalf("couldn't create test sqlite db: %s", err)
 	}
-	env := &server.Environment{}
+	env := &server.HandlerConfig{}
 	env.DB = testdb
-	ts := httptest.NewTLSServer(server.NewNotaryRouter(env))
+	ts := httptest.NewTLSServer(server.NewHandler(env))
 	defer ts.Close()
 
 	client := ts.Client()

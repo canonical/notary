@@ -14,7 +14,7 @@ import (
 	"github.com/canonical/notary/internal/db"
 )
 
-type Environment struct {
+type HandlerConfig struct {
 	DB                      *db.Database
 	SendPebbleNotifications bool
 	JWTSecret               []byte
@@ -36,8 +36,8 @@ func generateJWTSecret() ([]byte, error) {
 	return bytes, nil
 }
 
-// NewServer creates an environment and an http server with handlers that Go can start listening to
-func NewServer(port int, cert []byte, key []byte, dbPath string, pebbleNotificationsEnabled bool) (*http.Server, error) {
+// New creates an environment and an http server with handlers that Go can start listening to
+func New(port int, cert []byte, key []byte, dbPath string, pebbleNotificationsEnabled bool) (*http.Server, error) {
 	serverCerts, err := tls.X509KeyPair(cert, key)
 	if err != nil {
 		return nil, err
@@ -51,11 +51,11 @@ func NewServer(port int, cert []byte, key []byte, dbPath string, pebbleNotificat
 	if err != nil {
 		return nil, err
 	}
-	env := &Environment{}
+	env := &HandlerConfig{}
 	env.DB = db
 	env.SendPebbleNotifications = pebbleNotificationsEnabled
 	env.JWTSecret = jwtSecret
-	router := NewNotaryRouter(env)
+	router := NewHandler(env)
 
 	s := &http.Server{
 		Addr: fmt.Sprintf(":%d", port),

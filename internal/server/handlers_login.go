@@ -36,43 +36,43 @@ func generateJWT(id int, username string, jwtSecret []byte, permissions int) (st
 	return tokenString, nil
 }
 
-func Login(env *Environment) http.HandlerFunc {
+func Login(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var userRequest db.User
 		if err := json.NewDecoder(r.Body).Decode(&userRequest); err != nil {
-			logErrorAndWriteResponse("Invalid JSON format", http.StatusBadRequest, w)
+			writeError("Invalid JSON format", http.StatusBadRequest, w)
 			return
 		}
 		if userRequest.Username == "" {
-			logErrorAndWriteResponse("Username is required", http.StatusBadRequest, w)
+			writeError("Username is required", http.StatusBadRequest, w)
 			return
 		}
 		if userRequest.Password == "" {
-			logErrorAndWriteResponse("Password is required", http.StatusBadRequest, w)
+			writeError("Password is required", http.StatusBadRequest, w)
 			return
 		}
 		userAccount, err := env.DB.RetrieveUserByUsername(userRequest.Username)
 		if err != nil {
 			status := http.StatusInternalServerError
 			if errors.Is(err, db.ErrIdNotFound) {
-				logErrorAndWriteResponse("The username or password is incorrect. Try again.", http.StatusUnauthorized, w)
+				writeError("The username or password is incorrect. Try again.", http.StatusUnauthorized, w)
 				return
 			}
-			logErrorAndWriteResponse(err.Error(), status, w)
+			writeError(err.Error(), status, w)
 			return
 		}
 		if err := bcrypt.CompareHashAndPassword([]byte(userAccount.Password), []byte(userRequest.Password)); err != nil {
-			logErrorAndWriteResponse("The username or password is incorrect. Try again.", http.StatusUnauthorized, w)
+			writeError("The username or password is incorrect. Try again.", http.StatusUnauthorized, w)
 			return
 		}
 		jwt, err := generateJWT(userAccount.ID, userAccount.Username, env.JWTSecret, userAccount.Permissions)
 		if err != nil {
-			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+			writeError(err.Error(), http.StatusInternalServerError, w)
 			return
 		}
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write([]byte(jwt)); err != nil {
-			logErrorAndWriteResponse(err.Error(), http.StatusInternalServerError, w)
+			writeError(err.Error(), http.StatusInternalServerError, w)
 		}
 	}
 }

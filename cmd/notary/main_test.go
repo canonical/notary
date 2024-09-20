@@ -104,29 +104,32 @@ pebble_notices: false`
 func TestMain(m *testing.M) {
 	cmd := exec.Command("go", "install", "./...")
 	if err := cmd.Run(); err != nil {
-		log.Fatalf("couldn't install the notary CLI")
+		log.Fatalf("couldn't install the notary CLI: %v", err)
 	}
 
 	testfolder, err := os.MkdirTemp("./", "configtest-")
 	if err != nil {
-		log.Fatalf("couldn't create temp directory")
+		log.Fatalf("couldn't create temp directory: %v", err)
 	}
-	writeCertErr := os.WriteFile(testfolder+"/cert_test.pem", []byte(validCert), 0o644)
-	writeKeyErr := os.WriteFile(testfolder+"/key_test.pem", []byte(validPK), 0o644)
-	if writeCertErr != nil || writeKeyErr != nil {
-		log.Fatalf("couldn't create temp testing file")
+	err = os.WriteFile(testfolder+"/cert_test.pem", []byte(validCert), 0o644)
+	if err != nil {
+		log.Fatalf("couldn't create temp testing file: %v", err)
+	}
+	err = os.WriteFile(testfolder+"/key_test.pem", []byte(validPK), 0o644)
+	if err != nil {
+		log.Fatalf("couldn't create temp testing file: %v", err)
 	}
 	if err := os.Chdir(testfolder); err != nil {
-		log.Fatalf("couldn't enter testing directory")
+		log.Fatalf("couldn't enter testing directory: %v", err)
 	}
 
 	exitval := m.Run()
 
 	if err := os.Chdir("../"); err != nil {
-		log.Fatalf("couldn't change back to parent directory")
+		log.Fatalf("couldn't change back to parent directory: %v", err)
 	}
 	if err := os.RemoveAll(testfolder); err != nil {
-		log.Fatalf("couldn't remove temp testing directory")
+		log.Fatalf("couldn't remove temp testing directory: %v", err)
 	}
 	os.Exit(exitval)
 }
@@ -145,22 +148,22 @@ func TestNotaryFail(t *testing.T) {
 		{"database not connectable", []string{"-config", "config.yaml"}, invalidDBConfig, "Couldn't connect to database:"},
 	}
 	for _, tc := range cases {
-		writeConfigErr := os.WriteFile("config.yaml", []byte(tc.ConfigYAML), 0o644)
-		if writeConfigErr != nil {
-			t.Errorf("Failed writing config file")
+		err := os.WriteFile("config.yaml", []byte(tc.ConfigYAML), 0o644)
+		if err != nil {
+			t.Errorf("Failed writing config file: %v", err)
 		}
 		flag.CommandLine = flag.NewFlagSet(tc.Name, flag.ExitOnError)
 		cmd := exec.Command("notary", tc.Args...)
 		stdout, _ := cmd.StdoutPipe()
 
 		if err := cmd.Start(); err != nil {
-			t.Errorf("Failed running command")
+			t.Errorf("Failed running command: %v", err)
 		}
 
 		slurp, _ := io.ReadAll(stdout)
 
 		if err := cmd.Wait(); err == nil {
-			t.Errorf("Command did not fail")
+			t.Errorf("Command did not fail: %s", tc.Name)
 		}
 		if !strings.Contains(string(slurp), tc.ExpectedOutput) {
 			t.Errorf("%s: Expected error not found: %s", tc.Name, slurp)

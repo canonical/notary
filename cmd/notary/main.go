@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	server "github.com/canonical/notary/internal/api"
 	"github.com/canonical/notary/internal/config"
+	"github.com/canonical/notary/internal/server"
 )
 
 func main() {
@@ -20,7 +20,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Couldn't validate config file: %s", err)
 	}
-	srv, err := server.NewServer(conf.Port, conf.Cert, conf.Key, conf.DBPath, conf.PebbleNotificationsEnabled)
+	srv, err := server.New(conf.Port, conf.Cert, conf.Key, conf.DBPath, conf.PebbleNotificationsEnabled)
 	if err != nil {
 		log.Fatalf("Couldn't create server: %s", err)
 	}

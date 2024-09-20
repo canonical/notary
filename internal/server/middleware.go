@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	USER_ACCOUNT  = 0
-	ADMIN_ACCOUNT = 1
+	UserPermission  = 0
+	AdminPermission = 1
 )
 
 type middleware func(http.Handler) http.Handler
@@ -28,9 +28,9 @@ type middlewareContext struct {
 	firstAccountIssued bool
 }
 
-// The responseWriterCloner struct wraps the http.ResponseWriter struct, and extracts the status
+// The statusRecorder struct wraps the http.ResponseWriter struct, and extracts the status
 // code of the response writer for the middleware to read
-type responseWriterCloner struct {
+type statusRecorder struct {
 	http.ResponseWriter
 	statusCode int
 }
@@ -38,12 +38,12 @@ type responseWriterCloner struct {
 // newResponseWriter returns a new ResponseWriterCloner struct
 // it returns http.StatusOK by default because the http.ResponseWriter defaults to that header
 // if the WriteHeader() function is never called.
-func newResponseWriter(w http.ResponseWriter) *responseWriterCloner {
-	return &responseWriterCloner{w, http.StatusOK}
+func newResponseWriter(w http.ResponseWriter) *statusRecorder {
+	return &statusRecorder{w, http.StatusOK}
 }
 
 // WriteHeader overrides the ResponseWriter method to duplicate the status code into the wrapper struct
-func (rwc *responseWriterCloner) WriteHeader(code int) {
+func (rwc *statusRecorder) WriteHeader(code int) {
 	rwc.statusCode = code
 	rwc.ResponseWriter.WriteHeader(code)
 }
@@ -114,17 +114,17 @@ func authMiddleware(ctx *middlewareContext) middleware {
 			}
 			claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), ctx.jwtSecret)
 			if err != nil {
-				logErrorAndWriteResponse(fmt.Sprintf("auth failed: %s", err.Error()), http.StatusUnauthorized, w)
+				writeError(fmt.Sprintf("auth failed: %s", err.Error()), http.StatusUnauthorized, w)
 				return
 			}
-			if claims.Permissions == USER_ACCOUNT {
+			if claims.Permissions == UserPermission {
 				requestAllowed, err := AllowRequest(claims, r.Method, r.URL.Path)
 				if err != nil {
-					logErrorAndWriteResponse(fmt.Sprintf("error processing path: %s", err.Error()), http.StatusInternalServerError, w)
+					writeError(fmt.Sprintf("error processing path: %s", err.Error()), http.StatusInternalServerError, w)
 					return
 				}
 				if !requestAllowed {
-					logErrorAndWriteResponse("forbidden", http.StatusForbidden, w)
+					writeError("forbidden", http.StatusForbidden, w)
 					return
 				}
 			}

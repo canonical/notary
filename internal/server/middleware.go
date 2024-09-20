@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/metrics"
 	"github.com/golang-jwt/jwt"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -25,7 +27,6 @@ type middlewareContext struct {
 	responseStatusCode int
 	metrics            *metrics.PrometheusMetrics
 	jwtSecret          []byte
-	firstAccountIssued bool
 }
 
 // The statusRecorder struct wraps the http.ResponseWriter struct, and extracts the status
@@ -64,13 +65,13 @@ func createMiddlewareStack(middleware ...middleware) middleware {
 }
 
 // The Metrics middleware captures any request relevant to a metric and records it for prometheus.
-func metricsMiddleware(ctx *middlewareContext) middleware {
+func metricsMiddleware(metrics *metrics.PrometheusMetrics) middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			base := promhttp.InstrumentHandlerCounter(
-				&ctx.metrics.RequestsTotal,
+				&metrics.RequestsTotal,
 				promhttp.InstrumentHandlerDuration(
-					&ctx.metrics.RequestsDuration,
+					&metrics.RequestsDuration,
 					next,
 				),
 			)
@@ -96,40 +97,86 @@ func loggingMiddleware(ctx *middlewareContext) middleware {
 	}
 }
 
-// authMiddleware intercepts requests that need authorization to check if the user's token exists and is
-// permitted to use the endpoint
-func authMiddleware(ctx *middlewareContext) middleware {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if !strings.HasPrefix(r.URL.Path, "/api/v1/") {
-				next.ServeHTTP(w, r)
+// The adminOnly middleware checks if the user has admin permissions before allowing access to the handler.
+func adminOnly(jwtSecret []byte, handler func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
+		if err != nil {
+			writeError(fmt.Sprintf("auth failed: %s", err.Error()), http.StatusUnauthorized, w)
+			return
+		}
+
+		if claims.Permissions != AdminPermission {
+			writeError("forbidden: admin access required", http.StatusForbidden, w)
+			return
+		}
+
+		handler(w, r)
+	}
+}
+
+// The adminOrUser middleware checks if the user has admin or user permissions before allowing access to the handler.
+func adminOrUser(jwtSecret []byte, handler func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
+		if err != nil {
+			writeError(fmt.Sprintf("auth failed: %s", err.Error()), http.StatusUnauthorized, w)
+			return
+		}
+
+		if claims.Permissions != AdminPermission && claims.Permissions != UserPermission {
+			writeError("forbidden: admin or user access required", http.StatusForbidden, w)
+			return
+		}
+
+		handler(w, r)
+	}
+}
+
+// The adminOrMe middleware checks if the user has admin permissions or if the user is the same user before allowing access to the handler.
+func adminOrMe(jwtSecret []byte, handler func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
+		if err != nil {
+			writeError(fmt.Sprintf("auth failed: %s", err.Error()), http.StatusUnauthorized, w)
+			return
+		}
+
+		if claims.Permissions != AdminPermission {
+			if r.PathValue("id") != "me" && strconv.Itoa(claims.ID) != r.PathValue("id") {
+				writeError("forbidden: admin access required", http.StatusForbidden, w)
 				return
 			}
-			if r.Method == "POST" && strings.HasSuffix(r.URL.Path, "accounts") && !ctx.firstAccountIssued {
-				next.ServeHTTP(w, r)
-				if strings.HasPrefix(strconv.Itoa(ctx.responseStatusCode), "2") {
-					ctx.firstAccountIssued = true
-				}
-				return
-			}
-			claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), ctx.jwtSecret)
+		}
+
+		handler(w, r)
+	}
+}
+
+// The adminOrFirstUser middleware checks if the user has admin permissions or if the user is the first user before allowing access to the handler.
+func adminOrFirstUser(jwtSecret []byte, db *db.Database, handler func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		numUsers, err := db.NumUsers()
+		if err != nil {
+			writeError(fmt.Sprintf("failed to get number of users: %s", err.Error()), http.StatusInternalServerError, w)
+			return
+		}
+
+		if numUsers > 0 {
+			claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
 			if err != nil {
 				writeError(fmt.Sprintf("auth failed: %s", err.Error()), http.StatusUnauthorized, w)
 				return
 			}
-			if claims.Permissions == UserPermission {
-				requestAllowed, err := AllowRequest(claims, r.Method, r.URL.Path)
-				if err != nil {
-					writeError(fmt.Sprintf("error processing path: %s", err.Error()), http.StatusInternalServerError, w)
-					return
-				}
-				if !requestAllowed {
-					writeError("forbidden", http.StatusForbidden, w)
-					return
-				}
+
+			if claims.Permissions != AdminPermission && numUsers > 0 {
+				writeError("forbidden: admin access required", http.StatusForbidden, w)
+				return
 			}
-			next.ServeHTTP(w, r)
-		})
+
+		}
+
+		handler(w, r)
 	}
 }
 
@@ -208,8 +255,11 @@ func getClaimsFromJWT(bearerToken string, jwtSecret []byte) (*jwtNotaryClaims, e
 		}
 		return jwtSecret, nil
 	})
-	if err != nil || !token.Valid {
+	if err != nil {
 		return nil, err
+	}
+	if !token.Valid {
+		return nil, errors.New("invalid token")
 	}
 	return &claims, nil
 }

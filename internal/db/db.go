@@ -42,6 +42,7 @@ const (
 	queryCreateUser        = "INSERT INTO %s (username, password, permissions) VALUES (?, ?, ?)"
 	queryUpdateUser        = "UPDATE %s SET password=? WHERE user_id=?"
 	queryDeleteUser        = "DELETE FROM %s WHERE user_id=?"
+	queryGetNumUsers       = "SELECT COUNT(*) FROM %s"
 )
 
 // CertificateRequestRepository is the object used to communicate with the established repository.
@@ -210,12 +211,12 @@ func (db *Database) RetrieveUserByUsername(name string) (User, error) {
 // CreateUser creates a new user from a given username, password and permission level.
 // The permission level 1 represents an admin, and a 0 represents a regular user.
 // The password passed in should be in plaintext. This function handles hashing and salting the password before storing it in the database.
-func (db *Database) CreateUser(username, password, permissions string) (int64, error) {
+func (db *Database) CreateUser(username string, password string, permission int) (int64, error) {
 	pw, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return 0, err
 	}
-	result, err := db.conn.Exec(fmt.Sprintf(queryCreateUser, db.usersTable), username, pw, permissions)
+	result, err := db.conn.Exec(fmt.Sprintf(queryCreateUser, db.usersTable), username, pw, permission)
 	if err != nil {
 		return 0, err
 	}
@@ -262,6 +263,15 @@ func (db *Database) DeleteUser(id string) (int64, error) {
 		return 0, ErrIdNotFound
 	}
 	return deleteId, nil
+}
+
+func (db *Database) NumUsers() (int, error) {
+	var numUsers int
+	row := db.conn.QueryRow(fmt.Sprintf(queryGetNumUsers, db.usersTable))
+	if err := row.Scan(&numUsers); err != nil {
+		return 0, err
+	}
+	return numUsers, nil
 }
 
 // Close closes the connection to the repository cleanly.

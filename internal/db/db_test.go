@@ -131,11 +131,11 @@ func TestUsersEndToEnd(t *testing.T) {
 	}
 	defer db.Close()
 
-	id1, err := db.CreateUser("admin", "pw123", "1")
+	id1, err := db.CreateUser("admin", "pw123", 1)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
-	id2, err := db.CreateUser("norman", "pw456", "0")
+	id2, err := db.CreateUser("norman", "pw456", 0)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}

@@ -55,15 +55,15 @@ type Database struct {
 // A CertificateRequest struct represents an entry in the database.
 // The object contains a Certificate Request, its matching Certificate if any, and the row ID.
 type CertificateRequest struct {
-	ID          int    `json:"id"`
-	CSR         string `json:"csr"`
-	Certificate string `json:"certificate"`
+	ID          int
+	CSR         string
+	Certificate string
 }
 type User struct {
-	ID          int    `json:"id"`
-	Username    string `json:"username"`
-	Password    string `json:"password,omitempty"`
-	Permissions int    `json:"permissions"`
+	ID          int
+	Username    string
+	Password    string
+	Permissions int
 }
 
 var ErrIdNotFound = errors.New("id not found")

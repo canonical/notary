@@ -19,6 +19,15 @@ type jwtNotaryClaims struct {
 	jwt.StandardClaims
 }
 
+type LoginParams struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type LoginResponse struct {
+	Token string `json:"token"`
+}
+
 // Helper function to generate a JWT
 func generateJWT(id int, username string, jwtSecret []byte, permissions int) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtNotaryClaims{
@@ -39,20 +48,20 @@ func generateJWT(id int, username string, jwtSecret []byte, permissions int) (st
 
 func Login(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var userRequest db.User
-		if err := json.NewDecoder(r.Body).Decode(&userRequest); err != nil {
+		var loginParams LoginParams
+		if err := json.NewDecoder(r.Body).Decode(&loginParams); err != nil {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format")
 			return
 		}
-		if userRequest.Username == "" {
+		if loginParams.Username == "" {
 			writeError(w, http.StatusBadRequest, "Username is required")
 			return
 		}
-		if userRequest.Password == "" {
+		if loginParams.Password == "" {
 			writeError(w, http.StatusBadRequest, "Password is required")
 			return
 		}
-		userAccount, err := env.DB.RetrieveUserByUsername(userRequest.Username)
+		userAccount, err := env.DB.RetrieveUserByUsername(loginParams.Username)
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, db.ErrIdNotFound) {
@@ -62,7 +71,7 @@ func Login(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		if err := bcrypt.CompareHashAndPassword([]byte(userAccount.Password), []byte(userRequest.Password)); err != nil {
+		if err := bcrypt.CompareHashAndPassword([]byte(userAccount.Password), []byte(loginParams.Password)); err != nil {
 			writeError(w, http.StatusUnauthorized, "The username or password is incorrect. Try again.")
 			return
 		}
@@ -73,9 +82,13 @@ func Login(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write([]byte(jwt)); err != nil {
-			log.Println(err)
-			writeError(w, http.StatusInternalServerError, "Internal Error")
+		loginResponse := LoginResponse{
+			Token: jwt,
+		}
+		err = writeJSON(w, loginResponse)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
 		}
 	}
 }

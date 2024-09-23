@@ -145,7 +145,7 @@ export async function changePassword(changePasswordForm: { authToken: string, id
     return responseText
 }
 
-export async function getUsers(params: { authToken: string }): Promise<UserEntry[]> {
+export async function ListUsers(params: { authToken: string }): Promise<UserEntry[]> {
     const response = await fetch("/api/v1/accounts", {
         headers: { "Authorization": "Bearer " + params.authToken }
     })

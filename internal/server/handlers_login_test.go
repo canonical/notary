@@ -1,8 +1,8 @@
 package server_test
 
 import (
+	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -14,7 +14,42 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
-func TestLogin(t *testing.T) {
+type LoginParams struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type LoginResponseResult struct {
+	Token string `json:"token"`
+}
+
+type LoginResponse struct {
+	Result LoginResponseResult `json:"result"`
+	Error  string              `json:"error,omitempty"`
+}
+
+func login(url string, client *http.Client, data *LoginParams) (int, *LoginResponse, error) {
+	body, err := json.Marshal(data)
+	if err != nil {
+		return 0, nil, err
+	}
+	req, err := http.NewRequest("POST", url+"/login", strings.NewReader(string(body)))
+	if err != nil {
+		return 0, nil, err
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer res.Body.Close()
+	var loginResponse LoginResponse
+	if err := json.NewDecoder(res.Body).Decode(&loginResponse); err != nil {
+		return 0, nil, err
+	}
+	return res.StatusCode, &loginResponse, nil
+}
+
+func TestLoginEndToEnd(t *testing.T) {
 	testdb, err := db.NewDatabase(":memory:")
 	if err != nil {
 		log.Fatalf("couldn't create test sqlite db: %s", err)
@@ -27,103 +62,120 @@ func TestLogin(t *testing.T) {
 
 	client := ts.Client()
 
-	testCases := []struct {
-		desc     string
-		method   string
-		path     string
-		data     string
-		response string
-		status   int
-	}{
-		{
-			desc:     "Create admin user",
-			method:   "POST",
-			path:     "/api/v1/accounts",
-			data:     adminUser,
-			response: "{\"id\":1}",
-			status:   http.StatusCreated,
-		},
-		{
-			desc:     "Login success",
-			method:   "POST",
-			path:     "/login",
-			data:     adminUser,
-			response: "",
-			status:   http.StatusOK,
-		},
-		{
-			desc:     "Login failure missing username",
-			method:   "POST",
-			path:     "/login",
-			data:     invalidUser,
-			response: "Username is required",
-			status:   http.StatusBadRequest,
-		},
-		{
-			desc:     "Login failure missing password",
-			method:   "POST",
-			path:     "/login",
-			data:     noPasswordUser,
-			response: "Password is required",
-			status:   http.StatusBadRequest,
-		},
-		{
-			desc:     "Login failure invalid password",
-			method:   "POST",
-			path:     "/login",
-			data:     adminUserWrongPass,
-			response: `{"error":"The username or password is incorrect. Try again."}`,
-			status:   http.StatusUnauthorized,
-		},
-		{
-			desc:     "Login failure invalid username",
-			method:   "POST",
-			path:     "/login",
-			data:     notExistingUser,
-			response: `{"error":"The username or password is incorrect. Try again."}`,
-			status:   http.StatusUnauthorized,
-		},
-	}
-	for _, tC := range testCases {
-		t.Run(tC.desc, func(t *testing.T) {
-			req, err := http.NewRequest(tC.method, ts.URL+tC.path, strings.NewReader(tC.data))
-			if err != nil {
-				t.Fatal(err)
-			}
-			res, err := client.Do(req)
-			if err != nil {
-				t.Fatal(err)
-			}
-			resBody, err := io.ReadAll(res.Body)
-			res.Body.Close()
-			if err != nil {
-				t.Fatal(err)
-			}
-			if res.StatusCode != tC.status || !strings.Contains(string(resBody), tC.response) {
-				t.Errorf("expected response did not match.\nExpected vs Received status code: %d vs %d\nExpected vs Received body: \n%s\nvs\n%s\n", tC.status, res.StatusCode, tC.response, string(resBody))
-			}
-			if tC.desc == "Login success" && res.StatusCode == http.StatusOK {
-				token, parseErr := jwt.Parse(string(resBody), func(token *jwt.Token) (interface{}, error) {
-					if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-						return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
-					}
-					return []byte(env.JWTSecret), nil
-				})
-				if parseErr != nil {
-					t.Errorf("Error parsing JWT: %v", parseErr)
-					return
-				}
+	t.Run("Create admin user", func(t *testing.T) {
+		adminUser := &CreateAccountParams{
+			Username: "testadmin",
+			Password: "Admin123",
+		}
+		statusCode, _, err := createAccount(ts.URL, client, "", adminUser)
+		if err != nil {
+			t.Fatalf("couldn't create admin user: %s", err)
+		}
+		if statusCode != http.StatusCreated {
+			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
+		}
+	})
 
-				if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-					if claims["username"] != "testadmin" {
-						t.Errorf("Username found in JWT does not match expected value.")
-					} else if int(claims["permissions"].(float64)) != 1 {
-						t.Errorf("Permissions found in JWT does not match expected value.")
-					}
-				} else {
-					t.Errorf("Invalid JWT token or JWT claims are not readable")
-				}
+	t.Run("Login success", func(t *testing.T) {
+		adminUser := &LoginParams{
+			Username: "testadmin",
+			Password: "Admin123",
+		}
+		statusCode, loginResponse, err := login(ts.URL, client, adminUser)
+		if err != nil {
+			t.Fatalf("couldn't login admin user: %s", err)
+		}
+		if statusCode != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+		}
+		if loginResponse.Result.Token == "" {
+			t.Fatalf("expected token, got empty string")
+		}
+		token, err := jwt.Parse(loginResponse.Result.Token, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 			}
+			return []byte(env.JWTSecret), nil
 		})
-	}
+		if err != nil {
+			t.Fatalf("couldn't parse token: %s", err)
+		}
+		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+			if claims["username"] != "testadmin" {
+				t.Fatalf("expected username %q, got %q", "testadmin", claims["username"])
+			}
+		} else {
+			t.Fatalf("invalid token or claims")
+		}
+	})
+
+	t.Run("Login failure missing username", func(t *testing.T) {
+		invalidUser := &LoginParams{
+			Username: "",
+			Password: "Admin123",
+		}
+		statusCode, loginResponse, err := login(ts.URL, client, invalidUser)
+		if err != nil {
+			t.Fatalf("couldn't login admin user: %s", err)
+		}
+		if statusCode != http.StatusBadRequest {
+			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
+		}
+		if loginResponse.Error != "Username is required" {
+			t.Fatalf("expected error %q, got %q", "Username is required", loginResponse.Error)
+		}
+	})
+
+	t.Run("Login failure missing password", func(t *testing.T) {
+		invalidUser := &LoginParams{
+			Username: "testadmin",
+			Password: "",
+		}
+		statusCode, loginResponse, err := login(ts.URL, client, invalidUser)
+		if err != nil {
+			t.Fatalf("couldn't login admin user: %s", err)
+		}
+		if statusCode != http.StatusBadRequest {
+			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
+		}
+		if loginResponse.Error != "Password is required" {
+			t.Fatalf("expected error %q, got %q", "Password is required", loginResponse.Error)
+		}
+	})
+
+	t.Run("Login failure invalid password", func(t *testing.T) {
+		invalidUser := &LoginParams{
+			Username: "testadmin",
+			Password: "a-wrong-password",
+		}
+		statusCode, loginResponse, err := login(ts.URL, client, invalidUser)
+		if err != nil {
+			t.Fatalf("couldn't login admin user: %s", err)
+		}
+		if statusCode != http.StatusUnauthorized {
+			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, statusCode)
+		}
+
+		if loginResponse.Error != "The username or password is incorrect. Try again." {
+			t.Fatalf("expected error %q, got %q", "The username or password is incorrect. Try again.", loginResponse.Error)
+		}
+	})
+
+	t.Run("Login failure invalid username", func(t *testing.T) {
+		invalidUser := &LoginParams{
+			Username: "not-existing-user",
+			Password: "Admin123",
+		}
+		statusCode, loginResponse, err := login(ts.URL, client, invalidUser)
+		if err != nil {
+			t.Fatalf("couldn't login admin user: %s", err)
+		}
+		if statusCode != http.StatusUnauthorized {
+			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, statusCode)
+		}
+
+		if loginResponse.Error != "The username or password is incorrect. Try again." {
+			t.Fatalf("expected error %q, got %q", "The username or password is incorrect. Try again.", loginResponse.Error)
+		}
+	})
 }

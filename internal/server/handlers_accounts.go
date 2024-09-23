@@ -15,6 +15,34 @@ import (
 	"github.com/canonical/notary/internal/db"
 )
 
+type CreateAccountParams struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type ChangeAccountParams struct {
+	Password string `json:"password"`
+}
+
+type GetAccountResponse struct {
+	ID          int    `json:"id"`
+	Username    string `json:"username"`
+	Permissions int    `json:"permissions"`
+}
+
+type CreateAccountResponse struct {
+	ID       int    `json:"id"`
+	Password string `json:"password"`
+}
+
+type ChangeAccountResponse struct {
+	ID int `json:"id"`
+}
+
+type DeleteAccountResponse struct {
+	ID int `json:"id"`
+}
+
 func getRandomChars(charset string, length int) (string, error) {
 	result := make([]byte, length)
 	for i := range result {
@@ -75,19 +103,19 @@ func validatePassword(password string) bool {
 	return hasNumberOrSymbol
 }
 
-// GetUserAccounts returns all users from the database
-func GetUserAccounts(env *HandlerConfig) http.HandlerFunc {
+// ListAccounts returns all accounts from the database
+func ListAccounts(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		users, err := env.DB.RetrieveAllUsers()
+		accounts, err := env.DB.RetrieveAllUsers()
 		if err != nil {
 			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		for i := range users {
-			users[i].Password = ""
+		for i := range accounts {
+			accounts[i].Password = ""
 		}
-		body, err := json.Marshal(users)
+		body, err := json.Marshal(accounts)
 		if err != nil {
 			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
@@ -100,21 +128,21 @@ func GetUserAccounts(env *HandlerConfig) http.HandlerFunc {
 	}
 }
 
-// GetUserAccount receives an id as a path parameter, and
+// GetAccount receives an id as a path parameter, and
 // returns the corresponding User Account
-func GetUserAccount(env *HandlerConfig) http.HandlerFunc {
+func GetAccount(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		var userAccount db.User
+		var account db.User
 		var err error
 		if id == "me" {
 			claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
 			if headerErr != nil {
 				writeError(w, http.StatusUnauthorized, "Unauthorized")
 			}
-			userAccount, err = env.DB.RetrieveUserByUsername(claims.Username)
+			account, err = env.DB.RetrieveUserByUsername(claims.Username)
 		} else {
-			userAccount, err = env.DB.RetrieveUser(id)
+			account, err = env.DB.RetrieveUser(id)
 		}
 		if err != nil {
 			log.Println(err)
@@ -125,42 +153,42 @@ func GetUserAccount(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		userAccount.Password = ""
-		body, err := json.Marshal(userAccount)
-		if err != nil {
-			log.Println(err)
-			writeError(w, http.StatusInternalServerError, "Internal Error")
-			return
+		accountResponse := GetAccountResponse{
+			ID:          account.ID,
+			Username:    account.Username,
+			Permissions: account.Permissions,
 		}
-		if _, err := w.Write(body); err != nil {
-			log.Println(err)
-			writeError(w, http.StatusInternalServerError, "Internal Error")
+		w.WriteHeader(http.StatusOK)
+		err = writeJSON(w, accountResponse)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
 		}
 	}
 }
 
-// PostUserAccount creates a new User Account, and returns the id of the created row
-func PostUserAccount(env *HandlerConfig) http.HandlerFunc {
+// CreateAccount creates a new Account, and returns the id of the created row
+func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var user db.User
-		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		var createAccountParams CreateAccountParams
+		if err := json.NewDecoder(r.Body).Decode(&createAccountParams); err != nil {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format")
 			return
 		}
-		if user.Username == "" {
+		if createAccountParams.Username == "" {
 			writeError(w, http.StatusBadRequest, "Username is required")
 			return
 		}
-		shouldGeneratePassword := user.Password == ""
+		shouldGeneratePassword := createAccountParams.Password == ""
 		if shouldGeneratePassword {
 			generatedPassword, err := generatePassword()
 			if err != nil {
 				writeError(w, http.StatusInternalServerError, "Failed to generate password")
 				return
 			}
-			user.Password = generatedPassword
+			createAccountParams.Password = generatedPassword
 		}
-		if !validatePassword(user.Password) {
+		if !validatePassword(createAccountParams.Password) {
 			writeError(
 				w,
 				http.StatusBadRequest,
@@ -168,48 +196,53 @@ func PostUserAccount(env *HandlerConfig) http.HandlerFunc {
 			)
 			return
 		}
-		users, err := env.DB.RetrieveAllUsers()
+		accounts, err := env.DB.RetrieveAllUsers()
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Failed to retrieve users: "+err.Error())
+			writeError(w, http.StatusInternalServerError, "Failed to retrieve accounts: "+err.Error())
 			return
 		}
 
 		permission := UserPermission
-		if len(users) == 0 {
+		if len(accounts) == 0 {
 			permission = AdminPermission
 		}
-		id, err := env.DB.CreateUser(user.Username, user.Password, permission)
+		id, err := env.DB.CreateUser(createAccountParams.Username, createAccountParams.Password, permission)
 		if err != nil {
 			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
-				writeError(w, http.StatusBadRequest, "user with given username already exists")
+				writeError(w, http.StatusBadRequest, "account with given username already exists")
 				return
 			}
 			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		response, err := json.Marshal(map[string]any{"id": id})
+		accountResponse := CreateAccountResponse{
+			ID: int(id),
+		}
 		if shouldGeneratePassword {
-			response, err = json.Marshal(map[string]any{"id": id, "password": user.Password})
+			accountResponse.Password = createAccountParams.Password
 		}
+		w.WriteHeader(http.StatusCreated)
+		err = writeJSON(w, accountResponse)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Error marshaling response")
-		}
-		if _, err := w.Write(response); err != nil {
-			log.Println(err)
-			writeError(w, http.StatusInternalServerError, "Internal Error")
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
 		}
 	}
 }
 
-// DeleteUserAccount handler receives an id as a path parameter,
+// DeleteAccount handler receives an id as a path parameter,
 // deletes the corresponding User Account, and returns a http.StatusNoContent on success
-func DeleteUserAccount(env *HandlerConfig) http.HandlerFunc {
+func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		user, err := env.DB.RetrieveUser(id)
+		idInt, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		account, err := env.DB.RetrieveUser(id)
 		if err != nil {
 			if !errors.Is(err, db.ErrIdNotFound) {
 				log.Println(err)
@@ -217,11 +250,11 @@ func DeleteUserAccount(env *HandlerConfig) http.HandlerFunc {
 				return
 			}
 		}
-		if user.Permissions == 1 {
+		if account.Permissions == 1 {
 			writeError(w, http.StatusBadRequest, "deleting an Admin account is not allowed.")
 			return
 		}
-		insertId, err := env.DB.DeleteUser(id)
+		_, err = env.DB.DeleteUser(id)
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, db.ErrIdNotFound) {
@@ -231,15 +264,19 @@ func DeleteUserAccount(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
+		deleteAccountResponse := DeleteAccountResponse{
+			ID: int(idInt),
+		}
 		w.WriteHeader(http.StatusAccepted)
-		if _, err := w.Write([]byte(strconv.FormatInt(insertId, 10))); err != nil {
-			log.Println(err)
-			writeError(w, http.StatusInternalServerError, "Internal Error")
+		err = writeJSON(w, deleteAccountResponse)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
 		}
 	}
 }
 
-func ChangeUserAccountPassword(env *HandlerConfig) http.HandlerFunc {
+func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		if id == "me" {
@@ -247,24 +284,26 @@ func ChangeUserAccountPassword(env *HandlerConfig) http.HandlerFunc {
 			if err != nil {
 				log.Println(err)
 				writeError(w, http.StatusUnauthorized, "Unauthorized")
+				return
 			}
-			userAccount, err := env.DB.RetrieveUserByUsername(claims.Username)
+			account, err := env.DB.RetrieveUserByUsername(claims.Username)
 			if err != nil {
 				log.Println(err)
 				writeError(w, http.StatusUnauthorized, "Unauthorized")
+				return
 			}
-			id = strconv.Itoa(userAccount.ID)
+			id = strconv.Itoa(account.ID)
 		}
-		var user db.User
-		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		var changeAccountParams ChangeAccountParams
+		if err := json.NewDecoder(r.Body).Decode(&changeAccountParams); err != nil {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format")
 			return
 		}
-		if user.Password == "" {
+		if changeAccountParams.Password == "" {
 			writeError(w, http.StatusBadRequest, "Password is required")
 			return
 		}
-		if !validatePassword(user.Password) {
+		if !validatePassword(changeAccountParams.Password) {
 			writeError(
 				w,
 				http.StatusBadRequest,
@@ -272,7 +311,7 @@ func ChangeUserAccountPassword(env *HandlerConfig) http.HandlerFunc {
 			)
 			return
 		}
-		ret, err := env.DB.UpdateUser(id, user.Password)
+		ret, err := env.DB.UpdateUser(id, changeAccountParams.Password)
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, db.ErrIdNotFound) {
@@ -282,10 +321,14 @@ func ChangeUserAccountPassword(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write([]byte(strconv.FormatInt(ret, 10))); err != nil {
-			log.Println(err)
-			writeError(w, http.StatusInternalServerError, "Internal Error")
+		changeAccountResponse := ChangeAccountResponse{
+			ID: int(ret),
+		}
+		w.WriteHeader(http.StatusCreated)
+		err = writeJSON(w, changeAccountResponse)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
 		}
 	}
 }

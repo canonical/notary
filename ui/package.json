@@ -12,13 +12,13 @@
   },
   "dependencies": {
     "jwt-decode": "^4.0.0",
-    "next": "14.2.11",
+    "next": "14.2.13",
     "pkijs": "^3.2.4",
     "react": "^18",
     "react-cookie": "^7.2.0",
     "react-dom": "^18",
     "react-query": "^3.39.3",
-    "sass": "^1.78.0",
+    "sass": "^1.79.3",
     "vanilla-framework": "^4.16.0"
   },
   "devDependencies": {
@@ -28,8 +28,8 @@
     "@types/react-dom": "^18",
     "@vitejs/plugin-react": "^4.3.1",
     "eslint": "^8",
-    "eslint-config-next": "14.2.11",
-    "jsdom": "^25.0.0",
+    "eslint-config-next": "14.2.13",
+    "jsdom": "^25.0.1",
     "typescript": "^5",
     "vitest": "^2.1.1"
   },

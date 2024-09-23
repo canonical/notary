@@ -72,7 +72,7 @@ func TestLogin(t *testing.T) {
 			method:   "POST",
 			path:     "/login",
 			data:     adminUserWrongPass,
-			response: "error: The username or password is incorrect. Try again.",
+			response: `{"error":"The username or password is incorrect. Try again."}`,
 			status:   http.StatusUnauthorized,
 		},
 		{
@@ -80,7 +80,7 @@ func TestLogin(t *testing.T) {
 			method:   "POST",
 			path:     "/login",
 			data:     notExistingUser,
-			response: "error: The username or password is incorrect. Try again.",
+			response: `{"error":"The username or password is incorrect. Try again."}`,
 			status:   http.StatusUnauthorized,
 		},
 	}

@@ -65,7 +65,7 @@ func TestNotaryUsersHandlers(t *testing.T) {
 			path:     "/api/v1/accounts/1",
 			data:     "",
 			auth:     nonAdminToken,
-			response: "error: forbidden",
+			response: `{"error":"forbidden: admin access required"}`,
 			status:   http.StatusForbidden,
 		},
 		{
@@ -92,7 +92,7 @@ func TestNotaryUsersHandlers(t *testing.T) {
 			path:     "/api/v1/accounts/300",
 			data:     "",
 			auth:     adminToken,
-			response: "error: id not found",
+			response: `{"error":"Not Found"}`,
 			status:   http.StatusNotFound,
 		},
 		{
@@ -101,7 +101,7 @@ func TestNotaryUsersHandlers(t *testing.T) {
 			path:     "/api/v1/accounts",
 			data:     invalidUser,
 			auth:     adminToken,
-			response: "error: Username is required",
+			response: `{"error":"Username is required"}`,
 			status:   http.StatusBadRequest,
 		},
 		{
@@ -119,7 +119,7 @@ func TestNotaryUsersHandlers(t *testing.T) {
 			path:     "/api/v1/accounts/100/change_password",
 			data:     adminUserNewPassword,
 			auth:     adminToken,
-			response: "id not found",
+			response: `{"error":"Not Found"}`,
 			status:   http.StatusNotFound,
 		},
 		{
@@ -155,7 +155,7 @@ func TestNotaryUsersHandlers(t *testing.T) {
 			path:     "/api/v1/accounts/2",
 			data:     invalidUser,
 			auth:     adminToken,
-			response: "error: id not found",
+			response: `{"error":"Not Found"}`,
 			status:   http.StatusNotFound,
 		},
 	}

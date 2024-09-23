@@ -11,17 +11,17 @@ func HealthCheck(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		users, err := env.DB.RetrieveAllUsers()
 		if err != nil {
-			writeError("couldn't generate status", http.StatusInternalServerError, w)
+			writeError(w, http.StatusInternalServerError, "couldn't generate status")
 			return
 		}
 		response, err := json.Marshal(map[string]any{
 			"initialized": len(users) > 0,
 		})
 		if err != nil {
-			writeError("couldn't generate status", http.StatusInternalServerError, w)
+			writeError(w, http.StatusInternalServerError, "couldn't generate status")
 			return
 		}
-		w.Write(response)            //nolint:errcheck
-		w.WriteHeader(http.StatusOK) //nolint:errcheck
+		w.WriteHeader(http.StatusOK)
+		w.Write(response)
 	}
 }

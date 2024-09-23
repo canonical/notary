@@ -183,7 +183,7 @@ func TestNotaryCertificatesHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/certificate_requests",
 			data:     "this is very clearly not a csr",
-			response: "error: csr validation failed: PEM Certificate Request string not found or malformed",
+			response: `{"error":"csr validation failed"}`,
 			status:   http.StatusBadRequest,
 		},
 		{
@@ -223,7 +223,7 @@ func TestNotaryCertificatesHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/certificate_requests",
 			data:     BananaCSR,
-			response: "error: given csr already recorded",
+			response: `{"error":"given csr already recorded"}`,
 			status:   http.StatusBadRequest,
 		},
 		{
@@ -247,7 +247,7 @@ func TestNotaryCertificatesHandlers(t *testing.T) {
 			method:   "DELETE",
 			path:     "/api/v1/certificate_requests/5",
 			data:     "",
-			response: "error: id not found",
+			response: `{"error":"Not Found"}`,
 			status:   http.StatusNotFound,
 		},
 		{
@@ -255,7 +255,7 @@ func TestNotaryCertificatesHandlers(t *testing.T) {
 			method:   "GET",
 			path:     "/api/v1/certificate_requests/1",
 			data:     "",
-			response: "error: id not found",
+			response: `{"error":"Not Found"}`,
 			status:   http.StatusNotFound,
 		},
 		{
@@ -287,7 +287,7 @@ func TestNotaryCertificatesHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/certificate_requests/4/certificate",
 			data:     BananaCert,
-			response: "error: cert validation failed: less than 2 certificate PEM strings were found",
+			response: `{"error":"Bad Request"}`,
 			status:   http.StatusBadRequest,
 		},
 		{
@@ -295,7 +295,7 @@ func TestNotaryCertificatesHandlers(t *testing.T) {
 			method:   "POST",
 			path:     "/api/v1/certificate_requests/4/certificate",
 			data:     "some random data that's clearly not a cert",
-			response: "error: cert validation failed: less than 2 certificate PEM strings were found",
+			response: `{"error":"Bad Request"}`,
 			status:   http.StatusBadRequest,
 		},
 		{

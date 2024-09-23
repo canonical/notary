@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
+	"log"
 	"math/big"
 	mrand "math/rand"
 	"net/http"
@@ -79,7 +80,8 @@ func GetUserAccounts(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		users, err := env.DB.RetrieveAllUsers()
 		if err != nil {
-			writeError(err.Error(), http.StatusInternalServerError, w)
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
 		for i := range users {
@@ -87,11 +89,13 @@ func GetUserAccounts(env *HandlerConfig) http.HandlerFunc {
 		}
 		body, err := json.Marshal(users)
 		if err != nil {
-			writeError(err.Error(), http.StatusInternalServerError, w)
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
 		if _, err := w.Write(body); err != nil {
-			writeError(err.Error(), http.StatusInternalServerError, w)
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
 		}
 	}
 }
@@ -106,28 +110,31 @@ func GetUserAccount(env *HandlerConfig) http.HandlerFunc {
 		if id == "me" {
 			claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
 			if headerErr != nil {
-				writeError(headerErr.Error(), http.StatusUnauthorized, w)
+				writeError(w, http.StatusUnauthorized, "Unauthorized")
 			}
 			userAccount, err = env.DB.RetrieveUserByUsername(claims.Username)
 		} else {
 			userAccount, err = env.DB.RetrieveUser(id)
 		}
 		if err != nil {
+			log.Println(err)
 			if errors.Is(err, db.ErrIdNotFound) {
-				writeError(err.Error(), http.StatusNotFound, w)
+				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}
-			writeError(err.Error(), http.StatusInternalServerError, w)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
 		userAccount.Password = ""
 		body, err := json.Marshal(userAccount)
 		if err != nil {
-			writeError(err.Error(), http.StatusInternalServerError, w)
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
 		if _, err := w.Write(body); err != nil {
-			writeError(err.Error(), http.StatusInternalServerError, w)
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
 		}
 	}
 }
@@ -137,33 +144,33 @@ func PostUserAccount(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var user db.User
 		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-			writeError("Invalid JSON format", http.StatusBadRequest, w)
+			writeError(w, http.StatusBadRequest, "Invalid JSON format")
 			return
 		}
 		if user.Username == "" {
-			writeError("Username is required", http.StatusBadRequest, w)
+			writeError(w, http.StatusBadRequest, "Username is required")
 			return
 		}
 		shouldGeneratePassword := user.Password == ""
 		if shouldGeneratePassword {
 			generatedPassword, err := generatePassword()
 			if err != nil {
-				writeError("Failed to generate password", http.StatusInternalServerError, w)
+				writeError(w, http.StatusInternalServerError, "Failed to generate password")
 				return
 			}
 			user.Password = generatedPassword
 		}
 		if !validatePassword(user.Password) {
 			writeError(
-				"Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
-				http.StatusBadRequest,
 				w,
+				http.StatusBadRequest,
+				"Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
 			)
 			return
 		}
 		users, err := env.DB.RetrieveAllUsers()
 		if err != nil {
-			writeError("Failed to retrieve users: "+err.Error(), http.StatusInternalServerError, w)
+			writeError(w, http.StatusInternalServerError, "Failed to retrieve users: "+err.Error())
 			return
 		}
 
@@ -174,10 +181,11 @@ func PostUserAccount(env *HandlerConfig) http.HandlerFunc {
 		id, err := env.DB.CreateUser(user.Username, user.Password, permission)
 		if err != nil {
 			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
-				writeError("user with given username already exists", http.StatusBadRequest, w)
+				writeError(w, http.StatusBadRequest, "user with given username already exists")
 				return
 			}
-			writeError(err.Error(), http.StatusInternalServerError, w)
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -187,10 +195,11 @@ func PostUserAccount(env *HandlerConfig) http.HandlerFunc {
 			response, err = json.Marshal(map[string]any{"id": id, "password": user.Password})
 		}
 		if err != nil {
-			writeError("Error marshaling response", http.StatusInternalServerError, w)
+			writeError(w, http.StatusInternalServerError, "Error marshaling response")
 		}
 		if _, err := w.Write(response); err != nil {
-			writeError(err.Error(), http.StatusInternalServerError, w)
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
 		}
 	}
 }
@@ -203,26 +212,29 @@ func DeleteUserAccount(env *HandlerConfig) http.HandlerFunc {
 		user, err := env.DB.RetrieveUser(id)
 		if err != nil {
 			if !errors.Is(err, db.ErrIdNotFound) {
-				writeError(err.Error(), http.StatusInternalServerError, w)
+				log.Println(err)
+				writeError(w, http.StatusInternalServerError, "Internal Error")
 				return
 			}
 		}
 		if user.Permissions == 1 {
-			writeError("deleting an Admin account is not allowed.", http.StatusBadRequest, w)
+			writeError(w, http.StatusBadRequest, "deleting an Admin account is not allowed.")
 			return
 		}
 		insertId, err := env.DB.DeleteUser(id)
 		if err != nil {
+			log.Println(err)
 			if errors.Is(err, db.ErrIdNotFound) {
-				writeError(err.Error(), http.StatusNotFound, w)
+				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}
-			writeError(err.Error(), http.StatusInternalServerError, w)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
 		w.WriteHeader(http.StatusAccepted)
 		if _, err := w.Write([]byte(strconv.FormatInt(insertId, 10))); err != nil {
-			writeError(err.Error(), http.StatusInternalServerError, w)
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
 		}
 	}
 }
@@ -233,43 +245,47 @@ func ChangeUserAccountPassword(env *HandlerConfig) http.HandlerFunc {
 		if id == "me" {
 			claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
 			if err != nil {
-				writeError(err.Error(), http.StatusUnauthorized, w)
+				log.Println(err)
+				writeError(w, http.StatusUnauthorized, "Unauthorized")
 			}
 			userAccount, err := env.DB.RetrieveUserByUsername(claims.Username)
 			if err != nil {
-				writeError(err.Error(), http.StatusUnauthorized, w)
+				log.Println(err)
+				writeError(w, http.StatusUnauthorized, "Unauthorized")
 			}
 			id = strconv.Itoa(userAccount.ID)
 		}
 		var user db.User
 		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-			writeError("Invalid JSON format", http.StatusBadRequest, w)
+			writeError(w, http.StatusBadRequest, "Invalid JSON format")
 			return
 		}
 		if user.Password == "" {
-			writeError("Password is required", http.StatusBadRequest, w)
+			writeError(w, http.StatusBadRequest, "Password is required")
 			return
 		}
 		if !validatePassword(user.Password) {
 			writeError(
-				"Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
-				http.StatusBadRequest,
 				w,
+				http.StatusBadRequest,
+				"Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
 			)
 			return
 		}
 		ret, err := env.DB.UpdateUser(id, user.Password)
 		if err != nil {
+			log.Println(err)
 			if errors.Is(err, db.ErrIdNotFound) {
-				writeError(err.Error(), http.StatusNotFound, w)
+				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}
-			writeError(err.Error(), http.StatusInternalServerError, w)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write([]byte(strconv.FormatInt(ret, 10))); err != nil {
-			writeError(err.Error(), http.StatusInternalServerError, w)
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
 		}
 	}
 }

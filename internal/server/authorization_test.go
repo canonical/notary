@@ -125,7 +125,7 @@ func TestAuthorization(t *testing.T) {
 			path:     "/api/v1/accounts/1",
 			data:     "",
 			auth:     adminToken,
-			response: "error: deleting an Admin account is not allowed.",
+			response: `{"error":"deleting an Admin account is not allowed."}`,
 			status:   http.StatusBadRequest,
 		},
 		{

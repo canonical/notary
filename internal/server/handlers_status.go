@@ -12,13 +12,13 @@ type StatusResponse struct {
 // initialized means the first user has been created
 func GetStatus(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		users, err := env.DB.RetrieveAllUsers()
+		numUsers, err := env.DB.NumUsers()
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "couldn't generate status")
 			return
 		}
 		statusResponse := StatusResponse{
-			Initialized: len(users) > 0,
+			Initialized: numUsers > 0,
 		}
 		w.WriteHeader(http.StatusOK)
 		err = writeJSON(w, statusResponse)

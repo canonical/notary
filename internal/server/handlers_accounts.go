@@ -197,14 +197,14 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 			)
 			return
 		}
-		accounts, err := env.DB.RetrieveAllUsers()
+		numUsers, err := env.DB.NumUsers()
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Failed to retrieve accounts: "+err.Error())
 			return
 		}
 
 		permission := UserPermission
-		if len(accounts) == 0 {
+		if numUsers == 0 {
 			permission = AdminPermission
 		}
 		id, err := env.DB.CreateUser(createAccountParams.Username, createAccountParams.Password, permission)

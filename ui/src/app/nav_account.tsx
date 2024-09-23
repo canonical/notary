@@ -1,9 +1,7 @@
 import { useContext, useState } from "react";
 import { useAuth } from "./auth/authContext";
 import { useCookies } from "react-cookie";
-import { useRouter } from "next/navigation";
-import { ChangePasswordModal, ChangePasswordModalContext, ChangePasswordModalData } from "./users/components";
-
+import { ChangePasswordModalContext } from "./users/components";
 
 
 export function AccountTab() {
@@ -26,6 +24,7 @@ export function AccountTab() {
                                 <span className="p-contextual-menu__group">
                                     <button className="p-contextual-menu__link" onMouseDown={() => changePasswordModalContext.setModalData({ "id": authDetails.user ? authDetails.user.id.toString() : "", "username": authDetails.user ? authDetails.user.username : "" })}>Change Password</button>
                                     <button className="p-contextual-menu__link" onMouseDown={() => removeCookie("user_token")}>Log Out</button>
+
                                 </span>
                             </span>
                         </div>

@@ -1,4 +1,4 @@
-import { SetStateAction, Dispatch, createContext, useContext, ComponentType } from "react"
+import { SetStateAction, Dispatch, createContext, useContext } from "react"
 import { useAuth } from "./auth/authContext"
 
 type AsideContextType = {

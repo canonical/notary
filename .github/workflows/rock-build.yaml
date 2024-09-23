@@ -13,7 +13,11 @@ jobs:
         id: rockcraft
         with:
           rockcraft-channel: edge
-  
+      
+      - name: Install pre-requisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openssl jq
       - name: Import the image to Docker registry
         run: |
           sudo rockcraft.skopeo --insecure-policy copy oci-archive:${{ steps.rockcraft.outputs.rock }} docker-daemon:notary:latest
@@ -43,84 +47,26 @@ jobs:
       - name: Test if pebble notify fires correctly
         id: test_notify
         run : |
+          openssl genpkey -algorithm RSA -out private_key.pem -pkeyopt rsa_keygen_bits:2048
+          openssl req -new -key private_key.pem -out request.csr -subj "/C=CA/ST=Quebec/L=Montreal/O=Test Company/OU=IT Department/CN=test.example.com"
+          openssl req -x509 -new -nodes -key private_key.pem -sha256 -days 365 -out ca_certificate.pem -subj "/C=CA/ST=Quebec/L=Montreal/O=Test CA/OU=CA Department/CN=Test CA"
+          openssl x509 -req -in request.csr -CA ca_certificate.pem -CAkey private_key.pem -CAcreateserial -out certificate.pem -days 365 -sha256
+          CSR=$(cat request.csr | awk 'NF {sub(/\r/, ""); printf "%s\\n",$0;}')
+          CERTIFICATE=$(cat certificate.pem ca_certificate.pem | awk 'NF {sub(/\r/, ""); printf "%s\\n",$0;}')
+
           curl -XPOST -k -d '{"username":"admin", "password": "Admin1234"}' https://localhost:3000/api/v1/accounts
-          export ADMIN_TOKEN=$(curl -XPOST -k -d '{"username":"admin", "password": "Admin1234"}' https://localhost:3000/login)
-          curl -XPOST -k -d '-----BEGIN CERTIFICATE REQUEST-----
-          MIICsTCCAZkCAQAwbDELMAkGA1UEBhMCQ0ExFDASBgNVBAgMC05vdmEgU2NvdGlh
-          MRAwDgYDVQQHDAdIYWxpZmF4MSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0
-          eSBMdGQxEjAQBgNVBAMMCWFwcGxlLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEP
-          ADCCAQoCggEBAOhDSpNbeFiXMQzQcobExHqYMEGzqpX8N9+AR6/HPZWBybgx1hr3
-          ejqsKornzpVph/dO9UC7O9aBlG071O9VQGHt3OU3rkZIk2009vYwLuSrAlJtnUne
-          p7KKn2lZGvh7jVyZE5RkS0X27vlT0soANsmcVq/82VneHrF/nbDcK6DOjQpS5o5l
-          EiNk2CIpYGUkw3WnQF4pBk8t4bNOl3nfpaAOfnmNuBX3mWyfPnaKMCENMpDqL9FR
-          V/O5bIPLmyH30OHUEJUkWOmFt9GFi+QfMoM0fR34KmRbDz79hZZb/yVPZZJl7l6i
-          FWXkNR3gxdEnwCZkTgWk5OqS9dCJOtsDE8ECAwEAAaAAMA0GCSqGSIb3DQEBCwUA
-          A4IBAQCqBX5WaNv/HjkzAyNXYuCToCb8GjmiMqL54t+1nEI1QTm6axQXivEbQT3x
-          GIh7uQYC06wHE23K6Znc1/G+o3y6lID07rvhBNal1qoXUiq6CsAqk+DXYdd8MEh5
-          joerEedFqcW+WTUDcqddfIyDAGPqrM9j6/E+aFYyZjJ/xRuMf1zlWMljRiwj1NI9
-          NxqjsYYQ3zxfUjv8gxXm0hN8Up1O9saoEF+zbuWNdiUWd6Ih3/3u5VBNSxgVOrDQ
-          CeXyyzkMx1pWTx0rWa7NSa+DMKVVzv46pck/9kLB4gPL8zqvIOMQsf74N0VcbVfd
-          9jQR8mPXQYPUERl1ZhNrkzkyA0kd
-          -----END CERTIFICATE REQUEST-----' -H "Authorization: Bearer $ADMIN_TOKEN" 'https://localhost:3000/api/v1/certificate_requests'
-          curl -XPOST -k -d '-----BEGIN CERTIFICATE-----
-          MIIEVDCCAjwCFE8lmuBE85/RPw2M17Kzl93O+9IPMA0GCSqGSIb3DQEBCwUAMGEx
-          CzAJBgNVBAYTAlRSMQ4wDAYDVQQIDAVJem1pcjESMBAGA1UEBwwJTmFybGlkZXJl
-          MSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQxCzAJBgNVBAMMAm1l
-          MB4XDTI0MDYyODEzMTAyMVoXDTI1MDYyODEzMTAyMVowbDELMAkGA1UEBhMCQ0Ex
-          FDASBgNVBAgMC05vdmEgU2NvdGlhMRAwDgYDVQQHDAdIYWxpZmF4MSEwHwYDVQQK
-          DBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQxEjAQBgNVBAMMCWFwcGxlLmNvbTCC
-          ASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAOhDSpNbeFiXMQzQcobExHqY
-          MEGzqpX8N9+AR6/HPZWBybgx1hr3ejqsKornzpVph/dO9UC7O9aBlG071O9VQGHt
-          3OU3rkZIk2009vYwLuSrAlJtnUnep7KKn2lZGvh7jVyZE5RkS0X27vlT0soANsmc
-          Vq/82VneHrF/nbDcK6DOjQpS5o5lEiNk2CIpYGUkw3WnQF4pBk8t4bNOl3nfpaAO
-          fnmNuBX3mWyfPnaKMCENMpDqL9FRV/O5bIPLmyH30OHUEJUkWOmFt9GFi+QfMoM0
-          fR34KmRbDz79hZZb/yVPZZJl7l6iFWXkNR3gxdEnwCZkTgWk5OqS9dCJOtsDE8EC
-          AwEAATANBgkqhkiG9w0BAQsFAAOCAgEAOA+0C2Gjx+qWc/U8Bq7ayU8c/aKsegSb
-          nZ6tcxcFpfPvy7oLS+cD3LYnQodwmSXM/BXn5cHyXhkSJCzbxQX5d/dzSiSOtqLk
-          51KQGTDElUMO8HPvPeb+YDVBNFqEJoN3PRRhSRwIm/pYd5cM3UmuD7lW1+NMfiVX
-          Vr4hWlt7nXh027VSslTPGQFnIRW3XbwpFsMguyt8CheKg2l+Q0ttiKMrzPmMPP/s
-          8ZXvMhQqehoj+k3R7k37J9kzLM22YN+Ranns9OKbojQh9uGhoPGdgg5CcNt9/CTF
-          Ow9dE//5nXQe1OnbAmDc8+RxqJhcrjObV2zQcZS4QvzO3NW49tLEnBj4LrvDJIrU
-          saZhBJSlezPa2psd/vwXZ1e46e7fbdUVh9AtXa5Uq9RJ4q21hXlhgfv7UtvYQCmp
-          cEzIzvRuPs4bw8ZmAXSLm7EpxZmbStWjRRjolK8rbzXyzoRgksmAECh6GNGW0++V
-          0uxHDvKHQh+B1+tPRr5sOAxSRHmKeDGE3EUO9Icyy0hsod1sGmyOJD22s5vi3ziM
-          v88ccwoaTDoh0sVma/eD1tm3wm38KtGWiAH8S5lmf9hOtzVndt86sT65Wp6An4ig
-          CJZJg3F9e0+V5dG4hkSzT+QW5AZlmzp/xAaLSbkaQ8WyXtknzWeo4LID+0SmYEwj
-          ccma2Ab7ZPU=
-          -----END CERTIFICATE-----
-          -----BEGIN CERTIFICATE-----
-          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
-          btZkbfdL5A==
-          -----END CERTIFICATE-----' -H "Authorization: Bearer $ADMIN_TOKEN" 'https://localhost:3000/api/v1/certificate_requests/1/certificate'
+          export ADMIN_TOKEN=$(curl -XPOST -k -d '{"username":"admin", "password": "Admin1234"}' https://localhost:3000/login | jq -r .result.token )
+
+          curl -k --location 'https://localhost:3000/api/v1/certificate_requests' \
+            --header "Authorization: Bearer $ADMIN_TOKEN" \
+            --header 'Content-Type: application/json' \
+            --data "{\"csr\":\"${CSR}\"}"
+
+          curl -k --location 'https://localhost:3000/api/v1/certificate_requests/1/certificate' \
+            --header "Authorization: Bearer $ADMIN_TOKEN" \
+            --header 'Content-Type: application/json' \
+            --data "{\"certificate\":\"${COMBINED_CERTIFICATE}\"}"
+          
           docker exec notary /usr/bin/pebble notices
           docker exec notary /usr/bin/pebble notices | grep notary\\.com/certificate/update
           docker exec notary /usr/bin/pebble notice 3

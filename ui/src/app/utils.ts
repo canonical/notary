@@ -150,6 +150,15 @@ export const extractCSR = (csrPemString: string) => {
     }
 }
 
+export const csrIsValid = (csrPemString: string) => {
+    try {
+        extractCSR(csrPemString.trim());
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
 
 export const extractCert = (certPemString: string) => {
     if (certPemString === "" || certPemString === "rejected") {

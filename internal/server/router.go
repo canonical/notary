@@ -21,7 +21,7 @@ func NewHandler(config *HandlerConfig) http.Handler {
 
 	apiV1Router.HandleFunc("GET /accounts", adminOnly(config.JWTSecret, GetUserAccounts(config)))
 	apiV1Router.HandleFunc("POST /accounts", adminOrFirstUser(config.JWTSecret, config.DB, PostUserAccount(config)))
-	apiV1Router.HandleFunc("GET /accounts/{id}", adminOnly(config.JWTSecret, GetUserAccount(config)))
+	apiV1Router.HandleFunc("GET /accounts/{id}", adminOrMe(config.JWTSecret, GetUserAccount(config)))
 	apiV1Router.HandleFunc("DELETE /accounts/{id}", adminOnly(config.JWTSecret, DeleteUserAccount(config)))
 	apiV1Router.HandleFunc("POST /accounts/{id}/change_password", adminOrMe(config.JWTSecret, ChangeUserAccountPassword(config)))
 

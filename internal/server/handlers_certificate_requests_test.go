@@ -22,13 +22,9 @@ type GetCertificateRequestResponse struct {
 	Error  string             `json:"error,omitempty"`
 }
 
-type ListCertificateRequestsResponseResult struct {
-	CertificateRequests []CertificateRequest `json:"certificate_requests"`
-}
-
 type ListCertificateRequestsResponse struct {
-	Error  string                                `json:"error,omitempty"`
-	Result ListCertificateRequestsResponseResult `json:"result"`
+	Error  string               `json:"error,omitempty"`
+	Result []CertificateRequest `json:"result"`
 }
 
 type CreateCertificateRequestResponse struct {
@@ -185,8 +181,8 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		if listCertRequestsResponse.Error != "" {
 			t.Fatalf("expected no error, got %s", listCertRequestsResponse.Error)
 		}
-		if len(listCertRequestsResponse.Result.CertificateRequests) != 0 {
-			t.Fatalf("expected no certificate requests, got %d", len(listCertRequestsResponse.Result.CertificateRequests))
+		if len(listCertRequestsResponse.Result) != 0 {
+			t.Fatalf("expected no certificate requests, got %d", len(listCertRequestsResponse.Result))
 		}
 	})
 
@@ -222,8 +218,8 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		if listCertRequestsResponse.Error != "" {
 			t.Fatalf("expected no error, got %s", listCertRequestsResponse.Error)
 		}
-		if len(listCertRequestsResponse.Result.CertificateRequests) != 1 {
-			t.Fatalf("expected 1 certificate request, got %d", len(listCertRequestsResponse.Result.CertificateRequests))
+		if len(listCertRequestsResponse.Result) != 1 {
+			t.Fatalf("expected 1 certificate request, got %d", len(listCertRequestsResponse.Result))
 		}
 	})
 
@@ -281,8 +277,8 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		if listCertRequestsResponse.Error != "" {
 			t.Fatalf("expected no error, got %s", listCertRequestsResponse.Error)
 		}
-		if len(listCertRequestsResponse.Result.CertificateRequests) != 1 {
-			t.Fatalf("expected 2 certificate requests, got %d", len(listCertRequestsResponse.Result.CertificateRequests))
+		if len(listCertRequestsResponse.Result) != 1 {
+			t.Fatalf("expected 2 certificate requests, got %d", len(listCertRequestsResponse.Result))
 		}
 	})
 
@@ -318,8 +314,8 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		if listCertRequestsResponse.Error != "" {
 			t.Fatalf("expected no error, got %s", listCertRequestsResponse.Error)
 		}
-		if len(listCertRequestsResponse.Result.CertificateRequests) != 2 {
-			t.Fatalf("expected 2 certificate requests, got %d", len(listCertRequestsResponse.Result.CertificateRequests))
+		if len(listCertRequestsResponse.Result) != 2 {
+			t.Fatalf("expected 2 certificate requests, got %d", len(listCertRequestsResponse.Result))
 		}
 	})
 
@@ -366,8 +362,8 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		if listCertRequestsResponse.Error != "" {
 			t.Fatalf("expected no error, got %s", listCertRequestsResponse.Error)
 		}
-		if len(listCertRequestsResponse.Result.CertificateRequests) != 1 {
-			t.Fatalf("expected 1 certificate request, got %d", len(listCertRequestsResponse.Result.CertificateRequests))
+		if len(listCertRequestsResponse.Result) != 1 {
+			t.Fatalf("expected 1 certificate request, got %d", len(listCertRequestsResponse.Result))
 		}
 	})
 

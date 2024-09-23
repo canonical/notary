@@ -25,10 +25,6 @@ type GetCertificateRequestResponse struct {
 	Certificate string `json:"certificate"`
 }
 
-type ListCertificateRequestsResponse struct {
-	CertificateRequests []GetCertificateRequestResponse `json:"certificate_requests"`
-}
-
 type CreateCertificateRequestResponse struct {
 	ID int `json:"id"`
 }
@@ -62,11 +58,9 @@ func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		certificateRequestsResponse := ListCertificateRequestsResponse{
-			CertificateRequests: make([]GetCertificateRequestResponse, len(certs)),
-		}
+		certificateRequestsResponse := make([]GetCertificateRequestResponse, len(certs))
 		for i, cert := range certs {
-			certificateRequestsResponse.CertificateRequests[i] = GetCertificateRequestResponse{
+			certificateRequestsResponse[i] = GetCertificateRequestResponse{
 				ID:          cert.ID,
 				CSR:         cert.CSR,
 				Certificate: cert.Certificate,

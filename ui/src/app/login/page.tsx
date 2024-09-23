@@ -21,9 +21,9 @@ export default function LoginPage() {
         router.push("/initialize")
     }
     const mutation = useMutation(login, {
-        onSuccess: (e) => {
+        onSuccess: (result) => {
             setErrorText("")
-            setCookie('user_token', e, {
+            setCookie('user_token', result?.token, {
                 sameSite: true,
                 secure: true,
                 expires: new Date(new Date().getTime() + 60 * 60 * 1000),

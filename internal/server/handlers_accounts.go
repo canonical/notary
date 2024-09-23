@@ -43,10 +43,6 @@ type DeleteAccountResponse struct {
 	ID int `json:"id"`
 }
 
-type ListAccountsResponse struct {
-	Accounts []GetAccountResponse `json:"accounts"`
-}
-
 func getRandomChars(charset string, length int) (string, error) {
 	result := make([]byte, length)
 	for i := range result {
@@ -116,11 +112,9 @@ func ListAccounts(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		accountsResponse := ListAccountsResponse{
-			Accounts: make([]GetAccountResponse, len(accounts)),
-		}
+		accountsResponse := make([]GetAccountResponse, len(accounts))
 		for i, account := range accounts {
-			accountsResponse.Accounts[i] = GetAccountResponse{
+			accountsResponse[i] = GetAccountResponse{
 				ID:          account.ID,
 				Username:    account.Username,
 				Permissions: account.Permissions,

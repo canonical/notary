@@ -13,7 +13,8 @@ export async function getStatus() {
     if (!response.ok) {
         throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
     }
-    return response.json()
+    const respData = await response.json();
+    return respData.result
 }
 
 export async function getCertificateRequests(params: { authToken: string }): Promise<CSREntry[]> {
@@ -23,12 +24,16 @@ export async function getCertificateRequests(params: { authToken: string }): Pro
     if (!response.ok) {
         throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
     }
-    return response.json()
+    const respData = await response.json();
+    return respData.result
 }
 
 export async function postCSR(params: { authToken: string, csr: string }) {
     if (!params.csr) {
         throw new Error('CSR not provided')
+    }
+    const reqParams = {
+        "csr": params.csr.trim()
     }
     const response = await fetch("/api/v1/certificate_requests", {
         method: 'post',
@@ -36,18 +41,22 @@ export async function postCSR(params: { authToken: string, csr: string }) {
             'Content-Type': 'text/plain',
             'Authorization': "Bearer " + params.authToken
         },
-        body: params.csr.trim()
+        body: JSON.stringify(reqParams)
     })
     if (!response.ok) {
-        const responseText = await response.text()
-        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${responseText}`)
+        const respData = await response.json();
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`)
     }
-    return response.json()
+    const respData = await response.json();
+    return respData.result
 }
 
 export async function postCertToID(params: RequiredCSRParams) {
     if (!params.cert) {
         throw new Error('Certificate not provided')
+    }
+    const reqParams = {
+        "cert": params.cert.trim()
     }
     const response = await fetch("/api/v1/certificate_requests/" + params.id + "/certificate", {
         method: 'post',
@@ -55,12 +64,13 @@ export async function postCertToID(params: RequiredCSRParams) {
             'Content-Type': 'text/plain',
             'Authorization': "Bearer " + params.authToken
         },
-        body: params.cert.trim()
+        body: JSON.stringify(reqParams)
     })
     if (!response.ok) {
         throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
     }
-    return response.json()
+    const respData = await response.json();
+    return respData.result
 }
 
 export async function deleteCSR(params: RequiredCSRParams) {
@@ -73,7 +83,8 @@ export async function deleteCSR(params: RequiredCSRParams) {
     if (!response.ok) {
         throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
     }
-    return response.json()
+    const respData = await response.json();
+    return respData.result
 }
 
 export async function rejectCSR(params: RequiredCSRParams) {
@@ -86,7 +97,8 @@ export async function rejectCSR(params: RequiredCSRParams) {
     if (!response.ok) {
         throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
     }
-    return response.json()
+    const respData = await response.json();
+    return respData.result
 }
 
 export async function revokeCertificate(params: RequiredCSRParams) {
@@ -99,7 +111,8 @@ export async function revokeCertificate(params: RequiredCSRParams) {
     if (!response.ok) {
         throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
     }
-    return response.json()
+    const respData = await response.json();
+    return respData.result
 }
 
 export async function login(userForm: { username: string, password: string }) {
@@ -108,11 +121,11 @@ export async function login(userForm: { username: string, password: string }) {
 
         body: JSON.stringify({ "username": userForm.username, "password": userForm.password })
     })
-    const responseText = await response.text()
+    const respData = await response.json();
     if (!response.ok) {
-        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${responseText}`)
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`)
     }
-    return responseText
+    return respData.result
 }
 
 export async function changeSelfPassword(changePasswordForm: { authToken: string, password: string }) {
@@ -123,11 +136,11 @@ export async function changeSelfPassword(changePasswordForm: { authToken: string
         },
         body: JSON.stringify({ "password": changePasswordForm.password })
     })
-    const responseText = await response.text()
+    const respData = await response.json();
     if (!response.ok) {
-        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${responseText}`)
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`)
     }
-    return responseText
+    return respData.result
 }
 
 export async function changePassword(changePasswordForm: { authToken: string, id: string, password: string }) {
@@ -138,11 +151,11 @@ export async function changePassword(changePasswordForm: { authToken: string, id
         },
         body: JSON.stringify({ "password": changePasswordForm.password })
     })
-    const responseText = await response.text()
+    const respData = await response.json();
     if (!response.ok) {
-        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${responseText}`)
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`)
     }
-    return responseText
+    return respData.result
 }
 
 export async function ListUsers(params: { authToken: string }): Promise<UserEntry[]> {
@@ -152,7 +165,8 @@ export async function ListUsers(params: { authToken: string }): Promise<UserEntr
     if (!response.ok) {
         throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
     }
-    return response.json()
+    const respData = await response.json();
+    return respData.result
 }
 
 export async function deleteUser(params: { authToken: string, id: string }) {
@@ -165,7 +179,8 @@ export async function deleteUser(params: { authToken: string, id: string }) {
     if (!response.ok) {
         throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
     }
-    return response.json()
+    const respData = await response.json();
+    return respData.result
 }
 
 export async function postFirstUser(userForm: { username: string, password: string }) {
@@ -173,11 +188,11 @@ export async function postFirstUser(userForm: { username: string, password: stri
         method: "POST",
         body: JSON.stringify({ "username": userForm.username, "password": userForm.password })
     })
-    const responseText = await response.text()
+    const respData = await response.json();
     if (!response.ok) {
-        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${responseText}`)
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`)
     }
-    return responseText
+    return respData.result
 }
 
 export async function postUser(userForm: { authToken: string, username: string, password: string }) {
@@ -190,9 +205,9 @@ export async function postUser(userForm: { authToken: string, username: string, 
             'Authorization': "Bearer " + userForm.authToken
         }
     })
-    const responseText = await response.text()
+    const respData = await response.json();
     if (!response.ok) {
-        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${responseText}`)
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`)
     }
-    return responseText
+    return respData.result
 }

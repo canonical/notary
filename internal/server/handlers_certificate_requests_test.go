@@ -4,16 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
-
-	"github.com/canonical/notary/internal/db"
-	"github.com/canonical/notary/internal/server"
 )
 
 type CertificateRequest struct {
@@ -168,15 +163,11 @@ func rejectCertificate(url string, client *http.Client, adminToken string, id in
 }
 
 func TestCertificateRequestsEndToEnd(t *testing.T) {
-	testdb, err := db.NewDatabase(":memory:")
+	ts, _, err := setupServer()
 	if err != nil {
-		log.Fatalf("couldn't create test sqlite db: %s", err)
+		t.Fatalf("couldn't create test server: %s", err)
 	}
-	env := &server.HandlerConfig{}
-	env.DB = testdb
-	ts := httptest.NewTLSServer(server.NewHandler(env))
 	defer ts.Close()
-
 	client := ts.Client()
 
 	var adminToken string
@@ -392,15 +383,11 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 }
 
 func TestCertificatesEndToEnd(t *testing.T) {
-	testdb, err := db.NewDatabase(":memory:")
+	ts, _, err := setupServer()
 	if err != nil {
-		log.Fatalf("couldn't create test sqlite db: %s", err)
+		t.Fatalf("couldn't create test server: %s", err)
 	}
-	env := &server.HandlerConfig{}
-	env.DB = testdb
-	ts := httptest.NewTLSServer(server.NewHandler(env))
 	defer ts.Close()
-
 	client := ts.Client()
 
 	var adminToken string

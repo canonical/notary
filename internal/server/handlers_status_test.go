@@ -2,13 +2,8 @@ package server_test
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
-	"net/http/httptest"
 	"testing"
-
-	"github.com/canonical/notary/internal/db"
-	"github.com/canonical/notary/internal/server"
 )
 
 type GetStatusResponseResult struct {
@@ -39,15 +34,11 @@ func getStatus(url string, client *http.Client, adminToken string) (int, *GetSta
 }
 
 func TestStatus(t *testing.T) {
-	testdb, err := db.NewDatabase(":memory:")
+	ts, _, err := setupServer()
 	if err != nil {
-		log.Fatalf("couldn't create test sqlite db: %s", err)
+		t.Fatalf("couldn't create test server: %s", err)
 	}
-	env := &server.HandlerConfig{}
-	env.DB = testdb
-	ts := httptest.NewTLSServer(server.NewHandler(env))
 	defer ts.Close()
-
 	client := ts.Client()
 
 	t.Run("status not initialized", func(t *testing.T) {

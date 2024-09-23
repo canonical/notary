@@ -2,15 +2,10 @@ package server_test
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
-	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
-
-	"github.com/canonical/notary/internal/db"
-	"github.com/canonical/notary/internal/server"
 )
 
 type GetAccountResponseResult struct {
@@ -140,18 +135,13 @@ func deleteAccount(url string, client *http.Client, adminToken string, id int) (
 	return res.StatusCode, &deleteResponse, nil
 }
 
-func TestAccountsEndToEnd(t *testing.T) {
-	testdb, err := db.NewDatabase(":memory:")
+func TestAccounts(t *testing.T) {
+	ts, _, err := setupServer()
 	if err != nil {
-		log.Fatalf("couldn't create test sqlite db: %s", err)
+		t.Fatalf("couldn't create test server: %s", err)
 	}
-	env := &server.HandlerConfig{}
-	env.DB = testdb
-	ts := httptest.NewTLSServer(server.NewHandler(env))
 	defer ts.Close()
-
 	client := ts.Client()
-
 	var adminToken string
 	var nonAdminToken string
 	t.Run("prepare accounts and tokens", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))

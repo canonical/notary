@@ -3,14 +3,10 @@ package server_test
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/canonical/notary/internal/db"
-	"github.com/canonical/notary/internal/server"
 	"github.com/golang-jwt/jwt"
 )
 
@@ -50,16 +46,11 @@ func login(url string, client *http.Client, data *LoginParams) (int, *LoginRespo
 }
 
 func TestLoginEndToEnd(t *testing.T) {
-	testdb, err := db.NewDatabase(":memory:")
+	ts, config, err := setupServer()
 	if err != nil {
-		log.Fatalf("couldn't create test sqlite db: %s", err)
+		t.Fatalf("couldn't create test server: %s", err)
 	}
-	env := &server.HandlerConfig{}
-	env.DB = testdb
-	env.JWTSecret = []byte("secret")
-	ts := httptest.NewTLSServer(server.NewHandler(env))
 	defer ts.Close()
-
 	client := ts.Client()
 
 	t.Run("Create admin user", func(t *testing.T) {
@@ -95,7 +86,7 @@ func TestLoginEndToEnd(t *testing.T) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 			}
-			return []byte(env.JWTSecret), nil
+			return []byte(config.JWTSecret), nil
 		})
 		if err != nil {
 			t.Fatalf("couldn't parse token: %s", err)

@@ -43,6 +43,10 @@ type DeleteAccountResponse struct {
 	ID int `json:"id"`
 }
 
+type ListAccountsResponse struct {
+	Accounts []GetAccountResponse `json:"accounts"`
+}
+
 func getRandomChars(charset string, length int) (string, error) {
 	result := make([]byte, length)
 	for i := range result {
@@ -112,18 +116,21 @@ func ListAccounts(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		for i := range accounts {
-			accounts[i].Password = ""
+		accountsResponse := ListAccountsResponse{
+			Accounts: make([]GetAccountResponse, len(accounts)),
 		}
-		body, err := json.Marshal(accounts)
+		for i, account := range accounts {
+			accountsResponse.Accounts[i] = GetAccountResponse{
+				ID:          account.ID,
+				Username:    account.Username,
+				Permissions: account.Permissions,
+			}
+		}
+		w.WriteHeader(http.StatusOK)
+		err = writeJSON(w, accountsResponse)
 		if err != nil {
-			log.Println(err)
-			writeError(w, http.StatusInternalServerError, "Internal Error")
+			writeError(w, http.StatusInternalServerError, "internal error")
 			return
-		}
-		if _, err := w.Write(body); err != nil {
-			log.Println(err)
-			writeError(w, http.StatusInternalServerError, "Internal Error")
 		}
 	}
 }

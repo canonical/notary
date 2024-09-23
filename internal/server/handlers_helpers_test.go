@@ -3,8 +3,24 @@ package server_test
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"testing"
+
+	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/server"
 )
+
+func setupServer() (*httptest.Server, *server.HandlerConfig, error) {
+	testdb, err := db.NewDatabase(":memory:")
+	if err != nil {
+		return nil, nil, err
+	}
+	config := &server.HandlerConfig{
+		DB: testdb,
+	}
+	ts := httptest.NewTLSServer(server.NewHandler(config))
+	return ts, config, nil
+}
 
 func prepareAccounts(url string, client *http.Client, adminToken, nonAdminToken *string) func(*testing.T) {
 	return func(t *testing.T) {

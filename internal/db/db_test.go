@@ -131,11 +131,11 @@ func TestUsersEndToEnd(t *testing.T) {
 	}
 	defer db.Close()
 
-	id1, err := db.CreateUser("admin", "pw123", "1")
+	id1, err := db.CreateUser("admin", "pw123", 1)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
-	id2, err := db.CreateUser("norman", "pw456", "0")
+	id2, err := db.CreateUser("norman", "pw456", 0)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
@@ -146,6 +146,13 @@ func TestUsersEndToEnd(t *testing.T) {
 	}
 	if len(res) != 2 {
 		t.Fatalf("One or more users weren't found in DB")
+	}
+	num, err := db.NumUsers()
+	if err != nil {
+		t.Fatalf("Couldn't complete NumUsers: %s", err)
+	}
+	if num != 2 {
+		t.Fatalf("NumUsers didn't return the correct number of users")
 	}
 	retrievedUser, err := db.RetrieveUser(strconv.FormatInt(id1, 10))
 	if err != nil {

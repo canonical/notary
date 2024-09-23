@@ -167,9 +167,9 @@ func PostUserAccount(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 
-		permission := "0"
+		permission := UserPermission
 		if len(users) == 0 {
-			permission = "1" // if this is the first user it will be admin
+			permission = AdminPermission
 		}
 		id, err := env.DB.CreateUser(user.Username, user.Password, permission)
 		if err != nil {

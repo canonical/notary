@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"os"
+	"os/exec"
 
 	"gopkg.in/yaml.v3"
 )
@@ -62,6 +63,12 @@ func Validate(filePath string) (Config, error) {
 	}
 	if c.Port == 0 {
 		return config, errors.Join(validationErr, errors.New("`port` is empty"))
+	}
+	if c.Pebblenotificationsenabled {
+		_, err := exec.LookPath("pebble")
+		if err != nil {
+			return config, errors.Join(validationErr, errors.New("pebble binary not found"))
+		}
 	}
 
 	config.Cert = cert

@@ -10,7 +10,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
-	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -110,14 +110,8 @@ func initializeTestDB(t *testing.T, db *db.Database) {
 
 // TestMetrics tests some of the metrics that we currently collect.
 func TestMetrics(t *testing.T) {
-	f, err := os.CreateTemp("./", "*.db")
-	fmt.Print(f.Name())
-	if err != nil {
-		t.Fatal("couldn't create temp db file: " + err.Error())
-	}
-	defer f.Close()
-	defer os.Remove(f.Name())
-	db, err := db.NewDatabase(f.Name())
+	tempDir := t.TempDir()
+	db, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
 	if err != nil {
 		t.Fatal(err)
 	}

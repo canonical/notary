@@ -26,7 +26,7 @@ jobs:
           echo "snap_file=${SNAP_FILE}" >>$GITHUB_OUTPUT
 
       - name: Publish snap
-        uses: snapcore/action-publish@v1.2.0
+        uses: canonical/action-publish@v1.2.0
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
         if: ${{ github.ref_name == 'main' }}

@@ -12,6 +12,10 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+func expireAfter(hours int) int64 {
+	return time.Now().Add(time.Hour * 1).Unix()
+}
+
 type jwtNotaryClaims struct {
 	ID          int    `json:"id"`
 	Username    string `json:"username"`
@@ -35,7 +39,7 @@ func generateJWT(id int, username string, jwtSecret []byte, permissions int) (st
 		Username:    username,
 		Permissions: permissions,
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(time.Hour * 1).Unix(),
+			ExpiresAt: expireAfter(1),
 		},
 	})
 	tokenString, err := token.SignedString(jwtSecret)

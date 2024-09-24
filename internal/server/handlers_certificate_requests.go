@@ -190,7 +190,7 @@ func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
 		}
 		insertIdStr := strconv.FormatInt(insertId, 10)
 		if env.SendPebbleNotifications {
-			err := SendPebbleNotification("notary.com/certificate/update", insertIdStr)
+			err := SendPebbleNotification("canonical.com/notary/certificate/update", insertIdStr)
 			if err != nil {
 				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
 			}
@@ -222,7 +222,7 @@ func RejectCertificate(env *HandlerConfig) http.HandlerFunc {
 		}
 		insertIdStr := strconv.FormatInt(insertId, 10)
 		if env.SendPebbleNotifications {
-			err := SendPebbleNotification("notary.com/certificate/update", insertIdStr)
+			err := SendPebbleNotification("canonical.com/notary/certificate/update", insertIdStr)
 			if err != nil {
 				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
 			}
@@ -256,7 +256,7 @@ func DeleteCertificate(env *HandlerConfig) http.HandlerFunc {
 		}
 		insertIdStr := strconv.FormatInt(insertId, 10)
 		if env.SendPebbleNotifications {
-			err := SendPebbleNotification("notary.com/certificate/update", insertIdStr)
+			err := SendPebbleNotification("canonical.com/notary/certificate/update", insertIdStr)
 			if err != nil {
 				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
 			}

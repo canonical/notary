@@ -10,10 +10,10 @@ export type RequiredCSRParams = {
 
 export async function getStatus() {
     const response = await fetch("/status")
-    if (!response.ok) {
-        throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
-    }
     const respData = await response.json();
+    if (!response.ok) {
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`)
+    }
     return respData.result
 }
 
@@ -21,10 +21,10 @@ export async function getCertificateRequests(params: { authToken: string }): Pro
     const response = await fetch("/api/v1/certificate_requests", {
         headers: { "Authorization": "Bearer " + params.authToken }
     })
-    if (!response.ok) {
-        throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
-    }
     const respData = await response.json();
+    if (!response.ok) {
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`)
+    }
     return respData.result
 }
 
@@ -43,11 +43,10 @@ export async function postCSR(params: { authToken: string, csr: string }) {
         },
         body: JSON.stringify(reqParams)
     })
+    const respData = await response.json();
     if (!response.ok) {
-        const respData = await response.json();
         throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`)
     }
-    const respData = await response.json();
     return respData.result
 }
 
@@ -66,10 +65,10 @@ export async function postCertToID(params: RequiredCSRParams) {
         },
         body: JSON.stringify(reqParams)
     })
-    if (!response.ok) {
-        throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
-    }
     const respData = await response.json();
+    if (!response.ok) {
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`)
+    }
     return respData.result
 }
 
@@ -80,10 +79,10 @@ export async function deleteCSR(params: RequiredCSRParams) {
             'Authorization': "Bearer " + params.authToken
         }
     })
-    if (!response.ok) {
-        throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
-    }
     const respData = await response.json();
+    if (!response.ok) {
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`)
+    }
     return respData.result
 }
 
@@ -94,10 +93,10 @@ export async function rejectCSR(params: RequiredCSRParams) {
             'Authorization': "Bearer " + params.authToken
         }
     })
-    if (!response.ok) {
-        throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
-    }
     const respData = await response.json();
+    if (!response.ok) {
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`)
+    }
     return respData.result
 }
 
@@ -108,10 +107,10 @@ export async function revokeCertificate(params: RequiredCSRParams) {
             'Authorization': 'Bearer ' + params.authToken
         }
     })
-    if (!response.ok) {
-        throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
-    }
     const respData = await response.json();
+    if (!response.ok) {
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`)
+    }
     return respData.result
 }
 
@@ -162,10 +161,10 @@ export async function ListUsers(params: { authToken: string }): Promise<UserEntr
     const response = await fetch("/api/v1/accounts", {
         headers: { "Authorization": "Bearer " + params.authToken }
     })
-    if (!response.ok) {
-        throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
-    }
     const respData = await response.json();
+    if (!response.ok) {
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`)
+    }
     return respData.result
 }
 
@@ -176,10 +175,10 @@ export async function deleteUser(params: { authToken: string, id: string }) {
             'Authorization': "Bearer " + params.authToken
         }
     })
-    if (!response.ok) {
-        throw new Error(`${response.status}: ${HTTPStatus(response.status)}`)
-    }
     const respData = await response.json();
+    if (!response.ok) {
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`)
+    }
     return respData.result
 }
 

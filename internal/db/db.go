@@ -136,15 +136,11 @@ func (db *Database) UpdateCSR(id string, cert string) (int64, error) {
 		}
 		cert = sanitizeCertificateBundle(cert)
 	}
-	result, err := db.conn.Exec(fmt.Sprintf(queryUpdateCSR, db.certificateTable), cert, csr.ID)
+	_, err = db.conn.Exec(fmt.Sprintf(queryUpdateCSR, db.certificateTable), cert, csr.ID)
 	if err != nil {
 		return 0, err
 	}
-	affectedRows, err := result.RowsAffected()
-	if err != nil {
-		return 0, err
-	}
-	return affectedRows, nil
+	return int64(csr.ID), nil
 }
 
 // DeleteCSR removes a CSR from the database alongside the certificate that may have been generated for it.

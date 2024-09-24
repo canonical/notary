@@ -12,7 +12,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func expireAfter(hours int) int64 {
+func expireAfter() int64 {
 	return time.Now().Add(time.Hour * 1).Unix()
 }
 
@@ -39,7 +39,7 @@ func generateJWT(id int, username string, jwtSecret []byte, permissions int) (st
 		Username:    username,
 		Permissions: permissions,
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expireAfter(1),
+			ExpiresAt: expireAfter(),
 		},
 	})
 	tokenString, err := token.SignedString(jwtSecret)

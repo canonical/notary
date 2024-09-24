@@ -7,7 +7,8 @@ import (
 )
 
 type GetStatusResponseResult struct {
-	Initialized bool `json:"initialized"`
+	Initialized bool   `json:"initialized"`
+	Version     string `json:"version"`
 }
 
 type GetStatusResponse struct {
@@ -58,6 +59,10 @@ func TestStatus(t *testing.T) {
 		if statusResponse.Result.Initialized {
 			t.Fatalf("expected initialized to be false")
 		}
+
+		if statusResponse.Result.Version == "" {
+			t.Fatalf("expected version to be set")
+		}
 	})
 
 	var adminToken string
@@ -80,6 +85,10 @@ func TestStatus(t *testing.T) {
 
 		if !statusResponse.Result.Initialized {
 			t.Fatalf("expected initialized to be true")
+		}
+
+		if statusResponse.Result.Version == "" {
+			t.Fatalf("expected version to be set")
 		}
 	})
 }

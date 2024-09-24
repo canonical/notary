@@ -13,7 +13,7 @@ type ConfigYAML struct {
 	CertPath                   string `yaml:"cert_path"`
 	DBPath                     string `yaml:"db_path"`
 	Port                       int    `yaml:"port"`
-	Pebblenotificationsenabled bool   `yaml:"pebble_notifications"`
+	PebbleNotifications bool   `yaml:"pebble_notifications"`
 }
 
 type Config struct {
@@ -64,7 +64,7 @@ func Validate(filePath string) (Config, error) {
 	if c.Port == 0 {
 		return config, errors.Join(validationErr, errors.New("`port` is empty"))
 	}
-	if c.Pebblenotificationsenabled {
+	if c.PebbleNotifications {
 		_, err := exec.LookPath("pebble")
 		if err != nil {
 			return config, errors.Join(validationErr, errors.New("pebble binary not found"))
@@ -75,6 +75,6 @@ func Validate(filePath string) (Config, error) {
 	config.Key = key
 	config.DBPath = c.DBPath
 	config.Port = c.Port
-	config.PebbleNotificationsEnabled = c.Pebblenotificationsenabled
+	config.PebbleNotificationsEnabled = c.PebbleNotifications
 	return config, nil
 }

@@ -4,7 +4,6 @@ package server
 import (
 	"crypto/rand"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -23,7 +22,7 @@ type HandlerConfig struct {
 func SendPebbleNotification(key, request_id string) error {
 	cmd := exec.Command("pebble", "notify", key, fmt.Sprintf("request_id=%s", request_id))
 	if err := cmd.Run(); err != nil {
-		return errors.Join(errors.New("couldn't execute a pebble notify: "), err)
+		return fmt.Errorf("couldn't execute a pebble notify: %w", err)
 	}
 	return nil
 }

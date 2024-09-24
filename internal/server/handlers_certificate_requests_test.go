@@ -158,6 +158,9 @@ func rejectCertificate(url string, client *http.Client, adminToken string, id in
 	return res.StatusCode, nil
 }
 
+// This is an end-to-end test for the certificate requests endpoint.
+// The order of the tests is important, as some tests depend on the
+// state of the server after previous tests.
 func TestCertificateRequestsEndToEnd(t *testing.T) {
 	ts, _, err := setupServer()
 	if err != nil {
@@ -170,7 +173,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 	var nonAdminToken string
 	t.Run("prepare user accounts and tokens", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
 
-	t.Run("List certificate requests - no requests yet", func(t *testing.T) {
+	t.Run("1. List certificate requests - no requests yet", func(t *testing.T) {
 		statusCode, listCertRequestsResponse, err := listCertificateRequests(ts.URL, client, adminToken)
 		if err != nil {
 			t.Fatal(err)
@@ -186,7 +189,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("Create certificate request", func(t *testing.T) {
+	t.Run("2. Create certificate request", func(t *testing.T) {
 		csr1Path := filepath.Join("testdata", "csr1.pem")
 		csr1, err := os.ReadFile(csr1Path)
 		if err != nil {
@@ -207,7 +210,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("List certificate requests - 1 Certificate", func(t *testing.T) {
+	t.Run("3. List certificate requests - 1 Certificate", func(t *testing.T) {
 		statusCode, listCertRequestsResponse, err := listCertificateRequests(ts.URL, client, adminToken)
 		if err != nil {
 			t.Fatal(err)
@@ -223,7 +226,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("Get certificate request", func(t *testing.T) {
+	t.Run("4. Get certificate request", func(t *testing.T) {
 		statusCode, getCertRequestResponse, err := getCertificateRequest(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)
@@ -245,7 +248,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("Create identical certificate request", func(t *testing.T) {
+	t.Run("5. Create identical certificate request", func(t *testing.T) {
 		csr1Path := filepath.Join("testdata", "csr1.pem")
 		csr1, err := os.ReadFile(csr1Path)
 		if err != nil {
@@ -266,7 +269,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("List certificate requests - 1 Certificate", func(t *testing.T) {
+	t.Run("6. List certificate requests - 1 Certificate", func(t *testing.T) {
 		statusCode, listCertRequestsResponse, err := listCertificateRequests(ts.URL, client, adminToken)
 		if err != nil {
 			t.Fatal(err)
@@ -282,7 +285,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("Create another certificate request", func(t *testing.T) {
+	t.Run("7. Create another certificate request", func(t *testing.T) {
 		csr2Path := filepath.Join("testdata", "csr2.pem")
 		csr2, err := os.ReadFile(csr2Path)
 		if err != nil {
@@ -303,7 +306,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("List certificate requests - 2 Certificates", func(t *testing.T) {
+	t.Run("8. List certificate requests - 2 Certificates", func(t *testing.T) {
 		statusCode, listCertRequestsResponse, err := listCertificateRequests(ts.URL, client, adminToken)
 		if err != nil {
 			t.Fatal(err)
@@ -319,7 +322,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("Get certificate request 2", func(t *testing.T) {
+	t.Run("9. Get certificate request 2", func(t *testing.T) {
 		statusCode, getCertRequestResponse, err := getCertificateRequest(ts.URL, client, adminToken, 2)
 		if err != nil {
 			t.Fatal(err)
@@ -341,7 +344,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("Delete certificate request 1", func(t *testing.T) {
+	t.Run("10. Delete certificate request 1", func(t *testing.T) {
 		statusCode, err := deleteCertificateRequest(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)
@@ -351,7 +354,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("List certificate requests - 1 Certificate", func(t *testing.T) {
+	t.Run("11. List certificate requests - 1 Certificate", func(t *testing.T) {
 		statusCode, listCertRequestsResponse, err := listCertificateRequests(ts.URL, client, adminToken)
 		if err != nil {
 			t.Fatal(err)
@@ -367,7 +370,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("Delete certificate request 2", func(t *testing.T) {
+	t.Run("12. Delete certificate request 2", func(t *testing.T) {
 		statusCode, err := deleteCertificateRequest(ts.URL, client, adminToken, 2)
 		if err != nil {
 			t.Fatal(err)
@@ -378,6 +381,9 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 	})
 }
 
+// This is an end-to-end test for the certificates endpoint.
+// The order of the tests is important, as some tests depend on the
+// state of the server after previous tests.
 func TestCertificatesEndToEnd(t *testing.T) {
 	ts, _, err := setupServer()
 	if err != nil {
@@ -389,7 +395,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 	var adminToken string
 	var nonAdminToken string
 	t.Run("prepare user accounts and tokens", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
-	t.Run("Create certificate request", func(t *testing.T) {
+	t.Run("1. Create certificate request", func(t *testing.T) {
 		csr1Path := filepath.Join("testdata", "csr2.pem")
 		csr2, err := os.ReadFile(csr1Path)
 		if err != nil {
@@ -410,7 +416,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("Create Certificate", func(t *testing.T) {
+	t.Run("2. Create Certificate", func(t *testing.T) {
 		certPath := filepath.Join("testdata", "csr2_cert.pem")
 		cert, err := os.ReadFile(certPath)
 		if err != nil {
@@ -436,7 +442,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("Get Certificate", func(t *testing.T) {
+	t.Run("3. Get Certificate", func(t *testing.T) {
 		statusCode, getCertResponse, err := getCertificateRequest(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)
@@ -452,7 +458,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("Reject Certificate", func(t *testing.T) {
+	t.Run("4. Reject Certificate", func(t *testing.T) {
 		statusCode, err := rejectCertificate(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)
@@ -462,7 +468,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("Get Certificate", func(t *testing.T) {
+	t.Run("5. Get Certificate", func(t *testing.T) {
 		statusCode, getCertResponse, err := getCertificateRequest(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)
@@ -478,7 +484,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("Delete Certificate", func(t *testing.T) {
+	t.Run("6. Delete Certificate", func(t *testing.T) {
 		statusCode, err := deleteCertificateRequest(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)
@@ -488,7 +494,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("Get Certificate", func(t *testing.T) {
+	t.Run("7. Get Certificate", func(t *testing.T) {
 		statusCode, getCertResponse, err := getCertificateRequest(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)

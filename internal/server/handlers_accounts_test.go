@@ -135,7 +135,10 @@ func deleteAccount(url string, client *http.Client, adminToken string, id int) (
 	return res.StatusCode, &deleteResponse, nil
 }
 
-func TestAccounts(t *testing.T) {
+// This is an end-to-end test for the accounts handlers.
+// The order of the tests is important, as some tests depend on
+// the state of the server after previous tests.
+func TestAccountsEndToEnd(t *testing.T) {
 	ts, _, err := setupServer()
 	if err != nil {
 		t.Fatalf("couldn't create test server: %s", err)
@@ -146,7 +149,7 @@ func TestAccounts(t *testing.T) {
 	var nonAdminToken string
 	t.Run("prepare accounts and tokens", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
 
-	t.Run("Get admin account - admin token", func(t *testing.T) {
+	t.Run("1. Get admin account - admin token", func(t *testing.T) {
 		statusCode, response, err := getAccount(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatalf("couldn't get account: %s", err)
@@ -168,7 +171,7 @@ func TestAccounts(t *testing.T) {
 		}
 	})
 
-	t.Run("Get admin account - non admin token", func(t *testing.T) {
+	t.Run("2. Get admin account - non admin token", func(t *testing.T) {
 		statusCode, response, err := getAccount(ts.URL, client, nonAdminToken, 1)
 		if err != nil {
 			t.Fatalf("couldn't get account: %s", err)
@@ -181,7 +184,7 @@ func TestAccounts(t *testing.T) {
 		}
 	})
 
-	t.Run("Create account - no password", func(t *testing.T) {
+	t.Run("3. Create account - no password", func(t *testing.T) {
 		createAccountParams := &CreateAccountParams{
 			Username: "nopass",
 			Password: "",
@@ -201,7 +204,7 @@ func TestAccounts(t *testing.T) {
 		}
 	})
 
-	t.Run("Get account", func(t *testing.T) {
+	t.Run("4. Get account", func(t *testing.T) {
 		statusCode, response, err := getAccount(ts.URL, client, adminToken, 3)
 		if err != nil {
 			t.Fatalf("couldn't get account: %s", err)
@@ -223,7 +226,7 @@ func TestAccounts(t *testing.T) {
 		}
 	})
 
-	t.Run("Get account - id not found", func(t *testing.T) {
+	t.Run("5. Get account - id not found", func(t *testing.T) {
 		statusCode, response, err := getAccount(ts.URL, client, adminToken, 100)
 		if err != nil {
 			t.Fatalf("couldn't get account: %s", err)
@@ -236,7 +239,7 @@ func TestAccounts(t *testing.T) {
 		}
 	})
 
-	t.Run("Create account - no username", func(t *testing.T) {
+	t.Run("6. Create account - no username", func(t *testing.T) {
 		createAccountParams := &CreateAccountParams{
 			Username: "",
 			Password: "password",
@@ -253,7 +256,7 @@ func TestAccounts(t *testing.T) {
 		}
 	})
 
-	t.Run("Change account password - success", func(t *testing.T) {
+	t.Run("7. Change account password - success", func(t *testing.T) {
 		changeAccountPasswordParams := &ChangeAccountPasswordParams{
 			Password: "newPassword1",
 		}
@@ -272,7 +275,7 @@ func TestAccounts(t *testing.T) {
 		}
 	})
 
-	t.Run("Change account password - no user", func(t *testing.T) {
+	t.Run("8. Change account password - no user", func(t *testing.T) {
 		changeAccountPasswordParams := &ChangeAccountPasswordParams{
 			Password: "newPassword1",
 		}
@@ -288,7 +291,7 @@ func TestAccounts(t *testing.T) {
 		}
 	})
 
-	t.Run("Change account password - no password", func(t *testing.T) {
+	t.Run("9. Change account password - no password", func(t *testing.T) {
 		changeAccountPasswordParams := &ChangeAccountPasswordParams{
 			Password: "",
 		}
@@ -304,7 +307,7 @@ func TestAccounts(t *testing.T) {
 		}
 	})
 
-	t.Run("Change account password - bad password", func(t *testing.T) {
+	t.Run("10. Change account password - bad password", func(t *testing.T) {
 		changeAccountPasswordParams := &ChangeAccountPasswordParams{
 			Password: "password",
 		}
@@ -320,7 +323,7 @@ func TestAccounts(t *testing.T) {
 		}
 	})
 
-	t.Run("Delete account - success", func(t *testing.T) {
+	t.Run("11. Delete account - success", func(t *testing.T) {
 		statusCode, response, err := deleteAccount(ts.URL, client, adminToken, 2)
 		if err != nil {
 			t.Fatalf("couldn't delete account: %s", err)
@@ -336,7 +339,7 @@ func TestAccounts(t *testing.T) {
 		}
 	})
 
-	t.Run("Delete account - no user", func(t *testing.T) {
+	t.Run("12. Delete account - no user", func(t *testing.T) {
 		statusCode, response, err := deleteAccount(ts.URL, client, adminToken, 100)
 		if err != nil {
 			t.Fatalf("couldn't delete account: %s", err)

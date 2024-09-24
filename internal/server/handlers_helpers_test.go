@@ -2,96 +2,77 @@
 package server_test
 
 import (
-	"io"
 	"net/http"
-	"strings"
+	"net/http/httptest"
 	"testing"
+
+	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/server"
 )
 
-func prepareUserAccounts(url string, client *http.Client, adminToken, nonAdminToken *string) func(*testing.T) {
+func setupServer() (*httptest.Server, *server.HandlerConfig, error) {
+	testdb, err := db.NewDatabase(":memory:")
+	if err != nil {
+		return nil, nil, err
+	}
+	config := &server.HandlerConfig{
+		DB: testdb,
+	}
+	ts := httptest.NewTLSServer(server.NewHandler(config))
+	return ts, config, nil
+}
+
+func prepareAccounts(url string, client *http.Client, adminToken, nonAdminToken *string) func(*testing.T) {
 	return func(t *testing.T) {
-		req, err := http.NewRequest("POST", url+"/api/v1/accounts", strings.NewReader(adminUser))
+		adminAccountParams := &CreateAccountParams{
+			Username: "testadmin",
+			Password: "Admin123",
+		}
+		statusCode, _, err := createAccount(url, client, "", adminAccountParams)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("couldn't create admin account: %s", err)
 		}
-		res, err := client.Do(req)
+		if statusCode != http.StatusCreated {
+			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
+		}
+		adminLoginParams := &LoginParams{
+			Username: adminAccountParams.Username,
+			Password: adminAccountParams.Password,
+		}
+		statusCode, loginResponse, err := login(url, client, adminLoginParams)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("couldn't login admin account: %s", err)
 		}
-		_, err = io.ReadAll(res.Body)
-		res.Body.Close()
+		if statusCode != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+		}
+
+		*adminToken = string(loginResponse.Result.Token)
+
+		nonAdminAccount := &CreateAccountParams{
+			Username: "testuser",
+			Password: "userPass!",
+		}
+		statusCode, _, err = createAccount(url, client, *adminToken, nonAdminAccount)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("couldn't create non-admin account: %s", err)
 		}
-		if res.StatusCode != http.StatusCreated {
-			t.Fatalf("creating the first request should succeed when unauthorized. status code received: %d", res.StatusCode)
+		if statusCode != http.StatusCreated {
+			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		req, err = http.NewRequest("POST", url+"/api/v1/accounts", strings.NewReader(validUser))
+
+		nonAdminLoginParams := &LoginParams{
+			Username: nonAdminAccount.Username,
+			Password: nonAdminAccount.Password,
+		}
+		statusCode, loginResponse, err = login(url, client, nonAdminLoginParams)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("couldn't login non-admin account: %s", err)
 		}
-		res, err = client.Do(req)
-		if err != nil {
-			t.Fatal(err)
+		if statusCode != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		_, err = io.ReadAll(res.Body)
-		res.Body.Close()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if res.StatusCode != http.StatusUnauthorized {
-			t.Fatalf("the second request should have been rejected. status code received: %d", res.StatusCode)
-		}
-		req, err = http.NewRequest("POST", url+"/login", strings.NewReader(adminUser))
-		if err != nil {
-			t.Fatal(err)
-		}
-		res, err = client.Do(req)
-		if err != nil {
-			t.Fatal(err)
-		}
-		resBody, err := io.ReadAll(res.Body)
-		res.Body.Close()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if res.StatusCode != http.StatusOK {
-			t.Fatalf("the admin login request should have succeeded. status code received: %d", res.StatusCode)
-		}
-		*adminToken = string(resBody)
-		req, err = http.NewRequest("POST", url+"/api/v1/accounts", strings.NewReader(validUser))
-		req.Header.Set("Authorization", "Bearer "+*adminToken)
-		if err != nil {
-			t.Fatal(err)
-		}
-		res, err = client.Do(req)
-		if err != nil {
-			t.Fatal(err)
-		}
-		_, err = io.ReadAll(res.Body)
-		res.Body.Close()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if res.StatusCode != http.StatusCreated {
-			t.Fatalf("creating the second request should have succeeded when given the admin auth header. status code received: %d", res.StatusCode)
-		}
-		req, err = http.NewRequest("POST", url+"/login", strings.NewReader(validUser))
-		if err != nil {
-			t.Fatal(err)
-		}
-		res, err = client.Do(req)
-		if err != nil {
-			t.Fatal(err)
-		}
-		resBody, err = io.ReadAll(res.Body)
-		res.Body.Close()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if res.StatusCode != http.StatusOK {
-			t.Errorf("the admin login request should have succeeded. status code received: %d", res.StatusCode)
-		}
-		*nonAdminToken = string(resBody)
+
+		*nonAdminToken = string(loginResponse.Result.Token)
 	}
 }

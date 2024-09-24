@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery } from "react-query"
-import { getUsers } from "../queries"
+import { ListUsers } from "../queries"
 import { UserEntry } from "../types"
 import { useCookies } from "react-cookie"
 import { useRouter } from "next/navigation"
@@ -17,7 +17,7 @@ export default function Users() {
     }
     const query = useQuery<UserEntry[], Error>({
         queryKey: ['users', cookies.user_token],
-        queryFn: () => getUsers({ authToken: cookies.user_token }),
+        queryFn: () => ListUsers({ authToken: cookies.user_token }),
         retry: (failureCount, error): boolean => {
             if (error.message.includes("401")) {
                 return false

@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"errors"
-	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -12,74 +11,130 @@ import (
 	"github.com/canonical/notary/internal/db"
 )
 
-// GetCertificateRequests returns all of the Certificate Requests
-func GetCertificateRequests(env *HandlerConfig) http.HandlerFunc {
+type CreateCertificateRequestParams struct {
+	CSR string `json:"csr"`
+}
+
+type CreateCertificateParams struct {
+	Certificate string `json:"certificate"`
+}
+
+type GetCertificateRequestResponse struct {
+	ID          int    `json:"id"`
+	CSR         string `json:"csr"`
+	Certificate string `json:"certificate"`
+}
+
+type CreateCertificateRequestResponse struct {
+	ID int `json:"id"`
+}
+
+type DeleteCertificateRequestResponse struct {
+	ID int `json:"id"`
+}
+
+type RejectCertificateRequestResponse struct {
+	ID int `json:"id"`
+}
+
+type CreateCertificateResponse struct {
+	ID int `json:"id"`
+}
+
+type DeleteCertificateResponse struct {
+	ID int `json:"id"`
+}
+
+type RejectCertificateResponse struct {
+	ID int `json:"id"`
+}
+
+// ListCertificateRequests returns all of the Certificate Requests
+func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		certs, err := env.DB.RetrieveAllCSRs()
 		if err != nil {
-			writeError(err.Error(), http.StatusInternalServerError, w)
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		body, err := json.Marshal(certs)
+		certificateRequestsResponse := make([]GetCertificateRequestResponse, len(certs))
+		for i, cert := range certs {
+			certificateRequestsResponse[i] = GetCertificateRequestResponse{
+				ID:          cert.ID,
+				CSR:         cert.CSR,
+				Certificate: cert.Certificate,
+			}
+		}
+		w.WriteHeader(http.StatusOK)
+		err = writeJSON(w, certificateRequestsResponse)
 		if err != nil {
-			writeError(err.Error(), http.StatusInternalServerError, w)
+			writeError(w, http.StatusInternalServerError, "internal error")
 			return
-		}
-		if _, err := w.Write(body); err != nil {
-			writeError(err.Error(), http.StatusInternalServerError, w)
 		}
 	}
 }
 
-// PostCertificateRequest creates a new Certificate Request, and returns the id of the created row
-func PostCertificateRequest(env *HandlerConfig) http.HandlerFunc {
+// CreateCertificateRequest creates a new Certificate Request, and returns the id of the created row
+func CreateCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		csr, err := io.ReadAll(r.Body)
-		if err != nil {
-			writeError(err.Error(), http.StatusInternalServerError, w)
+		var createCertificateRequestParams CreateCertificateRequestParams
+		if err := json.NewDecoder(r.Body).Decode(&createCertificateRequestParams); err != nil {
+			writeError(w, http.StatusBadRequest, "Invalid JSON format")
 			return
 		}
-		id, err := env.DB.CreateCSR(string(csr))
+		id, err := env.DB.CreateCSR(createCertificateRequestParams.CSR)
 		if err != nil {
 			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
-				writeError("given csr already recorded", http.StatusBadRequest, w)
+				writeError(w, http.StatusBadRequest, "given csr already recorded")
 				return
 			}
 			if strings.Contains(err.Error(), "csr validation failed") {
-				writeError(err.Error(), http.StatusBadRequest, w)
+				log.Println(err)
+				writeError(w, http.StatusBadRequest, "csr validation failed")
 				return
 			}
-			writeError(err.Error(), http.StatusInternalServerError, w)
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
+		certificateRequestResponse := CreateCertificateRequestResponse{
+			ID: int(id),
+		}
 		w.WriteHeader(http.StatusCreated)
-		if _, err := w.Write([]byte(strconv.FormatInt(id, 10))); err != nil {
-			writeError(err.Error(), http.StatusInternalServerError, w)
+		err = writeJSON(w, certificateRequestResponse)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
 		}
 	}
 }
 
-// GetCertificateRequests receives an id as a path parameter, and
+// GetCertificateRequest receives an id as a path parameter, and
 // returns the corresponding Certificate Request
 func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		cert, err := env.DB.RetrieveCSR(id)
 		if err != nil {
+			log.Println(err)
 			if errors.Is(err, db.ErrIdNotFound) {
-				writeError(err.Error(), http.StatusNotFound, w)
+				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}
-			writeError(err.Error(), http.StatusInternalServerError, w)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		body, err := json.Marshal(cert)
+		certificateRequestResponse := GetCertificateRequestResponse{
+			ID:          cert.ID,
+			CSR:         cert.CSR,
+			Certificate: cert.Certificate,
+		}
+		w.WriteHeader(http.StatusOK)
+		err = writeJSON(w, certificateRequestResponse)
 		if err != nil {
-			writeError(err.Error(), http.StatusInternalServerError, w)
+			writeError(w, http.StatusInternalServerError, "internal error")
 			return
-		}
-		if _, err := w.Write(body); err != nil {
-			writeError(err.Error(), http.StatusInternalServerError, w)
 		}
 	}
 }
@@ -91,39 +146,46 @@ func DeleteCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 		id := r.PathValue("id")
 		insertId, err := env.DB.DeleteCSR(id)
 		if err != nil {
+			log.Println(err)
 			if errors.Is(err, db.ErrIdNotFound) {
-				writeError(err.Error(), http.StatusNotFound, w)
+				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}
-			writeError(err.Error(), http.StatusInternalServerError, w)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
+		certificateRequestResponse := DeleteCertificateRequestResponse{
+			ID: int(insertId),
+		}
 		w.WriteHeader(http.StatusAccepted)
-		if _, err := w.Write([]byte(strconv.FormatInt(insertId, 10))); err != nil {
-			writeError(err.Error(), http.StatusInternalServerError, w)
+		err = writeJSON(w, certificateRequestResponse)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
 		}
 	}
 }
 
-// PostCertificate handler receives an id as a path parameter,
+// CreateCertificate handler receives an id as a path parameter,
 // and attempts to add a given certificate to the corresponding certificate request
-func PostCertificate(env *HandlerConfig) http.HandlerFunc {
+func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		cert, err := io.ReadAll(r.Body)
-		if err != nil {
-			writeError(err.Error(), http.StatusBadRequest, w)
+		var createCertificateParams CreateCertificateParams
+		if err := json.NewDecoder(r.Body).Decode(&createCertificateParams); err != nil {
+			writeError(w, http.StatusBadRequest, "Invalid JSON format")
 			return
 		}
 		id := r.PathValue("id")
-		insertId, err := env.DB.UpdateCSR(id, string(cert))
+		insertId, err := env.DB.UpdateCSR(id, createCertificateParams.Certificate)
 		if err != nil {
+			log.Println(err)
 			if errors.Is(err, db.ErrIdNotFound) ||
 				err.Error() == "certificate does not match CSR" ||
 				strings.Contains(err.Error(), "cert validation failed") {
-				writeError(err.Error(), http.StatusBadRequest, w)
+				writeError(w, http.StatusBadRequest, "Bad Request")
 				return
 			}
-			writeError(err.Error(), http.StatusInternalServerError, w)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
 		insertIdStr := strconv.FormatInt(insertId, 10)
@@ -133,9 +195,14 @@ func PostCertificate(env *HandlerConfig) http.HandlerFunc {
 				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
 			}
 		}
+		certificateResponse := CreateCertificateResponse{
+			ID: int(insertId),
+		}
 		w.WriteHeader(http.StatusCreated)
-		if _, err := w.Write([]byte(insertIdStr)); err != nil {
-			writeError(err.Error(), http.StatusInternalServerError, w)
+		err = writeJSON(w, certificateResponse)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
 		}
 	}
 }
@@ -145,11 +212,12 @@ func RejectCertificate(env *HandlerConfig) http.HandlerFunc {
 		id := r.PathValue("id")
 		insertId, err := env.DB.UpdateCSR(id, "rejected")
 		if err != nil {
+			log.Println(err)
 			if errors.Is(err, db.ErrIdNotFound) {
-				writeError(err.Error(), http.StatusNotFound, w)
+				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}
-			writeError(err.Error(), http.StatusInternalServerError, w)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
 		insertIdStr := strconv.FormatInt(insertId, 10)
@@ -159,9 +227,14 @@ func RejectCertificate(env *HandlerConfig) http.HandlerFunc {
 				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
 			}
 		}
+		certificateResponse := RejectCertificateResponse{
+			ID: int(insertId),
+		}
 		w.WriteHeader(http.StatusAccepted)
-		if _, err := w.Write([]byte(insertIdStr)); err != nil {
-			writeError(err.Error(), http.StatusInternalServerError, w)
+		err = writeJSON(w, certificateResponse)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
 		}
 	}
 }
@@ -173,11 +246,12 @@ func DeleteCertificate(env *HandlerConfig) http.HandlerFunc {
 		id := r.PathValue("id")
 		insertId, err := env.DB.UpdateCSR(id, "")
 		if err != nil {
+			log.Println(err)
 			if errors.Is(err, db.ErrIdNotFound) {
-				writeError(err.Error(), http.StatusBadRequest, w)
+				writeError(w, http.StatusBadRequest, "Bad Request")
 				return
 			}
-			writeError(err.Error(), http.StatusInternalServerError, w)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
 		insertIdStr := strconv.FormatInt(insertId, 10)
@@ -187,9 +261,14 @@ func DeleteCertificate(env *HandlerConfig) http.HandlerFunc {
 				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
 			}
 		}
-		w.WriteHeader(http.StatusAccepted)
-		if _, err := w.Write([]byte(insertIdStr)); err != nil {
-			writeError(err.Error(), http.StatusInternalServerError, w)
+		certificateResponse := DeleteCertificateResponse{
+			ID: int(insertId),
+		}
+		w.WriteHeader(http.StatusOK)
+		err = writeJSON(w, certificateResponse)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
 		}
 	}
 }

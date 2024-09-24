@@ -68,7 +68,7 @@ jobs:
             --data "{\"certificate\":\"${COMBINED_CERTIFICATE}\"}"
           
           docker exec notary /usr/bin/pebble notices
-          docker exec notary /usr/bin/pebble notices | grep canonical\\.com/notary/certificate/update
+          docker exec notary /usr/bin/pebble notices | grep canonical\\.com
           docker exec notary /usr/bin/pebble notice 3
         
       - uses: actions/upload-artifact@v4

@@ -1,7 +1,7 @@
 name: notary
 base: bare
 build-base: ubuntu@24.04
-version: '0.0.3'
+adopt-info: notary-release-data
 summary: A certificate management tool
 description: |
   A certificate management tool.
@@ -32,3 +32,10 @@ parts:
       - ca-certificates_data
       - libc6_libs
       - base-files_lib
+
+  notary-release-data:
+    plugin: nil
+    source: .
+    override-build: |
+      version="$(cat version/VERSION)"
+      craftctl set version="$version"

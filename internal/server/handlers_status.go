@@ -2,10 +2,13 @@ package server
 
 import (
 	"net/http"
+
+	"github.com/canonical/notary/version"
 )
 
 type StatusResponse struct {
-	Initialized bool `json:"initialized"`
+	Initialized bool   `json:"initialized"`
+	Version     string `json:"version"`
 }
 
 // the GET status endpoint returns a http.StatusOK alongside info about the server
@@ -19,6 +22,7 @@ func GetStatus(env *HandlerConfig) http.HandlerFunc {
 		}
 		statusResponse := StatusResponse{
 			Initialized: numUsers > 0,
+			Version:     version.GetVersion(),
 		}
 		w.WriteHeader(http.StatusOK)
 		err = writeJSON(w, statusResponse)

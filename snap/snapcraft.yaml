@@ -1,6 +1,6 @@
 name: notary
 base: core24
-version: '0.0.3'
+adopt-info: notary-release-data
 summary: Notary is a certificate management tool.
 license: Apache-2.0
 description: |
@@ -42,6 +42,13 @@ parts:
       npm install --prefix ui
       npm run build --prefix ui
       craftctl default
+
+  notary-release-data:
+    plugin: nil
+    source: .
+    override-build: |
+      version="$(cat version/VERSION)"
+      craftctl set version="$version"
 
   service-files:
     plugin: dump

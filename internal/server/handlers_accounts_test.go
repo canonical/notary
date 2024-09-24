@@ -184,10 +184,10 @@ func TestAccountsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("3. Create account - no password", func(t *testing.T) {
+	t.Run("3. Create account", func(t *testing.T) {
 		createAccountParams := &CreateAccountParams{
 			Username: "nopass",
-			Password: "",
+			Password: "myPassword123!",
 		}
 		statusCode, response, err := createAccount(ts.URL, client, adminToken, createAccountParams)
 		if err != nil {
@@ -256,7 +256,24 @@ func TestAccountsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("7. Change account password - success", func(t *testing.T) {
+	t.Run("7. Create account - no password", func(t *testing.T) {
+		createAccountParams := &CreateAccountParams{
+			Username: "nopass",
+			Password: "",
+		}
+		statusCode, response, err := createAccount(ts.URL, client, adminToken, createAccountParams)
+		if err != nil {
+			t.Fatalf("couldn't create account: %s", err)
+		}
+		if statusCode != http.StatusBadRequest {
+			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
+		}
+		if response.Error != "Password is required" {
+			t.Fatalf("expected error %q, got %q", "Password is required", response.Error)
+		}
+	})
+
+	t.Run("8. Change account password - success", func(t *testing.T) {
 		changeAccountPasswordParams := &ChangeAccountPasswordParams{
 			Password: "newPassword1",
 		}
@@ -275,7 +292,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("8. Change account password - no user", func(t *testing.T) {
+	t.Run("9. Change account password - no user", func(t *testing.T) {
 		changeAccountPasswordParams := &ChangeAccountPasswordParams{
 			Password: "newPassword1",
 		}
@@ -291,7 +308,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("9. Change account password - no password", func(t *testing.T) {
+	t.Run("10. Change account password - no password", func(t *testing.T) {
 		changeAccountPasswordParams := &ChangeAccountPasswordParams{
 			Password: "",
 		}
@@ -307,7 +324,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("10. Change account password - bad password", func(t *testing.T) {
+	t.Run("11. Change account password - bad password", func(t *testing.T) {
 		changeAccountPasswordParams := &ChangeAccountPasswordParams{
 			Password: "password",
 		}
@@ -323,7 +340,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("11. Delete account - success", func(t *testing.T) {
+	t.Run("12. Delete account - success", func(t *testing.T) {
 		statusCode, response, err := deleteAccount(ts.URL, client, adminToken, 2)
 		if err != nil {
 			t.Fatalf("couldn't delete account: %s", err)
@@ -339,7 +356,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("12. Delete account - no user", func(t *testing.T) {
+	t.Run("13. Delete account - no user", func(t *testing.T) {
 		statusCode, response, err := deleteAccount(ts.URL, client, adminToken, 100)
 		if err != nil {
 			t.Fatalf("couldn't delete account: %s", err)

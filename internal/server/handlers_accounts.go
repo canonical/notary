@@ -1,12 +1,9 @@
 package server
 
 import (
-	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"log"
-	"math/big"
-	mrand "math/rand"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -31,8 +28,7 @@ type GetAccountResponse struct {
 }
 
 type CreateAccountResponse struct {
-	ID       int    `json:"id"`
-	Password string `json:"password"`
+	ID int `json:"id"`
 }
 
 type ChangeAccountResponse struct {
@@ -41,49 +37,6 @@ type ChangeAccountResponse struct {
 
 type DeleteAccountResponse struct {
 	ID int `json:"id"`
-}
-
-func getRandomChars(charset string, length int) (string, error) {
-	result := make([]byte, length)
-	for i := range result {
-		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
-		if err != nil {
-			return "", err
-		}
-		result[i] = charset[n.Int64()]
-	}
-	return string(result), nil
-}
-
-// Generates a random 16 chars long password that contains uppercase and lowercase characters and numbers or symbols.
-func generatePassword() (string, error) {
-	const (
-		uppercaseSet         = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-		lowercaseSet         = "abcdefghijklmnopqrstuvwxyz"
-		numbersAndSymbolsSet = "0123456789*?@"
-		allCharsSet          = uppercaseSet + lowercaseSet + numbersAndSymbolsSet
-	)
-	uppercase, err := getRandomChars(uppercaseSet, 2)
-	if err != nil {
-		return "", err
-	}
-	lowercase, err := getRandomChars(lowercaseSet, 2)
-	if err != nil {
-		return "", err
-	}
-	numbersOrSymbols, err := getRandomChars(numbersAndSymbolsSet, 2)
-	if err != nil {
-		return "", err
-	}
-	allChars, err := getRandomChars(allCharsSet, 10)
-	if err != nil {
-		return "", err
-	}
-	res := []rune(uppercase + lowercase + numbersOrSymbols + allChars)
-	mrand.Shuffle(len(res), func(i, j int) {
-		res[i], res[j] = res[j], res[i]
-	})
-	return string(res), nil
 }
 
 func validatePassword(password string) bool {
@@ -180,14 +133,9 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Username is required")
 			return
 		}
-		shouldGeneratePassword := createAccountParams.Password == ""
-		if shouldGeneratePassword {
-			generatedPassword, err := generatePassword()
-			if err != nil {
-				writeError(w, http.StatusInternalServerError, "Failed to generate password")
-				return
-			}
-			createAccountParams.Password = generatedPassword
+		if createAccountParams.Password == "" {
+			writeError(w, http.StatusBadRequest, "Password is required")
+			return
 		}
 		if !validatePassword(createAccountParams.Password) {
 			writeError(
@@ -219,9 +167,6 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 		}
 		accountResponse := CreateAccountResponse{
 			ID: int(id),
-		}
-		if shouldGeneratePassword {
-			accountResponse.Password = createAccountParams.Password
 		}
 		w.WriteHeader(http.StatusCreated)
 		err = writeJSON(w, accountResponse)

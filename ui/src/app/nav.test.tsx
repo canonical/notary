@@ -16,9 +16,21 @@ vi.mock('next/navigation', () => ({
 }));
 vi.mock('./auth/authContext', () => ({
   useAuth: () => {
-    return { "user": {"id": 0, "username": "adman" } as User}
+    return { "user": { "id": 0, "username": "adman" } as User }
   }
 }))
+
+// Mock the queries module to include deleteCSR, postCSR, and getStatus
+vi.mock('./queries', () => {
+  return {
+    getStatus: vi.fn(() => Promise.resolve({ version: "1.0.0" })),
+    deleteCSR: vi.fn(() => Promise.resolve()),
+    postCSR: vi.fn(() => Promise.resolve()),
+    rejectCSR: vi.fn(() => Promise.resolve()),
+    revokeCertificate: vi.fn(() => Promise.resolve()),
+  };
+});
+
 
 describe('Navigation', () => {
   it('should open aside when clicking button', () => {

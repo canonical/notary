@@ -1,6 +1,6 @@
 "use client"
 
-import { SetStateAction, Dispatch, useState } from "react"
+import { SetStateAction, Dispatch, useState, useEffect } from "react"
 import { QueryClient, QueryClientProvider } from "react-query";
 import Image from "next/image";
 import { Aside, AsideContext } from "./aside";
@@ -9,10 +9,21 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "./auth/authContext";
 import UploadCSRAsidePanel from "./certificate_requests/asideForm";
 import UploadUserAsidePanel from "./users/asideForm";
+import { getStatus } from "./queries"
 import { ChangePasswordModalData, ChangePasswordModal, ChangePasswordModalContext } from "./users/components";
 
 export function SideBar({ activePath, sidebarVisible, setSidebarVisible }: { activePath: string, sidebarVisible: boolean, setSidebarVisible: Dispatch<SetStateAction<boolean>> }) {
+    const [status, setStatus] = useState<{ version: string } | null>(null);
     const auth = useAuth()
+
+    useEffect(() => {
+        const fetchStatus = async () => {
+            const statusData = await getStatus();
+            setStatus(statusData);
+        };
+        fetchStatus();
+    }, []);
+
     return (
         <header className={sidebarVisible ? "l-navigation" : "l-navigation is-collapsed"}>
             <div className="l-navigation__drawer">
@@ -47,9 +58,16 @@ export function SideBar({ activePath, sidebarVisible, setSidebarVisible }: { act
                                         </li>
                                     }
                                 </ul>
-                                <ul className="p-side-navigation__list" style={{ bottom: 0, position: "absolute", width: "100%" }}>
+                                <ul className="p-side-navigation__list" style={{ bottom: "64px", position: "absolute", width: "100%" }}>
                                     <li className="p-side-navigation__item" >
                                         <AccountTab />
+                                    </li>
+                                </ul>
+                                <ul className="p-side-navigation__list" style={{ bottom: 0, position: "absolute", width: "100%" }}>
+                                    <li className="p-side-navigation__item">
+                                        <span className="p-side-navigation__text">
+                                            Version {status?.version}
+                                        </span>
                                     </li>
                                 </ul>
                             </nav>

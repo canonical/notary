@@ -19,4 +19,5 @@ export type UserEntry = {
 
 export type statusResponse = {
     initialized: boolean
+    version: string
 }

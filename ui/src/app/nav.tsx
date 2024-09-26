@@ -1,7 +1,7 @@
 "use client"
 
 import { SetStateAction, Dispatch, useState, useEffect } from "react"
-import { QueryClient, QueryClientProvider } from "react-query";
+import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from "react-query";
 import Image from "next/image";
 import { Aside, AsideContext } from "./aside";
 import { AccountTab } from "./nav_account"
@@ -13,19 +13,18 @@ import { getStatus } from "./queries"
 import { ChangePasswordModalData, ChangePasswordModal, ChangePasswordModalContext } from "./users/components";
 
 export function SideBar({ activePath, sidebarVisible, setSidebarVisible }: { activePath: string, sidebarVisible: boolean, setSidebarVisible: Dispatch<SetStateAction<boolean>> }) {
-    const [status, setStatus] = useState<{ version: string } | null>(null);
     const auth = useAuth()
-
-    useEffect(() => {
-        const fetchStatus = async () => {
-            const statusData = await getStatus();
-            setStatus(statusData);
-        };
-        fetchStatus();
-    }, []);
+    const statusQuery = useQuery({
+        queryFn: getStatus,
+        staleTime: Infinity,
+        cacheTime: Infinity,
+        refetchOnWindowFocus: false,
+        refetchOnMount: false,
+        refetchOnReconnect: false,
+    })
 
     return (
-        <header className={sidebarVisible ? "l-navigation" : "l-navigation is-collapsed"}>
+        <header className={sidebarVisible ? "l-navigation" : "l-navigation is-collapsed"} >
             <div className="l-navigation__drawer">
                 <div className="p-panel is-dark">
                     <div className="p-panel__header is-sticky">
@@ -66,7 +65,7 @@ export function SideBar({ activePath, sidebarVisible, setSidebarVisible }: { act
                                 <ul className="p-side-navigation__list" style={{ bottom: 0, position: "absolute", width: "100%" }}>
                                     <li className="p-side-navigation__item">
                                         <span className="p-side-navigation__text">
-                                            Version {status?.version}
+                                            Version {statusQuery.data?.version}
                                         </span>
                                     </li>
                                 </ul>

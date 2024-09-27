@@ -28,26 +28,6 @@ type middlewareContext struct {
 	jwtSecret          []byte
 }
 
-// The statusRecorder struct wraps the http.ResponseWriter struct, and extracts the status
-// code of the response writer for the middleware to read
-type statusRecorder struct {
-	http.ResponseWriter
-	statusCode int
-}
-
-// newResponseWriter returns a new ResponseWriterCloner struct
-// it returns http.StatusOK by default because the http.ResponseWriter defaults to that header
-// if the WriteHeader() function is never called.
-func newResponseWriter(w http.ResponseWriter) *statusRecorder {
-	return &statusRecorder{w, http.StatusOK}
-}
-
-// WriteHeader overrides the ResponseWriter method to duplicate the status code into the wrapper struct
-func (rwc *statusRecorder) WriteHeader(code int) {
-	rwc.statusCode = code
-	rwc.ResponseWriter.WriteHeader(code)
-}
-
 // createMiddlewareStack chains the given middleware functions to wrap the api.
 // Each middleware functions calls next.ServeHTTP in order to resume the chain of execution.
 // The order the middleware functions are given to createMiddlewareStack matters.

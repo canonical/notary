@@ -20,11 +20,14 @@ jobs:
   go-lint:
     uses: ./.github/workflows/go-lint.yaml
   go-build:
-    needs: [frontend-build]
+    needs: [frontend-build, frontend-unit-test]
     uses: ./.github/workflows/go-build.yaml
   rock-build:
-    needs: [go-build, go-unit-test, go-vet, go-lint]
+    needs: [go-build]
     uses: ./.github/workflows/rock-build.yaml
+  rock-test:
+    needs: [rock-build]
+    uses: ./.github/workflows/rock-test.yaml
   rock-scan:
     if: github.ref_name == 'main'
     needs: [rock-build]
@@ -34,7 +37,7 @@ jobs:
     needs: [rock-build]
     uses: ./.github/workflows/rock-publish.yaml
   snap-build:
-    needs: [go-build, go-unit-test, go-vet, go-lint]
+    needs: [go-build]
     uses: ./.github/workflows/snap-build.yaml
   snap-publish:
     if: github.ref_name == 'main'

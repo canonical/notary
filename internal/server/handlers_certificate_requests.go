@@ -175,6 +175,10 @@ func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format")
 			return
 		}
+		if createCertificateParams.Certificate == "" {
+			writeError(w, http.StatusBadRequest, "Bad Request: certificate is empty")
+			return
+		}
 		id := r.PathValue("id")
 		insertId, err := env.DB.UpdateCSR(id, createCertificateParams.Certificate)
 		if err != nil {

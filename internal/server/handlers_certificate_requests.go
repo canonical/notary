@@ -84,7 +84,7 @@ func CreateCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 		if createCertificateRequestParams.CSR == "" {
-			writeError(w, http.StatusBadRequest, "csr is empty")
+			writeError(w, http.StatusBadRequest, "csr is missing")
 			return
 		}
 		id, err := env.DB.CreateCSR(createCertificateRequestParams.CSR)
@@ -180,7 +180,7 @@ func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 		if createCertificateParams.Certificate == "" {
-			writeError(w, http.StatusBadRequest, "certificate is empty")
+			writeError(w, http.StatusBadRequest, "certificate is missing")
 			return
 		}
 		id := r.PathValue("id")

@@ -83,6 +83,10 @@ func CreateCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format")
 			return
 		}
+		if createCertificateRequestParams.CSR == "" {
+			writeError(w, http.StatusBadRequest, "csr is empty")
+			return
+		}
 		id, err := env.DB.CreateCSR(createCertificateRequestParams.CSR)
 		if err != nil {
 			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
@@ -176,7 +180,7 @@ func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 		if createCertificateParams.Certificate == "" {
-			writeError(w, http.StatusBadRequest, "Bad Request: certificate is empty")
+			writeError(w, http.StatusBadRequest, "certificate is empty")
 			return
 		}
 		id := r.PathValue("id")

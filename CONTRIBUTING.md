@@ -82,6 +82,7 @@ Run the linter for golang by running:
 ```bash
 golangci-lint run ./...
 ```
+
 Run the linter for typescript by running:
 ```bash
 npm run lint
@@ -107,6 +108,11 @@ sudo rockcraft.skopeo --insecure-policy copy oci-archive:notary_${version}_amd64
 ```
 
 Run the container image:
+
 ```bash
 docker run notary:${version}
 ```
+
+## Reference
+
+- [Go Best Practices Guidelines](https://docs.google.com/document/d/1IbFXyeXYlfQ5GUEEScGS7pP335Cei-5cFBdAoR973pQ/edit?tab=t.0)

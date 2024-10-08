@@ -1,21 +1,70 @@
 # Contributing
 
 ## Getting Started
-You can build and run the program by following these steps:
 
-1. Install Go and Nodejs
-2. Fork the repository on GitHub
-3. Clone the forked repository to your local machine
-4. Build the frontend: `npm i --prefix ui && npm run build --prefix ui`
-5. Install the project: `go install ./...`
-6. Create a `config.yaml` file as described in README.md
-7. Run the project: `notary -config config.yaml`
+Install Go:
+```bash
+sudo snap install go --classic
+```
 
-Commands assume you're running them from the top level git repo directory
+Install NodeJS:
+```bash
+curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+NODE_MAJOR=20
+echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
+sudo apt update
+sudo apt install nodejs
+```
 
-## Testing
+Clone the repository:
 
-### Unit Tests
+```bash
+git@github.com:canonical/notary.git
+```
+
+Install the npm dependencies:
+
+```bash
+npm install --prefix ui 
+```
+
+Build the frontend:
+
+```bash
+npm run build --prefix ui
+```
+
+Build the Go binary:
+
+```bash
+go build -o notary cmd/notary/main.go
+```
+
+Create a certificate and private key:
+
+```bash
+openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 1 -out cert.pem -subj "/CN=example.com"
+```
+
+Create a `notary.yaml` file with the following content:
+
+```yaml
+key_path:  "key.pem"
+cert_path: "cert.pem"
+db_path: "certs.db"
+port: 3000
+pebble_notifications: false
+```
+
+Run the project:
+
+```bash
+./notary -config notary.yaml
+```
+
+## How-to Guides
+
+### Run Unit Tests
 
 Run go unit tests by running:
 ```bash
@@ -27,7 +76,7 @@ Run frontend vitest test suite by running:
 npm run test --prefix ui
 ```
 
-### Lint
+### Run Lint checks
 
 Run the linter for golang by running:
 ```bash
@@ -38,14 +87,26 @@ Run the linter for typescript by running:
 npm run lint
 ```
 
-## Creating the Container Image
+### Create a container Image
 
-We use rockcraft to create OCI images for use in container technologies like docker. 
-You can create the container and import it into docker by running:
+Install rockcraft:
+```bash
+sudo snap install rockcraft --classic
+```
+
+Build the container image:
 
 ```bash
 rockcraft pack -v
+```
+
+Copy the container image to the docker daemon:
+```bash
 version=$(yq '.version' rockcraft.yaml)
 sudo rockcraft.skopeo --insecure-policy copy oci-archive:notary_${version}_amd64.rock docker-daemon:notary:${version}
+```
+
+Run the container image:
+```bash
 docker run notary:${version}
 ```

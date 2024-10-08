@@ -47,32 +47,6 @@ juju deploy notary-k8s
 
 For more information on using Notary in the Juju ecosystem, read the [charm documentation](https://charmhub.io/notary-k8s).
 
-#### Source
-
-Clone the repository:
-
-```bash
-git clone git@github.com:canonical/notary.git
-```
-
-Install the npm dependencies:
-
-```bash
-npm install --prefix ui
-```
-
-Build the UI:
-
-```bash
-npm run build --prefix ui
-```
-
-Build the Go binary:
-
-```bash
-go install ./...
-```
-
 ## Reference
 
 ### Configuration

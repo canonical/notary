@@ -12,7 +12,6 @@ Notary is an open source project that warmly welcomes community contributions, s
 
 ## Getting Started
 
-
 Install the snap:
 ```bash
 sudo snap install notary
@@ -32,7 +31,7 @@ Navigate to `https://localhost:3000` to access the Notary UI.
 
 ## How-to Guides
 
-### Install Notary
+### Install
 
 #### Snap
 
@@ -40,11 +39,13 @@ Navigate to `https://localhost:3000` to access the Notary UI.
 sudo snap install notary
 ```
 
-#### OCI Image
+#### Charmed Operator
 
 ```bash
-docker pull ghcr.io/canonical/notary:latest
+juju deploy notary-k8s
 ```
+
+For more information on using Notary in the Juju ecosystem, read the [charm documentation](https://charmhub.io/notary-k8s).
 
 #### Source
 

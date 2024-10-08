@@ -1,4 +1,4 @@
-# notary
+# Notary
 
 Notary is a simple, reliable, and secure certificate management tool. Use it to request, approve, and manage certificate requests for your services. 
 

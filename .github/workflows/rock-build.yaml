@@ -65,7 +65,7 @@ jobs:
           curl -k --location 'https://localhost:3000/api/v1/certificate_requests/1/certificate' \
             --header "Authorization: Bearer $ADMIN_TOKEN" \
             --header 'Content-Type: application/json' \
-            --data "{\"certificate\":\"${COMBINED_CERTIFICATE}\"}"
+            --data "{\"certificate\":\"${CERTIFICATE}\"}"
           
           docker exec notary /usr/bin/pebble notices
           docker exec notary /usr/bin/pebble notices | grep canonical\\.com

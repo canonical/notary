@@ -55,7 +55,7 @@ export async function postCertToID(params: RequiredCSRParams) {
         throw new Error('Certificate not provided')
     }
     const reqParams = {
-        "cert": params.cert.trim()
+        "certificate": params.cert.trim()
     }
     const response = await fetch("/api/v1/certificate_requests/" + params.id + "/certificate", {
         method: 'post',

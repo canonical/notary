@@ -26,7 +26,7 @@ jobs:
         run: |
           image_name="$(yq '.name' rockcraft.yaml)"
           echo "image_name=${image_name}" >> $GITHUB_ENV
-          version="$(yq '.version' rockcraft.yaml)"
+          version="$(cat version/VERSION)"
           echo "version=${version}" >> $GITHUB_ENV
           rock_file=$(ls *.rock | tail -n 1)
           sudo rockcraft.skopeo \

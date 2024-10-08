@@ -1,6 +1,14 @@
 # Contributing
 
+Notary is an open source project that warmly welcomes community contributions, suggestions, fixes, and constructive feedback.
+
 ## Getting Started
+
+This tutorial guides you through setting up a development environment for Notary.
+
+After going through these steps, you will have a general idea of how to build and run Notary.
+
+### Prerequisites
 
 Install Go:
 ```bash
@@ -22,6 +30,8 @@ Clone the repository:
 git@github.com:canonical/notary.git
 ```
 
+### Build Notary
+
 Install the npm dependencies:
 
 ```bash
@@ -40,6 +50,8 @@ Build the Go binary:
 go build -o notary cmd/notary/main.go
 ```
 
+### Run Notary
+
 Create a certificate and private key:
 
 ```bash
@@ -56,11 +68,13 @@ port: 3000
 pebble_notifications: false
 ```
 
-Run the project:
+Run Notary:
 
 ```bash
 ./notary -config notary.yaml
 ```
+
+Access the Notary UI at `https://localhost:3000`.
 
 ## How-to Guides
 

@@ -1,10 +1,16 @@
-# notary
+# Notary
 
 Notary is a simple, reliable, and secure certificate management tool. Use it to request, approve, and manage certificate requests for your services. 
 
-## Installation
+### Project & Community
 
-### From Snap
+Notary is an open source project that warmly welcomes community contributions, suggestions, fixes, and constructive feedback.
+
+- To contribute to the code Please see [CONTRIBUTING.md](/CONTRIBUTING.md) for guidelines and best practices.
+- Raise software issues or feature requests in [GitHub](https://github.com/canonical/notary/issues)
+- Meet the community and chat with us on [Matrix](https://matrix.to/#/!yAkGlrYcBFYzYRvOlQ:ubuntu.com?via=ubuntu.com&via=matrix.org&via=mozilla.org)
+
+## Getting Started
 
 Install the snap:
 ```bash
@@ -23,32 +29,27 @@ sudo snap start notary.notaryd
 
 Navigate to `https://localhost:3000` to access the Notary UI.
 
-### From OCI Image
+## How-to Guides
+
+### Install
+
+#### Snap
 
 ```bash
-# Pull the OCI image from github and run it in docker
-docker pull ghcr.io/canonical/notary:latest
-docker run -d --name notary -p 3000:3000 ghcr.io/canonical/notary:latest
-# Push the 3 required files and restart the workload
-docker exec notary /usr/bin/pebble mkdir -p /etc/notary/config
-docker exec notary /usr/bin/pebble mkdir -p /var/lib/notary/database
-docker cp key.pem notary:/etc/notary/config/key.pem
-docker cp cert.pem notary:/etc/notary/config/cert.pem
-docker cp config.yaml notary:/etc/notary/config/config.yaml
-docker restart notary
+sudo snap install notary
 ```
 
-### From Source
-
-go and npm CLI tools need to be installed in order to build notary from source.
-You will need to build the frontend first, and then install notary with Go.
+#### Charmed Operator
 
 ```bash
-npm install --prefix ui && npm run build --prefix ui && go install ./...
-notary -config ./config.yaml
+juju deploy notary-k8s
 ```
 
-## Configuration
+For more information on using Notary in the Juju ecosystem, read the [charm documentation](https://charmhub.io/notary-k8s).
+
+## Reference
+
+### Configuration
 
 Notary takes a YAML config file as input. The config file can be passed to Notary using the `-config` flag.
 
@@ -79,7 +80,7 @@ openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 1 -out cert.pem 
 
 Notary does not support insecure http connections.
 
-## API
+### API
 
 | Endpoint                                               | HTTP Method | Description                                    | Parameters         |
 | ------------------------------------------------------ | ----------- | ---------------------------------------------- | ------------------ |

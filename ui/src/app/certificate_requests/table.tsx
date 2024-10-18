@@ -5,7 +5,7 @@ import { Button, MainTable, Panel, EmptyState, ContextualMenu, ConfirmationModal
 import { RequiredCSRParams, deleteCSR, rejectCSR, revokeCertificate } from "../queries"
 import { useCookies } from "react-cookie";
 import { extractCSR, extractCert, splitBundle } from "../utils";
-import { UseMutationResult, useMutation, useQueryClient } from "react-query"
+import { UseMutationResult, useMutation, useQueryClient } from "@tanstack/react-query"
 import { SubmitCertificateModal, SuccessNotification } from "./components"
 
 
@@ -49,16 +49,19 @@ export function CertificateRequestsTable({ csrs: rows }: TableProps) {
     const [showCertContent, setShowCertContent] = useState<number | null>(null);
     const [successNotificationId, setSuccessNotificationId] = useState<number | null>(null);
 
-    const deleteMutation = useMutation(deleteCSR, {
-        onSuccess: () => queryClient.invalidateQueries('csrs'),
+    const deleteMutation = useMutation({
+        mutationFn: deleteCSR,
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['csrs'] }),
     });
 
-    const rejectMutation = useMutation(rejectCSR, {
-        onSuccess: () => queryClient.invalidateQueries('csrs'),
+    const rejectMutation = useMutation({
+        mutationFn: rejectCSR,
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['csrs'] }),
     });
 
-    const revokeMutation = useMutation(revokeCertificate, {
-        onSuccess: () => queryClient.invalidateQueries('csrs'),
+    const revokeMutation = useMutation({
+        mutationFn: revokeCertificate,
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['csrs'] }),
     });
 
     const mutationFunc = (mutation: UseMutationResult<any, unknown, RequiredCSRParams, unknown>, params: RequiredCSRParams) => {

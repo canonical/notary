@@ -2,7 +2,7 @@
 
 import { useState, ChangeEvent } from "react"
 import { getStatus, login, postFirstUser } from "../queries"
-import { useMutation, useQuery } from "react-query"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import { passwordIsValid } from "../utils"
 import { useAuth } from "../auth/authContext"
@@ -16,13 +16,15 @@ export default function Initialize() {
     const auth = useAuth()
     const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
     const statusQuery = useQuery<statusResponse, Error>({
-        queryFn: () => getStatus()
+        queryKey: ["status"],
+        queryFn: () => getStatus(),
     })
     if (statusQuery.data && statusQuery.data.initialized) {
         auth.setFirstUserCreated(true)
         router.push("/login")
     }
-    const loginMutation = useMutation(login, {
+    const loginMutation = useMutation({
+        mutationFn: login,
         onSuccess: (result) => {
             setErrorText("")
             setCookie('user_token', result?.token, {
@@ -36,7 +38,8 @@ export default function Initialize() {
             setErrorText(e.message)
         }
     })
-    const postUserMutation = useMutation(postFirstUser, {
+    const postUserMutation = useMutation({
+        mutationFn: postFirstUser,
         onSuccess: () => {
             setErrorText("")
             auth.setFirstUserCreated(true)

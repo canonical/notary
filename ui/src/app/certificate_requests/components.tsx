@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction, useState, ChangeEvent, useEffect } from "react"
-import { useMutation, useQueryClient } from "react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { csrMatchesCertificate, splitBundle, validateBundle } from "../utils"
 import { postCertToID } from "../queries"
 import { useCookies } from "react-cookie"
@@ -19,9 +19,10 @@ export function SubmitCertificateModal({ id, csr, cert, setFormOpen }: SubmitCer
     const [validationErrorText, setValidationErrorText] = useState<string>("");
     const queryClient = useQueryClient();
 
-    const mutation = useMutation(postCertToID, {
+    const mutation = useMutation({
+        mutationFn: postCertToID,
         onSuccess: () => {
-            queryClient.invalidateQueries('csrs');
+            queryClient.invalidateQueries({ queryKey: ['csrs'] });
             setErrorText("");
             setFormOpen(false);
         },

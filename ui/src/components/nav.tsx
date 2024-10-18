@@ -6,9 +6,9 @@ import Image from "next/image";
 import { Aside, AsideContext } from "./aside";
 import { AccountTab } from "./nav_account"
 import { usePathname } from "next/navigation";
-import { useAuth } from "../app/auth/authContext";
-import UploadCSRAsidePanel from "../app/(notary)/certificate_requests/asideForm";
-import UploadUserAsidePanel from "../app/(notary)/users/asideForm";
+import { useAuth } from "@/app/auth/authContext";
+import UploadCSRAsidePanel from "@/app/(notary)/certificate_requests/asideForm";
+import UploadUserAsidePanel from "@/app/(notary)/users/asideForm";
 import { getStatus } from "@/queries"
 import { ChangePasswordModalData, ChangePasswordModal, ChangePasswordModalContext } from "../app/(notary)/users/components";
 

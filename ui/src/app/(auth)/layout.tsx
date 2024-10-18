@@ -1,6 +1,6 @@
 "use client"
 import '@/globals.scss'
-import { AuthProvider } from "../auth/authContext";
+import { AuthProvider } from "@/app/auth/authContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const queryClient = new QueryClient()

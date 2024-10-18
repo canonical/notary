@@ -1,16 +1,16 @@
 "use client"
 
 import { SetStateAction, Dispatch, useState, useEffect } from "react"
-import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { Aside, AsideContext } from "./aside";
 import { AccountTab } from "./nav_account"
 import { usePathname } from "next/navigation";
-import { useAuth } from "./auth/authContext";
-import UploadCSRAsidePanel from "./(notary)/certificate_requests/asideForm";
-import UploadUserAsidePanel from "./(notary)/users/asideForm";
-import { getStatus } from "./queries"
-import { ChangePasswordModalData, ChangePasswordModal, ChangePasswordModalContext } from "./(notary)/users/components";
+import { useAuth } from "../app/auth/authContext";
+import UploadCSRAsidePanel from "../app/(notary)/certificate_requests/asideForm";
+import UploadUserAsidePanel from "../app/(notary)/users/asideForm";
+import { getStatus } from "@/queries"
+import { ChangePasswordModalData, ChangePasswordModal, ChangePasswordModalContext } from "../app/(notary)/users/components";
 
 export function SideBar({ activePath, sidebarVisible, setSidebarVisible }: { activePath: string, sidebarVisible: boolean, setSidebarVisible: Dispatch<SetStateAction<boolean>> }) {
     const auth = useAuth()
@@ -110,16 +110,13 @@ export function Logo() {
     )
 }
 
-const queryClient = new QueryClient()
 export default function Navigation({
     children,
 }: Readonly<{
     children: React.ReactNode;
 }>) {
     const activePath = usePathname()
-    const noNavRoutes = ['/login', '/initialize'];
 
-    const shouldRenderNavigation = !noNavRoutes.includes(activePath);
     const [sidebarVisible, setSidebarVisible] = useState<boolean>(true)
     const [asideOpen, setAsideOpen] = useState<boolean>(false)
     const [asideData, setAsideData] = useState<any>(null)
@@ -129,28 +126,18 @@ export default function Navigation({
         asideForm = UploadUserAsidePanel
     }
     return (
-        <QueryClientProvider client={queryClient}>
-            <div className="l-application" role="presentation">
-                <AsideContext.Provider value={{ isOpen: asideOpen, setIsOpen: setAsideOpen, extraData: asideData, setExtraData: setAsideData }}>
-                    <ChangePasswordModalContext.Provider value={{ modalData: changePasswordModalData, setModalData: setChangePasswordModalData }}>
-                        {
-                            shouldRenderNavigation ? (
-                                <>
-                                    <TopBar setSidebarVisible={setSidebarVisible} />
-                                    <SideBar activePath={activePath} sidebarVisible={sidebarVisible} setSidebarVisible={setSidebarVisible} />
-                                </>
-                            ) : (
-                                <></>
-                            )
-                        }
-                    </ChangePasswordModalContext.Provider>
-                    <main className="l-main">
-                        {children}
-                        {changePasswordModalData != null && <ChangePasswordModal modalData={changePasswordModalData} setModalData={setChangePasswordModalData} />}
-                    </main>
-                    <Aside FormComponent={asideForm} />
-                </AsideContext.Provider>
-            </div >
-        </QueryClientProvider>
+        <div className="l-application" role="presentation">
+            <AsideContext.Provider value={{ isOpen: asideOpen, setIsOpen: setAsideOpen, extraData: asideData, setExtraData: setAsideData }}>
+                <ChangePasswordModalContext.Provider value={{ modalData: changePasswordModalData, setModalData: setChangePasswordModalData }}>
+                    <TopBar setSidebarVisible={setSidebarVisible} />
+                    <SideBar activePath={activePath} sidebarVisible={sidebarVisible} setSidebarVisible={setSidebarVisible} />
+                </ChangePasswordModalContext.Provider>
+                <main className="l-main">
+                    {children}
+                    {changePasswordModalData != null && <ChangePasswordModal modalData={changePasswordModalData} setModalData={setChangePasswordModalData} />}
+                </main>
+                <Aside FormComponent={asideForm} />
+            </AsideContext.Provider>
+        </div >
     )
 }

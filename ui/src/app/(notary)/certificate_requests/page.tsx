@@ -2,12 +2,12 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { CertificateRequestsTable } from "./table"
-import { getCertificateRequests } from "../../queries"
-import { CSREntry } from "../../types"
+import { getCertificateRequests } from "@/queries"
+import { CSREntry } from "@/types"
 import { useCookies } from "react-cookie"
 import { useRouter } from "next/navigation"
-import Loading from "../../loading"
-import Error from "../../error"
+import Loading from "@/components/loading"
+import Error from "@/components/error"
 
 
 export default function CertificateRequests() {

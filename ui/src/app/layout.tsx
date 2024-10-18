@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import './globals.scss'
-import Navigation from "@/app/nav";
-import { AuthProvider } from "./auth/authContext";
+import '@/globals.scss'
 
 export const metadata: Metadata = {
   title: "Notary",
@@ -18,13 +16,7 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
-      <body>
-        <AuthProvider>
-          <Navigation>
-            {children}
-          </Navigation>
-        </AuthProvider>
-      </body>
+      {children}
     </html>
   );
 }

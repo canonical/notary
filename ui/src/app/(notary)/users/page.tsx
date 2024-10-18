@@ -1,13 +1,13 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { ListUsers } from "../../queries"
-import { UserEntry } from "../../types"
+import { ListUsers } from "@/queries"
+import { UserEntry } from "@/types"
 import { useCookies } from "react-cookie"
 import { useRouter } from "next/navigation"
 import { UsersTable } from "./table"
-import Loading from "../../loading"
-import Error from "../../error"
+import Loading from "@/components/loading"
+import Error from "@/components/error"
 
 export default function Users() {
     const router = useRouter()

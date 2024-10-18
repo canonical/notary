@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { csrIsValid } from "../../utils";
+import { csrIsValid } from "@/utils";
 import { useCookies } from "react-cookie";
-import { postCSR } from "../../queries";
+import { postCSR } from "@/queries";
 import { ChangeEvent, useContext, useState, useEffect } from "react";
-import { AsideContext } from "../../aside";
+import { AsideContext } from "@/components/aside";
 import { Textarea, Button, Input, Panel, Form } from "@canonical/react-components";
 
 

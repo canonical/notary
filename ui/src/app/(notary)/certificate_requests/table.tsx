@@ -1,10 +1,10 @@
 import { useContext, useState, Dispatch, SetStateAction } from "react";
-import { AsideContext } from "../aside";
-import { CSREntry } from "../types";
+import { AsideContext } from "../../aside";
+import { CSREntry } from "../../types";
 import { Button, MainTable, Panel, EmptyState, ContextualMenu, ConfirmationModal } from "@canonical/react-components";
-import { RequiredCSRParams, deleteCSR, rejectCSR, revokeCertificate } from "../queries"
+import { RequiredCSRParams, deleteCSR, rejectCSR, revokeCertificate } from "../../queries"
 import { useCookies } from "react-cookie";
-import { extractCSR, extractCert, splitBundle } from "../utils";
+import { extractCSR, extractCert, splitBundle } from "../../utils";
 import { UseMutationResult, useMutation, useQueryClient } from "@tanstack/react-query"
 import { SubmitCertificateModal, SuccessNotification } from "./components"
 

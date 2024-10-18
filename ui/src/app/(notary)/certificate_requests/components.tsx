@@ -1,7 +1,7 @@
 import { Dispatch, SetStateAction, useState, ChangeEvent, useEffect } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { csrMatchesCertificate, splitBundle, validateBundle } from "../utils"
-import { postCertToID } from "../queries"
+import { csrMatchesCertificate, splitBundle, validateBundle } from "../../utils"
+import { postCertToID } from "../../queries"
 import { useCookies } from "react-cookie"
 import { Button, Input, Textarea, Form, Modal, Icon } from "@canonical/react-components";
 

@@ -1,7 +1,7 @@
 import { useContext, useState } from "react";
 import { useAuth } from "./auth/authContext";
 import { useCookies } from "react-cookie";
-import { ChangePasswordModalContext } from "./users/components";
+import { ChangePasswordModalContext } from "./(notary)/users/components";
 
 
 export function AccountTab() {

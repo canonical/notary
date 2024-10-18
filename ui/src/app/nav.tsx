@@ -7,10 +7,10 @@ import { Aside, AsideContext } from "./aside";
 import { AccountTab } from "./nav_account"
 import { usePathname } from "next/navigation";
 import { useAuth } from "./auth/authContext";
-import UploadCSRAsidePanel from "./certificate_requests/asideForm";
-import UploadUserAsidePanel from "./users/asideForm";
+import UploadCSRAsidePanel from "./(notary)/certificate_requests/asideForm";
+import UploadUserAsidePanel from "./(notary)/users/asideForm";
 import { getStatus } from "./queries"
-import { ChangePasswordModalData, ChangePasswordModal, ChangePasswordModalContext } from "./users/components";
+import { ChangePasswordModalData, ChangePasswordModal, ChangePasswordModalContext } from "./(notary)/users/components";
 
 export function SideBar({ activePath, sidebarVisible, setSidebarVisible }: { activePath: string, sidebarVisible: boolean, setSidebarVisible: Dispatch<SetStateAction<boolean>> }) {
     const auth = useAuth()

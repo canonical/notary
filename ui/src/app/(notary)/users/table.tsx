@@ -1,11 +1,11 @@
 import { useState, useContext } from "react"
-import { AsideContext } from "../aside"
-import { UserEntry } from "../types"
+import { AsideContext } from "../../aside"
+import { UserEntry } from "../../types"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Button, ContextualMenu, MainTable, Panel } from "@canonical/react-components";
 import { ConfirmationModalData, UsersConfirmationModal, ChangePasswordModalData, ChangePasswordModal } from "./components"
-import { useAuth } from "../auth/authContext"
-import { deleteUser } from "../queries"
+import { useAuth } from "../../auth/authContext"
+import { deleteUser } from "../../queries"
 
 type TableProps = {
     users: UserEntry[]

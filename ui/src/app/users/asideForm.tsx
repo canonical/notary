@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { passwordIsValid } from "../utils";
 import { changePassword, postUser } from "../queries";
 import { ChangeEvent, useContext, useState } from "react";
@@ -33,9 +33,10 @@ function AddNewUserForm() {
     const auth = useAuth()
     const queryClient = useQueryClient()
     const asideContext = useContext(AsideContext)
-    const mutation = useMutation(postUser, {
+    const mutation = useMutation({
+        mutationFn: postUser,
         onSuccess: () => {
-            queryClient.invalidateQueries('users')
+            queryClient.invalidateQueries({ queryKey: ['users'] })
             setErrorText("")
             asideContext.setIsOpen(false)
         },
@@ -95,9 +96,10 @@ function ChangePasswordForm() {
     const auth = useAuth()
     const asideContext = useContext(AsideContext)
     const queryClient = useQueryClient()
-    const mutation = useMutation(changePassword, {
+    const mutation = useMutation({
+        mutationFn: changePassword,
         onSuccess: () => {
-            queryClient.invalidateQueries('users')
+            queryClient.invalidateQueries({ queryKey: ['users'] })
             setErrorText("")
             asideContext.setIsOpen(false)
         },

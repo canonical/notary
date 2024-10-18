@@ -1,6 +1,6 @@
 import { Dispatch, SetStateAction, useState, ChangeEvent, createContext } from "react"
 import { useAuth } from "../auth/authContext"
-import { useMutation, useQueryClient } from "react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { changePassword } from "../queries"
 import { passwordIsValid } from "../utils"
 import { ConfirmationModal, Modal, Button, Input, PasswordToggle, Form } from "@canonical/react-components";
@@ -45,9 +45,10 @@ export function UsersConfirmationModal({ modalData, setModalData }: Confirmation
 export function ChangePasswordModal({ modalData, setModalData }: ChangePasswordModalProps) {
     const auth = useAuth()
     const queryClient = useQueryClient()
-    const mutation = useMutation(changePassword, {
+    const mutation = useMutation({
+        mutationFn: changePassword,
         onSuccess: () => {
-            queryClient.invalidateQueries('users')
+            queryClient.invalidateQueries({ queryKey: ['users'] })
             setErrorText("")
             setModalData(null)
         },

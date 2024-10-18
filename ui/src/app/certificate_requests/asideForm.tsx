@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { csrIsValid } from "../utils";
 import { useCookies } from "react-cookie";
 import { postCSR } from "../queries";
@@ -14,11 +14,12 @@ export default function CertificateRequestsAsidePanel(): JSX.Element {
     const [CSRPEMString, setCSRPEMString] = useState<string>("");
     const queryClient = useQueryClient();
 
-    const mutation = useMutation(postCSR, {
+    const mutation = useMutation({
+        mutationFn: postCSR,
         onSuccess: () => {
             setErrorText("");
             asideContext.setIsOpen(false);
-            queryClient.invalidateQueries('csrs');
+            queryClient.invalidateQueries({ queryKey: ['csrs'] });
         },
         onError: (e: Error) => {
             setErrorText(e.message);

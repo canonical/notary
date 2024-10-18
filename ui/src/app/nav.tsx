@@ -1,7 +1,7 @@
 "use client"
 
 import { SetStateAction, Dispatch, useState, useEffect } from "react"
-import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from "react-query";
+import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import { Aside, AsideContext } from "./aside";
 import { AccountTab } from "./nav_account"
@@ -15,9 +15,9 @@ import { ChangePasswordModalData, ChangePasswordModal, ChangePasswordModalContex
 export function SideBar({ activePath, sidebarVisible, setSidebarVisible }: { activePath: string, sidebarVisible: boolean, setSidebarVisible: Dispatch<SetStateAction<boolean>> }) {
     const auth = useAuth()
     const statusQuery = useQuery({
+        queryKey: ["status"],
         queryFn: getStatus,
         staleTime: Infinity,
-        cacheTime: Infinity,
         refetchOnWindowFocus: false,
         refetchOnMount: false,
         refetchOnReconnect: false,

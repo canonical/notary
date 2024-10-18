@@ -1,7 +1,7 @@
 "use client"
 
 import { getStatus, login } from "../queries"
-import { useMutation, useQuery } from "react-query"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import { useState, ChangeEvent } from "react"
 import { useCookies } from "react-cookie"
 import { useRouter } from "next/navigation"
@@ -15,12 +15,14 @@ export default function LoginPage() {
     const auth = useAuth()
     const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
     const statusQuery = useQuery<statusResponse, Error>({
+        queryKey: ["status"],
         queryFn: () => getStatus()
     })
     if (!auth.firstUserCreated && (statusQuery.data && !statusQuery.data.initialized)) {
         router.push("/initialize")
     }
-    const mutation = useMutation(login, {
+    const mutation = useMutation({
+        mutationFn: login,
         onSuccess: (result) => {
             setErrorText("")
             setCookie('user_token', result?.token, {

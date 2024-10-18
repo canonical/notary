@@ -1,6 +1,6 @@
 "use client"
 
-import { useQuery } from "react-query"
+import { useQuery } from "@tanstack/react-query"
 import { ListUsers } from "../queries"
 import { UserEntry } from "../types"
 import { useCookies } from "react-cookie"
@@ -25,7 +25,7 @@ export default function Users() {
             return true
         },
     })
-    if (query.status == "loading") { return <Loading /> }
+    if (query.status == "pending") { return <Loading /> }
     if (query.status == "error") {
         if (query.error.message.includes("401")) {
             removeCookie("user_token")

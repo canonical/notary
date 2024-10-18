@@ -10,7 +10,7 @@ import { useAuth } from "@/app/auth/authContext";
 import UploadCSRAsidePanel from "@/app/(notary)/certificate_requests/asideForm";
 import UploadUserAsidePanel from "@/app/(notary)/users/asideForm";
 import { getStatus } from "@/queries"
-import { ChangePasswordModalData, ChangePasswordModal, ChangePasswordModalContext } from "../app/(notary)/users/components";
+import { ChangePasswordModalData, ChangePasswordModal, ChangePasswordModalContext } from "@/app/(notary)/users/components";
 
 export function SideBar({ activePath, sidebarVisible, setSidebarVisible }: { activePath: string, sidebarVisible: boolean, setSidebarVisible: Dispatch<SetStateAction<boolean>> }) {
   const auth = useAuth()

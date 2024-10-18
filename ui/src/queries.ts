@@ -1,5 +1,5 @@
-import { CSREntry, UserEntry } from "./types"
-import { HTTPStatus } from "./utils"
+import { CSREntry, UserEntry } from "@/types"
+import { HTTPStatus } from "@/utils"
 
 export type RequiredCSRParams = {
     id: string

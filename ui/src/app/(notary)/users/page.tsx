@@ -1,24 +1,23 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { CertificateRequestsTable } from "./table"
-import { getCertificateRequests } from "../queries"
-import { CSREntry } from "../types"
+import { ListUsers } from "@/queries"
+import { UserEntry } from "@/types"
 import { useCookies } from "react-cookie"
 import { useRouter } from "next/navigation"
-import Loading from "../loading"
-import Error from "../error"
+import { UsersTable } from "./table"
+import Loading from "@/components/loading"
+import Error from "@/components/error"
 
-
-export default function CertificateRequests() {
+export default function Users() {
     const router = useRouter()
     const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
     if (!cookies.user_token) {
         router.push("/login")
     }
-    const query = useQuery<CSREntry[], Error>({
-        queryKey: ['csrs', cookies.user_token],
-        queryFn: () => getCertificateRequests({ authToken: cookies.user_token }),
+    const query = useQuery<UserEntry[], Error>({
+        queryKey: ['users', cookies.user_token],
+        queryFn: () => ListUsers({ authToken: cookies.user_token }),
         retry: (failureCount, error): boolean => {
             if (error.message.includes("401")) {
                 return false
@@ -33,8 +32,6 @@ export default function CertificateRequests() {
         }
         return <Error msg={query.error.message} />
     }
-    const csrs = Array.from(query.data ? query.data : [])
-    return (
-        <CertificateRequestsTable csrs={csrs} />
-    )
+    const users = Array.from(query.data ? query.data : [])
+    return <UsersTable users={users} />
 }

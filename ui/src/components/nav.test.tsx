@@ -1,7 +1,7 @@
 import { expect, describe, it, vi } from "vitest";
 import { render, fireEvent, screen } from '@testing-library/react'
 import Navigation from "../components/nav";
-import { CertificateRequestsTable } from "./(notary)/certificate_requests/table";
+import { CertificateRequestsTable } from "@/app/(notary)/certificate_requests/table";
 import { User } from "../types";
 
 vi.mock('next/navigation', () => ({

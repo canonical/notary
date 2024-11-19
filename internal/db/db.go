@@ -143,10 +143,7 @@ func (db *Database) CreateCSR(csr string) error {
 		CSR: csr,
 	}
 	err = db.conn.Query(context.Background(), stmt, row).Run()
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // AddCertificateChainToCSRbyCSR adds a new certificate chain to a row for a given CSR string.
@@ -170,10 +167,7 @@ func (db *Database) AddCertificateChainToCSRbyCSR(csr string, cert string) error
 		RequestStatus:    "Active",
 	}
 	err = db.conn.Query(context.Background(), stmt, newRow).Run()
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // AddCertificateChainToCSRbyID adds a new certificate chain to a row for a given row ID.
@@ -201,10 +195,7 @@ func (db *Database) AddCertificateToCSRbyID(id int, cert string) error {
 		RequestStatus:    "Active",
 	}
 	err = db.conn.Query(context.Background(), stmt, newRow).Run()
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // RejectCSRbyCSR updates input CSR's row by setting the certificate bundle to "" and moving the row status to "Rejected".
@@ -224,10 +215,7 @@ func (db *Database) RejectCSRbyCSR(csr string) error {
 		RequestStatus:    "Rejected",
 	}
 	err = db.conn.Query(context.Background(), stmt, newRow).Run()
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // RejectCSRbyCSR updates input ID's row by setting the certificate bundle to "" and sets the row status to "Rejected".
@@ -247,10 +235,7 @@ func (db *Database) RejectCSRbyID(id int) error {
 		RequestStatus:    "Rejected",
 	}
 	err = db.conn.Query(context.Background(), stmt, newRow).Run()
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // RevokeCSR updates the input CSR's row by setting the certificate bundle to "" and sets the row status to "Revoked".
@@ -270,10 +255,7 @@ func (db *Database) RevokeCSR(csr string) error {
 		RequestStatus:    "Revoked",
 	}
 	err = db.conn.Query(context.Background(), stmt, newRow).Run()
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // DeleteCSRbyCSR removes a CSR from the database alongside the certificate that may have been generated for it.
@@ -286,10 +268,7 @@ func (db *Database) DeleteCSRbyCSR(csr string) error {
 		CSR: csr,
 	}
 	err = db.conn.Query(context.Background(), stmt, row).Run()
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // DeleteCSRByID removes a CSR from the database alongside the certificate that may have been generated for it.
@@ -302,10 +281,7 @@ func (db *Database) DeleteCSRbyID(id int) error {
 		ID: id,
 	}
 	err = db.conn.Query(context.Background(), stmt, row).Run()
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // RetrieveAllUsers returns all of the users and their fields available in the database.
@@ -372,10 +348,7 @@ func (db *Database) CreateUser(username string, password string, permission int)
 		Permissions:    permission,
 	}
 	err = db.conn.Query(context.Background(), stmt, row).Run()
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // UpdateUser updates the password of the given user.
@@ -398,10 +371,7 @@ func (db *Database) UpdateUserPassword(id int, password string) error {
 		HashedPassword: string(pw),
 	}
 	err = db.conn.Query(context.Background(), stmt, row).Run()
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // DeleteUserByID removes a user from the table.
@@ -418,10 +388,7 @@ func (db *Database) DeleteUserByID(id int) error {
 		ID: id,
 	}
 	err = db.conn.Query(context.Background(), stmt, row).Run()
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 type NumUsers struct {

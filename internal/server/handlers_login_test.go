@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -46,7 +47,9 @@ func login(url string, client *http.Client, data *LoginParams) (int, *LoginRespo
 }
 
 func TestLoginEndToEnd(t *testing.T) {
-	ts, config, err := setupServer()
+	tempDir := t.TempDir()
+	db_path := filepath.Join(tempDir, "db.sqlite3")
+	ts, config, err := setupServer(db_path)
 	if err != nil {
 		t.Fatalf("couldn't create test server: %s", err)
 	}

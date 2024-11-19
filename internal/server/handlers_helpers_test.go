@@ -10,8 +10,8 @@ import (
 	"github.com/canonical/notary/internal/server"
 )
 
-func setupServer() (*httptest.Server, *server.HandlerConfig, error) {
-	testdb, err := db.NewDatabase(":memory:")
+func setupServer(filepath string) (*httptest.Server, *server.HandlerConfig, error) {
+	testdb, err := db.NewDatabase(filepath)
 	if err != nil {
 		return nil, nil, err
 	}

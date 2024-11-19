@@ -21,7 +21,8 @@ import (
 
 // TestPrometheusHandler tests that the Prometheus metrics handler responds correctly to an HTTP request.
 func TestPrometheusHandler(t *testing.T) {
-	db, err := db.NewDatabase(":memory:")
+	tempDir := t.TempDir()
+	db, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,13 +96,13 @@ func generateCertPair(daysRemaining int) (string, string, string) {
 }
 
 func initializeTestDB(t *testing.T, db *db.Database) {
-	for i, v := range []int{5, 10, 32} {
+	for _, v := range []int{5, 10, 32} {
 		csr, cert, ca := generateCertPair(v)
-		_, err := db.CreateCSR(csr)
+		err := db.CreateCSR(csr)
 		if err != nil {
 			t.Fatalf("couldn't create test csr: %s", err)
 		}
-		_, err = db.UpdateCSR(fmt.Sprint(i+1), fmt.Sprintf("%s%s", cert, ca))
+		err = db.AddCertificateChainToCSRbyCSR(csr, fmt.Sprintf("%s%s", cert, ca))
 		if err != nil {
 			t.Fatalf("couldn't create test cert: %s", err)
 		}

@@ -2,12 +2,15 @@ package server_test
 
 import (
 	"net/http"
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
 func TestAuthorizationNoAuth(t *testing.T) {
-	ts, _, err := setupServer()
+	tempDir := t.TempDir()
+	db_path := filepath.Join(tempDir, "db.sqlite3")
+	ts, _, err := setupServer(db_path)
 	if err != nil {
 		t.Fatalf("couldn't create test server: %s", err)
 	}
@@ -47,7 +50,9 @@ func TestAuthorizationNoAuth(t *testing.T) {
 }
 
 func TestAuthorizationNonAdminAuthorized(t *testing.T) {
-	ts, _, err := setupServer()
+	tempDir := t.TempDir()
+	db_path := filepath.Join(tempDir, "db.sqlite3")
+	ts, _, err := setupServer(db_path)
 	if err != nil {
 		t.Fatalf("couldn't create test server: %s", err)
 	}
@@ -98,7 +103,9 @@ func TestAuthorizationNonAdminAuthorized(t *testing.T) {
 }
 
 func TestAuthorizationNonAdminUnauthorized(t *testing.T) {
-	ts, _, err := setupServer()
+	tempDir := t.TempDir()
+	db_path := filepath.Join(tempDir, "db.sqlite3")
+	ts, _, err := setupServer(db_path)
 	if err != nil {
 		t.Fatalf("couldn't create test server: %s", err)
 	}
@@ -156,7 +163,9 @@ func TestAuthorizationNonAdminUnauthorized(t *testing.T) {
 }
 
 func TestAuthorizationAdminAuthorized(t *testing.T) {
-	ts, _, err := setupServer()
+	tempDir := t.TempDir()
+	db_path := filepath.Join(tempDir, "db.sqlite3")
+	ts, _, err := setupServer(db_path)
 	if err != nil {
 		t.Fatalf("couldn't create test server: %s", err)
 	}
@@ -205,7 +214,9 @@ func TestAuthorizationAdminAuthorized(t *testing.T) {
 }
 
 func TestAuthorizationAdminUnAuthorized(t *testing.T) {
-	ts, _, err := setupServer()
+	tempDir := t.TempDir()
+	db_path := filepath.Join(tempDir, "db.sqlite3")
+	ts, _, err := setupServer(db_path)
 	if err != nil {
 		t.Fatalf("couldn't create test server: %s", err)
 	}

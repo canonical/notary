@@ -95,15 +95,15 @@ func (pm *PrometheusMetrics) GenerateMetrics(csrs []db.CertificateRequest) {
 	var expiringIn30DaysCertCount float64
 	var expiringIn90DaysCertCount float64
 	for _, entry := range csrs {
-		if entry.Certificate == "" {
+		if entry.CertificateChain == "" {
 			outstandingCSRCount += 1
 			continue
 		}
-		if entry.Certificate == "rejected" {
+		if entry.RequestStatus == "Rejected" {
 			continue
 		}
 		certCount += 1
-		expiryDate := certificateExpiryDate(entry.Certificate)
+		expiryDate := certificateExpiryDate(entry.CertificateChain)
 		daysRemaining := time.Until(expiryDate).Hours() / 24
 		if daysRemaining < 0 {
 			expiredCertCount += 1
@@ -218,6 +218,7 @@ func requestDurationMetric() prometheus.HistogramVec {
 }
 
 func certificateExpiryDate(certString string) time.Time {
+	// TODO: Does this return the expiry date of the issuer?
 	certBlock, _ := pem.Decode([]byte(certString))
 	cert, _ := x509.ParseCertificate(certBlock.Bytes)
 	// TODO: cert.NotAfter can exist in a wrong cert. We should catch that at the db level validation

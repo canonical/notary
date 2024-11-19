@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/sqlair"
 )
 
 type CreateAccountParams struct {
@@ -25,18 +26,6 @@ type GetAccountResponse struct {
 	ID          int    `json:"id"`
 	Username    string `json:"username"`
 	Permissions int    `json:"permissions"`
-}
-
-type CreateAccountResponse struct {
-	ID int `json:"id"`
-}
-
-type ChangeAccountResponse struct {
-	ID int `json:"id"`
-}
-
-type DeleteAccountResponse struct {
-	ID int `json:"id"`
 }
 
 func validatePassword(password string) bool {
@@ -87,8 +76,12 @@ func ListAccounts(env *HandlerConfig) http.HandlerFunc {
 func GetAccount(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		var account db.User
-		var err error
+		idNum, err := strconv.Atoi(id)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		var account *db.User
 		if id == "me" {
 			claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
 			if headerErr != nil {
@@ -96,11 +89,11 @@ func GetAccount(env *HandlerConfig) http.HandlerFunc {
 			}
 			account, err = env.DB.RetrieveUserByUsername(claims.Username)
 		} else {
-			account, err = env.DB.RetrieveUser(id)
+			account, err = env.DB.RetrieveUserByID(idNum)
 		}
 		if err != nil {
 			log.Println(err)
-			if errors.Is(err, db.ErrIdNotFound) {
+			if errors.Is(err, sqlair.ErrNoRows) {
 				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}
@@ -150,12 +143,11 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Failed to retrieve accounts: "+err.Error())
 			return
 		}
-
 		permission := UserPermission
 		if numUsers == 0 {
 			permission = AdminPermission
 		}
-		id, err := env.DB.CreateUser(createAccountParams.Username, createAccountParams.Password, permission)
+		err = env.DB.CreateUser(createAccountParams.Username, createAccountParams.Password, permission)
 		if err != nil {
 			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 				writeError(w, http.StatusBadRequest, "account with given username already exists")
@@ -165,11 +157,9 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		accountResponse := CreateAccountResponse{
-			ID: int(id),
-		}
+		successResponse := SuccessResponse{Message: "success"}
 		w.WriteHeader(http.StatusCreated)
-		err = writeJSON(w, accountResponse)
+		err = writeJSON(w, successResponse)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
@@ -182,39 +172,39 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		idInt, err := strconv.ParseInt(id, 10, 64)
+		idInt, err := strconv.Atoi(id)
 		if err != nil {
 			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		account, err := env.DB.RetrieveUser(id)
-		if err != nil {
-			if !errors.Is(err, db.ErrIdNotFound) {
-				log.Println(err)
-				writeError(w, http.StatusInternalServerError, "Internal Error")
-				return
-			}
-		}
-		if account.Permissions == 1 {
-			writeError(w, http.StatusBadRequest, "deleting an Admin account is not allowed.")
-			return
-		}
-		_, err = env.DB.DeleteUser(id)
+		account, err := env.DB.RetrieveUserByID(idInt)
 		if err != nil {
 			log.Println(err)
-			if errors.Is(err, db.ErrIdNotFound) {
+			if errors.Is(err, sqlair.ErrNoRows) {
 				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		deleteAccountResponse := DeleteAccountResponse{
-			ID: int(idInt),
+		if account.Permissions == 1 {
+			writeError(w, http.StatusBadRequest, "deleting an Admin account is not allowed.")
+			return
 		}
+		err = env.DB.DeleteUserByID(idInt)
+		if err != nil {
+			log.Println(err)
+			if errors.Is(err, sqlair.ErrNoRows) {
+				writeError(w, http.StatusNotFound, "Not Found")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		successResponse := SuccessResponse{Message: "success"}
 		w.WriteHeader(http.StatusAccepted)
-		err = writeJSON(w, deleteAccountResponse)
+		err = writeJSON(w, successResponse)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
@@ -225,6 +215,7 @@ func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
 func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
+		var idNum int
 		if id == "me" {
 			claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
 			if err != nil {
@@ -238,7 +229,15 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 				writeError(w, http.StatusUnauthorized, "Unauthorized")
 				return
 			}
-			id = strconv.Itoa(account.ID)
+			idNum = account.ID
+		} else {
+			idInt, err := strconv.Atoi(id)
+			if err != nil {
+				log.Println(err)
+				writeError(w, http.StatusInternalServerError, "Internal Error")
+				return
+			}
+			idNum = idInt
 		}
 		var changeAccountParams ChangeAccountParams
 		if err := json.NewDecoder(r.Body).Decode(&changeAccountParams); err != nil {
@@ -257,21 +256,19 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 			)
 			return
 		}
-		ret, err := env.DB.UpdateUser(id, changeAccountParams.Password)
+		err := env.DB.UpdateUserPassword(idNum, changeAccountParams.Password)
 		if err != nil {
 			log.Println(err)
-			if errors.Is(err, db.ErrIdNotFound) {
+			if errors.Is(err, sqlair.ErrNoRows) {
 				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		changeAccountResponse := ChangeAccountResponse{
-			ID: int(ret),
-		}
+		successResponse := SuccessResponse{Message: "success"}
 		w.WriteHeader(http.StatusCreated)
-		err = writeJSON(w, changeAccountResponse)
+		err = writeJSON(w, successResponse)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return

@@ -22,7 +22,7 @@ type CreateCertificateParams struct {
 type CertificateRequest struct {
 	ID               int    `json:"id"`
 	CSR              string `json:"csr"`
-	CertificateChain string `json:"certificate"`
+	CertificateChain string `json:"certificate_chain"`
 	CSRStatus        string `json:"csr_status"`
 }
 

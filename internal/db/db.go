@@ -48,11 +48,11 @@ const queryCreateCertificateRequestsTable = `
 		certificate_chain TEXT DEFAULT '',
 		status TEXT DEFAULT 'Outstanding', 
 		
-		CHECK (request_status IN ('Outstanding', 'Rejected', 'Revoked', 'Active')),
-		CHECK (NOT (certificate_chain == '' AND request_status == 'Active' )),
-		CHECK (NOT (certificate_chain != '' AND request_status == 'Outstanding'))
-        CHECK (NOT (certificate_chain != '' AND request_status == 'Rejected'))
-        CHECK (NOT (certificate_chain != '' AND request_status == 'Revoked'))
+		CHECK (status IN ('Outstanding', 'Rejected', 'Revoked', 'Active')),
+		CHECK (NOT (certificate_chain == '' AND status == 'Active' )),
+		CHECK (NOT (certificate_chain != '' AND status == 'Outstanding'))
+        CHECK (NOT (certificate_chain != '' AND status == 'Rejected'))
+        CHECK (NOT (certificate_chain != '' AND status == 'Revoked'))
 )`
 
 const queryCreateUsersTable = `
@@ -68,7 +68,7 @@ const (
 	listCertificateRequestsStmt  = "SELECT &CertificateRequest.* FROM %s"
 	getCertificateRequestStmt    = "SELECT &CertificateRequest.* FROM %s WHERE id==$CertificateRequest.id or csr==$CertificateRequest.csr"
 	createCertificateRequestStmt = "INSERT INTO %s (csr) VALUES ($CertificateRequest.csr)"
-	updateCertificateRequestStmt = "UPDATE %s SET certificate_chain=$CertificateRequest.certificate_chain, request_status=$CertificateRequest.request_status WHERE id==$CertificateRequest.id or csr==$CertificateRequest.csr"
+	updateCertificateRequestStmt = "UPDATE %s SET certificate_chain=$CertificateRequest.certificate_chain, status=$CertificateRequest.status WHERE id==$CertificateRequest.id or csr==$CertificateRequest.csr"
 	deleteCertificateRequestStmt = "DELETE FROM %s WHERE id=$CertificateRequest.id or csr=$CertificateRequest.csr"
 )
 

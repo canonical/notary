@@ -2,7 +2,7 @@ export type CSREntry = {
     id: number,
     csr: string,
     certificate_chain: string
-    csr_status: "Outstanding" | "Active" | "Rejected" | "Revoked"
+    status: "Outstanding" | "Active" | "Rejected" | "Revoked"
 }
 
 export type User = {

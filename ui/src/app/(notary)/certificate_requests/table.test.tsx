@@ -25,7 +25,7 @@ uMNMgwl0fxGMQZjrlXyCBhXBm1k6PmwcJGJF5LQ31c+5aTTMFU7SyZhlymctB8mS
 y+ErBQsRpcQho6Ok+HTXQQUcx7WNcwI=
 -----END CERTIFICATE REQUEST-----`,
         'certificate_chain': "",
-        'csr_status': "Outstanding",
+        'status': "Outstanding",
     },
     {
         'id': 2,
@@ -49,7 +49,7 @@ WsDOAOH6qKQKQg3BO/xmRoohC6GL4CuhP7HYGi7+wziNhNZQa4GtE/k9DyIXVtJy
 yuf2PnfXCKnaIWRJNoEqDCZRVMfA5BFSwTPITqyo
 -----END CERTIFICATE REQUEST-----`,
         'certificate_chain': "",
-        'csr_status': "Rejected"
+        'status': "Rejected"
     },
     {
         'id': 3,
@@ -93,7 +93,7 @@ gCX3nqYpp70oZIFDrhmYwE5ij5KXlHD4/1IOfNUKCDmQDgGPLI1tVtwQLjeRq7Hg
 XVelpl/LXTQawmJyvDaVT/Q9P+WqoDiMjrqF6Sy7DzNeeccWVqvqX5TVS6Ky56iS
 Mvo/+PAJHkBciR5Xn+Wg2a+7vrZvT6CBoRSOTozlLSM=
 -----END CERTIFICATE-----`,
-        'csr_status': 'Active'
+        'status': 'Active'
     },
 ]
 

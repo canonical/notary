@@ -139,7 +139,7 @@ export function CertificateRequestsTable({ csrs: rows }: TableProps) {
     };
 
     const csrrows = rows.map((csrEntry) => {
-        const { id, csr, certificate_chain, csr_status } = csrEntry;
+        const { id, csr, certificate_chain, status: csr_status } = csrEntry;
         const csrObj = extractCSR(csr);
         const certs = splitBundle(certificate_chain);
         const clientCertificate = certs?.at(0);

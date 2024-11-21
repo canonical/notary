@@ -40,7 +40,7 @@ const (
 	usersTableName               = "users"
 )
 
-const queryCreateCSRsTable = `
+const queryCreateCertificateRequestsTable = `
 	CREATE TABLE IF NOT EXISTS %s (
 	    id INTEGER PRIMARY KEY AUTOINCREMENT,
 
@@ -429,7 +429,7 @@ func NewDatabase(databasePath string) (*Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := sqlConnection.Exec(fmt.Sprintf(queryCreateCSRsTable, certificateRequestsTableName)); err != nil {
+	if _, err := sqlConnection.Exec(fmt.Sprintf(queryCreateCertificateRequestsTable, certificateRequestsTableName)); err != nil {
 		return nil, err
 	}
 	if _, err := sqlConnection.Exec(fmt.Sprintf(queryCreateUsersTable, usersTableName)); err != nil {

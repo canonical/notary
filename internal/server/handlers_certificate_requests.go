@@ -23,13 +23,13 @@ type CertificateRequest struct {
 	ID               int    `json:"id"`
 	CSR              string `json:"csr"`
 	CertificateChain string `json:"certificate_chain"`
-	CSRStatus        string `json:"csr_status"`
+	Status           string `json:"status"`
 }
 
 // ListCertificateRequests returns all of the Certificate Requests
 func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		csrs, err := env.DB.RetrieveAllCSRs()
+		csrs, err := env.DB.ListCertificateRequests()
 		if err != nil {
 			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
@@ -41,7 +41,7 @@ func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 				ID:               csr.ID,
 				CSR:              csr.CSR,
 				CertificateChain: csr.CertificateChain,
-				CSRStatus:        csr.RequestStatus,
+				Status:           csr.Status,
 			}
 		}
 		w.WriteHeader(http.StatusOK)
@@ -65,7 +65,7 @@ func CreateCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "csr is missing")
 			return
 		}
-		err := env.DB.CreateCSR(createCertificateRequestParams.CSR)
+		err := env.DB.CreateCertificateRequest(createCertificateRequestParams.CSR)
 		if err != nil {
 			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 				writeError(w, http.StatusBadRequest, "given csr already recorded")
@@ -100,7 +100,7 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		csr, err := env.DB.RetrieveCSRbyID(idNum)
+		csr, err := env.DB.GetCertificateRequestByID(idNum)
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, sqlair.ErrNoRows) {
@@ -114,7 +114,7 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			ID:               csr.ID,
 			CSR:              csr.CSR,
 			CertificateChain: csr.CertificateChain,
-			CSRStatus:        csr.RequestStatus,
+			Status:           csr.Status,
 		}
 		w.WriteHeader(http.StatusOK)
 		err = writeJSON(w, certificateRequestResponse)
@@ -135,7 +135,7 @@ func DeleteCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		err = env.DB.DeleteCSRbyID(idNum)
+		err = env.DB.DeleteCertificateRequestByID(idNum)
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, sqlair.ErrNoRows) {
@@ -174,7 +174,7 @@ func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		err = env.DB.AddCertificateToCSRbyID(idNum, createCertificateParams.CertificateChain)
+		err = env.DB.AddCertificateChainToCertificateRequestByID(idNum, createCertificateParams.CertificateChain)
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, sqlair.ErrNoRows) ||
@@ -210,7 +210,7 @@ func RejectCertificate(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		err = env.DB.RejectCSRbyID(idNum)
+		err = env.DB.RejectCertificateRequestByID(idNum)
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, sqlair.ErrNoRows) {
@@ -246,7 +246,7 @@ func DeleteCertificate(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		err = env.DB.DeleteCSRbyID(idNum)
+		err = env.DB.DeleteCertificateRequestByID(idNum)
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, sqlair.ErrNoRows) {

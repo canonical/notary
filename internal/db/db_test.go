@@ -28,27 +28,27 @@ func TestCSRsEndToEnd(t *testing.T) {
 	}
 	defer db.Close()
 
-	err = db.CreateCSR(AppleCSR)
+	err = db.CreateCertificateRequest(AppleCSR)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
-	err = db.CreateCSR(BananaCSR)
+	err = db.CreateCertificateRequest(BananaCSR)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
-	err = db.CreateCSR(StrawberryCSR)
+	err = db.CreateCertificateRequest(StrawberryCSR)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
 
-	res, err := db.RetrieveAllCSRs()
+	res, err := db.ListCertificateRequests()
 	if err != nil {
 		t.Fatalf("Couldn't complete RetrieveAll: %s", err)
 	}
 	if len(res) != 3 {
 		t.Fatalf("One or more CSRs weren't found in DB")
 	}
-	retrievedCSR, err := db.RetrieveCSRbyCSR(AppleCSR)
+	retrievedCSR, err := db.GetCertificateRequestByCSR(AppleCSR)
 	if err != nil {
 		t.Fatalf("Couldn't complete Retrieve: %s", err)
 	}
@@ -56,32 +56,32 @@ func TestCSRsEndToEnd(t *testing.T) {
 		t.Fatalf("The CSR from the database doesn't match the CSR that was given")
 	}
 
-	if err = db.DeleteCSRbyCSR(AppleCSR); err != nil {
+	if err = db.DeleteCertificateRequestByCSR(AppleCSR); err != nil {
 		t.Fatalf("Couldn't complete Delete: %s", err)
 	}
-	res, _ = db.RetrieveAllCSRs()
+	res, _ = db.ListCertificateRequests()
 	if len(res) != 2 {
 		t.Fatalf("CSR's weren't deleted from the DB properly")
 	}
 	BananaCertBundle := strings.TrimSpace(fmt.Sprintf("%s%s", BananaCert, IssuerCert))
-	err = db.AddCertificateChainToCSRbyCSR(BananaCSR, BananaCertBundle)
+	err = db.AddCertificateChainToCertificateRequestByCSR(BananaCSR, BananaCertBundle)
 	if err != nil {
 		t.Fatalf("Couldn't complete Update: %s", err)
 	}
-	retrievedCSR, _ = db.RetrieveCSRbyCSR(BananaCSR)
+	retrievedCSR, _ = db.GetCertificateRequestByCSR(BananaCSR)
 	if retrievedCSR.CertificateChain != BananaCertBundle {
 		t.Fatalf("The certificate that was uploaded does not match the certificate that was given.\n Retrieved: %s\nGiven: %s", retrievedCSR.CertificateChain, BananaCertBundle)
 	}
-	err = db.RevokeCSR(BananaCSR)
+	err = db.RevokeCertificateByCSR(BananaCSR)
 	if err != nil {
 		t.Fatalf("Couldn't complete Update to revoke certificate: %s", err)
 	}
-	err = db.RejectCSRbyCSR(StrawberryCSR)
+	err = db.RejectCertificateRequestByCSR(StrawberryCSR)
 	if err != nil {
 		t.Fatalf("Couldn't complete Update to reject CSR: %s", err)
 	}
-	retrievedCSR, _ = db.RetrieveCSRbyCSR(BananaCSR)
-	if retrievedCSR.RequestStatus != "Revoked" {
+	retrievedCSR, _ = db.GetCertificateRequestByCSR(BananaCSR)
+	if retrievedCSR.Status != "Revoked" {
 		t.Fatalf("Couldn't delete certificate")
 	}
 }
@@ -91,12 +91,12 @@ func TestCreateFails(t *testing.T) {
 	defer db.Close()
 
 	InvalidCSR := strings.ReplaceAll(AppleCSR, "M", "i")
-	if err := db.CreateCSR(InvalidCSR); err == nil {
+	if err := db.CreateCertificateRequest(InvalidCSR); err == nil {
 		t.Fatalf("Expected error due to invalid CSR")
 	}
 
-	db.CreateCSR(AppleCSR) //nolint:errcheck
-	if err := db.CreateCSR(AppleCSR); err == nil {
+	db.CreateCertificateRequest(AppleCSR) //nolint:errcheck
+	if err := db.CreateCertificateRequest(AppleCSR); err == nil {
 		t.Fatalf("Expected error due to duplicate CSR")
 	}
 }
@@ -105,13 +105,13 @@ func TestUpdateFails(t *testing.T) {
 	db, _ := db.NewDatabase(":memory:")
 	defer db.Close()
 
-	db.CreateCSR(AppleCSR)  //nolint:errcheck
-	db.CreateCSR(BananaCSR) //nolint:errcheck
+	db.CreateCertificateRequest(AppleCSR)  //nolint:errcheck
+	db.CreateCertificateRequest(BananaCSR) //nolint:errcheck
 	InvalidCert := strings.ReplaceAll(BananaCert, "/", "+")
-	if err := db.AddCertificateChainToCSRbyCSR(BananaCSR, InvalidCert); err == nil {
+	if err := db.AddCertificateChainToCertificateRequestByCSR(BananaCSR, InvalidCert); err == nil {
 		t.Fatalf("Expected updating with invalid cert to fail")
 	}
-	if err := db.AddCertificateChainToCSRbyCSR(AppleCSR, BananaCert); err == nil {
+	if err := db.AddCertificateChainToCertificateRequestByCSR(AppleCSR, BananaCert); err == nil {
 		t.Fatalf("Expected updating with mismatched cert to fail")
 	}
 }
@@ -120,11 +120,11 @@ func TestRetrieve(t *testing.T) {
 	db, _ := db.NewDatabase(":memory:") //nolint:errcheck
 	defer db.Close()
 
-	db.CreateCSR(AppleCSR) //nolint:errcheck
-	if _, err := db.RetrieveCSRbyCSR("this is definitely not an id"); err == nil {
+	db.CreateCertificateRequest(AppleCSR) //nolint:errcheck
+	if _, err := db.GetCertificateRequestByCSR("this is definitely not an id"); err == nil {
 		t.Fatalf("Expected failure looking for nonexistent CSR")
 	}
-	if _, err := db.RetrieveCSRbyID(-1); err == nil {
+	if _, err := db.GetCertificateRequestByID(-1); err == nil {
 		t.Fatalf("Expected failure looking for nonexistent CSR")
 	}
 }
@@ -145,7 +145,7 @@ func TestUsersEndToEnd(t *testing.T) {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
 
-	res, err := db.RetrieveAllUsers()
+	res, err := db.ListUsers()
 	if err != nil {
 		t.Fatalf("Couldn't complete RetrieveAll: %s", err)
 	}
@@ -159,14 +159,14 @@ func TestUsersEndToEnd(t *testing.T) {
 	if num != 2 {
 		t.Fatalf("NumUsers didn't return the correct number of users")
 	}
-	retrievedUser, err := db.RetrieveUserByUsername("admin")
+	retrievedUser, err := db.GetUserByUsername("admin")
 	if err != nil {
 		t.Fatalf("Couldn't complete Retrieve: %s", err)
 	}
 	if retrievedUser.Username != "admin" {
 		t.Fatalf("The user from the database doesn't match the user that was given")
 	}
-	retrievedUser, err = db.RetrieveUserByID(1)
+	retrievedUser, err = db.GetUserByID(1)
 	if err != nil {
 		t.Fatalf("Couldn't complete Retrieve: %s", err)
 	}
@@ -179,7 +179,7 @@ func TestUsersEndToEnd(t *testing.T) {
 	if err = db.DeleteUserByID(1); err != nil {
 		t.Fatalf("Couldn't complete Delete: %s", err)
 	}
-	res, _ = db.RetrieveAllUsers()
+	res, _ = db.ListUsers()
 	if len(res) != 1 {
 		t.Fatalf("users weren't deleted from the DB properly")
 	}
@@ -187,7 +187,7 @@ func TestUsersEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete Update: %s", err)
 	}
-	retrievedUser, _ = db.RetrieveUserByUsername("norman")
+	retrievedUser, _ = db.GetUserByUsername("norman")
 	if err := bcrypt.CompareHashAndPassword([]byte(retrievedUser.HashedPassword), []byte("thebestpassword")); err != nil {
 		t.Fatalf("The new password that was given does not match the password that was stored.")
 	}
@@ -198,15 +198,15 @@ func Example() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	err = db.CreateCSR(BananaCSR)
+	err = db.CreateCertificateRequest(BananaCSR)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	err = db.AddCertificateChainToCSRbyCSR(BananaCSR, BananaCert)
+	err = db.AddCertificateChainToCertificateRequestByCSR(BananaCSR, BananaCert)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	entry, err := db.RetrieveCSRbyCSR(BananaCSR)
+	entry, err := db.GetCertificateRequestByCSR(BananaCSR)
 	if err != nil {
 		log.Fatalln(err)
 	}

@@ -48,7 +48,7 @@ func validatePassword(password string) bool {
 // ListAccounts returns all accounts from the database
 func ListAccounts(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		accounts, err := env.DB.RetrieveAllUsers()
+		accounts, err := env.DB.ListUsers()
 		if err != nil {
 			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
@@ -87,9 +87,9 @@ func GetAccount(env *HandlerConfig) http.HandlerFunc {
 			if headerErr != nil {
 				writeError(w, http.StatusUnauthorized, "Unauthorized")
 			}
-			account, err = env.DB.RetrieveUserByUsername(claims.Username)
+			account, err = env.DB.GetUserByUsername(claims.Username)
 		} else {
-			account, err = env.DB.RetrieveUserByID(idNum)
+			account, err = env.DB.GetUserByID(idNum)
 		}
 		if err != nil {
 			log.Println(err)
@@ -178,7 +178,7 @@ func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		account, err := env.DB.RetrieveUserByID(idInt)
+		account, err := env.DB.GetUserByID(idInt)
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, sqlair.ErrNoRows) {
@@ -223,7 +223,7 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 				writeError(w, http.StatusUnauthorized, "Unauthorized")
 				return
 			}
-			account, err := env.DB.RetrieveUserByUsername(claims.Username)
+			account, err := env.DB.GetUserByUsername(claims.Username)
 			if err != nil {
 				log.Println(err)
 				writeError(w, http.StatusUnauthorized, "Unauthorized")

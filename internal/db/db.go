@@ -24,7 +24,7 @@ type CertificateRequest struct {
 
 	CSR              string `db:"csr"`
 	CertificateChain string `db:"certificate_chain"`
-	RequestStatus    string `db:"request_status"`
+	Status           string `db:"status"`
 }
 
 type User struct {
@@ -46,7 +46,7 @@ const queryCreateCertificateRequestsTable = `
 
 		csr TEXT NOT NULL UNIQUE, 
 		certificate_chain TEXT DEFAULT '',
-		request_status TEXT DEFAULT 'Outstanding', 
+		status TEXT DEFAULT 'Outstanding', 
 		
 		CHECK (request_status IN ('Outstanding', 'Rejected', 'Revoked', 'Active')),
 		CHECK (NOT (certificate_chain == '' AND request_status == 'Active' )),
@@ -65,15 +65,15 @@ const queryCreateUsersTable = `
 )`
 
 const (
-	getAllCSRsStmt = "SELECT &CertificateRequest.* FROM %s"
-	getCSRsStmt    = "SELECT &CertificateRequest.* FROM %s WHERE id==$CertificateRequest.id or csr==$CertificateRequest.csr"
-	createCSRStmt  = "INSERT INTO %s (csr) VALUES ($CertificateRequest.csr)"
-	updateCSRStmt  = "UPDATE %s SET certificate_chain=$CertificateRequest.certificate_chain, request_status=$CertificateRequest.request_status WHERE id==$CertificateRequest.id or csr==$CertificateRequest.csr"
-	deleteCSRStmt  = "DELETE FROM %s WHERE id=$CertificateRequest.id or csr=$CertificateRequest.csr"
+	listCertificateRequestsStmt  = "SELECT &CertificateRequest.* FROM %s"
+	getCertificateRequestStmt    = "SELECT &CertificateRequest.* FROM %s WHERE id==$CertificateRequest.id or csr==$CertificateRequest.csr"
+	createCertificateRequestStmt = "INSERT INTO %s (csr) VALUES ($CertificateRequest.csr)"
+	updateCertificateRequestStmt = "UPDATE %s SET certificate_chain=$CertificateRequest.certificate_chain, request_status=$CertificateRequest.request_status WHERE id==$CertificateRequest.id or csr==$CertificateRequest.csr"
+	deleteCertificateRequestStmt = "DELETE FROM %s WHERE id=$CertificateRequest.id or csr=$CertificateRequest.csr"
 )
 
 const (
-	getAllUsersStmt = "SELECT &User.* from %s"
+	listUsersStmt   = "SELECT &User.* from %s"
 	getUserStmt     = "SELECT &User.* from %s WHERE id==$User.id or username==$User.username"
 	createUserStmt  = "INSERT INTO %s (username, hashed_password, permissions) VALUES ($User.username, $User.hashed_password, $User.permissions)"
 	updateUserStmt  = "UPDATE %s SET hashed_password=$User.hashed_password WHERE id==$User.id or username==$User.username"
@@ -81,9 +81,9 @@ const (
 	getNumUsersStmt = "SELECT COUNT(*) AS &NumUsers.count FROM %s"
 )
 
-// RetrieveAllCSRs gets every CertificateRequest entry in the table.
-func (db *Database) RetrieveAllCSRs() ([]CertificateRequest, error) {
-	stmt, err := sqlair.Prepare(fmt.Sprintf(getAllCSRsStmt, db.certificateTable), CertificateRequest{})
+// ListCertificateRequests gets every CertificateRequest entry in the table.
+func (db *Database) ListCertificateRequests() ([]CertificateRequest, error) {
+	stmt, err := sqlair.Prepare(fmt.Sprintf(listCertificateRequestsStmt, db.certificateTable), CertificateRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -98,12 +98,12 @@ func (db *Database) RetrieveAllCSRs() ([]CertificateRequest, error) {
 	return csrs, nil
 }
 
-// RetrieveCSRbyID gets a CSR row from the repository from a given ID.
-func (db *Database) RetrieveCSRbyID(id int) (*CertificateRequest, error) {
+// GetCertificateRequestByID gets a CSR row from the repository from a given ID.
+func (db *Database) GetCertificateRequestByID(id int) (*CertificateRequest, error) {
 	csr := CertificateRequest{
 		ID: id,
 	}
-	stmt, err := sqlair.Prepare(fmt.Sprintf(getCSRsStmt, db.certificateTable), CertificateRequest{})
+	stmt, err := sqlair.Prepare(fmt.Sprintf(getCertificateRequestStmt, db.certificateTable), CertificateRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -114,12 +114,12 @@ func (db *Database) RetrieveCSRbyID(id int) (*CertificateRequest, error) {
 	return &csr, nil
 }
 
-// RetrieveCSRbyCSR gets a given CSR row from the repository using the CSR text.
-func (db *Database) RetrieveCSRbyCSR(csr string) (*CertificateRequest, error) {
+// GetCertificateRequestByCSR gets a given CSR row from the repository using the CSR text.
+func (db *Database) GetCertificateRequestByCSR(csr string) (*CertificateRequest, error) {
 	row := CertificateRequest{
 		CSR: csr,
 	}
-	stmt, err := sqlair.Prepare(fmt.Sprintf(getCSRsStmt, db.certificateTable), CertificateRequest{})
+	stmt, err := sqlair.Prepare(fmt.Sprintf(getCertificateRequestStmt, db.certificateTable), CertificateRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -130,12 +130,12 @@ func (db *Database) RetrieveCSRbyCSR(csr string) (*CertificateRequest, error) {
 	return &row, nil
 }
 
-// CreateCSR creates a new CSR entry in the repository. The string must be a valid CSR and unique.
-func (db *Database) CreateCSR(csr string) error {
+// CreateCertificateRequest creates a new CSR entry in the repository. The string must be a valid CSR and unique.
+func (db *Database) CreateCertificateRequest(csr string) error {
 	if err := ValidateCertificateRequest(csr); err != nil {
 		return errors.New("csr validation failed: " + err.Error())
 	}
-	stmt, err := sqlair.Prepare(fmt.Sprintf(createCSRStmt, db.certificateTable), CertificateRequest{})
+	stmt, err := sqlair.Prepare(fmt.Sprintf(createCertificateRequestStmt, db.certificateTable), CertificateRequest{})
 	if err != nil {
 		return err
 	}
@@ -146,8 +146,8 @@ func (db *Database) CreateCSR(csr string) error {
 	return err
 }
 
-// AddCertificateChainToCSRbyCSR adds a new certificate chain to a row for a given CSR string.
-func (db *Database) AddCertificateChainToCSRbyCSR(csr string, cert string) error {
+// AddCertificateChainToCertificateRequestByCSR adds a new certificate chain to a row for a given CSR string.
+func (db *Database) AddCertificateChainToCertificateRequestByCSR(csr string, cert string) error {
 	err := ValidateCertificate(cert)
 	if err != nil {
 		return errors.New("cert validation failed: " + err.Error())
@@ -157,22 +157,22 @@ func (db *Database) AddCertificateChainToCSRbyCSR(csr string, cert string) error
 		return errors.New("cert validation failed: " + err.Error())
 	}
 	certBundle := sanitizeCertificateBundle(cert)
-	stmt, err := sqlair.Prepare(fmt.Sprintf(updateCSRStmt, db.certificateTable), CertificateRequest{})
+	stmt, err := sqlair.Prepare(fmt.Sprintf(updateCertificateRequestStmt, db.certificateTable), CertificateRequest{})
 	if err != nil {
 		return err
 	}
 	newRow := CertificateRequest{
 		CSR:              csr,
 		CertificateChain: certBundle,
-		RequestStatus:    "Active",
+		Status:           "Active",
 	}
 	err = db.conn.Query(context.Background(), stmt, newRow).Run()
 	return err
 }
 
 // AddCertificateChainToCSRbyID adds a new certificate chain to a row for a given row ID.
-func (db *Database) AddCertificateToCSRbyID(id int, cert string) error {
-	csr, err := db.RetrieveCSRbyID(id)
+func (db *Database) AddCertificateChainToCertificateRequestByID(id int, cert string) error {
+	csr, err := db.GetCertificateRequestByID(id)
 	if err != nil {
 		return err
 	}
@@ -185,26 +185,26 @@ func (db *Database) AddCertificateToCSRbyID(id int, cert string) error {
 		return errors.New("cert validation failed: " + err.Error())
 	}
 	certBundle := sanitizeCertificateBundle(cert)
-	stmt, err := sqlair.Prepare(fmt.Sprintf(updateCSRStmt, db.certificateTable), CertificateRequest{})
+	stmt, err := sqlair.Prepare(fmt.Sprintf(updateCertificateRequestStmt, db.certificateTable), CertificateRequest{})
 	if err != nil {
 		return err
 	}
 	newRow := CertificateRequest{
 		ID:               id,
 		CertificateChain: certBundle,
-		RequestStatus:    "Active",
+		Status:           "Active",
 	}
 	err = db.conn.Query(context.Background(), stmt, newRow).Run()
 	return err
 }
 
-// RejectCSRbyCSR updates input CSR's row by setting the certificate bundle to "" and moving the row status to "Rejected".
-func (db *Database) RejectCSRbyCSR(csr string) error {
-	oldRow, err := db.RetrieveCSRbyCSR(csr)
+// RejectCertificateRequestByCSR updates input CSR's row by setting the certificate bundle to "" and moving the row status to "Rejected".
+func (db *Database) RejectCertificateRequestByCSR(csr string) error {
+	oldRow, err := db.GetCertificateRequestByCSR(csr)
 	if err != nil {
 		return err
 	}
-	stmt, err := sqlair.Prepare(fmt.Sprintf(updateCSRStmt, db.certificateTable), CertificateRequest{})
+	stmt, err := sqlair.Prepare(fmt.Sprintf(updateCertificateRequestStmt, db.certificateTable), CertificateRequest{})
 	if err != nil {
 		return err
 	}
@@ -212,39 +212,19 @@ func (db *Database) RejectCSRbyCSR(csr string) error {
 		ID:               oldRow.ID,
 		CSR:              oldRow.CSR,
 		CertificateChain: "",
-		RequestStatus:    "Rejected",
+		Status:           "Rejected",
 	}
 	err = db.conn.Query(context.Background(), stmt, newRow).Run()
 	return err
 }
 
 // RejectCSRbyCSR updates input ID's row by setting the certificate bundle to "" and sets the row status to "Rejected".
-func (db *Database) RejectCSRbyID(id int) error {
-	oldRow, err := db.RetrieveCSRbyID(id)
+func (db *Database) RejectCertificateRequestByID(id int) error {
+	oldRow, err := db.GetCertificateRequestByID(id)
 	if err != nil {
 		return err
 	}
-	stmt, err := sqlair.Prepare(fmt.Sprintf(updateCSRStmt, db.certificateTable), CertificateRequest{})
-	if err != nil {
-		return err
-	}
-	newRow := CertificateRequest{
-		ID:               oldRow.ID,
-		CSR:              oldRow.CSR,
-		CertificateChain: "",
-		RequestStatus:    "Rejected",
-	}
-	err = db.conn.Query(context.Background(), stmt, newRow).Run()
-	return err
-}
-
-// RevokeCSR updates the input CSR's row by setting the certificate bundle to "" and sets the row status to "Revoked".
-func (db *Database) RevokeCSR(csr string) error {
-	oldRow, err := db.RetrieveCSRbyCSR(csr)
-	if err != nil {
-		return err
-	}
-	stmt, err := sqlair.Prepare(fmt.Sprintf(updateCSRStmt, db.certificateTable), CertificateRequest{})
+	stmt, err := sqlair.Prepare(fmt.Sprintf(updateCertificateRequestStmt, db.certificateTable), CertificateRequest{})
 	if err != nil {
 		return err
 	}
@@ -252,15 +232,35 @@ func (db *Database) RevokeCSR(csr string) error {
 		ID:               oldRow.ID,
 		CSR:              oldRow.CSR,
 		CertificateChain: "",
-		RequestStatus:    "Revoked",
+		Status:           "Rejected",
 	}
 	err = db.conn.Query(context.Background(), stmt, newRow).Run()
 	return err
 }
 
-// DeleteCSRbyCSR removes a CSR from the database alongside the certificate that may have been generated for it.
-func (db *Database) DeleteCSRbyCSR(csr string) error {
-	stmt, err := sqlair.Prepare(fmt.Sprintf(deleteCSRStmt, db.certificateTable), CertificateRequest{})
+// RevokeCertificateByCSR updates the input CSR's row by setting the certificate bundle to "" and sets the row status to "Revoked".
+func (db *Database) RevokeCertificateByCSR(csr string) error {
+	oldRow, err := db.GetCertificateRequestByCSR(csr)
+	if err != nil {
+		return err
+	}
+	stmt, err := sqlair.Prepare(fmt.Sprintf(updateCertificateRequestStmt, db.certificateTable), CertificateRequest{})
+	if err != nil {
+		return err
+	}
+	newRow := CertificateRequest{
+		ID:               oldRow.ID,
+		CSR:              oldRow.CSR,
+		CertificateChain: "",
+		Status:           "Revoked",
+	}
+	err = db.conn.Query(context.Background(), stmt, newRow).Run()
+	return err
+}
+
+// DeleteCertificateRequestByCSR removes a CSR from the database alongside the certificate that may have been generated for it.
+func (db *Database) DeleteCertificateRequestByCSR(csr string) error {
+	stmt, err := sqlair.Prepare(fmt.Sprintf(deleteCertificateRequestStmt, db.certificateTable), CertificateRequest{})
 	if err != nil {
 		return err
 	}
@@ -272,8 +272,8 @@ func (db *Database) DeleteCSRbyCSR(csr string) error {
 }
 
 // DeleteCSRByID removes a CSR from the database alongside the certificate that may have been generated for it.
-func (db *Database) DeleteCSRbyID(id int) error {
-	stmt, err := sqlair.Prepare(fmt.Sprintf(deleteCSRStmt, db.certificateTable), CertificateRequest{})
+func (db *Database) DeleteCertificateRequestByID(id int) error {
+	stmt, err := sqlair.Prepare(fmt.Sprintf(deleteCertificateRequestStmt, db.certificateTable), CertificateRequest{})
 	if err != nil {
 		return err
 	}
@@ -284,9 +284,9 @@ func (db *Database) DeleteCSRbyID(id int) error {
 	return err
 }
 
-// RetrieveAllUsers returns all of the users and their fields available in the database.
-func (db *Database) RetrieveAllUsers() ([]User, error) {
-	stmt, err := sqlair.Prepare(fmt.Sprintf(getAllUsersStmt, db.usersTable), User{})
+// ListUsers returns all of the users and their fields available in the database.
+func (db *Database) ListUsers() ([]User, error) {
+	stmt, err := sqlair.Prepare(fmt.Sprintf(listUsersStmt, db.usersTable), User{})
 	if err != nil {
 		return nil, err
 	}
@@ -298,8 +298,8 @@ func (db *Database) RetrieveAllUsers() ([]User, error) {
 	return users, nil
 }
 
-// RetrieveUser retrieves the name, password and the permission level of a user.
-func (db *Database) RetrieveUserByID(id int) (*User, error) {
+// GetUserByID retrieves the name, password and the permission level of a user.
+func (db *Database) GetUserByID(id int) (*User, error) {
 	row := User{
 		ID: id,
 	}
@@ -314,8 +314,8 @@ func (db *Database) RetrieveUserByID(id int) (*User, error) {
 	return &row, nil
 }
 
-// RetrieveUser retrieves the id, password and the permission level of a user.
-func (db *Database) RetrieveUserByUsername(name string) (*User, error) {
+// GetUserByUsername retrieves the id, password and the permission level of a user.
+func (db *Database) GetUserByUsername(name string) (*User, error) {
 	row := User{
 		Username: name,
 	}
@@ -354,7 +354,7 @@ func (db *Database) CreateUser(username string, password string, permission int)
 // UpdateUser updates the password of the given user.
 // Just like with CreateUser, this function handles hashing and salting the password before storage.
 func (db *Database) UpdateUserPassword(id int, password string) error {
-	_, err := db.RetrieveUserByID(id)
+	_, err := db.GetUserByID(id)
 	if err != nil {
 		return err
 	}
@@ -376,7 +376,7 @@ func (db *Database) UpdateUserPassword(id int, password string) error {
 
 // DeleteUserByID removes a user from the table.
 func (db *Database) DeleteUserByID(id int) error {
-	_, err := db.RetrieveUserByID(id)
+	_, err := db.GetUserByID(id)
 	if err != nil {
 		return err
 	}

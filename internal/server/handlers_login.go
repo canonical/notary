@@ -65,7 +65,7 @@ func Login(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Password is required")
 			return
 		}
-		userAccount, err := env.DB.RetrieveUserByUsername(loginParams.Username)
+		userAccount, err := env.DB.GetUserByUsername(loginParams.Username)
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, sqlair.ErrNoRows) {

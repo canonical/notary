@@ -514,7 +514,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		if getCertResponse.Error != "" {
 			t.Fatalf("expected no error, got %s", getCertResponse.Error)
 		}
-		if getCertResponse.Result.CSRStatus != "Rejected" {
+		if getCertResponse.Result.Status != "Rejected" {
 			t.Fatalf("expected `Rejected` status, got %s", getCertResponse.Result.CertificateChain)
 		}
 	})

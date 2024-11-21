@@ -98,11 +98,11 @@ func generateCertPair(daysRemaining int) (string, string, string) {
 func initializeTestDB(t *testing.T, db *db.Database) {
 	for _, v := range []int{5, 10, 32} {
 		csr, cert, ca := generateCertPair(v)
-		err := db.CreateCSR(csr)
+		err := db.CreateCertificateRequest(csr)
 		if err != nil {
 			t.Fatalf("couldn't create test csr: %s", err)
 		}
-		err = db.AddCertificateChainToCSRbyCSR(csr, fmt.Sprintf("%s%s", cert, ca))
+		err = db.AddCertificateChainToCertificateRequestByCSR(csr, fmt.Sprintf("%s%s", cert, ca))
 		if err != nil {
 			t.Fatalf("couldn't create test cert: %s", err)
 		}
@@ -118,7 +118,7 @@ func TestMetrics(t *testing.T) {
 	}
 	initializeTestDB(t, db)
 	m := metrics.NewMetricsSubsystem(db)
-	csrs, _ := db.RetrieveAllCSRs()
+	csrs, _ := db.ListCertificateRequests()
 	m.GenerateMetrics(csrs)
 
 	request, _ := http.NewRequest("GET", "/", nil)

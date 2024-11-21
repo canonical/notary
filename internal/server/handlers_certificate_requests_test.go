@@ -13,12 +13,6 @@ import (
 	"github.com/canonical/notary/internal/server"
 )
 
-// type CertificateRequest struct {
-// 	ID          int    `json:"id"`
-// 	CSR         string `json:"csr"`
-// 	Certificate string `json:"certificate"`
-// }
-
 type GetCertificateRequestResponse struct {
 	Result server.CertificateRequest `json:"result"`
 	Error  string                    `json:"error,omitempty"`

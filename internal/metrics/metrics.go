@@ -218,7 +218,6 @@ func requestDurationMetric() prometheus.HistogramVec {
 }
 
 func certificateExpiryDate(certString string) time.Time {
-	// TODO: Does this return the expiry date of the issuer?
 	certBlock, _ := pem.Decode([]byte(certString))
 	cert, _ := x509.ParseCertificate(certBlock.Bytes)
 	// TODO: cert.NotAfter can exist in a wrong cert. We should catch that at the db level validation

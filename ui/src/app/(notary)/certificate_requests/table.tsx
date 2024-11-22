@@ -139,9 +139,9 @@ export function CertificateRequestsTable({ csrs: rows }: TableProps) {
     };
 
     const csrrows = rows.map((csrEntry) => {
-        const { id, csr, certificate } = csrEntry;
+        const { id, csr, certificate_chain, status: csr_status } = csrEntry;
         const csrObj = extractCSR(csr);
-        const certs = splitBundle(certificate);
+        const certs = splitBundle(certificate_chain);
         const clientCertificate = certs?.at(0);
         const certObj = clientCertificate ? extractCert(clientCertificate) : null;
 
@@ -152,13 +152,13 @@ export function CertificateRequestsTable({ csrs: rows }: TableProps) {
             sortData: {
                 id,
                 common_name: csrObj.commonName,
-                csr_status: certificate === "" ? "outstanding" : (certificate === "rejected" ? "rejected" : "fulfilled"),
+                csr_status: csr_status,
                 cert_expiry_date: certObj?.notAfter || "",
             },
             columns: [
                 { content: id.toString() },
                 { content: csrObj.commonName || "N/A" },
-                { content: certificate === "" ? "outstanding" : (certificate === "rejected" ? "rejected" : "fulfilled") },
+                { content: csr_status },
                 {
                     content: certObj?.notAfter || "",
                     style: { backgroundColor: getExpiryColor(certObj?.notAfter) },
@@ -185,13 +185,13 @@ export function CertificateRequestsTable({ csrs: rows }: TableProps) {
                                     <Button
                                         className="p-contextual-menu__link"
                                         onMouseDown={() => handleExpand(id, 'CSR')}>
-                                        {isCSRContentVisible ? "Hide Certificate Request content" : "Show Certificate Request content"}
+                                        {isCSRContentVisible ? "Hide Certificate Request Content" : "Show Certificate Request Content"}
                                     </Button>
                                     <Button
                                         className="p-contextual-menu__link"
-                                        disabled={certificate == "rejected"}
-                                        onMouseDown={() => handleReject(id)}>
-                                        Reject Certificate Request
+                                        disabled={csr_status == "Rejected"}
+                                        onMouseDown={() => csr_status == "Active" ? handleRevoke(id) : handleReject(id)}>
+                                        {csr_status == "Active" ? "Revoke Certificate Request" : "Reject Certificate Request"}
                                     </Button>
                                     <Button
                                         className="p-contextual-menu__link"
@@ -210,13 +210,13 @@ export function CertificateRequestsTable({ csrs: rows }: TableProps) {
                                     </Button>
                                     <Button
                                         className="p-contextual-menu__link"
-                                        disabled={certificate == "rejected" || certificate == ""}
+                                        disabled={csr_status != "Active"}
                                         onMouseDown={() => handleExpand(id, 'Cert')}>
-                                        {isCSRContentVisible ? "Hide Certificate content" : "Show Certificate content"}
+                                        {isCertContentVisible ? "Hide Certificate Content" : "Show Certificate Content"}
                                     </Button>
                                     <Button
                                         className="p-contextual-menu__link"
-                                        disabled={certificate == "rejected" || certificate == ""}
+                                        disabled={csr_status != "Active"}
                                         onMouseDown={() => handleRevoke(id)}>
                                         Revoke Certificate
                                     </Button>
@@ -321,7 +321,7 @@ export function CertificateRequestsTable({ csrs: rows }: TableProps) {
                 <SubmitCertificateModal
                     id={selectedCSR.id.toString()}
                     csr={selectedCSR.csr}
-                    cert={selectedCSR.certificate}
+                    cert={selectedCSR.certificate_chain}
                     setFormOpen={setCertificateFormOpen}
                 />
             )}

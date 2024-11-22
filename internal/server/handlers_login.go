@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/sqlair"
 	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -65,17 +65,17 @@ func Login(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Password is required")
 			return
 		}
-		userAccount, err := env.DB.RetrieveUserByUsername(loginParams.Username)
+		userAccount, err := env.DB.GetUserByUsername(loginParams.Username)
 		if err != nil {
 			log.Println(err)
-			if errors.Is(err, db.ErrIdNotFound) {
+			if errors.Is(err, sqlair.ErrNoRows) {
 				writeError(w, http.StatusUnauthorized, "The username or password is incorrect. Try again.")
 				return
 			}
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		if err := bcrypt.CompareHashAndPassword([]byte(userAccount.Password), []byte(loginParams.Password)); err != nil {
+		if err := bcrypt.CompareHashAndPassword([]byte(userAccount.HashedPassword), []byte(loginParams.Password)); err != nil {
 			writeError(w, http.StatusUnauthorized, "The username or password is incorrect. Try again.")
 			return
 		}

@@ -9,22 +9,18 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+
+	"github.com/canonical/notary/internal/server"
 )
 
-type CertificateRequest struct {
-	ID          int    `json:"id"`
-	CSR         string `json:"csr"`
-	Certificate string `json:"certificate"`
-}
-
 type GetCertificateRequestResponse struct {
-	Result CertificateRequest `json:"result"`
-	Error  string             `json:"error,omitempty"`
+	Result server.CertificateRequest `json:"result"`
+	Error  string                    `json:"error,omitempty"`
 }
 
 type ListCertificateRequestsResponse struct {
-	Error  string               `json:"error,omitempty"`
-	Result []CertificateRequest `json:"result"`
+	Error  string                      `json:"error,omitempty"`
+	Result []server.CertificateRequest `json:"result"`
 }
 
 type CreateCertificateRequestResponse struct {
@@ -162,7 +158,10 @@ func rejectCertificate(url string, client *http.Client, adminToken string, id in
 // The order of the tests is important, as some tests depend on the
 // state of the server after previous tests.
 func TestCertificateRequestsEndToEnd(t *testing.T) {
-	ts, _, err := setupServer()
+
+	tempDir := t.TempDir()
+	db_path := filepath.Join(tempDir, "db.sqlite3")
+	ts, _, err := setupServer(db_path)
 	if err != nil {
 		t.Fatalf("couldn't create test server: %s", err)
 	}
@@ -257,8 +256,8 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		if getCertRequestResponse.Result.CSR == "" {
 			t.Fatalf("expected CSR, got empty string")
 		}
-		if getCertRequestResponse.Result.Certificate != "" {
-			t.Fatalf("expected no certificate, got %s", getCertRequestResponse.Result.Certificate)
+		if getCertRequestResponse.Result.CertificateChain != "" {
+			t.Fatalf("expected no certificate, got %s", getCertRequestResponse.Result.CertificateChain)
 		}
 	})
 
@@ -353,8 +352,8 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		if getCertRequestResponse.Result.CSR == "" {
 			t.Fatalf("expected CSR, got empty string")
 		}
-		if getCertRequestResponse.Result.Certificate != "" {
-			t.Fatalf("expected no certificate, got %s", getCertRequestResponse.Result.Certificate)
+		if getCertRequestResponse.Result.CertificateChain != "" {
+			t.Fatalf("expected no certificate, got %s", getCertRequestResponse.Result.CertificateChain)
 		}
 	})
 
@@ -399,7 +398,9 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 // The order of the tests is important, as some tests depend on the
 // state of the server after previous tests.
 func TestCertificatesEndToEnd(t *testing.T) {
-	ts, _, err := setupServer()
+	tempDir := t.TempDir()
+	db_path := filepath.Join(tempDir, "db.sqlite3")
+	ts, _, err := setupServer(db_path)
 	if err != nil {
 		t.Fatalf("couldn't create test server: %s", err)
 	}
@@ -481,7 +482,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		if getCertResponse.Error != "" {
 			t.Fatalf("expected no error, got %s", getCertResponse.Error)
 		}
-		if getCertResponse.Result.Certificate == "" {
+		if getCertResponse.Result.CertificateChain == "" {
 			t.Fatalf("expected certificate, got empty string")
 		}
 	})
@@ -507,8 +508,8 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		if getCertResponse.Error != "" {
 			t.Fatalf("expected no error, got %s", getCertResponse.Error)
 		}
-		if getCertResponse.Result.Certificate != "rejected" {
-			t.Fatalf("expected `rejected` certificate, got %s", getCertResponse.Result.Certificate)
+		if getCertResponse.Result.Status != "Rejected" {
+			t.Fatalf("expected `Rejected` status, got %s", getCertResponse.Result.CertificateChain)
 		}
 	})
 

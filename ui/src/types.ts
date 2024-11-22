@@ -1,7 +1,8 @@
 export type CSREntry = {
     id: number,
     csr: string,
-    certificate: string
+    certificate_chain: string
+    status: "Outstanding" | "Active" | "Rejected" | "Revoked"
 }
 
 export type User = {

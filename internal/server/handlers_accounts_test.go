@@ -3,10 +3,15 @@ package server_test
 import (
 	"encoding/json"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 )
+
+type SuccessResponse struct {
+	Message string `json:"message"`
+}
 
 type GetAccountResponseResult struct {
 	ID          int    `json:"id"`
@@ -29,8 +34,8 @@ type CreateAccountResponseResult struct {
 }
 
 type CreateAccountResponse struct {
-	Result CreateAccountResponseResult `json:"result"`
-	Error  string                      `json:"error,omitempty"`
+	Result SuccessResponse `json:"result"`
+	Error  string          `json:"error,omitempty"`
 }
 
 type ChangeAccountPasswordParams struct {
@@ -139,7 +144,9 @@ func deleteAccount(url string, client *http.Client, adminToken string, id int) (
 // The order of the tests is important, as some tests depend on
 // the state of the server after previous tests.
 func TestAccountsEndToEnd(t *testing.T) {
-	ts, _, err := setupServer()
+	tempDir := t.TempDir()
+	db_path := filepath.Join(tempDir, "db.sqlite3")
+	ts, _, err := setupServer(db_path)
 	if err != nil {
 		t.Fatalf("couldn't create test server: %s", err)
 	}
@@ -197,10 +204,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
 		if response.Error != "" {
-			t.Fatalf("expected error %q, got %q", "", response.Error)
-		}
-		if response.Result.ID != 3 {
-			t.Fatalf("expected ID 3, got %d", response.Result.ID)
+			t.Fatalf("unexpected error :%q", response.Error)
 		}
 	})
 
@@ -285,10 +289,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
 		if response.Error != "" {
-			t.Fatalf("expected error %q, got %q", "", response.Error)
-		}
-		if response.Result.ID != 1 {
-			t.Fatalf("expected ID 1, got %d", response.Result.ID)
+			t.Fatalf("unexpected error :%q", response.Error)
 		}
 	})
 
@@ -350,9 +351,6 @@ func TestAccountsEndToEnd(t *testing.T) {
 		}
 		if response.Error != "" {
 			t.Fatalf("expected error %q, got %q", "", response.Error)
-		}
-		if response.Result.ID != 2 {
-			t.Fatalf("expected ID 2, got %d", response.Result.ID)
 		}
 	})
 

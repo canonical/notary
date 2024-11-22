@@ -37,7 +37,7 @@ func NewMetricsSubsystem(db *db.Database) *PrometheusMetrics {
 	ticker := time.NewTicker(120 * time.Second)
 	go func() {
 		for ; ; <-ticker.C {
-			csrs, err := db.RetrieveAllCSRs()
+			csrs, err := db.ListCertificateRequests()
 			if err != nil {
 				log.Println(errors.Join(errors.New("error generating metrics repository: "), err))
 				panic(1)
@@ -95,15 +95,15 @@ func (pm *PrometheusMetrics) GenerateMetrics(csrs []db.CertificateRequest) {
 	var expiringIn30DaysCertCount float64
 	var expiringIn90DaysCertCount float64
 	for _, entry := range csrs {
-		if entry.Certificate == "" {
+		if entry.CertificateChain == "" {
 			outstandingCSRCount += 1
 			continue
 		}
-		if entry.Certificate == "rejected" {
+		if entry.Status == "Rejected" {
 			continue
 		}
 		certCount += 1
-		expiryDate := certificateExpiryDate(entry.Certificate)
+		expiryDate := certificateExpiryDate(entry.CertificateChain)
 		daysRemaining := time.Until(expiryDate).Hours() / 24
 		if daysRemaining < 0 {
 			expiredCertCount += 1

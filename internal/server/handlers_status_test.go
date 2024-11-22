@@ -3,6 +3,7 @@ package server_test
 import (
 	"encoding/json"
 	"net/http"
+	"path/filepath"
 	"testing"
 )
 
@@ -35,7 +36,9 @@ func getStatus(url string, client *http.Client, adminToken string) (int, *GetSta
 }
 
 func TestStatus(t *testing.T) {
-	ts, _, err := setupServer()
+	tempDir := t.TempDir()
+	db_path := filepath.Join(tempDir, "db.sqlite3")
+	ts, _, err := setupServer(db_path)
 	if err != nil {
 		t.Fatalf("couldn't create test server: %s", err)
 	}

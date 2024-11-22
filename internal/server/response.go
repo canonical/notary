@@ -6,6 +6,10 @@ import (
 	"net/http"
 )
 
+type SuccessResponse struct {
+	Message string `json:"message"`
+}
+
 // writeJSON is a helper function that writes a JSON response to the http.ResponseWriter
 func writeJSON(w http.ResponseWriter, v any) error {
 	type response struct {

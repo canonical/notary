@@ -191,7 +191,7 @@ export function CertificateRequestsTable({ csrs: rows }: TableProps) {
                                         className="p-contextual-menu__link"
                                         disabled={csr_status == "Rejected"}
                                         onMouseDown={() => csr_status == "Active" ? handleRevoke(id) : handleReject(id)}>
-                                        {csr_status == "Active" ? "Revoke Certificate Request" : "Reject Certificate Request"}
+                                        {csr_status == "Active" ? "Revoke Certificate" : "Reject Certificate Request"}
                                     </Button>
                                     <Button
                                         className="p-contextual-menu__link"

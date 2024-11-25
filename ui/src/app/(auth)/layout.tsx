@@ -11,11 +11,11 @@ export default function RootLayout({
 }>) {
   return (
     <body>
-      <AuthProvider>
-        <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
           {children}
-        </QueryClientProvider>
-      </AuthProvider>
+        </AuthProvider>
+      </QueryClientProvider>
     </body>
   );
 }

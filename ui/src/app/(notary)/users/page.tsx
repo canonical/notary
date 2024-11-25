@@ -3,32 +3,24 @@
 import { useQuery } from "@tanstack/react-query"
 import { ListUsers } from "@/queries"
 import { UserEntry } from "@/types"
-import { useCookies } from "react-cookie"
-import { useRouter } from "next/navigation"
 import { UsersTable } from "./table"
 import Loading from "@/components/loading"
 import Error from "@/components/error"
+import { useAuth } from "@/hooks/useAuth"
+import { retryExceptWhenUnauthorized } from "@/utils"
 
 export default function Users() {
-    const router = useRouter()
-    const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
-    if (!cookies.user_token) {
-        router.push("/login")
-    }
+    const auth = useAuth()
     const query = useQuery<UserEntry[], Error>({
-        queryKey: ['users', cookies.user_token],
-        queryFn: () => ListUsers({ authToken: cookies.user_token }),
-        retry: (failureCount, error): boolean => {
-            if (error.message.includes("401")) {
-                return false
-            }
-            return true
-        },
+        queryKey: ['users', auth.user ? auth.user.authToken : ""],
+        queryFn: () => ListUsers({ authToken: auth.user ? auth.user.authToken : "" }),
+        retry: retryExceptWhenUnauthorized,
+        enabled: !!auth.user
     })
     if (query.status == "pending") { return <Loading /> }
     if (query.status == "error") {
         if (query.error.message.includes("401")) {
-            removeCookie("user_token")
+            auth.logout()
         }
         return <Error msg={query.error.message} />
     }

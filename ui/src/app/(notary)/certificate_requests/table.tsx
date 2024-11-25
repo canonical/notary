@@ -3,10 +3,10 @@ import { AsideContext } from "@/components/aside";
 import { CSREntry } from "@/types";
 import { Button, MainTable, Panel, EmptyState, ContextualMenu, ConfirmationModal } from "@canonical/react-components";
 import { RequiredCSRParams, deleteCSR, rejectCSR, revokeCertificate } from "@/queries"
-import { useCookies } from "react-cookie";
 import { extractCSR, extractCert, splitBundle } from "@/utils";
 import { UseMutationResult, useMutation, useQueryClient } from "@tanstack/react-query"
 import { SubmitCertificateModal, SuccessNotification } from "./components"
+import { useAuth } from "@/hooks/useAuth";
 
 
 function CSREmptyState({ setAsideOpen }: { setAsideOpen: Dispatch<SetStateAction<boolean>> }) {
@@ -39,8 +39,8 @@ export type ConfirmationModalData = {
 
 
 export function CertificateRequestsTable({ csrs: rows }: TableProps) {
+    const auth = useAuth()
     const { isOpen: isAsideOpen, setIsOpen: setAsideIsOpen } = useContext(AsideContext);
-    const [cookies] = useCookies(['user_token']);
     const queryClient = useQueryClient();
     const [certificateFormOpen, setCertificateFormOpen] = useState<boolean>(false);
     const [confirmationModalData, setConfirmationModalData] = useState<ConfirmationModalData | null>(null);
@@ -87,21 +87,21 @@ export function CertificateRequestsTable({ csrs: rows }: TableProps) {
 
     const handleReject = (id: number) => {
         setConfirmationModalData({
-            onMouseDownFunc: () => mutationFunc(rejectMutation, { id: id.toString(), authToken: cookies.user_token }),
+            onMouseDownFunc: () => mutationFunc(rejectMutation, { id: id.toString(), authToken: auth.user ? auth.user.authToken : "" }),
             warningText: "Rejecting a Certificate Request means the CSR will remain in this application, but its status will be moved to rejected and the associated certificate will be deleted if there is any. This action cannot be undone.",
         });
     };
 
     const handleDelete = (id: number) => {
         setConfirmationModalData({
-            onMouseDownFunc: () => mutationFunc(deleteMutation, { id: id.toString(), authToken: cookies.user_token }),
+            onMouseDownFunc: () => mutationFunc(deleteMutation, { id: id.toString(), authToken: auth.user ? auth.user.authToken : "" }),
             warningText: "Deleting a Certificate Request means this row will be completely removed from the application. This action cannot be undone.",
         });
     };
 
     const handleRevoke = (id: number) => {
         setConfirmationModalData({
-            onMouseDownFunc: () => mutationFunc(revokeMutation, { id: id.toString(), authToken: cookies.user_token }),
+            onMouseDownFunc: () => mutationFunc(revokeMutation, { id: id.toString(), authToken: auth.user ? auth.user.authToken : "" }),
             warningText: "Revoking a Certificate will delete it from the table. This action cannot be undone.",
         });
     };

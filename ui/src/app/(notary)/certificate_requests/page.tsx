@@ -4,32 +4,24 @@ import { useQuery } from "@tanstack/react-query"
 import { CertificateRequestsTable } from "./table"
 import { getCertificateRequests } from "@/queries"
 import { CSREntry } from "@/types"
-import { useCookies } from "react-cookie"
-import { useRouter } from "next/navigation"
 import Loading from "@/components/loading"
 import Error from "@/components/error"
+import { useAuth } from "@/hooks/useAuth"
+import { retryExceptWhenUnauthorized } from "@/utils"
 
 
 export default function CertificateRequests() {
-    const router = useRouter()
-    const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
-    if (!cookies.user_token) {
-        router.push("/login")
-    }
+    const auth = useAuth()
     const query = useQuery<CSREntry[], Error>({
-        queryKey: ['csrs', cookies.user_token],
-        queryFn: () => getCertificateRequests({ authToken: cookies.user_token }),
-        retry: (failureCount, error): boolean => {
-            if (error.message.includes("401")) {
-                return false
-            }
-            return true
-        },
+        queryKey: ['csrs', auth.user?.authToken],
+        queryFn: () => getCertificateRequests({ authToken: auth.user ? auth.user.authToken : "" }),
+        retry: retryExceptWhenUnauthorized,
+        enabled: !!auth.user
     })
     if (query.status == "pending") { return <Loading /> }
     if (query.status == "error") {
         if (query.error.message.includes("401")) {
-            removeCookie("user_token")
+            auth.logout()
         }
         return <Error msg={query.error.message} />
     }

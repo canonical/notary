@@ -306,3 +306,10 @@ export const validateBundle = async (bundle: string) => {
     const result = await chainEngine.verify()
     return result.resultMessage
 }
+
+export const retryExceptWhenUnauthorized = (failureCount: Number, error: Error): boolean => {
+    if (error.message.includes("401")) {
+        return false
+    }
+    return true
+}

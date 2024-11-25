@@ -3,7 +3,7 @@ import { passwordIsValid } from "@/utils";
 import { changePassword, postUser } from "@/queries";
 import { ChangeEvent, useContext, useState } from "react";
 import { AsideContext } from "@/components/aside";
-import { useAuth } from "@/app/auth/authContext";
+import { useAuth } from "@/hooks/useAuth";
 import { Panel, Button, Input, PasswordToggle, Form } from "@canonical/react-components";
 
 export default function UsersPageAsidePanel() {

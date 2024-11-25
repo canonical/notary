@@ -1,5 +1,5 @@
 import { useContext, useState } from "react";
-import { useAuth } from "../app/auth/authContext";
+import { useAuth } from "../hooks/useAuth";
 import { useCookies } from "react-cookie";
 import { ChangePasswordModalContext } from "../app/(notary)/users/components";
 

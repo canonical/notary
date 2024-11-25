@@ -4,7 +4,7 @@ import { UserEntry } from "@/types"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Button, ContextualMenu, MainTable, Panel } from "@canonical/react-components";
 import { ConfirmationModalData, UsersConfirmationModal, ChangePasswordModalData, ChangePasswordModal } from "./components"
-import { useAuth } from "@/app/auth/authContext"
+import { useAuth } from "@/hooks/useAuth"
 import { deleteUser } from "@/queries"
 
 type TableProps = {

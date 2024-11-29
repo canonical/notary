@@ -24,8 +24,7 @@ func GetStatus(env *HandlerConfig) http.HandlerFunc {
 			Initialized: numUsers > 0,
 			Version:     version.GetVersion(),
 		}
-		w.WriteHeader(http.StatusOK)
-		err = writeJSON(w, statusResponse)
+		err = writeResponse(w, statusResponse, http.StatusOK)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return

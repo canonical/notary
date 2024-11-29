@@ -12,7 +12,7 @@ import { retryExceptWhenUnauthorized } from "@/utils"
 export default function Users() {
     const auth = useAuth()
     const query = useQuery<UserEntry[], Error>({
-        queryKey: ['users', auth.user ? auth.user.authToken : ""],
+        queryKey: ['users', auth.user?.authToken],
         queryFn: () => ListUsers({ authToken: auth.user ? auth.user.authToken : "" }),
         retry: retryExceptWhenUnauthorized,
         enabled: !!auth.user

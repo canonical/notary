@@ -11,14 +11,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <body>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <Navigation>
-            {children}
-          </Navigation>
-        </AuthProvider>
-      </QueryClientProvider>
-    </body>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <Navigation>
+          {children}
+        </Navigation>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }

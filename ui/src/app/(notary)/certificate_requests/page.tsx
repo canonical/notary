@@ -9,7 +9,6 @@ import Error from "@/components/error"
 import { useAuth } from "@/hooks/useAuth"
 import { retryExceptWhenUnauthorized } from "@/utils"
 
-
 export default function CertificateRequests() {
     const auth = useAuth()
     const query = useQuery<CSREntry[], Error>({
@@ -26,7 +25,5 @@ export default function CertificateRequests() {
         return <Error msg={query.error.message} />
     }
     const csrs = Array.from(query.data ? query.data : [])
-    return (
-        <CertificateRequestsTable csrs={csrs} />
-    )
+    return <CertificateRequestsTable csrs={csrs} />
 }

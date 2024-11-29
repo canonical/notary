@@ -10,12 +10,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <body>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
-      </QueryClientProvider>
-    </body>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        {children}
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }

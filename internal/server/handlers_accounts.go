@@ -76,12 +76,8 @@ func ListAccounts(env *HandlerConfig) http.HandlerFunc {
 func GetAccount(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		idNum, err := strconv.Atoi(id)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error")
-			return
-		}
 		var account *db.User
+		var err error
 		if id == "me" {
 			claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
 			if headerErr != nil {
@@ -89,6 +85,12 @@ func GetAccount(env *HandlerConfig) http.HandlerFunc {
 			}
 			account, err = env.DB.GetUserByUsername(claims.Username)
 		} else {
+			var idNum int
+			idNum, err = strconv.Atoi(id)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "Internal Error")
+				return
+			}
 			account, err = env.DB.GetUserByID(idNum)
 		}
 		if err != nil {

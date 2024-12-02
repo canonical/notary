@@ -78,6 +78,24 @@ func getAccount(url string, client *http.Client, adminToken string, id int) (int
 	return res.StatusCode, &accountResponse, nil
 }
 
+func getMyAccount(url string, client *http.Client, adminToken string) (int, *GetAccountResponse, error) {
+	req, err := http.NewRequest("GET", url+"/api/v1/accounts/me", nil)
+	if err != nil {
+		return 0, nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+adminToken)
+	res, err := client.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer res.Body.Close()
+	var accountResponse GetAccountResponse
+	if err := json.NewDecoder(res.Body).Decode(&accountResponse); err != nil {
+		return 0, nil, err
+	}
+	return res.StatusCode, &accountResponse, nil
+}
+
 func createAccount(url string, client *http.Client, adminToken string, data *CreateAccountParams) (int, *CreateAccountResponse, error) {
 	body, err := json.Marshal(data)
 	if err != nil {
@@ -364,6 +382,28 @@ func TestAccountsEndToEnd(t *testing.T) {
 		}
 		if response.Error != "Not Found" {
 			t.Fatalf("expected error %q, got %q", "Not Found", response.Error)
+		}
+	})
+
+	t.Run("14. Get my admin account - admin token", func(t *testing.T) {
+		statusCode, response, err := getMyAccount(ts.URL, client, adminToken)
+		if err != nil {
+			t.Fatalf("couldn't get account: %s", err)
+		}
+		if statusCode != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+		}
+		if response.Error != "" {
+			t.Fatalf("expected error %q, got %q", "", response.Error)
+		}
+		if response.Result.ID != 1 {
+			t.Fatalf("expected ID 1, got %d", response.Result.ID)
+		}
+		if response.Result.Username != "testadmin" {
+			t.Fatalf("expected username testadmin, got %s", response.Result.Username)
+		}
+		if response.Result.Permissions != 1 {
+			t.Fatalf("expected permissions 1, got %d", response.Result.Permissions)
 		}
 	})
 }

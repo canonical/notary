@@ -1,15 +1,15 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { csrIsValid } from "@/utils";
-import { useCookies } from "react-cookie";
 import { postCSR } from "@/queries";
 import { ChangeEvent, useContext, useState, useEffect } from "react";
 import { AsideContext } from "@/components/aside";
 import { Textarea, Button, Input, Panel, Form } from "@canonical/react-components";
+import { useAuth } from "@/hooks/useAuth";
 
 
 export default function CertificateRequestsAsidePanel(): JSX.Element {
+    const auth = useAuth()
     const asideContext = useContext(AsideContext);
-    const [cookies] = useCookies(['user_token']);
     const [errorText, setErrorText] = useState<string>("");
     const [CSRPEMString, setCSRPEMString] = useState<string>("");
     const queryClient = useQueryClient();
@@ -52,7 +52,7 @@ export default function CertificateRequestsAsidePanel(): JSX.Element {
     };
 
     const handleSubmit = () => {
-        mutation.mutate({ authToken: cookies.user_token, csr: CSRPEMString });
+        mutation.mutate({ authToken: auth.user ? auth.user.authToken : "", csr: CSRPEMString });
     };
 
     return (
@@ -90,7 +90,7 @@ export default function CertificateRequestsAsidePanel(): JSX.Element {
                         appearance="positive"
                         name="submit"
                         disabled={!csrIsValid(CSRPEMString)}
-                        onClick={handleSubmit}
+                        onClick={(event) => { event?.preventDefault(); handleSubmit() }}
                     >
                         Submit
                     </Button>

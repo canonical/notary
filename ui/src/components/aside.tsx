@@ -1,5 +1,5 @@
 import { SetStateAction, Dispatch, createContext, useContext } from "react"
-import { useAuth } from "@/app/auth/authContext"
+import { useAuth } from "@/hooks/useAuth"
 
 type AsideContextType = {
     isOpen: boolean,

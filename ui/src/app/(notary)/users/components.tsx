@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction, useState, ChangeEvent, createContext } from "react"
-import { useAuth } from "@/app/auth/authContext"
+import { useAuth } from "@/hooks/useAuth"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { changePassword } from "@/queries"
 import { passwordIsValid } from "@/utils"

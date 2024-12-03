@@ -2,8 +2,8 @@ import { Dispatch, SetStateAction, useState, ChangeEvent, useEffect } from "reac
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { csrMatchesCertificate, splitBundle, validateBundle } from "@/utils"
 import { postCertToID } from "@/queries"
-import { useCookies } from "react-cookie"
 import { Button, Input, Textarea, Form, Modal, Icon } from "@canonical/react-components";
+import { useAuth } from "@/hooks/useAuth"
 
 interface SubmitCertificateModalProps {
     id: string
@@ -13,7 +13,7 @@ interface SubmitCertificateModalProps {
 }
 
 export function SubmitCertificateModal({ id, csr, cert, setFormOpen }: SubmitCertificateModalProps) {
-    const [cookies] = useCookies(['user_token']);
+    const auth = useAuth()
     const [errorText, setErrorText] = useState<string>("");
     const [certificatePEMString, setCertificatePEMString] = useState<string>(cert);
     const [validationErrorText, setValidationErrorText] = useState<string>("");
@@ -80,7 +80,7 @@ export function SubmitCertificateModal({ id, csr, cert, setFormOpen }: SubmitCer
             buttonRow={
                 <>
                     <Button
-                        onClick={() => mutation.mutate({ id, authToken: cookies.user_token, cert: certificatePEMString })}
+                        onClick={() => mutation.mutate({ id, authToken: auth.user ? auth.user.authToken : "", cert: certificatePEMString })}
                         appearance="positive"
                         disabled={validationErrorText !== "" || certificatePEMString === ""}
                     >

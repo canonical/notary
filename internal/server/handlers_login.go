@@ -85,7 +85,6 @@ func Login(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		w.WriteHeader(http.StatusOK)
 		loginResponse := LoginResponse{
 			Token: jwt,
 		}
@@ -94,5 +93,6 @@ func Login(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
 		}
+		w.WriteHeader(http.StatusOK)
 	}
 }

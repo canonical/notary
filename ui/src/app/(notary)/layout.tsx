@@ -1,7 +1,7 @@
 "use client"
 import '@/globals.scss'
 import Navigation from "@/components/nav";
-import { AuthProvider } from "@/app/auth/authContext";
+import { AuthProvider } from "@/hooks/useAuth";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const queryClient = new QueryClient()
@@ -11,14 +11,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <body>
+    <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <QueryClientProvider client={queryClient}>
-          <Navigation>
-            {children}
-          </Navigation>
-        </QueryClientProvider>
+        <Navigation>
+          {children}
+        </Navigation>
       </AuthProvider>
-    </body>
+    </QueryClientProvider>
   );
 }

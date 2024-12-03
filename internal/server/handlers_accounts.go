@@ -62,8 +62,7 @@ func ListAccounts(env *HandlerConfig) http.HandlerFunc {
 				Permissions: account.Permissions,
 			}
 		}
-		w.WriteHeader(http.StatusOK)
-		err = writeJSON(w, accountsResponse)
+		err = writeResponse(w, accountsResponse, http.StatusOK)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
@@ -107,8 +106,7 @@ func GetAccount(env *HandlerConfig) http.HandlerFunc {
 			Username:    account.Username,
 			Permissions: account.Permissions,
 		}
-		w.WriteHeader(http.StatusOK)
-		err = writeJSON(w, accountResponse)
+		err = writeResponse(w, accountResponse, http.StatusOK)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
@@ -160,8 +158,7 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 		successResponse := SuccessResponse{Message: "success"}
-		w.WriteHeader(http.StatusCreated)
-		err = writeJSON(w, successResponse)
+		err = writeResponse(w, successResponse, http.StatusCreated)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
@@ -205,8 +202,7 @@ func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 		successResponse := SuccessResponse{Message: "success"}
-		w.WriteHeader(http.StatusAccepted)
-		err = writeJSON(w, successResponse)
+		err = writeResponse(w, successResponse, http.StatusAccepted)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
@@ -269,8 +265,7 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 		successResponse := SuccessResponse{Message: "success"}
-		w.WriteHeader(http.StatusCreated)
-		err = writeJSON(w, successResponse)
+		err = writeResponse(w, successResponse, http.StatusCreated)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return

@@ -44,8 +44,7 @@ func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 				Status:           csr.Status,
 			}
 		}
-		w.WriteHeader(http.StatusOK)
-		err = writeJSON(w, certificateRequestsResponse)
+		err = writeResponse(w, certificateRequestsResponse, http.StatusOK)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
@@ -81,8 +80,7 @@ func CreateCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 		successResponse := SuccessResponse{Message: "success"}
-		w.WriteHeader(http.StatusCreated)
-		err = writeJSON(w, successResponse)
+		err = writeResponse(w, successResponse, http.StatusCreated)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
@@ -116,8 +114,7 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			CertificateChain: csr.CertificateChain,
 			Status:           csr.Status,
 		}
-		w.WriteHeader(http.StatusOK)
-		err = writeJSON(w, certificateRequestResponse)
+		err = writeResponse(w, certificateRequestResponse, http.StatusOK)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
@@ -146,8 +143,7 @@ func DeleteCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 		successResponse := SuccessResponse{Message: "success"}
-		w.WriteHeader(http.StatusAccepted)
-		err = writeJSON(w, successResponse)
+		err = writeResponse(w, successResponse, http.StatusAccepted)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
@@ -193,8 +189,7 @@ func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
 			}
 		}
 		successResponse := SuccessResponse{Message: "success"}
-		w.WriteHeader(http.StatusCreated)
-		err = writeJSON(w, successResponse)
+		err = writeResponse(w, successResponse, http.StatusCreated)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
@@ -227,8 +222,7 @@ func RejectCertificate(env *HandlerConfig) http.HandlerFunc {
 			}
 		}
 		successResponse := SuccessResponse{Message: "success"}
-		w.WriteHeader(http.StatusAccepted)
-		err = writeJSON(w, successResponse)
+		err = writeResponse(w, successResponse, http.StatusAccepted)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
@@ -263,8 +257,7 @@ func DeleteCertificate(env *HandlerConfig) http.HandlerFunc {
 			}
 		}
 		successResponse := SuccessResponse{Message: "success"}
-		w.WriteHeader(http.StatusOK)
-		err = writeJSON(w, successResponse)
+		err = writeResponse(w, successResponse, http.StatusOK)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return

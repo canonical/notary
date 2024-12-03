@@ -10,8 +10,8 @@ type SuccessResponse struct {
 	Message string `json:"message"`
 }
 
-// writeJSON is a helper function that writes a JSON response to the http.ResponseWriter
-func writeJSON(w http.ResponseWriter, v any) error {
+// writeResponse is a helper function that writes a JSON response to the http.ResponseWriter
+func writeResponse(w http.ResponseWriter, v any, status int) error {
 	type response struct {
 		Result any `json:"result,omitempty"`
 	}
@@ -21,6 +21,7 @@ func writeJSON(w http.ResponseWriter, v any) error {
 		return err
 	}
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
 	if _, err := w.Write(respBytes); err != nil {
 		return err
 	}
@@ -40,6 +41,7 @@ func writeError(w http.ResponseWriter, status int, message string) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_, err = w.Write(respBytes)
 	if err != nil {

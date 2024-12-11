@@ -38,9 +38,9 @@ func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 		certificateRequestsResponse := make([]CertificateRequest, len(csrs))
 		for i, csr := range csrs {
 			certificateRequestsResponse[i] = CertificateRequest{
-				ID:               csr.ID,
+				ID:               csr.CSR_ID,
 				CSR:              csr.CSR,
-				CertificateChain: csr.CertificateChain,
+				CertificateChain: "TODO",
 				Status:           csr.Status,
 			}
 		}
@@ -109,9 +109,9 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 		certificateRequestResponse := CertificateRequest{
-			ID:               csr.ID,
+			ID:               csr.CSR_ID,
 			CSR:              csr.CSR,
-			CertificateChain: csr.CertificateChain,
+			CertificateChain: "TODO",
 			Status:           csr.Status,
 		}
 		err = writeResponse(w, certificateRequestResponse, http.StatusOK)

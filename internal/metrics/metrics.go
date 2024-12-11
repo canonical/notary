@@ -95,32 +95,32 @@ func (pm *PrometheusMetrics) GenerateMetrics(csrs []db.CertificateRequest) {
 	var expiringIn30DaysCertCount float64
 	var expiringIn90DaysCertCount float64
 	for _, entry := range csrs {
-		if entry.CertificateChain == "" {
+		if entry.CertificateID == 0 {
 			outstandingCSRCount += 1
 			continue
 		}
-		if entry.Status == "Rejected" {
+		if entry.Status == "Rejected" || entry.Status == "Revoked" {
 			continue
 		}
 		certCount += 1
-		expiryDate := certificateExpiryDate(entry.CertificateChain)
-		daysRemaining := time.Until(expiryDate).Hours() / 24
-		if daysRemaining < 0 {
-			expiredCertCount += 1
-		} else {
-			if daysRemaining < 1 {
-				expiringIn1DayCertCount += 1
-			}
-			if daysRemaining < 7 {
-				expiringIn7DaysCertCount += 1
-			}
-			if daysRemaining < 30 {
-				expiringIn30DaysCertCount += 1
-			}
-			if daysRemaining < 90 {
-				expiringIn90DaysCertCount += 1
-			}
-		}
+		// 	expiryDate := certificateExpiryDate(entry.Certificate)
+		// 	daysRemaining := time.Until(expiryDate).Hours() / 24
+		// 	if daysRemaining < 0 {
+		// 		expiredCertCount += 1
+		// 	} else {
+		// 		if daysRemaining < 1 {
+		// 			expiringIn1DayCertCount += 1
+		// 		}
+		// 		if daysRemaining < 7 {
+		// 			expiringIn7DaysCertCount += 1
+		// 		}
+		// 		if daysRemaining < 30 {
+		// 			expiringIn30DaysCertCount += 1
+		// 		}
+		// 		if daysRemaining < 90 {
+		// 			expiringIn90DaysCertCount += 1
+		// 		}
+		// 	}
 	}
 	pm.CertificateRequests.Set(csrCount)
 	pm.OutstandingCertificateRequests.Set(outstandingCSRCount)

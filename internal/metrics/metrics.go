@@ -37,7 +37,7 @@ func NewMetricsSubsystem(db *db.Database) *PrometheusMetrics {
 	ticker := time.NewTicker(120 * time.Second)
 	go func() {
 		for ; ; <-ticker.C {
-			csrs, err := db.ListCertificateRequests()
+			csrs, err := db.ListCertificateRequestWithCertificates()
 			if err != nil {
 				log.Println(errors.Join(errors.New("error generating metrics repository: "), err))
 				panic(1)
@@ -85,7 +85,7 @@ func newPrometheusMetrics() *PrometheusMetrics {
 
 // GenerateMetrics receives the live list of csrs to calculate the most recent values for the metrics
 // defined for prometheus
-func (pm *PrometheusMetrics) GenerateMetrics(csrs []db.CertificateRequest) {
+func (pm *PrometheusMetrics) GenerateMetrics(csrs []db.CertificateRequestWithChain) {
 	var csrCount float64 = float64(len(csrs))
 	var outstandingCSRCount float64
 	var certCount float64
@@ -99,7 +99,7 @@ func (pm *PrometheusMetrics) GenerateMetrics(csrs []db.CertificateRequest) {
 			outstandingCSRCount += 1
 			continue
 		}
-		if entry.Status == "Rejected" {
+		if entry.Status == "Rejected" || entry.Status == "Revoked" {
 			continue
 		}
 		certCount += 1

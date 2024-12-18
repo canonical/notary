@@ -237,6 +237,9 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		if len(listCertRequestsResponse.Result) != 1 {
 			t.Fatalf("expected 1 certificate request, got %d", len(listCertRequestsResponse.Result))
 		}
+		if listCertRequestsResponse.Result[0].CertificateChain != "" {
+			t.Fatalf("expected empty string for certificate chain, got %s", listCertRequestsResponse.Result[0].CertificateChain)
+		}
 	})
 
 	t.Run("5. Get certificate request", func(t *testing.T) {

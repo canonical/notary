@@ -143,7 +143,10 @@ func (db *Database) AddCertificateChainToCertificateRequestByCSR(csrPEM string, 
 				return err
 			}
 			var outcome sqlair.Outcome
-			db.conn.Query(context.Background(), stmt, certRow).Get(&outcome)
+			err = db.conn.Query(context.Background(), stmt, certRow).Get(&outcome)
+			if err != nil {
+				return err
+			}
 			childID, err = outcome.Result().LastInsertId()
 			if err != nil {
 				return err
@@ -203,7 +206,10 @@ func (db *Database) AddCertificateChainToCertificateRequestByID(id int, certPEM 
 				return err
 			}
 			var outcome sqlair.Outcome
-			db.conn.Query(context.Background(), stmt, certRow).Get(&outcome)
+			err = db.conn.Query(context.Background(), stmt, certRow).Get(&outcome)
+			if err != nil {
+				return err
+			}
 			childID, err = outcome.Result().LastInsertId()
 			if err != nil {
 				return err

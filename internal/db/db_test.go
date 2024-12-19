@@ -30,13 +30,6 @@ func Example() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	// entry, err := db.GetCertificateRequestByCSR(BananaCSR)
-	// if err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// if entry.CertificateChain != BananaCert {
-	// 	log.Fatalln("Retrieved Certificate doesn't match Stored Certificate")
-	// }
 	err = db.Close()
 	if err != nil {
 		log.Fatalln(err)

@@ -80,7 +80,41 @@ func TestCertificatesEndToEnd(t *testing.T) {
 	}
 }
 
-func TestUpdateFails(t *testing.T) {
+func TestCreateCertificateFails(t *testing.T) {
+	db, _ := db.NewDatabase(":memory:")
+	defer db.Close()
+
+	db.CreateCertificateRequest(AppleCSR)  //nolint:errcheck
+	db.CreateCertificateRequest(BananaCSR) //nolint:errcheck
+	err := db.AddCertificateChainToCertificateRequestByCSR(AppleCSR, AppleCert+IntermediateCert+"some extra string"+RootCert)
+	if err != nil {
+		t.Fatalf("The certificate should have uploaded successfully")
+	}
+
+	cert, err := db.GetCertificateByCertificatePEM(AppleCert)
+	if err != nil || cert.CertificatePEM != AppleCert {
+		t.Fatalf("The certificate that was uploaded does not match the certificate that was given.\n Retrieved: %s\nGiven: %s", cert.CertificatePEM, AppleCert)
+	}
+
+	_, err = db.GetCertificateByCertificatePEM("nonexistent cert")
+	if err == nil {
+		t.Fatalf("An error should be returned.")
+	}
+	_, err = db.GetCertificateByCertificatePEM("")
+	if err == nil {
+		t.Fatalf("An error should be returned.")
+	}
+	_, err = db.GetCertificateByID(5)
+	if err == nil {
+		t.Fatalf("An error should be returned.")
+	}
+	_, err = db.GetCertificateByID(0)
+	if err == nil {
+		t.Fatalf("An error should be returned.")
+	}
+
+}
+func TestCertificateAddFails(t *testing.T) {
 	db, _ := db.NewDatabase(":memory:")
 	defer db.Close()
 
@@ -92,5 +126,24 @@ func TestUpdateFails(t *testing.T) {
 	}
 	if err := db.AddCertificateChainToCertificateRequestByCSR(AppleCSR, BananaCert); err == nil {
 		t.Fatalf("Expected updating with mismatched cert to fail")
+	}
+	if err := db.AddCertificateChainToCertificateRequestByCSR(AppleCSR, ""); err == nil {
+		t.Fatalf("Expected updating with empty string to fail")
+	}
+	if err := db.AddCertificateChainToCertificateRequestByCSR(AppleCSR, "random string"); err == nil {
+		t.Fatalf("Expected updating with random string to fail")
+	}
+
+	if err := db.AddCertificateChainToCertificateRequestByID(1, InvalidCert); err == nil {
+		t.Fatalf("Expected updating with invalid cert to fail")
+	}
+	if err := db.AddCertificateChainToCertificateRequestByID(2, BananaCert); err == nil {
+		t.Fatalf("Expected updating with mismatched cert to fail")
+	}
+	if err := db.AddCertificateChainToCertificateRequestByID(2, ""); err == nil {
+		t.Fatalf("Expected updating with empty string to fail")
+	}
+	if err := db.AddCertificateChainToCertificateRequestByID(2, "random string"); err == nil {
+		t.Fatalf("Expected updating with random string to fail")
 	}
 }

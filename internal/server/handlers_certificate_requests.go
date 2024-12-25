@@ -29,7 +29,7 @@ type CertificateRequest struct {
 // ListCertificateRequests returns all of the Certificate Requests
 func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		csrs, err := env.DB.ListCertificateRequests()
+		csrs, err := env.DB.ListCertificateRequestWithCertificates()
 		if err != nil {
 			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
@@ -38,10 +38,10 @@ func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 		certificateRequestsResponse := make([]CertificateRequest, len(csrs))
 		for i, csr := range csrs {
 			certificateRequestsResponse[i] = CertificateRequest{
-				ID:               csr.ID,
+				ID:               csr.CSR_ID,
 				CSR:              csr.CSR,
-				CertificateChain: csr.CertificateChain,
 				Status:           csr.Status,
+				CertificateChain: csr.CertificateChain,
 			}
 		}
 		err = writeResponse(w, certificateRequestsResponse, http.StatusOK)
@@ -98,7 +98,7 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		csr, err := env.DB.GetCertificateRequestByID(idNum)
+		csr, err := env.DB.GetCertificateRequestAndChainByID(idNum)
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, sqlair.ErrNoRows) {
@@ -109,7 +109,7 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 		certificateRequestResponse := CertificateRequest{
-			ID:               csr.ID,
+			ID:               csr.CSR_ID,
 			CSR:              csr.CSR,
 			CertificateChain: csr.CertificateChain,
 			Status:           csr.Status,

@@ -12,9 +12,9 @@
   },
   "dependencies": {
     "@canonical/react-components": "^1.7.3",
-    "@tanstack/react-query": "^5.62.8",
+    "@tanstack/react-query": "^5.62.11",
     "jwt-decode": "^4.0.0",
-    "next": "15.1.2",
+    "next": "15.1.3",
     "pkijs": "^3.2.4",
     "react": "^18",
     "react-cookie": "^7.2.2",
@@ -29,7 +29,7 @@
     "@types/react-dom": "^18",
     "@vitejs/plugin-react": "^4.3.4",
     "eslint": "^8",
-    "eslint-config-next": "15.1.2",
+    "eslint-config-next": "15.1.3",
     "jsdom": "^25.0.1",
     "typescript": "^5",
     "vitest": "^2.1.8"

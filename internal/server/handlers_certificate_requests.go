@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/sqlair"
 )
 
@@ -98,7 +99,7 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		csr, err := env.DB.GetCertificateRequestAndChainByID(idNum)
+		csr, err := env.DB.GetCertificateRequestAndChain(db.ByCSRID(idNum))
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, sqlair.ErrNoRows) {
@@ -132,7 +133,7 @@ func DeleteCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		err = env.DB.DeleteCertificateRequestByID(idNum)
+		err = env.DB.DeleteCertificateRequest(db.ByCSRID(idNum))
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, sqlair.ErrNoRows) {
@@ -170,7 +171,7 @@ func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		err = env.DB.AddCertificateChainToCertificateRequestByID(idNum, createCertificateParams.CertificateChain)
+		err = env.DB.AddCertificateChainToCertificateRequest(db.ByCSRID(idNum), createCertificateParams.CertificateChain)
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, sqlair.ErrNoRows) ||
@@ -205,7 +206,7 @@ func RejectCertificate(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		err = env.DB.RejectCertificateRequestByID(idNum)
+		err = env.DB.RejectCertificateRequest(db.ByCSRID(idNum))
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, sqlair.ErrNoRows) {
@@ -240,7 +241,7 @@ func DeleteCertificate(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		err = env.DB.DeleteCertificateRequestByID(idNum)
+		err = env.DB.DeleteCertificateRequest(db.ByCSRID(idNum))
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, sqlair.ErrNoRows) {

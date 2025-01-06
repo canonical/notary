@@ -75,26 +75,18 @@ func (db *Database) ListCertificates() ([]Certificate, error) {
 }
 
 // GetCertificateByID gets a certificate row from the repository from a given ID.
-func (db *Database) GetCertificateByID(id int) (*Certificate, error) {
-	certRow := Certificate{
-		CertificateID: id,
-	}
-	stmt, err := sqlair.Prepare(fmt.Sprintf(getCertificateStmt, db.certificatesTable), Certificate{})
-	if err != nil {
-		return nil, err
-	}
-	err = db.conn.Query(context.Background(), stmt, certRow).Get(&certRow)
-	if err != nil {
-		return nil, err
-	}
-	return &certRow, nil
-}
+func (db *Database) GetCertificate(filter CertificateFilter) (*Certificate, error) {
+	var certRow Certificate
 
-// GetCertificateByID gets a certificate row from the repository from a given ID.
-func (db *Database) GetCertificateByCertificatePEM(cert string) (*Certificate, error) {
-	certRow := Certificate{
-		CertificatePEM: cert,
+	switch {
+	case filter.ID != nil:
+		certRow = Certificate{CertificateID: *filter.ID}
+	case filter.PEM != nil:
+		certRow = Certificate{CertificatePEM: *filter.PEM}
+	default:
+		return nil, fmt.Errorf("invalid certificate identifier: both ID and PEM are nil")
 	}
+
 	stmt, err := sqlair.Prepare(fmt.Sprintf(getCertificateStmt, db.certificatesTable), Certificate{})
 	if err != nil {
 		return nil, err
@@ -107,8 +99,8 @@ func (db *Database) GetCertificateByCertificatePEM(cert string) (*Certificate, e
 }
 
 // AddCertificateChainToCertificateRequestByCSR adds a new certificate chain to a row for a given CSR string.
-func (db *Database) AddCertificateChainToCertificateRequestByCSR(csrPEM string, certPEM string) error {
-	csr, err := db.GetCertificateRequestByCSR(csrPEM)
+func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter, certPEM string) error {
+	csr, err := db.GetCertificateRequest(csrFilter)
 	if err != nil {
 		return err
 	}
@@ -161,70 +153,7 @@ func (db *Database) AddCertificateChainToCertificateRequestByCSR(csrPEM string, 
 		return err
 	}
 	newRow := CertificateRequest{
-		CSR:           csrPEM,
-		CertificateID: parentID,
-		Status:        "Active",
-	}
-	err = db.conn.Query(context.Background(), stmt, newRow).Run()
-	return err
-}
-
-// AddCertificateChainToCSRbyID adds a new certificate chain to a row for a given row ID.
-func (db *Database) AddCertificateChainToCertificateRequestByID(id int, certPEM string) error {
-	csr, err := db.GetCertificateRequestByID(id)
-	if err != nil {
-		return err
-	}
-	err = ValidateCertificate(certPEM)
-	if err != nil {
-		return errors.New("cert validation failed: " + err.Error())
-	}
-	err = CertificateMatchesCSR(certPEM, csr.CSR)
-	if err != nil {
-		return errors.New("cert validation failed: " + err.Error())
-	}
-	certBundle, err := sanitizeCertificateBundle(certPEM)
-	if err != nil {
-		return errors.New("cert validation failed: " + err.Error())
-	}
-	parentID := 0
-	for i := len(certBundle) - 1; i >= 0; i-- {
-		certRow := Certificate{
-			Issuer:         parentID,
-			PrivateKeyID:   0,
-			CertificatePEM: certBundle[i],
-		}
-		stmt, err := sqlair.Prepare(fmt.Sprintf(getCertificateStmt, db.certificatesTable), Certificate{})
-		if err != nil {
-			return err
-		}
-		err = db.conn.Query(context.Background(), stmt, certRow).Get(&certRow)
-		childID := int64(certRow.CertificateID)
-		if err == sqlair.ErrNoRows {
-			stmt, err = sqlair.Prepare(fmt.Sprintf(createCertificateStmt, db.certificatesTable), Certificate{})
-			if err != nil {
-				return err
-			}
-			var outcome sqlair.Outcome
-			err = db.conn.Query(context.Background(), stmt, certRow).Get(&outcome)
-			if err != nil {
-				return err
-			}
-			childID, err = outcome.Result().LastInsertId()
-			if err != nil {
-				return err
-			}
-		} else if err != nil {
-			return err
-		}
-		parentID = int(childID)
-	}
-	stmt, err := sqlair.Prepare(fmt.Sprintf(updateCertificateRequestStmt, db.certificateRequestsTable), CertificateRequest{})
-	if err != nil {
-		return err
-	}
-	newRow := CertificateRequest{
-		CSR_ID:        id,
+		CSR:           csr.CSR,
 		CertificateID: parentID,
 		Status:        "Active",
 	}
@@ -233,59 +162,45 @@ func (db *Database) AddCertificateChainToCertificateRequestByID(id int, certPEM 
 }
 
 // DeleteCertificateRequestByCSR removes a CSR from the database alongside the certificate that may have been generated for it.
-func (db *Database) DeleteCertificateByCertificate(certPEM string) error {
-	stmt, err := sqlair.Prepare(fmt.Sprintf(deleteCertificateRequestStmt, db.certificateRequestsTable), CertificateRequest{})
-	if err != nil {
-		return err
-	}
-	row := Certificate{
-		CertificatePEM: certPEM,
-	}
-	err = db.conn.Query(context.Background(), stmt, row).Run()
-	return err
-}
+func (db *Database) DeleteCertificate(filter CertificateFilter) error {
+	var certRow Certificate
 
-// DeleteCSRByID removes a CSR from the database alongside the certificate that may have been generated for it.
-func (db *Database) DeleteCertificateByID(id int) error {
+	switch {
+	case filter.ID != nil:
+		certRow = Certificate{CertificateID: *filter.ID}
+	case filter.PEM != nil:
+		certRow = Certificate{CertificatePEM: *filter.PEM}
+	default:
+		return fmt.Errorf("invalid certificate identifier: both ID and PEM are nil")
+	}
+
 	stmt, err := sqlair.Prepare(fmt.Sprintf(deleteCertificateRequestStmt, db.certificateRequestsTable), CertificateRequest{})
 	if err != nil {
 		return err
 	}
-	row := Certificate{
-		CertificateID: id,
-	}
-	err = db.conn.Query(context.Background(), stmt, row).Run()
+	err = db.conn.Query(context.Background(), stmt, certRow).Run()
 	return err
 }
 
 // GetCertificateChainByID gets a certificate chain row from the repository from a given ID.
-func (db *Database) GetCertificateChainByID(id int) ([]Certificate, error) {
-	var certChain []Certificate
-	stmt, err := sqlair.Prepare(fmt.Sprintf(getCertificateChainStmt, db.certificatesTable), CertificateRequestWithChain{})
-	if err != nil {
-		return nil, err
-	}
-	row := Certificate{
-		CertificateID: id,
-	}
-	err = db.conn.Query(context.Background(), stmt, row).GetAll(&certChain)
-	if err != nil {
-		return nil, err
-	}
-	return certChain, nil
-}
+func (db *Database) GetCertificateChain(filter CertificateFilter) ([]Certificate, error) {
+	var certRow Certificate
 
-// GetCertificateChainByCSR gets a given CSR row from the repository using the CSR text.
-func (db *Database) GetCertificateChainByCertificate(cert string) ([]Certificate, error) {
-	var certChain []Certificate
+	switch {
+	case filter.ID != nil:
+		certRow = Certificate{CertificateID: *filter.ID}
+	case filter.PEM != nil:
+		certRow = Certificate{CertificatePEM: *filter.PEM}
+	default:
+		return nil, fmt.Errorf("invalid certificate identifier: both ID and PEM are nil")
+	}
+
 	stmt, err := sqlair.Prepare(fmt.Sprintf(getCertificateChainStmt, db.certificatesTable), CertificateRequestWithChain{})
 	if err != nil {
 		return nil, err
 	}
-	row := Certificate{
-		CertificatePEM: cert,
-	}
-	err = db.conn.Query(context.Background(), stmt, row).Get(&certChain)
+	var certChain []Certificate
+	err = db.conn.Query(context.Background(), stmt, certRow).GetAll(&certChain)
 	if err != nil {
 		return nil, err
 	}

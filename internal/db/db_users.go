@@ -49,35 +49,27 @@ func (db *Database) ListUsers() ([]User, error) {
 }
 
 // GetUserByID retrieves the name, password and the permission level of a user.
-func (db *Database) GetUserByID(id int) (*User, error) {
-	row := User{
-		ID: id,
-	}
-	stmt, err := sqlair.Prepare(fmt.Sprintf(getUserStmt, db.usersTable), User{})
-	if err != nil {
-		return nil, err
-	}
-	err = db.conn.Query(context.Background(), stmt, row).Get(&row)
-	if err != nil {
-		return nil, err
-	}
-	return &row, nil
-}
+func (db *Database) GetUser(filter UserFilter) (*User, error) {
+	var userRow User
 
-// GetUserByUsername retrieves the id, password and the permission level of a user.
-func (db *Database) GetUserByUsername(name string) (*User, error) {
-	row := User{
-		Username: name,
+	switch {
+	case filter.ID != nil:
+		userRow = User{ID: *filter.ID}
+	case filter.Username != nil:
+		userRow = User{Username: *filter.Username}
+	default:
+		return nil, fmt.Errorf("invalid filter: both ID and Username are nil")
 	}
+
 	stmt, err := sqlair.Prepare(fmt.Sprintf(getUserStmt, db.usersTable), User{})
 	if err != nil {
 		return nil, err
 	}
-	err = db.conn.Query(context.Background(), stmt, row).Get(&row)
+	err = db.conn.Query(context.Background(), stmt, userRow).Get(&userRow)
 	if err != nil {
 		return nil, err
 	}
-	return &row, nil
+	return &userRow, nil
 }
 
 // CreateUser creates a new user from a given username, password and permission level.
@@ -103,8 +95,8 @@ func (db *Database) CreateUser(username string, password string, permission int)
 
 // UpdateUser updates the password of the given user.
 // Just like with CreateUser, this function handles hashing and salting the password before storage.
-func (db *Database) UpdateUserPassword(id int, password string) error {
-	_, err := db.GetUserByID(id)
+func (db *Database) UpdateUserPassword(filter UserFilter, password string) error {
+	userRow, err := db.GetUser(filter)
 	if err != nil {
 		return err
 	}
@@ -116,17 +108,14 @@ func (db *Database) UpdateUserPassword(id int, password string) error {
 	if err != nil {
 		return err
 	}
-	row := User{
-		ID:             id,
-		HashedPassword: string(pw),
-	}
-	err = db.conn.Query(context.Background(), stmt, row).Run()
+	userRow.HashedPassword = string(pw)
+	err = db.conn.Query(context.Background(), stmt, userRow).Run()
 	return err
 }
 
 // DeleteUserByID removes a user from the table.
-func (db *Database) DeleteUserByID(id int) error {
-	_, err := db.GetUserByID(id)
+func (db *Database) DeleteUser(filter UserFilter) error {
+	userRow, err := db.GetUser(filter)
 	if err != nil {
 		return err
 	}
@@ -134,10 +123,7 @@ func (db *Database) DeleteUserByID(id int) error {
 	if err != nil {
 		return err
 	}
-	row := User{
-		ID: id,
-	}
-	err = db.conn.Query(context.Background(), stmt, row).Run()
+	err = db.conn.Query(context.Background(), stmt, userRow).Run()
 	return err
 }
 

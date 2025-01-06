@@ -10,42 +10,42 @@ import (
 
 func TestCSRsEndToEnd(t *testing.T) {
 	tempDir := t.TempDir()
-	db, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
 	if err != nil {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}
-	defer db.Close()
+	defer database.Close()
 
-	err = db.CreateCertificateRequest(AppleCSR)
+	err = database.CreateCertificateRequest(AppleCSR)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
-	err = db.CreateCertificateRequest(BananaCSR)
+	err = database.CreateCertificateRequest(BananaCSR)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
-	err = db.CreateCertificateRequest(StrawberryCSR)
+	err = database.CreateCertificateRequest(StrawberryCSR)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
-	res, err := db.ListCertificateRequests()
+	res, err := database.ListCertificateRequests()
 	if err != nil {
 		t.Fatalf("Couldn't complete RetrieveAll: %s", err)
 	}
 	if len(res) != 3 {
 		t.Fatalf("One or more CSRs weren't found in DB")
 	}
-	retrievedCSR, err := db.GetCertificateRequestByCSR(AppleCSR)
+	retrievedCSR, err := database.GetCertificateRequest(db.ByCSRPEM(AppleCSR))
 	if err != nil {
 		t.Fatalf("Couldn't complete Retrieve: %s", err)
 	}
 	if retrievedCSR.CSR != AppleCSR {
 		t.Fatalf("The CSR from the database doesn't match the CSR that was given")
 	}
-	if err = db.DeleteCertificateRequestByCSR(AppleCSR); err != nil {
+	if err = database.DeleteCertificateRequest(db.ByCSRPEM(AppleCSR)); err != nil {
 		t.Fatalf("Couldn't complete Delete: %s", err)
 	}
-	res, _ = db.ListCertificateRequests()
+	res, _ = database.ListCertificateRequests()
 	if len(res) != 2 {
 		t.Fatalf("CSR's weren't deleted from the DB properly")
 	}
@@ -67,14 +67,14 @@ func TestCreateFails(t *testing.T) {
 }
 
 func TestRetrieve(t *testing.T) {
-	db, _ := db.NewDatabase(":memory:") //nolint:errcheck
-	defer db.Close()
+	database, _ := db.NewDatabase(":memory:") //nolint:errcheck
+	defer database.Close()
 
-	db.CreateCertificateRequest(AppleCSR) //nolint:errcheck
-	if _, err := db.GetCertificateRequestByCSR("this is definitely not an id"); err == nil {
+	database.CreateCertificateRequest(AppleCSR) //nolint:errcheck
+	if _, err := database.GetCertificateRequest(db.ByCSRPEM("this is definitely not a csr")); err == nil {
 		t.Fatalf("Expected failure looking for nonexistent CSR")
 	}
-	if _, err := db.GetCertificateRequestByID(-1); err == nil {
+	if _, err := database.GetCertificateRequest(db.ByCSRID(-1)); err == nil {
 		t.Fatalf("Expected failure looking for nonexistent CSR")
 	}
 }

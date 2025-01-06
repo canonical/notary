@@ -18,19 +18,19 @@ func TestConnect(t *testing.T) {
 }
 
 func Example() {
-	db, err := db.NewDatabase("./certs.db")
+	database, err := db.NewDatabase("./certs.db")
 	if err != nil {
 		log.Fatalln(err)
 	}
-	err = db.CreateCertificateRequest(BananaCSR)
+	err = database.CreateCertificateRequest(BananaCSR)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	err = db.AddCertificateChainToCertificateRequestByCSR(BananaCSR, BananaCert)
+	err = database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(BananaCSR), BananaCert)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	err = db.Close()
+	err = database.Close()
 	if err != nil {
 		log.Fatalln(err)
 	}

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/sqlair"
 	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
@@ -65,7 +66,7 @@ func Login(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Password is required")
 			return
 		}
-		userAccount, err := env.DB.GetUserByUsername(loginParams.Username)
+		userAccount, err := env.DB.GetUser(db.ByUsername(loginParams.Username))
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, sqlair.ErrNoRows) {

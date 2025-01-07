@@ -82,7 +82,7 @@ func GetAccount(env *HandlerConfig) http.HandlerFunc {
 			if headerErr != nil {
 				writeError(w, http.StatusUnauthorized, "Unauthorized")
 			}
-			account, err = env.DB.GetUserByUsername(claims.Username)
+			account, err = env.DB.GetUser(db.ByUsername(claims.Username))
 		} else {
 			var idNum int
 			idNum, err = strconv.Atoi(id)
@@ -90,7 +90,7 @@ func GetAccount(env *HandlerConfig) http.HandlerFunc {
 				writeError(w, http.StatusInternalServerError, "Internal Error")
 				return
 			}
-			account, err = env.DB.GetUserByID(idNum)
+			account, err = env.DB.GetUser(db.ByUserID(idNum))
 		}
 		if err != nil {
 			log.Println(err)
@@ -177,7 +177,7 @@ func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		account, err := env.DB.GetUserByID(idInt)
+		account, err := env.DB.GetUser(db.ByUserID(idInt))
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, sqlair.ErrNoRows) {
@@ -191,7 +191,7 @@ func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "deleting an Admin account is not allowed.")
 			return
 		}
-		err = env.DB.DeleteUserByID(idInt)
+		err = env.DB.DeleteUser(db.ByUserID(idInt))
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, sqlair.ErrNoRows) {
@@ -221,7 +221,7 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 				writeError(w, http.StatusUnauthorized, "Unauthorized")
 				return
 			}
-			account, err := env.DB.GetUserByUsername(claims.Username)
+			account, err := env.DB.GetUser(db.ByUsername(claims.Username))
 			if err != nil {
 				log.Println(err)
 				writeError(w, http.StatusUnauthorized, "Unauthorized")
@@ -254,7 +254,7 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 			)
 			return
 		}
-		err := env.DB.UpdateUserPassword(idNum, changeAccountParams.Password)
+		err := env.DB.UpdateUserPassword(db.ByUserID(idNum), changeAccountParams.Password)
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, sqlair.ErrNoRows) {

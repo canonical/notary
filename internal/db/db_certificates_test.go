@@ -99,14 +99,36 @@ func TestCertificatesEndToEnd(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error when retrieving deleted certificate, got nil")
 	}
+
+	certs, err = database.ListCertificates()
+	if err != nil {
+		t.Fatalf("Couldn't complete List: %s", err)
+	}
+	if len(certs) != 3 {
+		t.Fatalf("Expected 3 Certificates, only got %d", len(certs))
+	}
+	err = database.DeleteCertificate(db.ByCertificatePEM("Nonexistent cert"))
+	if err != nil {
+		t.Fatalf("Attempting to delete a nonexistent certificate should not return an error")
+	}
+	certs, err = database.ListCertificates()
+	if err != nil {
+		t.Fatalf("Couldn't complete List: %s", err)
+	}
+	if len(certs) != 3 {
+		t.Fatalf("Expected 3 Certificates, only got %d", len(certs))
+	}
 }
 
 func TestGetCertificateFails(t *testing.T) {
 	database, _ := db.NewDatabase(":memory:")
 	defer database.Close()
 
-	database.CreateCertificateRequest(AppleCSR)
-	err := database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(AppleCSR), AppleCert+IntermediateCert+"some extra string"+RootCert)
+	err := database.CreateCertificateRequest(AppleCSR)
+	if err != nil {
+		t.Fatalf("The certificate should have been uploaded successfully")
+	}
+	err = database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(AppleCSR), AppleCert+IntermediateCert+"some extra string"+RootCert)
 	if err != nil {
 		t.Fatalf("The certificate should have been uploaded successfully")
 	}
@@ -145,8 +167,14 @@ func TestCertificateAddFails(t *testing.T) {
 	database, _ := db.NewDatabase(":memory:")
 	defer database.Close()
 
-	database.CreateCertificateRequest(AppleCSR)
-	database.CreateCertificateRequest(BananaCSR)
+	err := database.CreateCertificateRequest(AppleCSR)
+	if err != nil {
+		t.Fatalf("The certificate should have been uploaded successfully")
+	}
+	err = database.CreateCertificateRequest(BananaCSR)
+	if err != nil {
+		t.Fatalf("The certificate should have been uploaded successfully")
+	}
 	InvalidCert := strings.ReplaceAll(BananaCert, "/", "+")
 	if err := database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(BananaCSR), InvalidCert); err == nil {
 		t.Fatalf("Expected adding certificate chain with invalid cert to fail")
@@ -179,11 +207,19 @@ func TestGetCertificateChainFails(t *testing.T) {
 	database, _ := db.NewDatabase(":memory:")
 	defer database.Close()
 
-	database.CreateCertificateRequest(AppleCSR)
-	database.CreateCertificateRequest(BananaCSR)
-	database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(AppleCSR), AppleCert+IntermediateCert+RootCert)
-	database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(BananaCSR), BananaCert+IntermediateCert+RootCert)
-	_, err := database.GetCertificateChain(db.ByCertificatePEM(AppleCert))
+	err := database.CreateCertificateRequest(AppleCSR)
+	if err != nil {
+		t.Fatalf("The certificate should have been uploaded successfully")
+	}
+	err = database.CreateCertificateRequest(BananaCSR)
+	if err != nil {
+		t.Fatalf("The certificate should have been uploaded successfully")
+	}
+	err = database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(AppleCSR), AppleCert+IntermediateCert+RootCert)
+	if err != nil {
+		t.Fatalf("The certificate should have been uploaded successfully")
+	}
+	_, err = database.GetCertificateChain(db.ByCertificatePEM(AppleCert))
 	if err != nil {
 		t.Fatalf("An error should not be returned when retrieving a certificate chain.")
 	}

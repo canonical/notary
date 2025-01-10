@@ -51,7 +51,7 @@ func TestCSRsEndToEnd(t *testing.T) {
 	}
 }
 
-func TestCreateFails(t *testing.T) {
+func TestCreateCertificateRequestFails(t *testing.T) {
 	db, _ := db.NewDatabase(":memory:")
 	defer db.Close()
 
@@ -66,7 +66,7 @@ func TestCreateFails(t *testing.T) {
 	}
 }
 
-func TestRetrieve(t *testing.T) {
+func TestRetrieveCertificateRequestFails(t *testing.T) {
 	database, _ := db.NewDatabase(":memory:") //nolint:errcheck
 	defer database.Close()
 

@@ -258,7 +258,7 @@ func (db *Database) RevokeCertificate(filter CSRFilter) error {
 	return err
 }
 
-// DeleteCertificateRequest removes a CSR from the database alongside the certificate that may have been generated for it.
+// DeleteCertificateRequest removes a CSR from the database.
 func (db *Database) DeleteCertificateRequest(filter CSRFilter) error {
 	var csrRow CertificateRequest
 

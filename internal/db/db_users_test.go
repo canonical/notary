@@ -110,8 +110,8 @@ func TestCreateUserFails(t *testing.T) {
 	if err == nil {
 		t.Fatalf("An error should have been returned when creating a user with an empty username.")
 	}
-	if !strings.Contains(err.Error(), "username cannot be empty") {
-		t.Fatalf("The error should include 'username cannot be empty'")
+	if !strings.Contains(err.Error(), "CHECK constraint failed") {
+		t.Fatalf("The error should include 'CHECK constraint failed'")
 	}
 	num, err = database.NumUsers()
 	if err != nil {

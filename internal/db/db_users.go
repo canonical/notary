@@ -3,10 +3,8 @@ package db
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/canonical/sqlair"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type User struct {
@@ -21,8 +19,10 @@ const queryCreateUsersTable = `
 	CREATE TABLE IF NOT EXISTS %s (
  		id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-		username TEXT NOT NULL UNIQUE,
-		hashed_password TEXT NOT NULL,
+		username TEXT NOT NULL UNIQUE 
+			CHECK (trim(username) != ''),
+		hashed_password TEXT NOT NULL 
+			CHECK (trim(hashed_password) != ''),
 		permissions INTEGER CHECK (permissions IN (0,1))
 )`
 
@@ -77,13 +77,7 @@ func (db *Database) GetUser(filter UserFilter) (*User, error) {
 // The permission level 1 represents an admin, and a 0 represents a regular user.
 // The password passed in should be in plaintext. This function handles hashing and salting the password before storing it in the database.
 func (db *Database) CreateUser(username string, password string, permission int) error {
-	if strings.TrimSpace(username) == "" {
-		return fmt.Errorf("username cannot be empty")
-	}
-	if strings.TrimSpace(password) == "" {
-		return fmt.Errorf("password cannot be empty")
-	}
-	pw, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	pw, err := HashPassword(password)
 	if err != nil {
 		return err
 	}
@@ -103,14 +97,11 @@ func (db *Database) CreateUser(username string, password string, permission int)
 // UpdateUser updates the password of the given user.
 // Just like with CreateUser, this function handles hashing and salting the password before storage.
 func (db *Database) UpdateUserPassword(filter UserFilter, password string) error {
-	if strings.TrimSpace(password) == "" {
-		return fmt.Errorf("password cannot be empty")
-	}
 	userRow, err := db.GetUser(filter)
 	if err != nil {
 		return err
 	}
-	pw, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	pw, err := HashPassword(password)
 	if err != nil {
 		return err
 	}

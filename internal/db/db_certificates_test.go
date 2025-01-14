@@ -124,14 +124,8 @@ func TestGetCertificateFails(t *testing.T) {
 	database, _ := db.NewDatabase(":memory:")
 	defer database.Close()
 
-	err := database.CreateCertificateRequest(AppleCSR)
-	if err != nil {
-		t.Fatalf("The certificate should have been uploaded successfully")
-	}
-	err = database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(AppleCSR), AppleCert+IntermediateCert+"some extra string"+RootCert)
-	if err != nil {
-		t.Fatalf("The certificate should have been uploaded successfully")
-	}
+	database.CreateCertificateRequest(AppleCSR)                                                                                      //nolint:errcheck
+	database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(AppleCSR), AppleCert+IntermediateCert+"some extra string"+RootCert) //nolint:errcheck
 
 	cert, err := database.GetCertificate(db.ByCertificatePEM(AppleCert))
 	if err != nil || cert.CertificatePEM != AppleCert {

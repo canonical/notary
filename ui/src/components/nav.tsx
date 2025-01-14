@@ -1,7 +1,6 @@
 "use client"
 
-import { SetStateAction, Dispatch, useState, useEffect } from "react"
-import { useQuery } from "@tanstack/react-query";
+import { SetStateAction, Dispatch, useState } from "react"
 import Image from "next/image";
 import { Aside, AsideContext } from "./aside";
 import { AccountTab } from "./nav_account"
@@ -9,19 +8,10 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/app/auth/authContext";
 import UploadCSRAsidePanel from "@/app/(notary)/certificate_requests/asideForm";
 import UploadUserAsidePanel from "@/app/(notary)/users/asideForm";
-import { getStatus } from "@/queries"
 import { ChangePasswordModalData, ChangePasswordModal, ChangePasswordModalContext } from "@/app/(notary)/users/components";
 
 export function SideBar({ activePath, sidebarVisible, setSidebarVisible }: { activePath: string, sidebarVisible: boolean, setSidebarVisible: Dispatch<SetStateAction<boolean>> }) {
   const auth = useAuth()
-  const statusQuery = useQuery({
-    queryKey: ["status"],
-    queryFn: getStatus,
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
-  })
 
   return (
     <header className={sidebarVisible ? "l-navigation" : "l-navigation is-collapsed"} >
@@ -65,7 +55,7 @@ export function SideBar({ activePath, sidebarVisible, setSidebarVisible }: { act
                 <ul className="p-side-navigation__list" style={{ bottom: 0, position: "absolute", width: "100%" }}>
                   <li className="p-side-navigation__item">
                     <span className="p-side-navigation__text">
-                      Version {statusQuery.data?.version}
+                      Version {process.env.VERSION}
                     </span>
                   </li>
                 </ul>

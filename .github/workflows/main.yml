@@ -25,6 +25,9 @@ jobs:
   rock-build:
     needs: [go-build, go-unit-test, go-vet, go-lint]
     uses: ./.github/workflows/rock-build.yaml
+  rock-test:
+    needs: [rock-build]
+    uses: ./.github/workflows/rock-build.yaml
   rock-scan:
     if: github.ref_name == 'main'
     needs: [rock-build]

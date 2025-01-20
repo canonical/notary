@@ -178,7 +178,7 @@ func (db *Database) GetCertificateRequest(filter CSRFilter) (*CertificateRequest
 	return &csrRow, nil
 }
 
-// GetCertificateRequestByID gets a CSR row from the repository from a given ID.
+// GetCertificateRequestAndChain gets a CSR row from the repository from a given ID.
 func (db *Database) GetCertificateRequestAndChain(filter CSRFilter) (*CertificateRequestWithChain, error) {
 	var csrRow CertificateRequestWithChain
 
@@ -218,7 +218,7 @@ func (db *Database) CreateCertificateRequest(csr string) error {
 	return err
 }
 
-// RejectCertificateRequestByCSR updates input CSR's row by setting the certificate bundle to "" and moving the row status to "Rejected".
+// RejectCertificateRequest updates input CSR's row by setting the certificate bundle to "" and moving the row status to "Rejected".
 func (db *Database) RejectCertificateRequest(filter CSRFilter) error {
 	oldRow, err := db.GetCertificateRequest(filter)
 	if err != nil {
@@ -238,7 +238,7 @@ func (db *Database) RejectCertificateRequest(filter CSRFilter) error {
 	return err
 }
 
-// RevokeCertificateByCSR updates the input CSR's row by setting the certificate bundle to "" and sets the row status to "Revoked".
+// RevokeCertificate updates the input CSR's row by setting the certificate bundle to "" and sets the row status to "Revoked".
 func (db *Database) RevokeCertificate(filter CSRFilter) error {
 	oldRow, err := db.GetCertificateRequest(filter)
 	if err != nil {
@@ -258,7 +258,7 @@ func (db *Database) RevokeCertificate(filter CSRFilter) error {
 	return err
 }
 
-// DeleteCertificateRequestByCSR removes a CSR from the database alongside the certificate that may have been generated for it.
+// DeleteCertificateRequest removes a CSR from the database.
 func (db *Database) DeleteCertificateRequest(filter CSRFilter) error {
 	var csrRow CertificateRequest
 

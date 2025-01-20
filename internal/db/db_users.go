@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/canonical/sqlair"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type User struct {
@@ -20,9 +19,11 @@ const queryCreateUsersTable = `
 	CREATE TABLE IF NOT EXISTS %s (
  		id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-		username TEXT NOT NULL UNIQUE,
-		hashed_password TEXT NOT NULL,
-		permissions INTEGER
+		username TEXT NOT NULL UNIQUE 
+			CHECK (trim(username) != ''),
+		hashed_password TEXT NOT NULL 
+			CHECK (trim(hashed_password) != ''),
+		permissions INTEGER CHECK (permissions IN (0,1))
 )`
 
 const (
@@ -76,7 +77,7 @@ func (db *Database) GetUser(filter UserFilter) (*User, error) {
 // The permission level 1 represents an admin, and a 0 represents a regular user.
 // The password passed in should be in plaintext. This function handles hashing and salting the password before storing it in the database.
 func (db *Database) CreateUser(username string, password string, permission int) error {
-	pw, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	pw, err := HashPassword(password)
 	if err != nil {
 		return err
 	}
@@ -100,7 +101,7 @@ func (db *Database) UpdateUserPassword(filter UserFilter, password string) error
 	if err != nil {
 		return err
 	}
-	pw, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	pw, err := HashPassword(password)
 	if err != nil {
 		return err
 	}

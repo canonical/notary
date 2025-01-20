@@ -41,20 +41,20 @@ const (
 	deleteCertificateStmt    = "DELETE FROM %s WHERE certificate_id=$Certificate.certificate_id or certificate=$Certificate.certificate"
 
 	getCertificateChainStmt = `WITH RECURSIVE cert_chain AS (
-	-- Initial query: Start search from the end certificate
-    SELECT certificate_id, certificate, issuer_id
+    -- Initial query: Start search from the end certificate
+    SELECT certificate_id, certificate, issuer_id, private_key_id
     FROM %s
     WHERE certificate_id = $Certificate.certificate_id or certificate = $Certificate.certificate
     
     UNION ALL
     
     -- Recursive Query: Move up the chain until issuer_id is 0 (root)
-    SELECT certs.certificate_id, certs.certificate, certs.issuer_id
+    SELECT certs.certificate_id, certs.certificate, certs.issuer_id, certs.private_key_id
     FROM certificates certs
     JOIN cert_chain
       ON certs.certificate_id = cert_chain.issuer_id
 )
-SELECT * FROM cert_chain;`
+SELECT &Certificate.* FROM cert_chain;`
 )
 
 // ListCertificateRequests gets every CertificateRequest entry in the table.
@@ -161,7 +161,7 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 	return err
 }
 
-// DeleteCertificateRequestByCSR removes a CSR from the database alongside the certificate that may have been generated for it.
+// DeleteCertificate removes a certificate from the database.
 func (db *Database) DeleteCertificate(filter CertificateFilter) error {
 	var certRow Certificate
 
@@ -174,7 +174,7 @@ func (db *Database) DeleteCertificate(filter CertificateFilter) error {
 		return fmt.Errorf("invalid certificate identifier: both ID and PEM are nil")
 	}
 
-	stmt, err := sqlair.Prepare(fmt.Sprintf(deleteCertificateRequestStmt, db.certificateRequestsTable), CertificateRequest{})
+	stmt, err := sqlair.Prepare(fmt.Sprintf(deleteCertificateStmt, db.certificatesTable), Certificate{})
 	if err != nil {
 		return err
 	}
@@ -195,7 +195,7 @@ func (db *Database) GetCertificateChain(filter CertificateFilter) ([]Certificate
 		return nil, fmt.Errorf("invalid certificate identifier: both ID and PEM are nil")
 	}
 
-	stmt, err := sqlair.Prepare(fmt.Sprintf(getCertificateChainStmt, db.certificatesTable), CertificateRequestWithChain{})
+	stmt, err := sqlair.Prepare(fmt.Sprintf(getCertificateChainStmt, db.certificatesTable), Certificate{})
 	if err != nil {
 		return nil, err
 	}

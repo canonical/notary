@@ -1,5 +1,4 @@
-import { useContext, useState, Dispatch, SetStateAction } from "react";
-import { AsideContext } from "@/components/aside";
+import { useState, Dispatch, SetStateAction } from "react";
 import { CSREntry } from "@/types";
 import { Button, MainTable, Panel, EmptyState, ContextualMenu, ConfirmationModal } from "@canonical/react-components";
 import { RequiredCSRParams, deleteCSR, rejectCSR, revokeCertificate } from "@/queries"
@@ -9,27 +8,9 @@ import { UseMutationResult, useMutation, useQueryClient } from "@tanstack/react-
 import { SubmitCertificateModal, SuccessNotification } from "./components"
 
 
-function CSREmptyState({ setAsideOpen }: { setAsideOpen: Dispatch<SetStateAction<boolean>> }) {
-    return (
-        <EmptyState
-            image={""}
-            title="No CSRs available yet."
-        >
-            <p>
-                There are no Certificate Requests in Notary. Request your first certificate!
-            </p>
-            <Button
-                appearance="positive"
-                aria-label="add-csr-button"
-                onClick={() => setAsideOpen(true)}>
-                Add New CSR
-            </Button>
-        </EmptyState>
-    );
-}
-
 type TableProps = {
     csrs: CSREntry[];
+    setAsideOpen: Dispatch<SetStateAction<boolean>>
 };
 
 export type ConfirmationModalData = {
@@ -38,8 +19,7 @@ export type ConfirmationModalData = {
 } | null
 
 
-export function CertificateRequestsTable({ csrs: rows }: TableProps) {
-    const { isOpen: isAsideOpen, setIsOpen: setAsideIsOpen } = useContext(AsideContext);
+export function CertificateRequestsTable({ csrs: rows , setAsideOpen}: TableProps) {
     const [cookies] = useCookies(['user_token']);
     const queryClient = useQueryClient();
     const [certificateFormOpen, setCertificateFormOpen] = useState<boolean>(false);
@@ -274,13 +254,13 @@ export function CertificateRequestsTable({ csrs: rows }: TableProps) {
             title="Certificate Requests"
             className="u-fixed-width"
             controls={rows.length > 0 && (
-                <Button appearance="positive" onClick={() => setAsideIsOpen(true)}>
+                <Button appearance="positive" onClick={() => setAsideOpen(true)}>
                     Add New CSR
                 </Button>
             )}
         >
             <MainTable
-                emptyStateMsg={<CSREmptyState setAsideOpen={setAsideIsOpen} />}
+                emptyStateMsg={<CSREmptyState setAsideOpen={setAsideOpen} />}
                 expanding
                 sortable
                 headers={[
@@ -326,5 +306,24 @@ export function CertificateRequestsTable({ csrs: rows }: TableProps) {
                 />
             )}
         </Panel>
+    );
+}
+
+function CSREmptyState({ setAsideOpen }: { setAsideOpen: Dispatch<SetStateAction<boolean>> }) {
+    return (
+        <EmptyState
+            image={""}
+            title="No CSRs available yet."
+        >
+            <p>
+                There are no Certificate Requests in Notary. Request your first certificate!
+            </p>
+            <Button
+                appearance="positive"
+                aria-label="add-csr-button"
+                onClick={() => setAsideOpen(true)}>
+                Add New CSR
+            </Button>
+        </EmptyState>
     );
 }

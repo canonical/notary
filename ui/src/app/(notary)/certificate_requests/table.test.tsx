@@ -101,7 +101,7 @@ const queryClient = new QueryClient()
 test('CertificateRequestsPage', () => {
     render(
         <QueryClientProvider client={queryClient}>
-            < CertificateRequestsTable csrs={rows} />
+            < CertificateRequestsTable csrs={rows} setAsideOpen={() => {}}/>
         </QueryClientProvider>
     )
     const commonNames = screen.getAllByText('example.com');

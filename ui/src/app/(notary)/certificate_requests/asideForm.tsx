@@ -2,13 +2,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { csrIsValid } from "@/utils";
 import { useCookies } from "react-cookie";
 import { postCSR } from "@/queries";
-import { ChangeEvent, useContext, useState, useEffect } from "react";
-import { AsideContext } from "@/components/aside";
+import { ChangeEvent, useState, useEffect, Dispatch, SetStateAction } from "react";
 import { Textarea, Button, Input, Panel, Form } from "@canonical/react-components";
 
+type AsideProps = {
+    setAsideOpen: Dispatch<SetStateAction<boolean>>
+};
 
-export default function CertificateRequestsAsidePanel(): JSX.Element {
-    const asideContext = useContext(AsideContext);
+export default function CertificateRequestsAsidePanel({setAsideOpen}: AsideProps): JSX.Element {
     const [cookies] = useCookies(['user_token']);
     const [errorText, setErrorText] = useState<string>("");
     const [CSRPEMString, setCSRPEMString] = useState<string>("");
@@ -18,7 +19,7 @@ export default function CertificateRequestsAsidePanel(): JSX.Element {
         mutationFn: postCSR,
         onSuccess: () => {
             setErrorText("");
-            asideContext.setIsOpen(false);
+            setAsideOpen(false);
             queryClient.invalidateQueries({ queryKey: ['csrs'] });
         },
         onError: (e: Error) => {
@@ -59,7 +60,7 @@ export default function CertificateRequestsAsidePanel(): JSX.Element {
         <Panel
             title="Add a New Certificate Request"
             controls={
-                <Button onClick={() => asideContext.setIsOpen(false)} hasIcon>
+                <Button onClick={() => setAsideOpen(false)} hasIcon>
                     <i className="p-icon--close" />
                 </Button>
             }

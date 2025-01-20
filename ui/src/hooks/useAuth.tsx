@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, Dispatch, SetStateAction } from 'react';
-import { User } from '../../types';
+import { User } from '../types';
 import { useCookies } from 'react-cookie';
 import { jwtDecode } from 'jwt-decode';
 import { useRouter } from 'next/navigation';

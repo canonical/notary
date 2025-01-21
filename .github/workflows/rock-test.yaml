@@ -14,7 +14,6 @@ jobs:
           name: rock
       - name: Install pre-requisites
         run: |
-          ls
           sudo apt-get update
           sudo apt-get install -y openssl jq
           sudo snap install rockcraft --classic
@@ -24,7 +23,7 @@ jobs:
           openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 1 -out cert.pem -subj "/CN=githubaction.example"
       - name: Import the image to Docker registry
         run: |
-          sudo rockcraft.skopeo --insecure-policy copy oci-archive:rock docker-daemon:notary:latest
+          sudo rockcraft.skopeo --insecure-policy copy oci-archive:${{ steps.rockcraft.outputs.rock }} docker-daemon:notary:latest
       - name: Run the image
         run: |
           docker run -d -p 3000:3000 --name notary notary:latest

@@ -12,6 +12,11 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: rock
+      - name: Install pre-requisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openssl jq
+          sudo snap install rockcraft --classic
       - name: Create files required by Notary
         run: |
           printf 'key_path:  "/etc/notary/config/key.pem"\ncert_path: "/etc/notary/config/cert.pem"\ndb_path: "/var/lib/notary/database/certs.db"\nport: 3000\npebble_notifications: true\n' > config.yaml

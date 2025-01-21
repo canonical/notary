@@ -13,13 +13,6 @@ jobs:
         id: rockcraft
         with:
           rockcraft-channel: edge
-      - name: Install pre-requisites
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openssl jq
-      - name: Import the image to Docker registry
-        run: |
-          sudo rockcraft.skopeo --insecure-policy copy oci-archive:${{ steps.rockcraft.outputs.rock }} docker-daemon:notary:latest
       - uses: actions/upload-artifact@v4
         with:
           name: rock

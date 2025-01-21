@@ -12,10 +12,20 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: rock
+          path: ./rock-path
+      - name: Install pre-requisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openssl jq
+          sudo snap install rockcraft --classic
       - name: Create files required by Notary
         run: |
           printf 'key_path:  "/etc/notary/config/key.pem"\ncert_path: "/etc/notary/config/cert.pem"\ndb_path: "/var/lib/notary/database/certs.db"\nport: 3000\npebble_notifications: true\n' > config.yaml
           openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 1 -out cert.pem -subj "/CN=githubaction.example"
+      - name: Import the image to Docker registry
+        run: |
+          ROCK_FILE_NAME=$(ls ./rock-path)
+          sudo rockcraft.skopeo --insecure-policy copy oci-archive:rock-path/$ROCK_FILE_NAME docker-daemon:notary:latest
       - name: Run the image
         run: |
           docker run -d -p 3000:3000 --name notary notary:latest

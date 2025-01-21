@@ -14,6 +14,7 @@ jobs:
           name: rock
       - name: Install pre-requisites
         run: |
+          pwd
           sudo apt-get update
           sudo apt-get install -y openssl jq
           sudo snap install rockcraft --classic

@@ -12,6 +12,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: rock
+          path: ./rock
       - name: Install pre-requisites
         run: |
           sudo apt-get update
@@ -23,7 +24,8 @@ jobs:
           openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 1 -out cert.pem -subj "/CN=githubaction.example"
       - name: Import the image to Docker registry
         run: |
-          sudo rockcraft.skopeo --insecure-policy copy oci-archive:${{ steps.rockcraft.outputs.rock }} docker-daemon:notary:latest
+          ROCK_FILE_NAME=$(ls ./rock)
+          sudo rockcraft.skopeo --insecure-policy copy oci-archive:$(ROCK_FILE_NAME) docker-daemon:notary:latest
       - name: Run the image
         run: |
           docker run -d -p 3000:3000 --name notary notary:latest

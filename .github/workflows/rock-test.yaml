@@ -25,9 +25,7 @@ jobs:
       - name: Import the image to Docker registry
         run: |
           ROCK_FILE_NAME=$(ls ./rock-path)
-          ls ./rock-path
-          echo $ROCK_FILE_NAME
-          sudo rockcraft.skopeo --insecure-policy copy oci-archive:$(ROCK_FILE_NAME) docker-daemon:notary:latest
+          sudo rockcraft.skopeo --insecure-policy copy oci-archive:$ROCK_FILE_NAME docker-daemon:notary:latest
       - name: Run the image
         run: |
           docker run -d -p 3000:3000 --name notary notary:latest

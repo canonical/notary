@@ -3,7 +3,7 @@
 import { passwordIsValid } from "@/utils"
 import { statusResponse } from "@/types"
 import { getStatus, login, postFirstUser } from "@/queries"
-import { useAuth } from "@/app/auth/authContext"
+import { useAuth } from "@/hooks/useAuth"
 import { Input, PasswordToggle, Button, Form, LoginPageLayout } from "@canonical/react-components";
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { useState, ChangeEvent } from "react"

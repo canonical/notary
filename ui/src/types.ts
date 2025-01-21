@@ -22,3 +22,8 @@ export type statusResponse = {
     initialized: boolean
     version: string
 }
+
+export type AsideFormData = {
+    formTitle: string
+    formData: any
+}

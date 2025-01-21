@@ -1,21 +1,20 @@
-import { useState, useContext } from "react"
-import { AsideContext } from "@/components/aside"
-import { UserEntry } from "@/types"
+import { useState, Dispatch, SetStateAction } from "react"
+import { AsideFormData, UserEntry } from "@/types"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Button, ContextualMenu, MainTable, Panel } from "@canonical/react-components";
 import { ConfirmationModalData, UsersConfirmationModal, ChangePasswordModalData, ChangePasswordModal } from "./components"
-import { useAuth } from "@/app/auth/authContext"
+import { useAuth } from "@/hooks/useAuth"
 import { deleteUser } from "@/queries"
 
 type TableProps = {
     users: UserEntry[]
+    setAsideOpen: Dispatch<SetStateAction<boolean>>
+    setFormData: Dispatch<SetStateAction<AsideFormData>>
 }
 
-export function UsersTable({ users }: TableProps) {
+export function UsersTable({ users, setAsideOpen, setFormData }: TableProps) {
     const auth = useAuth()
-    const { isOpen: isAsideOpen, setIsOpen: setAsideIsOpen } = useContext(AsideContext)
-    const asideContext = useContext(AsideContext)
-    const [confirmationModalData, setConfirmationModalData] = useState<ConfirmationModalData | null>(null)
+    const [confirmationModalData, setConfirmationModalData] = useState<ConfirmationModalData>(null)
     const [changePasswordModalData, setChangePasswordModalData] = useState<ChangePasswordModalData>(null)
     const queryClient = useQueryClient()
     const deleteMutation = useMutation({
@@ -41,7 +40,7 @@ export function UsersTable({ users }: TableProps) {
             title="Users"
             className="u-fixed-width"
             controls={users.length > 0 &&
-                <Button appearance="positive" onClick={() => { asideContext.setExtraData(null); setAsideIsOpen(true) }}>Create New User</Button>
+                <Button appearance="positive" onClick={() => { setFormData({ formTitle: "Add a New User", formData: null }); setAsideOpen(true) }}>Create New User</Button>
             }
         >
             <div >
@@ -93,8 +92,9 @@ export function UsersTable({ users }: TableProps) {
             )}
             {changePasswordModalData && (
                 <ChangePasswordModal
-                    modalData={changePasswordModalData}
-                    setModalData={setChangePasswordModalData}
+                    id={changePasswordModalData.id}
+                    username={changePasswordModalData.username}
+                    setChangePasswordModalVisible={() => setChangePasswordModalData(null)}
                 />
             )}
         </Panel>

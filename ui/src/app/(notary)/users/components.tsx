@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction, useState, ChangeEvent, createContext } from "react"
-import { useAuth } from "@/app/auth/authContext"
+import { useAuth } from "@/hooks/useAuth"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { changePassword } from "@/queries"
 import { passwordIsValid } from "@/utils"
@@ -42,7 +42,7 @@ export function UsersConfirmationModal({ modalData, setModalData }: Confirmation
     )
 }
 
-export function ChangePasswordModal({ modalData, setModalData }: ChangePasswordModalProps) {
+export function ChangePasswordModal({ id, username, setChangePasswordModalVisible }: { id: string, username: string, setChangePasswordModalVisible: Dispatch<SetStateAction<boolean>> }) {
     const auth = useAuth()
     const queryClient = useQueryClient()
     const mutation = useMutation({
@@ -50,7 +50,6 @@ export function ChangePasswordModal({ modalData, setModalData }: ChangePasswordM
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['users'] })
             setErrorText("")
-            setModalData(null)
         },
         onError: (e: Error) => {
             setErrorText(e.message)
@@ -69,13 +68,13 @@ export function ChangePasswordModal({ modalData, setModalData }: ChangePasswordM
         <Modal
             title="Change Password"
             buttonRow={<>
-                <Button onClick={() => setModalData(null)}>
+                <Button onClick={() => setChangePasswordModalVisible(false)}>
                     Cancel
                 </Button>
                 <Button
                     appearance="positive"
                     disabled={!passwordsMatch || !passwordIsValid(password1)}
-                    onClick={(event) => { event.preventDefault(); mutation.mutate({ authToken: (auth.user ? auth.user.authToken : ""), id: modalData ? modalData.id : "", password: password1 }) }}>
+                    onClick={(event) => { event.preventDefault(); mutation.mutate({ authToken: (auth.user ? auth.user.authToken : ""), id: id, password: password1 }) }}>
                     Submit
                 </Button>
             </>}>
@@ -86,7 +85,7 @@ export function ChangePasswordModal({ modalData, setModalData }: ChangePasswordM
                     type="text"
                     required={true}
                     disabled={true}
-                    value={modalData?.username}
+                    value={username}
                 />
                 <PasswordToggle
                     help="Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol."

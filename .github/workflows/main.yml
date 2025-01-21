@@ -27,7 +27,7 @@ jobs:
     uses: ./.github/workflows/rock-build.yaml
   rock-test:
     needs: [rock-build]
-    uses: ./.github/workflows/rock-build.yaml
+    uses: ./.github/workflows/rock-test.yaml
   rock-scan:
     if: github.ref_name == 'main'
     needs: [rock-build]

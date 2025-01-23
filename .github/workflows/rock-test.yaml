@@ -41,7 +41,7 @@ jobs:
         run: |
           sleep 30
           docker logs notary
-          curl -k https://localhost:3000/certificate_requests.html 2>&1 | grep "Certificate Requests"
+          curl -k https://localhost:3000/certificate_requests.html 2>&1 | grep "<title>Notary</title>"
       - name: Test if pebble notify fires correctly
         id: test_notify
         run : |

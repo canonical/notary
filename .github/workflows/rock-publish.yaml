@@ -23,18 +23,36 @@ jobs:
         
       - uses: actions/download-artifact@v4
         with:
-          name: rock
+          name: rock-amd64
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: rock-arm64
 
       - name: Import and push to github package
         run: |
           image_name="$(yq '.name' rockcraft.yaml)"
-          version="$(cat version/VERSION)"
-          rock_file=$(ls *.rock | tail -n 1)
+          #version="$(cat version/VERSION)"
+          version="multiarch-test"
+          amd64_rock_file=$(ls *_amd64.rock | tail -n 1)
+          arm64_rock_file=$(ls *_arm64.rock | tail -n 1)
           sudo rockcraft.skopeo \
             --insecure-policy \
             copy \
-            oci-archive:"${rock_file}" \
-            docker-daemon:"ghcr.io/canonical/${image_name}:${version}"
-          docker tag ghcr.io/canonical/${image_name}:${version} ghcr.io/canonical/${image_name}:latest
-          docker push ghcr.io/canonical/${image_name}:${version}
-          docker push ghcr.io/canonical/${image_name}:latest
+            oci-archive:"${amd64_rock_file}" \
+            docker-daemon:"ghcr.io/canonical/${image_name}:${version}-amd64"
+          docker push ghcr.io/canonical/${image_name}:${version}-amd64
+          sudo rockcraft.skopeo \
+            --insecure-policy \
+            copy \
+            oci-archive:"${arm64_rock_file}" \
+            docker-daemon:"ghcr.io/canonical/${image_name}:${version}-arm64"
+          docker push ghcr.io/canonical/${image_name}:${version}-arm64
+          docker manifest create ghcr.io/canonical/${image_name}:${version} \
+            ghcr.io/canonical/${image_name}:${version}-amd64 \
+            ghcr.io/canonical/${image_name}:${version}-arm64
+          docker manifest push ghcr.io/canonical/${image_name}:${version}
+          docker manifest create ghcr.io/canonical/${image_name}:latest \
+            ghcr.io/canonical/${image_name}:${version}-amd64 \
+            ghcr.io/canonical/${image_name}:${version}-arm64
+          docker manifest push ghcr.io/canonical/${image_name}:latest

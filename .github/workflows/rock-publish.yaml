@@ -32,8 +32,7 @@ jobs:
       - name: Import and push to github package
         run: |
           image_name="$(yq '.name' rockcraft.yaml)"
-          #version="$(cat version/VERSION)"
-          version="multiarch-test"
+          version="$(cat version/VERSION)"
           amd64_rock_file=$(ls *_amd64.rock | tail -n 1)
           arm64_rock_file=$(ls *_arm64.rock | tail -n 1)
           sudo rockcraft.skopeo \

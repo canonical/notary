@@ -5,13 +5,20 @@ on:
 
 jobs:
   test-rock:
-    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        arch:
+          - arch: amd64
+            runner: ubuntu-22.04
+          - arch: arm64
+            runner: [self-hosted, linux, ARM64, medium, jammy]
+    runs-on: ${{ matrix.arch.runner }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: rock
+          name: rock-${{ matrix.arch.arch }}
           path: ./rock-path
       - name: Install pre-requisites
         run: |

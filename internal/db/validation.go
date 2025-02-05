@@ -102,6 +102,28 @@ func CertificateMatchesCSR(cert string, csr string) error {
 	return nil
 }
 
+func ValidatePrivateKey(pk string) error {
+	block, _ := pem.Decode([]byte(pk))
+	if block == nil {
+		return errors.New("failed to decode PEM block")
+	}
+
+	if block.Type != "RSA PRIVATE KEY" && block.Type != "PRIVATE KEY" {
+		return fmt.Errorf("invalid PEM block type: %s", block.Type)
+	}
+
+	var err error
+	if block.Type == "RSA PRIVATE KEY" {
+		_, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+	} else {
+		_, err = x509.ParsePKCS8PrivateKey(block.Bytes)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to parse private key: %v", err)
+	}
+	return nil
+}
+
 // SanitizeCertificateBundle takes in a valid certificate string and formats it
 // The final list has pure certificate PEM strings with no trailing or leading whitespace
 func sanitizeCertificateBundle(cert string) ([]string, error) {

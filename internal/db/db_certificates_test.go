@@ -39,7 +39,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 	if len(certs) != 4 {
 		t.Fatalf("Expected 4 Certificates, only got %d", len(certs))
 	}
-	if certs[0].Issuer != 0 || certs[1].Issuer != 1 || certs[2].Issuer != 2 || certs[3].Issuer != 2 {
+	if certs[0].IssuerID != 0 || certs[1].IssuerID != 1 || certs[2].IssuerID != 2 || certs[3].IssuerID != 2 {
 		t.Fatalf("Certificate chains were not created correctly")
 	}
 

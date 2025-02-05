@@ -198,7 +198,7 @@ func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
 	}
 }
 
-func RejectCertificate(env *HandlerConfig) http.HandlerFunc {
+func RejectCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		idNum, err := strconv.Atoi(id)
@@ -263,5 +263,50 @@ func DeleteCertificate(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
 		}
+	}
+}
+
+func RevokeCertificate(env *HandlerConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		idNum, err := strconv.Atoi(id)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		err = env.DB.RevokeCertificate(db.ByCSRID(idNum))
+		if err != nil {
+			log.Println(err)
+			if errors.Is(err, sqlair.ErrNoRows) {
+				writeError(w, http.StatusNotFound, "Not Found")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		if env.SendPebbleNotifications {
+			err := SendPebbleNotification("canonical.com/notary/certificate/update", id)
+			if err != nil {
+				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
+			}
+		}
+		successResponse := SuccessResponse{Message: "success"}
+		err = writeResponse(w, successResponse, http.StatusAccepted)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
+		}
+	}
+}
+
+func SignCertificateRequest(env *HandlerConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// TODO
+	}
+}
+
+func RenewCertificate(env *HandlerConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		//TODO
 	}
 }

@@ -88,8 +88,8 @@ Notary does not support insecure http connections.
 | `/api/v1/certificate_requests`                         | POST        | Create a new certificate request               | csr                |
 | `/api/v1/certificate_requests/{id}`                    | GET         | Get a certificate request by id                |                    |
 | `/api/v1/certificate_requests/{id}`                    | DELETE      | Delete a certificate request by id             |                    |
+| `/api/v1/certificate_requests/{id}/reject`             | POST        | Reject a certificate for a certificate request |                    |
 | `/api/v1/certificate_requests/{id}/certificate`        | POST        | Create a certificate for a certificate request |                    |
-| `/api/v1/certificate_requests/{id}/certificate/reject` | POST        | Reject a certificate for a certificate request |                    |
 | `/api/v1/certificate_requests/{id}/certificate`        | DELETE      | Delete a certificate for a certificate request |                    |
 | `/api/v1/accounts`                                     | GET         | Get all user accounts                          |                    |
 | `/api/v1/accounts`                                     | POST        | Create a new user account                      | username, password |

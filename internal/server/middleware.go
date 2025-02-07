@@ -43,6 +43,18 @@ func createMiddlewareStack(middleware ...middleware) middleware {
 	}
 }
 
+func limitRequestSize(maxKilobytes int64) middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.ContentLength > maxKilobytes*1024 {
+				writeError(w, http.StatusRequestEntityTooLarge, http.StatusText(http.StatusRequestEntityTooLarge))
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 // The Metrics middleware captures any request relevant to a metric and records it for prometheus.
 func metricsMiddleware(metrics *metrics.PrometheusMetrics) middleware {
 	return func(next http.Handler) http.Handler {

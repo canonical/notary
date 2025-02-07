@@ -15,7 +15,7 @@ type PrivateKey struct {
 }
 
 const queryCreatePrivateKeysTable = `
-	CREATE TABLE IF NOT EXISTS %s (
+	CREATE TABLE IF NOT EXISTS private_keys (
 	    private_key_id INTEGER PRIMARY KEY AUTOINCREMENT,
 
 		private_key TEXT NOT NULL UNIQUE
@@ -23,15 +23,15 @@ const queryCreatePrivateKeysTable = `
 `
 
 const (
-	listPrivateKeysStmt  = "SELECT &PrivateKey.* FROM %s"
-	getPrivateKeyStmt    = "SELECT &PrivateKey.* FROM %s WHERE private_key_id==$PrivateKey.private_key_id or private_key==$PrivateKey.private_key"
-	createPrivateKeyStmt = "INSERT INTO %s (private_key) VALUES ($PrivateKey.private_key)"
-	deletePrivateKeyStmt = "DELETE FROM %s WHERE private_key_id==$PrivateKey.private_key_id or private_key==$PrivateKey.private_key"
+	listPrivateKeysStmt  = "SELECT &PrivateKey.* FROM private_keys"
+	getPrivateKeyStmt    = "SELECT &PrivateKey.* FROM private_keys WHERE private_key_id==$PrivateKey.private_key_id or private_key==$PrivateKey.private_key"
+	createPrivateKeyStmt = "INSERT INTO private_keys (private_key) VALUES ($PrivateKey.private_key)"
+	deletePrivateKeyStmt = "DELETE FROM private_keys WHERE private_key_id==$PrivateKey.private_key_id or private_key==$PrivateKey.private_key"
 )
 
 // ListPrivateKeys gets every PrivateKey entry in the table.
 func (db *Database) ListPrivateKeys() ([]PrivateKey, error) {
-	stmt, err := sqlair.Prepare(fmt.Sprintf(listPrivateKeysStmt, db.privateKeysTable), PrivateKey{})
+	stmt, err := sqlair.Prepare(listPrivateKeysStmt, PrivateKey{})
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (db *Database) GetPrivateKey(filter PrivateKeyFilter) (*PrivateKey, error) 
 		return nil, fmt.Errorf("invalid filter identifier: both ID and PEM are nil")
 	}
 
-	stmt, err := sqlair.Prepare(fmt.Sprintf(getPrivateKeyStmt, db.privateKeysTable), PrivateKey{})
+	stmt, err := sqlair.Prepare(getPrivateKeyStmt, PrivateKey{})
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func (db *Database) CreatePrivateKey(pk string) error {
 	if err := ValidatePrivateKey(pk); err != nil {
 		return errors.New("private key validation failed: " + err.Error())
 	}
-	stmt, err := sqlair.Prepare(fmt.Sprintf(createPrivateKeyStmt, db.privateKeysTable), PrivateKey{})
+	stmt, err := sqlair.Prepare(createPrivateKeyStmt, PrivateKey{})
 	if err != nil {
 		return err
 	}
@@ -99,7 +99,7 @@ func (db *Database) DeletePrivateKey(filter PrivateKeyFilter) error {
 		return fmt.Errorf("invalid filter identifier: both ID and PEM are nil")
 	}
 
-	stmt, err := sqlair.Prepare(fmt.Sprintf(deletePrivateKeyStmt, db.privateKeysTable), PrivateKey{})
+	stmt, err := sqlair.Prepare(deletePrivateKeyStmt, PrivateKey{})
 	if err != nil {
 		return err
 	}

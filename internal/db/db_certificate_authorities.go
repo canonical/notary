@@ -61,7 +61,7 @@ type CertificateAuthorityDenormalized struct {
 }
 
 const queryCreateCertificateAuthoritiesTable = `
-	CREATE TABLE IF NOT EXISTS %s (
+	CREATE TABLE IF NOT EXISTS certificate_authorities (
 	    certificate_authority_id INTEGER PRIMARY KEY AUTOINCREMENT,
 
 		status TEXT DEFAULT 'Pending', 
@@ -77,11 +77,11 @@ const queryCreateCertificateAuthoritiesTable = `
 )`
 
 const (
-	createCertificateAuthorityStmt = "INSERT INTO %s (status, private_key_id, csr_id, certificate_id) VALUES ($CertificateAuthority.status, $CertificateAuthority.private_key_id, $CertificateAuthority.csr_id, $CertificateAuthority.certificate_id)"
-	getCertificateAuthorityStmt    = "SELECT &CertificateAuthority.* FROM %s WHERE certificate_authority_id==$CertificateAuthority.certificate_authority_id or csr_id==$CertificateAuthority.csr_id"
-	listCertificateAuthoritiesStmt = "SELECT &CertificateAuthority.* FROM %s"
-	updateCertificateAuthorityStmt = "UPDATE %s SET status=$CertificateAuthority.status, certificate_id=$CertificateAuthority.certificate_id WHERE certificate_authority_id==$CertificateAuthority.certificate_authority_id or csr_id==$CertificateAuthority.csr_id"
-	deleteCertificateAuthorityStmt = "DELETE FROM %s WHERE certificate_authority_id=$CertificateAuthority.certificate_authority_id or csr_id=$CertificateAuthority.csr_id"
+	createCertificateAuthorityStmt = "INSERT INTO certificate_authorities (status, private_key_id, csr_id, certificate_id) VALUES ($CertificateAuthority.status, $CertificateAuthority.private_key_id, $CertificateAuthority.csr_id, $CertificateAuthority.certificate_id)"
+	getCertificateAuthorityStmt    = "SELECT &CertificateAuthority.* FROM certificate_authorities WHERE certificate_authority_id==$CertificateAuthority.certificate_authority_id or csr_id==$CertificateAuthority.csr_id"
+	listCertificateAuthoritiesStmt = "SELECT &CertificateAuthority.* FROM certificate_authorities"
+	updateCertificateAuthorityStmt = "UPDATE certificate_authorities SET status=$CertificateAuthority.status, certificate_id=$CertificateAuthority.certificate_id WHERE certificate_authority_id==$CertificateAuthority.certificate_authority_id or csr_id==$CertificateAuthority.csr_id"
+	deleteCertificateAuthorityStmt = "DELETE FROM certificate_authorities WHERE certificate_authority_id=$CertificateAuthority.certificate_authority_id or csr_id=$CertificateAuthority.csr_id"
 
 	listDenormalizedCertificateAuthoritiesStmt = `
 	SELECT 
@@ -90,7 +90,7 @@ const (
 		pk.private_key AS &CertificateAuthorityDenormalized.private_key,
 		cert.certificate AS &CertificateAuthorityDenormalized.certificate,
 		csr.csr AS &CertificateAuthorityDenormalized.csr
-	FROM %s ca
+	FROM certificate_authorities ca
 	LEFT JOIN certificates cert ON ca.certificate_id = cert.certificate_id
 	LEFT JOIN certificate_requests csr ON ca.csr_id = csr.csr_id
 	LEFT JOIN private_keys pk ON ca.private_key_id = pk.private_key_id
@@ -102,7 +102,7 @@ const (
 		pk.private_key AS &CertificateAuthorityDenormalized.private_key,
 		cert.certificate AS &CertificateAuthorityDenormalized.certificate,
 		csr.csr AS &CertificateAuthorityDenormalized.csr
-	FROM %s ca
+	FROM certificate_authorities ca
 	LEFT JOIN certificates cert ON ca.certificate_id = cert.certificate_id
 	LEFT JOIN certificate_requests csr ON ca.csr_id = csr.csr_id
 	LEFT JOIN private_keys pk ON ca.private_key_id = pk.private_key_id
@@ -112,7 +112,7 @@ const (
 
 // ListCertificateAuthorities gets every Certificate Authority entry in the table.
 func (db *Database) ListCertificateAuthorities() ([]CertificateAuthority, error) {
-	stmt, err := sqlair.Prepare(fmt.Sprintf(listCertificateAuthoritiesStmt, db.certificateAuthoritiesTable), CertificateAuthority{})
+	stmt, err := sqlair.Prepare(listCertificateAuthoritiesStmt, CertificateAuthority{})
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func (db *Database) ListCertificateAuthorities() ([]CertificateAuthority, error)
 // ListDenormalizedCertificateAuthorities gets every CertificateAuthority entry in the table
 // but instead of returning ID's that reference other table rows, it embeds the row data directly into the response object.
 func (db *Database) ListDenormalizedCertificateAuthorities() ([]CertificateAuthorityDenormalized, error) {
-	stmt, err := sqlair.Prepare(fmt.Sprintf(listDenormalizedCertificateAuthoritiesStmt, db.certificateAuthoritiesTable), CertificateAuthorityDenormalized{})
+	stmt, err := sqlair.Prepare(listDenormalizedCertificateAuthoritiesStmt, CertificateAuthorityDenormalized{})
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +151,7 @@ func (db *Database) GetCertificateAuthority(filter CertificateAuthorityFilter) (
 	if err != nil {
 		return nil, err
 	}
-	stmt, err := sqlair.Prepare(fmt.Sprintf(getCertificateAuthorityStmt, db.certificateAuthoritiesTable), CertificateAuthority{})
+	stmt, err := sqlair.Prepare(getCertificateAuthorityStmt, CertificateAuthority{})
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +170,7 @@ func (db *Database) GetDenormalizedCertificateAuthority(filter CertificateAuthor
 	if CAerr != nil && DenormalizedCAErr != nil {
 		return nil, fmt.Errorf("invalid filter: only CA ID, CSR ID, or CSR PEM is supported")
 	}
-	stmt, err := sqlair.Prepare(fmt.Sprintf(getDenormalizedCertificateAuthorityStmt, db.certificateAuthoritiesTable), CertificateAuthority{}, CertificateAuthorityDenormalized{})
+	stmt, err := sqlair.Prepare(getDenormalizedCertificateAuthorityStmt, CertificateAuthority{}, CertificateAuthorityDenormalized{})
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +221,7 @@ func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, ce
 			Status:       CAPending,
 		}
 	}
-	stmt, err := sqlair.Prepare(fmt.Sprintf(createCertificateAuthorityStmt, db.certificateAuthoritiesTable), CertificateAuthority{})
+	stmt, err := sqlair.Prepare(createCertificateAuthorityStmt, CertificateAuthority{})
 	if err != nil {
 		return err
 	}
@@ -250,7 +250,7 @@ func (db *Database) UpdateCertificateAuthorityCertificate(filter CertificateAuth
 	ca.CertificateID = newCert.CertificateID
 	ca.Status = CAActive
 
-	stmt, err := sqlair.Prepare(fmt.Sprintf(updateCertificateAuthorityStmt, db.certificateAuthoritiesTable), CertificateAuthority{})
+	stmt, err := sqlair.Prepare(updateCertificateAuthorityStmt, CertificateAuthority{})
 	if err != nil {
 		return err
 	}
@@ -265,7 +265,7 @@ func (db *Database) UpdateCertificateAuthorityStatus(filter CertificateAuthority
 		return err
 	}
 	ca.Status = status
-	stmt, err := sqlair.Prepare(fmt.Sprintf(updateCertificateAuthorityStmt, db.certificateAuthoritiesTable), CertificateAuthority{})
+	stmt, err := sqlair.Prepare(updateCertificateAuthorityStmt, CertificateAuthority{})
 	if err != nil {
 		return err
 	}
@@ -279,7 +279,7 @@ func (db *Database) DeleteCertificateAuthority(filter CertificateAuthorityFilter
 	if err != nil {
 		return err
 	}
-	stmt, err := sqlair.Prepare(fmt.Sprintf(deleteCertificateAuthorityStmt, db.certificateAuthoritiesTable), CertificateAuthority{})
+	stmt, err := sqlair.Prepare(deleteCertificateAuthorityStmt, CertificateAuthority{})
 	if err != nil {
 		return err
 	}

@@ -25,7 +25,7 @@ type CertificateRequestWithChain struct {
 }
 
 const queryCreateCertificateRequestsTable = `
-	CREATE TABLE IF NOT EXISTS %s (
+	CREATE TABLE IF NOT EXISTS certificate_requests (
 	    csr_id INTEGER PRIMARY KEY AUTOINCREMENT,
 
 		csr TEXT NOT NULL UNIQUE, 
@@ -40,11 +40,11 @@ const queryCreateCertificateRequestsTable = `
 )`
 
 const (
-	listCertificateRequestsStmt  = "SELECT &CertificateRequest.* FROM %s"
-	getCertificateRequestStmt    = "SELECT &CertificateRequest.* FROM %s WHERE csr_id==$CertificateRequest.csr_id or csr==$CertificateRequest.csr"
-	updateCertificateRequestStmt = "UPDATE %s SET certificate_id=$CertificateRequest.certificate_id, status=$CertificateRequest.status WHERE csr_id==$CertificateRequest.csr_id or csr==$CertificateRequest.csr"
-	createCertificateRequestStmt = "INSERT INTO %s (csr) VALUES ($CertificateRequest.csr)"
-	deleteCertificateRequestStmt = "DELETE FROM %s WHERE csr_id=$CertificateRequest.csr_id or csr=$CertificateRequest.csr"
+	listCertificateRequestsStmt  = "SELECT &CertificateRequest.* FROM certificate_requests"
+	getCertificateRequestStmt    = "SELECT &CertificateRequest.* FROM certificate_requests WHERE csr_id==$CertificateRequest.csr_id or csr==$CertificateRequest.csr"
+	updateCertificateRequestStmt = "UPDATE certificate_requests SET certificate_id=$CertificateRequest.certificate_id, status=$CertificateRequest.status WHERE csr_id==$CertificateRequest.csr_id or csr==$CertificateRequest.csr"
+	createCertificateRequestStmt = "INSERT INTO certificate_requests (csr) VALUES ($CertificateRequest.csr)"
+	deleteCertificateRequestStmt = "DELETE FROM certificate_requests WHERE csr_id=$CertificateRequest.csr_id or csr=$CertificateRequest.csr"
 
 	listCertificateRequestsWithCertificatesStmt = `
 WITH RECURSIVE certificate_chain AS (
@@ -56,8 +56,8 @@ WITH RECURSIVE certificate_chain AS (
         cert.issuer_id,
         cert.certificate,
         COALESCE(cert.certificate, '') AS chain
-    FROM %s csr
-    LEFT JOIN %s cert 
+    FROM certificate_requests csr
+    LEFT JOIN certificates cert 
       ON csr.certificate_id = cert.certificate_id
     
     UNION ALL
@@ -71,7 +71,7 @@ WITH RECURSIVE certificate_chain AS (
         cert.issuer_id,
         cert.certificate,
         cc.chain || CHAR(10) || cert.certificate AS chain
-    FROM %s cert
+    FROM certificates cert
     JOIN certificate_chain cc
       ON cert.certificate_id = cc.issuer_id
 )
@@ -92,8 +92,8 @@ WITH RECURSIVE certificate_chain AS (
         cert.issuer_id,
         cert.certificate,
         COALESCE(cert.certificate, '') AS chain
-    FROM %s csr
-    LEFT JOIN %s cert 
+    FROM certificate_requests csr
+    LEFT JOIN certificates cert 
       ON csr.certificate_id = cert.certificate_id
     
     UNION ALL
@@ -107,7 +107,7 @@ WITH RECURSIVE certificate_chain AS (
         cert.issuer_id,
         cert.certificate,
         cc.chain || CHAR(10) || cert.certificate AS chain
-    FROM %s cert
+    FROM certificates cert
     JOIN certificate_chain cc
       ON cert.certificate_id = cc.issuer_id
 )
@@ -122,7 +122,7 @@ WHERE (csr_id = $CertificateRequestWithChain.csr_id OR csr = $CertificateRequest
 
 // ListCertificateRequests gets every CertificateRequest entry in the table.
 func (db *Database) ListCertificateRequests() ([]CertificateRequest, error) {
-	stmt, err := sqlair.Prepare(fmt.Sprintf(listCertificateRequestsStmt, db.certificateRequestsTable), CertificateRequest{})
+	stmt, err := sqlair.Prepare(listCertificateRequestsStmt, CertificateRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +139,7 @@ func (db *Database) ListCertificateRequests() ([]CertificateRequest, error) {
 
 // ListCertificateRequestWithCertificates gets every CertificateRequest entry in the table.
 func (db *Database) ListCertificateRequestWithCertificates() ([]CertificateRequestWithChain, error) {
-	stmt, err := sqlair.Prepare(fmt.Sprintf(listCertificateRequestsWithCertificatesStmt, db.certificateRequestsTable, db.certificatesTable, db.certificatesTable), CertificateRequestWithChain{})
+	stmt, err := sqlair.Prepare(listCertificateRequestsWithCertificatesStmt, CertificateRequestWithChain{})
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +167,7 @@ func (db *Database) GetCertificateRequest(filter CSRFilter) (*CertificateRequest
 		return nil, fmt.Errorf("invalid certificate identifier: both ID and PEM are nil")
 	}
 
-	stmt, err := sqlair.Prepare(fmt.Sprintf(getCertificateRequestStmt, db.certificateRequestsTable), CertificateRequest{})
+	stmt, err := sqlair.Prepare(getCertificateRequestStmt, CertificateRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +191,7 @@ func (db *Database) GetCertificateRequestAndChain(filter CSRFilter) (*Certificat
 		return nil, fmt.Errorf("invalid certificate identifier: both ID and PEM are nil")
 	}
 
-	stmt, err := sqlair.Prepare(fmt.Sprintf(getCertificateRequestWithCertificateStmt, db.certificateRequestsTable, db.certificatesTable, db.certificatesTable), CertificateRequestWithChain{})
+	stmt, err := sqlair.Prepare(getCertificateRequestWithCertificateStmt, CertificateRequestWithChain{})
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +207,7 @@ func (db *Database) CreateCertificateRequest(csr string) error {
 	if err := ValidateCertificateRequest(csr); err != nil {
 		return errors.New("csr validation failed: " + err.Error())
 	}
-	stmt, err := sqlair.Prepare(fmt.Sprintf(createCertificateRequestStmt, db.certificateRequestsTable), CertificateRequest{})
+	stmt, err := sqlair.Prepare(createCertificateRequestStmt, CertificateRequest{})
 	if err != nil {
 		return err
 	}
@@ -224,7 +224,7 @@ func (db *Database) RejectCertificateRequest(filter CSRFilter) error {
 	if err != nil {
 		return err
 	}
-	stmt, err := sqlair.Prepare(fmt.Sprintf(updateCertificateRequestStmt, db.certificateRequestsTable), CertificateRequest{})
+	stmt, err := sqlair.Prepare(updateCertificateRequestStmt, CertificateRequest{})
 	if err != nil {
 		return err
 	}
@@ -244,7 +244,7 @@ func (db *Database) RevokeCertificate(filter CSRFilter) error {
 	if err != nil {
 		return err
 	}
-	stmt, err := sqlair.Prepare(fmt.Sprintf(updateCertificateRequestStmt, db.certificateRequestsTable), CertificateRequest{})
+	stmt, err := sqlair.Prepare(updateCertificateRequestStmt, CertificateRequest{})
 	if err != nil {
 		return err
 	}
@@ -271,7 +271,7 @@ func (db *Database) DeleteCertificateRequest(filter CSRFilter) error {
 	default:
 		return fmt.Errorf("invalid certificate request identifier: both ID and PEM are nil")
 	}
-	stmt, err := sqlair.Prepare(fmt.Sprintf(deleteCertificateRequestStmt, db.certificateRequestsTable), CertificateRequest{})
+	stmt, err := sqlair.Prepare(deleteCertificateRequestStmt, CertificateRequest{})
 	if err != nil {
 		return err
 	}

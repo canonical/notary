@@ -27,7 +27,6 @@ func ValidateCertificateRequest(csr string) error {
 	if err != nil {
 		return err
 	}
-	// TODO: We should validate the actual certificate request parameters here too. (Has the required fields etc)
 	return nil
 }
 
@@ -76,7 +75,6 @@ func ValidateCertificate(cert string) error {
 			return fmt.Errorf("invalid certificate chain: certificate %d, certificate %d: keys do not match: %s", i, i+1, err.Error())
 		}
 	}
-	// TODO: We should validate the actual certificate parameters here too. (Has the required fields etc)
 	return nil
 }
 

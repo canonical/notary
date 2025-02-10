@@ -328,15 +328,3 @@ func PostCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
 		}
 	}
 }
-
-func RenewCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		//TODO
-	}
-}
-
-func SignCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO
-	}
-}

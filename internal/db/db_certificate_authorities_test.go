@@ -266,10 +266,6 @@ func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
 		t.Fatalf("Certificate should not have been removed when updating status to Active")
 	}
 
-	// TODO: Sign a couple CSRs and then revoke them all
-	// TODO: Sign the same CSRs again, have an extra one that wasn't signed
-	// TODO: Renew self and then check if all of the CSR's were revoked. Check if the one that wasn't signed by this CA was NOT revoked.
-
 	err = database.DeleteCertificateAuthority(db.ByCertificateAuthorityID(ca.CertificateAuthorityID))
 	if err != nil {
 		t.Fatalf("Couldn't delete certificate authority: %s", err)
@@ -314,7 +310,7 @@ func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {
 		t.Fatalf("Certificate authority is not pending or has a certificate")
 	}
 
-	err = database.UpdateCertificateAuthorityCertificate(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), intermediateCACertificate+"\n"+intermediateCACertificateSignerCertificate) // TODO!!
+	err = database.UpdateCertificateAuthorityCertificate(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), intermediateCACertificate+"\n"+intermediateCACertificateSignerCertificate)
 	if err != nil {
 		t.Fatalf("Couldn't sign certificate authority: %s", err)
 	}
@@ -356,33 +352,10 @@ func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {
 		t.Fatalf("Certificate should not have been removed when updating status to Active")
 	}
 
-	// TODO: Sign a couple CSRs and then revoke them all
-	// TODO: Sign the same CSRs again, have an extra one that wasn't signed
-	// TODO: Renew self and then check if all of the CSR's were revoked. Check if the one that wasn't signed by this CA was NOT revoked.
-
 	err = database.DeleteCertificateAuthority(db.ByCertificateAuthorityID(ca.CertificateAuthorityID))
 	if err != nil {
 		t.Fatalf("Couldn't delete certificate authority: %s", err)
 	}
-}
-
-func TestMultipleCertificateAuthoritiesEndToEnd(t *testing.T) {
-	// TODO
-	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
-	if err != nil {
-		t.Fatalf("Couldn't complete NewDatabase: %s", err)
-	}
-	defer database.Close()
-
-	// Create a self signed CA
-	// Create an intermediate CA
-	// Sign intermediate CA with the self signed CA
-	// Sign some CSRs with intermediate CA
-	// Renew self signed CA
-	// check if intermediate CA was revoked (shoud it just be made legacy or should it also be revoked?)
-	// check if certs signed by intermediate ca's were revoked (is this how it should be?)
-
 }
 
 func TestCertificateAuthorityFails(t *testing.T) {

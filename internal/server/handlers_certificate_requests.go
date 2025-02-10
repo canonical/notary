@@ -298,15 +298,3 @@ func RevokeCertificate(env *HandlerConfig) http.HandlerFunc {
 		}
 	}
 }
-
-func SignCertificateRequest(env *HandlerConfig) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO
-	}
-}
-
-func RenewCertificate(env *HandlerConfig) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		//TODO
-	}
-}

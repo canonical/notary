@@ -321,7 +321,6 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		}
 	})
 
-	// TODO: Upload new CSR's and then sign them
 	t.Run("4. Make a new Intermediate CA", func(t *testing.T) {
 		createCertificatAuthorityParams := server.CreateCertificateAuthorityParams{
 			SelfSigned: false,

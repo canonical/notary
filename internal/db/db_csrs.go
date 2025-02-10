@@ -255,8 +255,6 @@ func (db *Database) RevokeCertificate(filter CSRFilter) error {
 		Status:        "Revoked",
 	}
 
-	// TODO: CRL stuff
-
 	err = db.conn.Query(context.Background(), stmt, newRow).Run()
 	return err
 }

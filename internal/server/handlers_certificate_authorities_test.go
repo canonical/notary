@@ -394,20 +394,20 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		IntermediateCACSR = getCAResponse.Result.CSRPEM
 	})
 
-	t.Run("6. Sign the intermediate CA's CSR", func(t *testing.T) {
+	t.Run("7. Sign the intermediate CA's CSR", func(t *testing.T) {
 		signedCert := signCSR(IntermediateCACSR)
 		statusCode, uploadCertificateResponse, err := uploadCertificateToCertificateAuthority(ts.URL, client, adminToken, 2, server.UploadCertificateToCertificateAuthorityParams{CertificateChain: signedCert + selfSignedCACertificate})
 		if err != nil {
 			t.Fatal("expected no error, got: ", err)
 		}
-		if statusCode != http.StatusOK {
-			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+		if statusCode != http.StatusCreated {
+			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
 		if uploadCertificateResponse.Error != "" {
 			t.Fatalf("expected success, got %s", uploadCertificateResponse.Error)
 		}
 	})
-	t.Run("7. Get all CA's - 2 should be there and both active", func(t *testing.T) {
+	t.Run("8. Get all CA's - 2 should be there and both active", func(t *testing.T) {
 		statusCode, listCertRequestsResponse, err := listCertificateAuthorities(ts.URL, client, adminToken)
 		if err != nil {
 			t.Fatal("expected no error, got: ", err)
@@ -428,7 +428,7 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 			t.Fatalf("expected second CA to be active")
 		}
 	})
-	t.Run("8. Make first CA legacy", func(t *testing.T) {
+	t.Run("9. Make first CA legacy", func(t *testing.T) {
 		statusCode, makeLegacyResponse, err := updateCertificateAuthority(ts.URL, client, adminToken, 1, server.UpdateCertificateAuthorityParams{Status: "Legacy"})
 		if err != nil {
 			t.Fatal("expected no error, got: ", err)
@@ -440,7 +440,7 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 			t.Fatalf("expected success, got %s", makeLegacyResponse.Error)
 		}
 	})
-	t.Run("9. Get all CA's - 1 active 1 legacy should be there", func(t *testing.T) {
+	t.Run("10. Get all CA's - 1 active 1 legacy should be there", func(t *testing.T) {
 		statusCode, listCertRequestsResponse, err := listCertificateAuthorities(ts.URL, client, adminToken)
 		if err != nil {
 			t.Fatal("expected no error, got: ", err)
@@ -461,7 +461,7 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 			t.Fatalf("expected second CA to be active")
 		}
 	})
-	t.Run("10. Delete first CA", func(t *testing.T) {
+	t.Run("11. Delete first CA", func(t *testing.T) {
 		statusCode, err := deleteCertificateAuthority(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal("expected no error, got: ", err)
@@ -470,7 +470,7 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
 	})
-	t.Run("11. Get all CA's - 1 active should be there", func(t *testing.T) {
+	t.Run("12. Get all CA's - 1 active should be there", func(t *testing.T) {
 		statusCode, listCertRequestsResponse, err := listCertificateAuthorities(ts.URL, client, adminToken)
 		if err != nil {
 			t.Fatal("expected no error, got: ", err)

@@ -108,8 +108,7 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 		return errors.New("cert validation failed: " + err.Error())
 	}
 	parentID := 0
-	// If the certificate is self-signed, create a single certificate that references itself
-	if len(certBundle) == 2 && certBundle[0] == certBundle[1] {
+	if isSelfSigned(certBundle) {
 		// New row
 		certRow := Certificate{
 			IssuerID:       0,
@@ -230,4 +229,8 @@ func (db *Database) GetCertificateChain(filter CertificateFilter) ([]Certificate
 		return nil, err
 	}
 	return certChain, nil
+}
+
+func isSelfSigned(certBundle []string) bool {
+	return len(certBundle) == 2 && certBundle[0] == certBundle[1]
 }

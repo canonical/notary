@@ -76,7 +76,7 @@ const (
 	`
 )
 
-// ListCertificateRequests gets every CertificateRequest entry in the table.
+// ListCertificateAuthorities gets every Certificate Authority entry in the table.
 func (db *Database) ListCertificateAuthorities() ([]CertificateAuthority, error) {
 	stmt, err := sqlair.Prepare(fmt.Sprintf(listCertificateAuthoritiesStmt, db.certificateAuthoritiesTable), CertificateAuthority{})
 	if err != nil {
@@ -93,7 +93,8 @@ func (db *Database) ListCertificateAuthorities() ([]CertificateAuthority, error)
 	return CAs, nil
 }
 
-// ListCertificateRequests gets every CertificateRequest entry in the table.
+// ListDenormalizedCertificateAuthorities gets every CertificateAuthority entry in the table
+// but instead of returning ID's that reference other table rows, it embeds the row data directly into the response object.
 func (db *Database) ListDenormalizedCertificateAuthorities() ([]CertificateAuthorityDenormalized, error) {
 	stmt, err := sqlair.Prepare(fmt.Sprintf(listDenormalizedCertificateAuthoritiesStmt, db.certificateAuthoritiesTable), CertificateAuthorityDenormalized{})
 	if err != nil {
@@ -110,7 +111,7 @@ func (db *Database) ListDenormalizedCertificateAuthorities() ([]CertificateAutho
 	return CAs, nil
 }
 
-// GetCertificateByID gets a certificate row from the repository from a given ID.
+// GetCertificateAuthority gets a certificate authority row from the database.
 func (db *Database) GetCertificateAuthority(filter CertificateAuthorityFilter) (*CertificateAuthority, error) {
 	var CARow CertificateAuthority
 
@@ -136,7 +137,8 @@ func (db *Database) GetCertificateAuthority(filter CertificateAuthorityFilter) (
 	return &CARow, nil
 }
 
-// GetCertificateByID gets a certificate row from the repository from a given ID.
+// GetDenormalizedCertificateAuthority gets a certificate authority row from the database
+// but instead of returning ID's that reference other table rows, it embeds the row data directly into the response object.
 func (db *Database) GetDenormalizedCertificateAuthority(filter CertificateAuthorityFilter) (*CertificateAuthorityDenormalized, error) {
 	var CADenormalizedRow CertificateAuthorityDenormalized
 	var CARow CertificateAuthority
@@ -162,6 +164,8 @@ func (db *Database) GetDenormalizedCertificateAuthority(filter CertificateAuthor
 	return &CADenormalizedRow, nil
 }
 
+// CreateCertificateAuthority creates a new certificate authority in the database from a given CSR, private key, and certificate chain.
+// The certificate chain is optional and can be empty.
 func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, certChainPEM string) error {
 	err := db.CreateCertificateRequest(csrPEM)
 	if err != nil {
@@ -209,6 +213,7 @@ func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, ce
 
 }
 
+// UpdateCertificateAuthorityCertificate updates the certificate chain associated with a certificate authority.
 func (db *Database) UpdateCertificateAuthorityCertificate(filter CertificateAuthorityFilter, certChainPEM string) error {
 	ca, err := db.GetCertificateAuthority(filter)
 	if err != nil {
@@ -237,6 +242,7 @@ func (db *Database) UpdateCertificateAuthorityCertificate(filter CertificateAuth
 	return err
 }
 
+// UpdateCertificateAuthorityStatus updates the status of a certificate authority.
 func (db *Database) UpdateCertificateAuthorityStatus(filter CertificateAuthorityFilter, status string) error {
 	ca, err := db.GetCertificateAuthority(filter)
 	if err != nil {
@@ -251,7 +257,7 @@ func (db *Database) UpdateCertificateAuthorityStatus(filter CertificateAuthority
 	return err
 }
 
-// DeleteCertificate removes a certificate from the database.
+// DeleteCertificateAuthority removes a certificate authority from the database.
 func (db *Database) DeleteCertificateAuthority(filter CertificateAuthorityFilter) error {
 	var certRow CertificateAuthority
 

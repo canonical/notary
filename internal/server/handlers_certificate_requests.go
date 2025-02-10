@@ -198,6 +198,8 @@ func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
 	}
 }
 
+// RejectCertificateRequest handler receives an id as a path parameter,
+// rejects the corresponding Certificate Request, and returns a http.StatusNoContent on success
 func RejectCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
@@ -266,6 +268,9 @@ func DeleteCertificate(env *HandlerConfig) http.HandlerFunc {
 	}
 }
 
+// RevokeCertificate handler receives an id as a path parameter,
+// and attempts to revoke the corresponding certificate request
+// It returns a 200 OK on success
 func RevokeCertificate(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")

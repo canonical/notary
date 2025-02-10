@@ -29,7 +29,7 @@ const (
 	deletePrivateKeyStmt = "DELETE FROM %s WHERE private_key_id==$PrivateKey.private_key_id or private_key==$PrivateKey.private_key"
 )
 
-// ListCertificateRequests gets every CertificateRequest entry in the table.
+// ListPrivateKeys gets every PrivateKey entry in the table.
 func (db *Database) ListPrivateKeys() ([]PrivateKey, error) {
 	stmt, err := sqlair.Prepare(fmt.Sprintf(listPrivateKeysStmt, db.privateKeysTable), PrivateKey{})
 	if err != nil {
@@ -46,7 +46,7 @@ func (db *Database) ListPrivateKeys() ([]PrivateKey, error) {
 	return privateKeys, nil
 }
 
-// GetCertificateByID gets a certificate row from the repository from a given ID.
+// GetPrivateKey gets a private key row from the repository from a given ID or PEM.
 func (db *Database) GetPrivateKey(filter PrivateKeyFilter) (*PrivateKey, error) {
 	var pkRow PrivateKey
 
@@ -70,7 +70,7 @@ func (db *Database) GetPrivateKey(filter PrivateKeyFilter) (*PrivateKey, error) 
 	return &pkRow, nil
 }
 
-// CreateCertificateRequest creates a new CSR entry in the repository. The string must be a valid CSR and unique.
+// CreatePrivateKey creates a new private key entry in the repository. The string must be a valid private key and unique.
 func (db *Database) CreatePrivateKey(pk string) error {
 	if err := ValidatePrivateKey(pk); err != nil {
 		return errors.New("pk validation failed: " + err.Error())
@@ -86,7 +86,7 @@ func (db *Database) CreatePrivateKey(pk string) error {
 	return err
 }
 
-// CreateCertificateRequest creates a new CSR entry in the repository. The string must be a valid CSR and unique.
+// DeletePrivateKey deletes a private key from the database.
 func (db *Database) DeletePrivateKey(filter PrivateKeyFilter) error {
 	var pkRow PrivateKey
 

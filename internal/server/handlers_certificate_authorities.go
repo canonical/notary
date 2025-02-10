@@ -48,8 +48,8 @@ type UploadCertificateToCertificateAuthorityParams struct {
 	CertificateChain string `json:"certificate_chain"`
 }
 
-// createCACertificate uses the input fields from the CA certificate generation form to create
-// an x.509 certificate and a private key, and returns them as PEM strings.
+// createCertificateAuthority uses the input fields from the CA certificate generation form to create
+// an x.509 certificate request, a private key, and optionally a self-signed certificate. It returns them as PEM strings.
 func createCertificateAuthority(fields CreateCertificateAuthorityParams) (string, string, string) {
 	// Create the private key for the CA
 	priv, err := rsa.GenerateKey(rand.Reader, 4096)
@@ -146,6 +146,8 @@ func createCertificateAuthority(fields CreateCertificateAuthorityParams) (string
 	return csrPEM.String(), privPEM.String(), certPEM.String()
 }
 
+// ListCertificateAuthorities handler returns a list of all Certificate Authorities
+// It returns a 200 OK on success
 func ListCertificateAuthorities(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cas, err := env.DB.ListDenormalizedCertificateAuthorities()
@@ -172,6 +174,8 @@ func ListCertificateAuthorities(env *HandlerConfig) http.HandlerFunc {
 	}
 }
 
+// CreateCertificateAuthority handler creates a new Certificate Authority
+// It returns a 201 Created on success
 func CreateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var params CreateCertificateAuthorityParams
@@ -204,6 +208,8 @@ func CreateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 	}
 }
 
+// GetCertificateAuthority handler returns a Certificate Authority given its id
+// It returns a 200 OK on success
 func GetCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
@@ -240,6 +246,8 @@ func GetCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 	}
 }
 
+// UpdateCertificateAuthority handler updates a Certificate Authority given its id
+// It returns a 200 OK on success
 func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
@@ -275,6 +283,8 @@ func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 	}
 }
 
+// DeleteCertificateAuthority handler deletes a Certificate Authority given its id
+// It returns a 200 OK on success
 func DeleteCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
@@ -297,6 +307,8 @@ func DeleteCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 	}
 }
 
+// PostCertificateAuthorityCertificate handler uploads a certificate chain to a Certificate Authority given its id
+// It returns a 201 Created on success
 func PostCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
@@ -321,7 +333,7 @@ func PostCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		err = writeResponse(w, SuccessResponse{Message: "success"}, http.StatusOK)
+		err = writeResponse(w, SuccessResponse{Message: "success"}, http.StatusCreated)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return

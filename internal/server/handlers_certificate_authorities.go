@@ -22,7 +22,7 @@ import (
 type CertificateAuthority struct {
 	CertificateAuthorityID int    `json:"certificate_authority_id"`
 	Status                 string `json:"status"`
-	PrivateKeyPEM          string `json:"private_key"`
+	PrivateKeyPEM          string `json:"private_key,omitempty"`
 	CertificatePEM         string `json:"certificate"`
 	CSRPEM                 string `json:"csr"`
 }
@@ -161,7 +161,7 @@ func ListCertificateAuthorities(env *HandlerConfig) http.HandlerFunc {
 			caResponse[i] = CertificateAuthority{
 				CertificateAuthorityID: ca.CertificateAuthorityID,
 				Status:                 ca.Status,
-				PrivateKeyPEM:          ca.PrivateKeyPEM,
+				PrivateKeyPEM:          "",
 				CSRPEM:                 ca.CSRPEM,
 				CertificatePEM:         ca.CertificatePEM,
 			}
@@ -232,9 +232,9 @@ func GetCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 		caResponse := CertificateAuthority{
 			CertificateAuthorityID: ca.CertificateAuthorityID,
 			Status:                 ca.Status,
+			PrivateKeyPEM:          "",
 			CSRPEM:                 ca.CSRPEM,
 			CertificatePEM:         ca.CertificatePEM,
-			PrivateKeyPEM:          ca.PrivateKeyPEM,
 		}
 
 		err = writeResponse(w, caResponse, http.StatusOK)

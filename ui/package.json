@@ -32,7 +32,7 @@
     "eslint-config-next": "15.1.6",
     "jsdom": "^26.0.0",
     "typescript": "^5",
-    "vitest": "^3.0.4"
+    "vitest": "^3.0.5"
   },
   "overrides": {
     "rollup": "npm:@rollup/wasm-node@*"

@@ -163,7 +163,6 @@ func (db *Database) GetDenormalizedCertificateAuthority(filter CertificateAuthor
 }
 
 func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, certChainPEM string) error {
-	// TODO: It is possible to sign this CSR outside of the Certificate Authority flow.
 	err := db.CreateCertificateRequest(csrPEM)
 	if err != nil {
 		return err
@@ -266,7 +265,6 @@ func (db *Database) DeleteCertificateAuthority(filter CertificateAuthorityFilter
 	default:
 		return fmt.Errorf("invalid certificate identifier: both ID and PEM are nil")
 	}
-	// TODO: get the csr, pk, cert and delete those too (foreign key cascade?)
 	stmt, err := sqlair.Prepare(fmt.Sprintf(deleteCertificateAuthorityStmt, db.certificateAuthoritiesTable), CertificateAuthority{})
 	if err != nil {
 		return err

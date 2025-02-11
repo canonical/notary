@@ -18,9 +18,27 @@ type HandlerConfig struct {
 	JWTSecret               []byte
 }
 
-func SendPebbleNotification(key, request_id string) error {
-	cmd := exec.Command("pebble", "notify", key, fmt.Sprintf("request_id=%s", request_id))
-	if err := cmd.Run(); err != nil {
+type NotificationKey int
+
+const (
+	CertificateUpdate NotificationKey = 1
+)
+
+func (key NotificationKey) String() (string, error) {
+	if key == CertificateUpdate {
+		return "canonical.com/notary/certificate/update", nil
+	}
+	return "", fmt.Errorf("unknown notification key: %d", key)
+}
+
+func SendPebbleNotification(key NotificationKey, request_id int) error {
+	keyStr, err := key.String()
+	if err != nil {
+		return fmt.Errorf("couldn't get a string representation of the notification key: %w", err)
+	}
+	cmd := exec.Command("pebble", "notify", keyStr, fmt.Sprintf("request_id=%v", request_id))
+	err = cmd.Run()
+	if err != nil {
 		return fmt.Errorf("couldn't execute a pebble notify: %w", err)
 	}
 	return nil

@@ -87,7 +87,7 @@ func (db *Database) CreateUser(username string, password string, permission int)
 	}
 	row := User{
 		Username:       username,
-		HashedPassword: string(pw),
+		HashedPassword: pw,
 		Permissions:    permission,
 	}
 	err = db.conn.Query(context.Background(), stmt, row).Run()
@@ -101,7 +101,7 @@ func (db *Database) UpdateUserPassword(filter UserFilter, password string) error
 	if err != nil {
 		return err
 	}
-	pw, err := HashPassword(password)
+	hashedPassword, err := HashPassword(password)
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func (db *Database) UpdateUserPassword(filter UserFilter, password string) error
 	if err != nil {
 		return err
 	}
-	userRow.HashedPassword = string(pw)
+	userRow.HashedPassword = hashedPassword
 	err = db.conn.Query(context.Background(), stmt, userRow).Run()
 	return err
 }

@@ -168,7 +168,7 @@ func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
 		id := r.PathValue("id")
 		idNum, err := strconv.Atoi(id)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "id is not a number")
+			writeError(w, http.StatusBadRequest, "id is not a number")
 			return
 		}
 		err = env.DB.AddCertificateChainToCertificateRequest(db.ByCSRID(idNum), createCertificateParams.CertificateChain)
@@ -203,7 +203,7 @@ func RejectCertificate(env *HandlerConfig) http.HandlerFunc {
 		id := r.PathValue("id")
 		idNum, err := strconv.Atoi(id)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error")
+			writeError(w, http.StatusBadRequest, "id is not a number")
 			return
 		}
 		err = env.DB.RejectCertificateRequest(db.ByCSRID(idNum))

@@ -89,7 +89,7 @@ func TestLoginEndToEnd(t *testing.T) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 			}
-			return []byte(config.JWTSecret), nil
+			return config.JWTSecret, nil
 		})
 		if err != nil {
 			t.Fatalf("couldn't parse token: %s", err)

@@ -19,7 +19,7 @@ func TestNewSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot read file: %s", err)
 	}
-	s, err := server.New(8000, []byte(cert), []byte(key), "certs.db", false)
+	s, err := server.New(8000, cert, key, "certs.db", false)
 	if err != nil {
 		t.Errorf("Error occured: %s", err)
 	}
@@ -34,7 +34,7 @@ func TestInvalidKeyFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot read file: %s", err)
 	}
-	_, err = server.New(8000, []byte(cert), []byte{}, "certs.db", false)
+	_, err = server.New(8000, cert, []byte{}, "certs.db", false)
 	if err == nil {
 		t.Errorf("No error was thrown for invalid key")
 	}

@@ -28,7 +28,7 @@ func (key NotificationKey) String() (string, error) {
 	if key == CertificateUpdate {
 		return "canonical.com/notary/certificate/update", nil
 	}
-	return "", fmt.Errorf("unknown notification key")
+	return "", fmt.Errorf("unknown notification key: %d", key)
 }
 
 func SendPebbleNotification(key NotificationKey, request_id int) error {
@@ -37,7 +37,8 @@ func SendPebbleNotification(key NotificationKey, request_id int) error {
 		return fmt.Errorf("couldn't get a string representation of the notification key: %w", err)
 	}
 	cmd := exec.Command("pebble", "notify", keyStr, fmt.Sprintf("request_id=%v", request_id))
-	if err := cmd.Run(); err != nil {
+	err = cmd.Run()
+	if err != nil {
 		return fmt.Errorf("couldn't execute a pebble notify: %w", err)
 	}
 	return nil

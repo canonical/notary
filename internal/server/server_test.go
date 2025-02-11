@@ -21,7 +21,7 @@ func TestNewSuccess(t *testing.T) {
 	}
 	s, err := server.New(8000, []byte(cert), []byte(key), "certs.db", false)
 	if err != nil {
-		t.Errorf("Error occured: %s", err)
+		t.Errorf("Error occurred: %s", err)
 	}
 	if s.TLSConfig.Certificates == nil {
 		t.Errorf("No certificates were configured for server")

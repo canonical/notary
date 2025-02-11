@@ -72,7 +72,7 @@ func TestGoodConfigSuccess(t *testing.T) {
 	}
 	conf, err := config.Validate("config.yaml")
 	if err != nil {
-		t.Fatalf("Error occured: %s", err)
+		t.Fatalf("Error occurred: %s", err)
 	}
 
 	if conf.Cert == nil {

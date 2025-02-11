@@ -168,7 +168,7 @@ func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
 		id := r.PathValue("id")
 		idNum, err := strconv.Atoi(id)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error")
+			writeError(w, http.StatusBadRequest, "id is not a number")
 			return
 		}
 		err = env.DB.AddCertificateChainToCertificateRequest(db.ByCSRID(idNum), createCertificateParams.CertificateChain)
@@ -184,7 +184,7 @@ func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 		if env.SendPebbleNotifications {
-			err := SendPebbleNotification("canonical.com/notary/certificate/update", id)
+			err := SendPebbleNotification(CertificateUpdate, idNum)
 			if err != nil {
 				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
 			}
@@ -203,7 +203,7 @@ func RejectCertificate(env *HandlerConfig) http.HandlerFunc {
 		id := r.PathValue("id")
 		idNum, err := strconv.Atoi(id)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error")
+			writeError(w, http.StatusBadRequest, "id is not a number")
 			return
 		}
 		err = env.DB.RejectCertificateRequest(db.ByCSRID(idNum))
@@ -217,7 +217,7 @@ func RejectCertificate(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 		if env.SendPebbleNotifications {
-			err := SendPebbleNotification("canonical.com/notary/certificate/update", id)
+			err := SendPebbleNotification(CertificateUpdate, idNum)
 			if err != nil {
 				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
 			}
@@ -252,7 +252,7 @@ func DeleteCertificate(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 		if env.SendPebbleNotifications {
-			err := SendPebbleNotification("canonical.com/notary/certificate/update", id)
+			err := SendPebbleNotification(CertificateUpdate, idNum)
 			if err != nil {
 				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
 			}

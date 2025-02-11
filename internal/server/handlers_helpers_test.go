@@ -47,7 +47,7 @@ func prepareAccounts(url string, client *http.Client, adminToken, nonAdminToken 
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
 
-		*adminToken = string(loginResponse.Result.Token)
+		*adminToken = loginResponse.Result.Token
 
 		nonAdminAccount := &CreateAccountParams{
 			Username: "testuser",
@@ -73,6 +73,6 @@ func prepareAccounts(url string, client *http.Client, adminToken, nonAdminToken 
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
 
-		*nonAdminToken = string(loginResponse.Result.Token)
+		*nonAdminToken = loginResponse.Result.Token
 	}
 }

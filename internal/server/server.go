@@ -63,6 +63,7 @@ func New(port int, cert []byte, key []byte, dbPath string, pebbleNotificationsEn
 		Handler:        router,
 		MaxHeaderBytes: 1 << 20,
 		TLSConfig: &tls.Config{
+			MinVersion:   tls.VersionTLS12,
 			Certificates: []tls.Certificate{serverCerts},
 		},
 	}

@@ -290,7 +290,7 @@ func RevokeCertificate(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 		if env.SendPebbleNotifications {
-			err := SendPebbleNotification("canonical.com/notary/certificate/update", id)
+			err := SendPebbleNotification(CertificateUpdate, idNum)
 			if err != nil {
 				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
 			}

@@ -109,7 +109,6 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 	}
 	parentID := 0
 	if isSelfSigned(certBundle) {
-		// New row
 		certRow := Certificate{
 			IssuerID:       0,
 			CertificatePEM: certBundle[0],

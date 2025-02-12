@@ -110,7 +110,7 @@ An example for a CAForm:
 ```json
 {
     "self_signed": true,
-    "common_name": "Example Name",
+    "common_name": "example.com",
     "sans_dns": "example.com",
     "country_name": "US",
     "state_or_locality_name": "San Francisco",

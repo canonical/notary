@@ -3,11 +3,11 @@ package db
 import "fmt"
 
 type CertificateFilter struct {
-	ID  *int
+	ID  *int64
 	PEM *string
 }
 
-func ByCertificateID(id int) CertificateFilter {
+func ByCertificateID(id int64) CertificateFilter {
 	return CertificateFilter{ID: &id}
 }
 

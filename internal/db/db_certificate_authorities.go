@@ -30,9 +30,9 @@ type CertificateAuthority struct {
 
 	Status CAStatus `db:"status"`
 
-	PrivateKeyID  int `db:"private_key_id"`
-	CertificateID int `db:"certificate_id"`
-	CSRID         int `db:"csr_id"`
+	PrivateKeyID  int   `db:"private_key_id"`
+	CertificateID int64 `db:"certificate_id"`
+	CSRID         int   `db:"csr_id"`
 }
 type CertificateAuthorityDenormalized struct {
 	CertificateAuthorityID int      `db:"certificate_authority_id"`

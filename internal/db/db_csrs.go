@@ -13,7 +13,7 @@ type CertificateRequest struct {
 
 	CSR           string `db:"csr"`
 	Status        string `db:"status"`
-	CertificateID int    `db:"certificate_id"`
+	CertificateID int64  `db:"certificate_id"`
 }
 
 type CertificateRequestWithChain struct {

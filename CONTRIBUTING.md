@@ -127,6 +127,27 @@ Run the container image:
 docker run notary:${version}
 ```
 
+## Build the documentation site
+
+Go to the `docs` directory:
+```shell
+cd docs
+```
+
+Install the dependencies:
+
+```shell
+make install
+```
+
+Build the documentation site:
+
+```shell
+make run
+```
+
+Navigate to `http://127.0.0.1:8000` to view the documentation site.
+
 ## Reference
 
 - [Go Best Practices Guidelines](https://docs.google.com/document/d/1IbFXyeXYlfQ5GUEEScGS7pP335Cei-5cFBdAoR973pQ/edit?tab=t.0)

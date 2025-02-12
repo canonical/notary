@@ -113,7 +113,6 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 			IssuerID:       0,
 			CertificatePEM: certBundle[0],
 		}
-		// Create the certificate
 		stmt, err := sqlair.Prepare(fmt.Sprintf(createCertificateStmt, db.certificatesTable), Certificate{})
 		if err != nil {
 			return err

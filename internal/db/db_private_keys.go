@@ -73,7 +73,7 @@ func (db *Database) GetPrivateKey(filter PrivateKeyFilter) (*PrivateKey, error) 
 // CreatePrivateKey creates a new private key entry in the repository. The string must be a valid private key and unique.
 func (db *Database) CreatePrivateKey(pk string) error {
 	if err := ValidatePrivateKey(pk); err != nil {
-		return errors.New("pk validation failed: " + err.Error())
+		return errors.New("private key validation failed: " + err.Error())
 	}
 	stmt, err := sqlair.Prepare(fmt.Sprintf(createPrivateKeyStmt, db.privateKeysTable), PrivateKey{})
 	if err != nil {

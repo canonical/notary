@@ -1,5 +1,7 @@
 package db
 
+import "fmt"
+
 type CertificateFilter struct {
 	ID  *int
 	PEM *string
@@ -68,4 +70,31 @@ func ByCertificateAuthorityCSRID(id int) CertificateAuthorityFilter {
 
 func ByCertificateAuthorityCSRPEM(pem string) CertificateAuthorityFilter {
 	return CertificateAuthorityFilter{CSRPEM: &pem}
+}
+
+func (filter *CertificateAuthorityFilter) AsCertificateAuthority() (*CertificateAuthority, error) {
+	var CARow CertificateAuthority
+
+	switch {
+	case filter.ID != nil:
+		CARow = CertificateAuthority{CertificateAuthorityID: *filter.ID}
+	case filter.CSRID != nil:
+		CARow = CertificateAuthority{CSRID: *filter.CSRID}
+	default:
+		return &CARow, fmt.Errorf("empty filter: only CA ID or CSR ID is supported but none was provided")
+	}
+	return &CARow, nil
+}
+func (filter *CertificateAuthorityFilter) AsCertificateAuthorityDenormalized() (*CertificateAuthorityDenormalized, error) {
+	var CADenormalizedRow CertificateAuthorityDenormalized
+
+	switch {
+	case filter.ID != nil:
+		CADenormalizedRow = CertificateAuthorityDenormalized{CertificateAuthorityID: *filter.ID}
+	case filter.CSRPEM != nil:
+		CADenormalizedRow = CertificateAuthorityDenormalized{CSRPEM: *filter.CSRPEM}
+	default:
+		return &CADenormalizedRow, fmt.Errorf("empty filter: only CA ID or CSR PEM is supported but none was provided")
+	}
+	return &CADenormalizedRow, nil
 }

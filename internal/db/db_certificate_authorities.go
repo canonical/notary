@@ -113,55 +113,38 @@ func (db *Database) ListDenormalizedCertificateAuthorities() ([]CertificateAutho
 
 // GetCertificateAuthority gets a certificate authority row from the database.
 func (db *Database) GetCertificateAuthority(filter CertificateAuthorityFilter) (*CertificateAuthority, error) {
-	var CARow CertificateAuthority
-
-	switch {
-	case filter.ID != nil:
-		CARow = CertificateAuthority{CertificateAuthorityID: *filter.ID}
-	case filter.CSRID != nil:
-		CARow = CertificateAuthority{CSRID: *filter.CSRID}
-	case filter.CSRPEM != nil:
-		return nil, fmt.Errorf("invalid certificate identifier: CSR PEM filter is not supported here. Use CSR ID instead")
-	default:
-		return nil, fmt.Errorf("invalid certificate identifier: both ID and PEM are nil")
+	CARow, err := filter.AsCertificateAuthority()
+	if err != nil {
+		return nil, err
 	}
-
 	stmt, err := sqlair.Prepare(fmt.Sprintf(getCertificateAuthorityStmt, db.certificateAuthoritiesTable), CertificateAuthority{})
 	if err != nil {
 		return nil, err
 	}
-	err = db.conn.Query(context.Background(), stmt, CARow).Get(&CARow)
+	err = db.conn.Query(context.Background(), stmt, CARow).Get(CARow)
 	if err != nil {
 		return nil, err
 	}
-	return &CARow, nil
+	return CARow, nil
 }
 
 // GetDenormalizedCertificateAuthority gets a certificate authority row from the database
 // but instead of returning ID's that reference other table rows, it embeds the row data directly into the response object.
 func (db *Database) GetDenormalizedCertificateAuthority(filter CertificateAuthorityFilter) (*CertificateAuthorityDenormalized, error) {
-	var CADenormalizedRow CertificateAuthorityDenormalized
-	var CARow CertificateAuthority
-
-	switch {
-	case filter.ID != nil:
-		CARow = CertificateAuthority{CertificateAuthorityID: *filter.ID}
-	case filter.CSRID != nil:
-		CARow = CertificateAuthority{CSRID: *filter.CSRID}
-	case filter.CSRPEM != nil:
-		CADenormalizedRow = CertificateAuthorityDenormalized{CSRPEM: *filter.CSRPEM}
-	default:
-		return nil, fmt.Errorf("invalid certificate identifier: both ID and PEM are nil")
+	CADenormalizedRow, DenormalizedCAErr := filter.AsCertificateAuthorityDenormalized()
+	CARow, CAerr := filter.AsCertificateAuthority()
+	if CAerr != nil && DenormalizedCAErr != nil {
+		return nil, fmt.Errorf("invalid filter: only CA ID, CSR ID, or CSR PEM is supported")
 	}
 	stmt, err := sqlair.Prepare(fmt.Sprintf(getDenormalizedCertificateAuthorityStmt, db.certificateAuthoritiesTable), CertificateAuthority{}, CertificateAuthorityDenormalized{})
 	if err != nil {
 		return nil, err
 	}
-	err = db.conn.Query(context.Background(), stmt, CARow, CADenormalizedRow).Get(&CADenormalizedRow)
+	err = db.conn.Query(context.Background(), stmt, CARow, CADenormalizedRow).Get(CADenormalizedRow)
 	if err != nil {
 		return nil, err
 	}
-	return &CADenormalizedRow, nil
+	return CADenormalizedRow, nil
 }
 
 // CreateCertificateAuthority creates a new certificate authority in the database from a given CSR, private key, and certificate chain.
@@ -259,22 +242,14 @@ func (db *Database) UpdateCertificateAuthorityStatus(filter CertificateAuthority
 
 // DeleteCertificateAuthority removes a certificate authority from the database.
 func (db *Database) DeleteCertificateAuthority(filter CertificateAuthorityFilter) error {
-	var certRow CertificateAuthority
-
-	switch {
-	case filter.ID != nil:
-		certRow = CertificateAuthority{CertificateAuthorityID: *filter.ID}
-	case filter.CSRID != nil:
-		certRow = CertificateAuthority{CSRID: *filter.CSRID}
-	case filter.CSRPEM != nil:
-		return fmt.Errorf("invalid certificate identifier: CSR PEM filter is not supported here. Use CSR ID instead")
-	default:
-		return fmt.Errorf("invalid certificate identifier: both ID and PEM are nil")
+	caRow, err := filter.AsCertificateAuthority()
+	if err != nil {
+		return err
 	}
 	stmt, err := sqlair.Prepare(fmt.Sprintf(deleteCertificateAuthorityStmt, db.certificateAuthoritiesTable), CertificateAuthority{})
 	if err != nil {
 		return err
 	}
-	err = db.conn.Query(context.Background(), stmt, certRow).Run()
+	err = db.conn.Query(context.Background(), stmt, caRow).Run()
 	return err
 }

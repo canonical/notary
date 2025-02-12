@@ -232,11 +232,11 @@ func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
 	}
-	if ca.Status != "Active" || ca.CertificatePEM == "" {
+	if ca.Status != "active" || ca.CertificatePEM == "" {
 		t.Fatalf("Certificate authority is not active or missing certificate")
 	}
 
-	err = database.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), "Legacy")
+	err = database.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), db.CALegacy)
 	if err != nil {
 		t.Fatalf("Couldn't update certificate authority status: %s", err)
 	}
@@ -244,14 +244,14 @@ func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
 	}
-	if ca.Status != "Legacy" {
+	if ca.Status != db.CALegacy {
 		t.Fatalf("Certificate authority status is not legacy")
 	}
 	if ca.CertificatePEM == "" {
 		t.Fatalf("Certificate should not have been removed when updating status to legacy")
 	}
 
-	err = database.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), "Active")
+	err = database.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), db.CALegacy)
 	if err != nil {
 		t.Fatalf("Couldn't update certificate authority status: %s", err)
 	}
@@ -259,8 +259,8 @@ func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
 	}
-	if ca.Status != "Active" {
-		t.Fatalf("Certificate authority status is not active")
+	if ca.Status != db.CALegacy {
+		t.Fatalf("Certificate authority status is not legacy")
 	}
 	if ca.CertificatePEM == "" {
 		t.Fatalf("Certificate should not have been removed when updating status to Active")
@@ -306,7 +306,7 @@ func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
 	}
-	if ca.Status != "Pending" || ca.CertificatePEM != "" {
+	if ca.Status != "pending" || ca.CertificatePEM != "" {
 		t.Fatalf("Certificate authority is not pending or has a certificate")
 	}
 
@@ -318,11 +318,11 @@ func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
 	}
-	if ca.Status != "Active" || ca.CertificatePEM != intermediateCACertificate {
-		t.Fatalf("Certificate authority is not pending or has a certificate")
+	if ca.Status != "active" || ca.CertificatePEM != intermediateCACertificate {
+		t.Fatalf("Certificate authority is not active or has a certificate")
 	}
 
-	err = database.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), "Legacy")
+	err = database.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), db.CALegacy)
 	if err != nil {
 		t.Fatalf("Couldn't update certificate authority status: %s", err)
 	}
@@ -330,14 +330,14 @@ func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
 	}
-	if ca.Status != "Legacy" {
+	if ca.Status != "legacy" {
 		t.Fatalf("Certificate authority status is not legacy")
 	}
 	if ca.CertificatePEM == "" {
 		t.Fatalf("Certificate should not have been removed when updating status to legacy")
 	}
 
-	err = database.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), "Active")
+	err = database.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), db.CAActive)
 	if err != nil {
 		t.Fatalf("Couldn't update certificate authority status: %s", err)
 	}
@@ -345,7 +345,7 @@ func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
 	}
-	if ca.Status != "Active" {
+	if ca.Status != "active" {
 		t.Fatalf("Certificate authority status is not active")
 	}
 	if ca.CertificatePEM == "" {

@@ -2,28 +2,44 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
 	"github.com/canonical/sqlair"
 )
 
+type CAStatus string
+
+func (ca CAStatus) String() string {
+	return string(ca)
+}
+func (ca CAStatus) MarshalJSON() ([]byte, error) {
+	return json.Marshal(ca.String())
+}
+
+const (
+	CAActive  CAStatus = "active"
+	CAExpired CAStatus = "expired"
+	CAPending CAStatus = "pending"
+	CALegacy  CAStatus = "legacy"
+)
+
 type CertificateAuthority struct {
 	CertificateAuthorityID int `db:"certificate_authority_id"`
 
-	Status string `db:"status"`
+	Status CAStatus `db:"status"`
 
 	PrivateKeyID  int `db:"private_key_id"`
 	CertificateID int `db:"certificate_id"`
 	CSRID         int `db:"csr_id"`
 }
-
 type CertificateAuthorityDenormalized struct {
-	CertificateAuthorityID int    `db:"certificate_authority_id"`
-	Status                 string `db:"status"`
-	PrivateKeyPEM          string `db:"private_key"`
-	CertificatePEM         string `db:"certificate"`
-	CSRPEM                 string `db:"csr"`
+	CertificateAuthorityID int      `db:"certificate_authority_id"`
+	Status                 CAStatus `db:"status"`
+	PrivateKeyPEM          string   `db:"private_key"`
+	CertificatePEM         string   `db:"certificate"`
+	CSRPEM                 string   `db:"csr"`
 }
 
 const queryCreateCertificateAuthoritiesTable = `
@@ -36,10 +52,10 @@ const queryCreateCertificateAuthoritiesTable = `
 		certificate_id INTEGER,
 		csr_id INTEGER NOT NULL UNIQUE,
 
-		CHECK (status IN ('Active', 'Expired', 'Pending', 'Legacy')),
-		CHECK (NOT (certificate_id == NULL AND status == 'Active' )),
-		CHECK (NOT (certificate_id != NULL AND status == 'Pending'))
-        CHECK (NOT (certificate_id != NULL AND status == 'Expired'))
+		CHECK (status IN ('active', 'expired', 'pending', 'legacy')),
+		CHECK (NOT (certificate_id == NULL AND status == 'active' )),
+		CHECK (NOT (certificate_id != NULL AND status == 'pending'))
+        CHECK (NOT (certificate_id != NULL AND status == 'expired'))
 )`
 
 const (
@@ -178,13 +194,13 @@ func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, ce
 			CSRID:         csr.CSR_ID,
 			CertificateID: csr.CertificateID,
 			PrivateKeyID:  pk.PrivateKeyID,
-			Status:        "Active",
+			Status:        CAActive,
 		}
 	} else {
 		CARow = CertificateAuthority{
 			CSRID:        csr.CSR_ID,
 			PrivateKeyID: pk.PrivateKeyID,
-			Status:       "Pending",
+			Status:       CAPending,
 		}
 	}
 	stmt, err := sqlair.Prepare(fmt.Sprintf(createCertificateAuthorityStmt, db.certificateAuthoritiesTable), CertificateAuthority{})
@@ -215,7 +231,7 @@ func (db *Database) UpdateCertificateAuthorityCertificate(filter CertificateAuth
 		return err
 	}
 	ca.CertificateID = newCert.CertificateID
-	ca.Status = "Active"
+	ca.Status = CAActive
 
 	stmt, err := sqlair.Prepare(fmt.Sprintf(updateCertificateAuthorityStmt, db.certificateAuthoritiesTable), CertificateAuthority{})
 	if err != nil {
@@ -226,7 +242,7 @@ func (db *Database) UpdateCertificateAuthorityCertificate(filter CertificateAuth
 }
 
 // UpdateCertificateAuthorityStatus updates the status of a certificate authority.
-func (db *Database) UpdateCertificateAuthorityStatus(filter CertificateAuthorityFilter, status string) error {
+func (db *Database) UpdateCertificateAuthorityStatus(filter CertificateAuthorityFilter, status CAStatus) error {
 	ca, err := db.GetCertificateAuthority(filter)
 	if err != nil {
 		return err

@@ -20,11 +20,11 @@ import (
 )
 
 type CertificateAuthority struct {
-	CertificateAuthorityID int    `json:"certificate_authority_id"`
-	Status                 string `json:"status"`
-	PrivateKeyPEM          string `json:"private_key,omitempty"`
-	CertificatePEM         string `json:"certificate"`
-	CSRPEM                 string `json:"csr"`
+	CertificateAuthorityID int         `json:"certificate_authority_id"`
+	Status                 db.CAStatus `json:"status"`
+	PrivateKeyPEM          string      `json:"private_key,omitempty"`
+	CertificatePEM         string      `json:"certificate"`
+	CSRPEM                 string      `json:"csr"`
 }
 
 type CreateCertificateAuthorityParams struct {
@@ -41,7 +41,7 @@ type CreateCertificateAuthorityParams struct {
 }
 
 type UpdateCertificateAuthorityParams struct {
-	Status string `json:"status,omitempty"`
+	Status db.CAStatus `json:"status,omitempty"`
 }
 
 type UploadCertificateToCertificateAuthorityParams struct {

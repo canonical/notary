@@ -120,4 +120,4 @@ An example for a CAForm:
     "not_valid_after": "2030-01-01T00:00:00Z"
 }
 ```
-Not valid after is only required for self-signed CAs.
+`not_valid_after` is only required for self-signed CAs.

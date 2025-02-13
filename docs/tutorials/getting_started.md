@@ -2,7 +2,7 @@
 
 In this tutorial, you will learn how to install Notary on a Linux machine and access the Notary UI.
 
-### Prerequisites:
+## Prerequisites:
 
 - A Linux machine that supports snaps
 

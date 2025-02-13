@@ -124,7 +124,7 @@ func adminOrMe(jwtSecret []byte, handler func(http.ResponseWriter, *http.Request
 		}
 
 		if claims.Permissions != AdminPermission {
-			if r.PathValue("id") != "me" && strconv.Itoa(claims.ID) != r.PathValue("id") {
+			if r.PathValue("id") != "me" && strconv.FormatInt(claims.ID, 10) != r.PathValue("id") {
 				writeError(w, http.StatusForbidden, "forbidden: admin access required")
 				return
 			}
@@ -211,7 +211,7 @@ func AllowRequest(claims *jwtNotaryClaims, method, path string) (bool, error) {
 		if !pr.SelfAuthorizedAllowed {
 			return false, nil
 		}
-		matchedID, err := strconv.Atoi(matches[1])
+		matchedID, err := strconv.ParseInt(matches[1], 10, 64)
 		if err != nil {
 			return true, fmt.Errorf("error converting url id to string: %s", err)
 		}

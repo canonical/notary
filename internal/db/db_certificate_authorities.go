@@ -26,16 +26,16 @@ const (
 )
 
 type CertificateAuthority struct {
-	CertificateAuthorityID int `db:"certificate_authority_id"`
+	CertificateAuthorityID int64 `db:"certificate_authority_id"`
 
 	Status CAStatus `db:"status"`
 
-	PrivateKeyID  int   `db:"private_key_id"`
+	PrivateKeyID  int64 `db:"private_key_id"`
 	CertificateID int64 `db:"certificate_id"`
-	CSRID         int   `db:"csr_id"`
+	CSRID         int64 `db:"csr_id"`
 }
 type CertificateAuthorityDenormalized struct {
-	CertificateAuthorityID int      `db:"certificate_authority_id"`
+	CertificateAuthorityID int64    `db:"certificate_authority_id"`
 	Status                 CAStatus `db:"status"`
 	PrivateKeyPEM          string   `db:"private_key"`
 	CertificatePEM         string   `db:"certificate"`

@@ -16,11 +16,11 @@ func ByCertificatePEM(pem string) CertificateFilter {
 }
 
 type CSRFilter struct {
-	ID  *int
+	ID  *int64
 	PEM *string
 }
 
-func ByCSRID(id int) CSRFilter {
+func ByCSRID(id int64) CSRFilter {
 	return CSRFilter{ID: &id}
 }
 
@@ -29,11 +29,11 @@ func ByCSRPEM(pem string) CSRFilter {
 }
 
 type UserFilter struct {
-	ID       *int
+	ID       *int64
 	Username *string
 }
 
-func ByUserID(id int) UserFilter {
+func ByUserID(id int64) UserFilter {
 	return UserFilter{ID: &id}
 }
 
@@ -42,11 +42,11 @@ func ByUsername(username string) UserFilter {
 }
 
 type PrivateKeyFilter struct {
-	ID  *int
+	ID  *int64
 	PEM *string
 }
 
-func ByPrivateKeyID(id int) PrivateKeyFilter {
+func ByPrivateKeyID(id int64) PrivateKeyFilter {
 	return PrivateKeyFilter{ID: &id}
 }
 
@@ -55,16 +55,16 @@ func ByPrivateKeyPEM(pem string) PrivateKeyFilter {
 }
 
 type CertificateAuthorityFilter struct {
-	ID     *int
-	CSRID  *int
+	ID     *int64
+	CSRID  *int64
 	CSRPEM *string
 }
 
-func ByCertificateAuthorityID(id int) CertificateAuthorityFilter {
+func ByCertificateAuthorityID(id int64) CertificateAuthorityFilter {
 	return CertificateAuthorityFilter{ID: &id}
 }
 
-func ByCertificateAuthorityCSRID(id int) CertificateAuthorityFilter {
+func ByCertificateAuthorityCSRID(id int64) CertificateAuthorityFilter {
 	return CertificateAuthorityFilter{CSRID: &id}
 }
 

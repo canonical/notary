@@ -107,7 +107,7 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 	if err != nil {
 		return errors.New("cert validation failed: " + err.Error())
 	}
-	parentID := int64(0)
+	var parentID int64 = 0
 	if isSelfSigned(certBundle) {
 		certRow := Certificate{
 			IssuerID:       0,

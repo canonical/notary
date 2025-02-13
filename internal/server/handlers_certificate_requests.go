@@ -21,7 +21,7 @@ type CreateCertificateParams struct {
 }
 
 type CertificateRequest struct {
-	ID               int    `json:"id"`
+	ID               int64  `json:"id"`
 	CSR              string `json:"csr"`
 	CertificateChain string `json:"certificate_chain"`
 	Status           string `json:"status"`
@@ -94,7 +94,7 @@ func CreateCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		idNum, err := strconv.Atoi(id)
+		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
@@ -128,7 +128,7 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 func DeleteCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		idNum, err := strconv.Atoi(id)
+		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
@@ -166,7 +166,7 @@ func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 		id := r.PathValue("id")
-		idNum, err := strconv.Atoi(id)
+		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, "id is not a number")
 			return
@@ -203,7 +203,7 @@ func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
 func RejectCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		idNum, err := strconv.Atoi(id)
+		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, "id is not a number")
 			return
@@ -238,7 +238,7 @@ func RejectCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 func DeleteCertificate(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		idNum, err := strconv.Atoi(id)
+		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
@@ -274,7 +274,7 @@ func DeleteCertificate(env *HandlerConfig) http.HandlerFunc {
 func RevokeCertificate(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		idNum, err := strconv.Atoi(id)
+		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return

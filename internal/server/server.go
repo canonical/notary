@@ -31,7 +31,7 @@ func (key NotificationKey) String() (string, error) {
 	return "", fmt.Errorf("unknown notification key: %d", key)
 }
 
-func SendPebbleNotification(key NotificationKey, request_id int) error {
+func SendPebbleNotification(key NotificationKey, request_id int64) error {
 	keyStr, err := key.String()
 	if err != nil {
 		return fmt.Errorf("couldn't get a string representation of the notification key: %w", err)

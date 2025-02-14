@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/canonical/sqlair"
 )
@@ -139,10 +140,10 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 		parentID = int(childID)
 	} else {
 		// Otherwise, go through the certificate chain in reverse and add certs as their parents
-		for i := len(certBundle) - 1; i >= 0; i-- {
+		for _, v := range slices.Backward(certBundle) {
 			certRow := Certificate{
 				IssuerID:       parentID,
-				CertificatePEM: certBundle[i],
+				CertificatePEM: v,
 			}
 			stmt, err := sqlair.Prepare(fmt.Sprintf(getCertificateStmt, db.certificatesTable), Certificate{})
 			if err != nil {

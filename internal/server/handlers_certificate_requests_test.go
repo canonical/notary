@@ -158,7 +158,6 @@ func rejectCertificate(url string, client *http.Client, adminToken string, id in
 // The order of the tests is important, as some tests depend on the
 // state of the server after previous tests.
 func TestCertificateRequestsEndToEnd(t *testing.T) {
-
 	tempDir := t.TempDir()
 	db_path := filepath.Join(tempDir, "db.sqlite3")
 	ts, _, err := setupServer(db_path)

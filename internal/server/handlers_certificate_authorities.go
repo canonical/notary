@@ -93,7 +93,7 @@ func (params *UploadCertificateToCertificateAuthorityParams) IsValid() (bool, er
 			break
 		}
 		if block.Type != "CERTIFICATE" {
-			return false, fmt.Errorf("unexpected PEM block type: %s, expected CERTIFICATE", block.Type)
+			return false, fmt.Errorf("unexpected PEM block type: expected CERTIFICATE")
 		}
 		_, err := x509.ParseCertificate(block.Bytes)
 		if err != nil {

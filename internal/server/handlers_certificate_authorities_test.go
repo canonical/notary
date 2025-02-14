@@ -761,7 +761,7 @@ func TestUploadCertificateToCertificateAuthorityInvalidInputs(t *testing.T) {
 			certificateChain: `-----BEGIN PRIVATE KEY-----
 MIIBVwIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAuQ==
 -----END PRIVATE KEY-----`,
-			expectedError: "Invalid request: unexpected PEM block type: PRIVATE KEY, expected CERTIFICATE",
+			expectedError: "Invalid request: unexpected PEM block type: expected CERTIFICATE",
 		},
 		{
 			testName: "Invalid certificate PEM content",

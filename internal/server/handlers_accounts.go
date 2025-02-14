@@ -87,7 +87,7 @@ func GetAccount(env *HandlerConfig) http.HandlerFunc {
 			var idNum int64
 			idNum, err = strconv.ParseInt(id, 10, 64)
 			if err != nil {
-				writeError(w, http.StatusInternalServerError, "Internal Error")
+				writeError(w, http.StatusBadRequest, "Invalid ID")
 				return
 			}
 			account, err = env.DB.GetUser(db.ByUserID(idNum))
@@ -174,7 +174,7 @@ func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
 		idInt, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			log.Println(err)
-			writeError(w, http.StatusInternalServerError, "Internal Error")
+			writeError(w, http.StatusBadRequest, "Invalid ID")
 			return
 		}
 		account, err := env.DB.GetUser(db.ByUserID(idInt))
@@ -232,7 +232,7 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 			idInt, err := strconv.ParseInt(id, 10, 64)
 			if err != nil {
 				log.Println(err)
-				writeError(w, http.StatusInternalServerError, "Internal Error")
+				writeError(w, http.StatusBadRequest, "Invalid ID")
 				return
 			}
 			idNum = idInt

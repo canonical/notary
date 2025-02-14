@@ -215,7 +215,7 @@ func GetCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error")
+			writeError(w, http.StatusBadRequest, "Invalid ID")
 			return
 		}
 
@@ -253,7 +253,7 @@ func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error")
+			writeError(w, http.StatusBadRequest, "Invalid ID")
 			return
 		}
 
@@ -290,7 +290,7 @@ func DeleteCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error")
+			writeError(w, http.StatusBadRequest, "Invalid ID")
 			return
 		}
 
@@ -304,6 +304,12 @@ func DeleteCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
+		successResponse := SuccessResponse{Message: "success"}
+		err = writeResponse(w, successResponse, http.StatusOK)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
+		}
 	}
 }
 
@@ -314,7 +320,7 @@ func PostCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error")
+			writeError(w, http.StatusBadRequest, "Invalid ID")
 			return
 		}
 		var UploadCertificateToCertificateAuthorityParams UploadCertificateToCertificateAuthorityParams

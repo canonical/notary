@@ -27,6 +27,7 @@ GET calls to the `/metrics` endpoint don't follow this rule, it returns text res
 :maxdepth: 1
 
 accounts.md
+certificate_authorities.md
 certificate_requests.md
 login.md
 metrics.md

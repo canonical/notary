@@ -14,6 +14,7 @@ import (
 	"math/big"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/canonical/notary/internal/db"
@@ -55,7 +56,7 @@ func (params *CreateCertificateAuthorityParams) IsValid() (bool, error) {
 		return false, fmt.Errorf("country_name must be a 2-letter ISO code")
 	}
 
-	// Validate the NotValidAfter field if provided.
+	// If not_valid_after is provided, it must be a valid RFC3339 timestamp and in the future.
 	if params.NotValidAfter != "" {
 		notValidAfter, err := time.Parse(time.RFC3339, params.NotValidAfter)
 		if err != nil {
@@ -75,6 +76,40 @@ func (updateCAParams *UpdateCertificateAuthorityParams) IsValid() (bool, error) 
 	if updateCAParams.Status != db.CAActive && updateCAParams.Status != db.CAExpired && updateCAParams.Status != db.CAPending && updateCAParams.Status != db.CALegacy {
 		return false, fmt.Errorf("Invalid status. Status must be one of %s, %s, %s, %s", db.CAActive, db.CAExpired, db.CAPending, db.CALegacy)
 	}
+	return true, nil
+}
+
+func (params *UploadCertificateToCertificateAuthorityParams) IsValid() (bool, error) {
+	// Certificate chain must not be empty.
+	if strings.TrimSpace(params.CertificateChain) == "" {
+		return false, errors.New("certificate_chain is required")
+	}
+
+	// Parse the PEM blocks from the certificate chain.
+	rest := []byte(params.CertificateChain)
+	var found bool
+	for {
+		var block *pem.Block
+		block, rest = pem.Decode(rest)
+		if block == nil {
+			break // no more PEM blocks
+		}
+		// Ensure that this is a certificate PEM block.
+		if block.Type != "CERTIFICATE" {
+			return false, fmt.Errorf("unexpected PEM block type: %s, expected CERTIFICATE", block.Type)
+		}
+		// Attempt to parse the certificate to validate its correctness.
+		_, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return false, fmt.Errorf("failed to parse certificate: %v", err)
+		}
+		found = true
+	}
+
+	if !found {
+		return false, errors.New("no valid certificate found in certificate_chain")
+	}
+
 	return true, nil
 }
 
@@ -363,6 +398,11 @@ func PostCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
 		var UploadCertificateToCertificateAuthorityParams UploadCertificateToCertificateAuthorityParams
 		if err := json.NewDecoder(r.Body).Decode(&UploadCertificateToCertificateAuthorityParams); err != nil {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format")
+			return
+		}
+		valid, err := UploadCertificateToCertificateAuthorityParams.IsValid()
+		if !valid {
+			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error())
 			return
 		}
 

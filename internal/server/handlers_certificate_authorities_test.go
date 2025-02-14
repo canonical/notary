@@ -637,7 +637,6 @@ func TestCreateCertificateAuthorityInvalidInputs(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestUpdateCertificateAuthorityParamsInvalidInputs(t *testing.T) {
@@ -705,6 +704,88 @@ func TestUpdateCertificateAuthorityParamsInvalidInputs(t *testing.T) {
 			}
 			if createCertResponse.Error != test.error {
 				t.Fatalf("expected error %s, got %s", test.error, createCertResponse.Error)
+			}
+		})
+	}
+}
+
+func TestUploadCertificateToCertificateAuthorityInvalidInputs(t *testing.T) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "db.sqlite3")
+	ts, _, err := setupServer(dbPath)
+	if err != nil {
+		t.Fatalf("couldn't create test server: %s", err)
+	}
+	defer ts.Close()
+	client := ts.Client()
+
+	var adminToken, nonAdminToken string
+	t.Run("prepare accounts", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
+
+	createCAParams := CreateCertificateAuthorityParams{
+		SelfSigned:          false,
+		CommonName:          "Intermediate CA",
+		SANsDNS:             "intermediate.example.com",
+		CountryName:         "US",
+		StateOrProvinceName: "California",
+		LocalityName:        "San Francisco",
+		OrganizationName:    "Canonical",
+		OrganizationalUnit:  "Testing",
+		NotValidAfter:       time.Now().AddDate(5, 0, 0).Format(time.RFC3339),
+	}
+	statusCode, _, err := createCertificateAuthority(ts.URL, client, adminToken, createCAParams)
+	if err != nil {
+		t.Fatalf("error creating certificate authority: %v", err)
+	}
+	if statusCode != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
+	}
+
+	tests := []struct {
+		testName         string
+		certificateChain string
+		expectedError    string
+	}{
+		{
+			testName:         "Empty certificate chain",
+			certificateChain: "",
+			expectedError:    "Invalid request: certificate_chain is required",
+		},
+		{
+			testName:         "Non-PEM input",
+			certificateChain: "not a pem block",
+			expectedError:    "Invalid request: no valid certificate found in certificate_chain",
+		},
+		{
+			testName: "Wrong PEM block type",
+			certificateChain: `-----BEGIN PRIVATE KEY-----
+MIIBVwIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAuQ==
+-----END PRIVATE KEY-----`,
+			expectedError: "Invalid request: unexpected PEM block type: PRIVATE KEY, expected CERTIFICATE",
+		},
+		{
+			testName: "Invalid certificate PEM content",
+			certificateChain: `-----BEGIN CERTIFICATE-----
+invalid
+-----END CERTIFICATE-----`,
+			expectedError: "Invalid request: no valid certificate found in certificate_chain",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.testName, func(t *testing.T) {
+			uploadParams := server.UploadCertificateToCertificateAuthorityParams{
+				CertificateChain: tc.certificateChain,
+			}
+			statusCode, uploadResponse, err := uploadCertificateToCertificateAuthority(ts.URL, client, adminToken, 1, uploadParams)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if statusCode != http.StatusBadRequest {
+				t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
+			}
+			if uploadResponse.Error != tc.expectedError {
+				t.Fatalf("expected error %q, got %q", tc.expectedError, uploadResponse.Error)
 			}
 		})
 	}

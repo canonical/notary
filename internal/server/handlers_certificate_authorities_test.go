@@ -681,7 +681,7 @@ func TestUpdateCertificateAuthorityParamsInvalidInputs(t *testing.T) {
 		{
 			testName: "Invalid Status - not supported",
 			status:   "pizza",
-			error:    "Invalid request: Invalid status. Status must be one of active, expired, pending, legacy",
+			error:    "Invalid request: invalid status: status must be one of active, expired, pending, legacy",
 		},
 		{
 			testName: "Invalid Status - no status",

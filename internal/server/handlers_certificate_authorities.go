@@ -74,7 +74,7 @@ func (updateCAParams *UpdateCertificateAuthorityParams) IsValid() (bool, error) 
 		return false, errors.New("status is required")
 	}
 	if updateCAParams.Status != db.CAActive && updateCAParams.Status != db.CAExpired && updateCAParams.Status != db.CAPending && updateCAParams.Status != db.CALegacy {
-		return false, fmt.Errorf("Invalid status. Status must be one of %s, %s, %s, %s", db.CAActive, db.CAExpired, db.CAPending, db.CALegacy)
+		return false, fmt.Errorf("invalid status: status must be one of %s, %s, %s, %s", db.CAActive, db.CAExpired, db.CAPending, db.CALegacy)
 	}
 	return true, nil
 }

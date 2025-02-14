@@ -43,7 +43,7 @@ type CreateCertificateAuthorityParams struct {
 }
 
 type UpdateCertificateAuthorityParams struct {
-	Status db.CAStatus `json:"status,omitempty"`
+	Status string `json:"status,omitempty"`
 }
 
 type UploadCertificateToCertificateAuthorityParams struct {
@@ -73,8 +73,8 @@ func (updateCAParams *UpdateCertificateAuthorityParams) IsValid() (bool, error) 
 	if updateCAParams.Status == "" {
 		return false, errors.New("status is required")
 	}
-	if updateCAParams.Status != db.CAActive && updateCAParams.Status != db.CAExpired && updateCAParams.Status != db.CAPending && updateCAParams.Status != db.CALegacy {
-		return false, fmt.Errorf("invalid status: status must be one of %s, %s, %s, %s", db.CAActive, db.CAExpired, db.CAPending, db.CALegacy)
+	if _, err := db.NewStatusFromString(updateCAParams.Status); err != nil {
+		return false, err
 	}
 	return true, nil
 }
@@ -331,7 +331,12 @@ func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error())
 			return
 		}
-		err = env.DB.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(idNum), params.Status)
+		status, err := db.NewStatusFromString(params.Status)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error())
+			return
+		}
+		err = env.DB.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(idNum), status)
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, sqlair.ErrNoRows) {

@@ -270,7 +270,6 @@ func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't delete certificate authority: %s", err)
 	}
-
 }
 
 func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {

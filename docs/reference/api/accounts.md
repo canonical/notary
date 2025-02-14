@@ -1,0 +1,120 @@
+# Accounts
+
+This section describes the RESTful API for managing accounts. Accounts are used to authenticate with Notary and manage the system.
+
+## List Accounts
+
+This path returns the list of accounts.
+
+| Method | Path               |
+| :----- | :----------------- |
+| `GET`  | `/api/v1/accounts` |
+
+### Parameters
+
+None
+
+### Sample Response
+
+```json
+{
+    "result": [
+        {
+            "id": 1,
+            "username": "admin",
+            "permissions": 1
+        }
+    ]
+}
+```
+
+## Create an Account
+
+This path creates a new account. The first account can be created without authentication.
+
+| Method | Path               |
+| :----- | :----------------- |
+| `POST` | `/api/v1/accounts` |
+
+### Parameters
+
+- `username` (string): The username of the account. 
+- `password` (string): The password of the account.
+
+### Sample Response
+
+```json
+{
+    "result": {
+        "message": "success"
+    }
+}
+```
+
+## Change Password for an Account
+
+This path updates an existing account.
+
+| Method | Path                                    |
+| :----- | :-------------------------------------- |
+| `POST` | `/api/v1/accounts/{id}/change_password` |
+
+### Parameters
+
+- `password` (string): The new password of the account.
+
+### Sample Response
+
+```json
+{
+    "result": {
+        "message": "success"
+    }
+}
+```
+
+## Get an Account
+
+This path returns the details of a specific account.
+
+| Method | Path                    |
+| :----- | :---------------------- |
+| `GET`  | `/api/v1/accounts/{id}` |
+
+### Parameters
+
+None
+
+### Sample Response
+
+```json
+{
+    "result": {
+        "id": 2,
+        "username": "pizza.com",
+        "permissions": 0
+    }
+}
+```
+
+## Delete an Account
+
+This path deletes an account.
+
+| Method   | Path                    |
+| :------- | :---------------------- |
+| `DELETE` | `/api/v1/accounts/{id}` |
+
+### Parameters
+
+None
+
+### Sample Response
+
+```json
+{
+    "result": {
+        "message": "success"
+    }
+}
+```

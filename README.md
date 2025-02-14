@@ -88,9 +88,15 @@ Notary does not support insecure http connections.
 | `/api/v1/certificate_requests`                         | POST        | Create a new certificate request               | csr                |
 | `/api/v1/certificate_requests/{id}`                    | GET         | Get a certificate request by id                |                    |
 | `/api/v1/certificate_requests/{id}`                    | DELETE      | Delete a certificate request by id             |                    |
+| `/api/v1/certificate_requests/{id}/reject`             | POST        | Reject a certificate for a certificate request |                    |
 | `/api/v1/certificate_requests/{id}/certificate`        | POST        | Create a certificate for a certificate request |                    |
-| `/api/v1/certificate_requests/{id}/certificate/reject` | POST        | Reject a certificate for a certificate request |                    |
 | `/api/v1/certificate_requests/{id}/certificate`        | DELETE      | Delete a certificate for a certificate request |                    |
+| `/api/v1/certificate_authorities`                      | GET         | Get all of the CA's                            |                    |
+| `/api/v1/certificate_authorities`                      | POST        | Create a new CA                                | CAForm             |
+| `/api/v1/certificate_authorities/{id}`                 | GET         | Get a single CA                                |                    |
+| `/api/v1/certificate_authorities/{id}`                 | PUT         | Update the status of a CA                      | status             |
+| `/api/v1/certificate_authorities/{id}`                 | DELETE      | Delete a CA                                    |                    |
+| `/api/v1/certificate_authorities/{id}/certificate`     | POST        | Post a certificate for a CA                    | certificate        |
 | `/api/v1/accounts`                                     | GET         | Get all user accounts                          |                    |
 | `/api/v1/accounts`                                     | POST        | Create a new user account                      | username, password |
 | `/api/v1/accounts/{id}`                                | GET         | Get a user account by id                       |                    |
@@ -99,3 +105,19 @@ Notary does not support insecure http connections.
 | `/login`                                               | POST        | Login to the Notary UI                         | username, password |
 | `/status`                                              | GET         | Get the status of the Notary service           |                    |
 | `/metrics`                                             | Get         | Get Prometheus metrics                         |                    |
+
+An example for a CAForm:
+```json
+{
+    "self_signed": true,
+    "common_name": "example.com",
+    "sans_dns": "example.com",
+    "country_name": "US",
+    "state_or_locality_name": "San Francisco",
+    "locality_name": "",
+    "organization_name": "Canonical",
+    "organizational_unit_name": "Identity",
+    "not_valid_after": "2030-01-01T00:00:00Z"
+}
+```
+`not_valid_after` is only required for self-signed CAs.

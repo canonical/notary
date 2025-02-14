@@ -254,6 +254,7 @@ func (db *Database) RevokeCertificate(filter CSRFilter) error {
 		CertificateID: 0,
 		Status:        "Revoked",
 	}
+
 	err = db.conn.Query(context.Background(), stmt, newRow).Run()
 	return err
 }
@@ -268,7 +269,7 @@ func (db *Database) DeleteCertificateRequest(filter CSRFilter) error {
 	case filter.PEM != nil:
 		csrRow = CertificateRequest{CSR: *filter.PEM}
 	default:
-		return fmt.Errorf("invalid certificate identifier: both ID and PEM are nil")
+		return fmt.Errorf("invalid certificate request identifier: both ID and PEM are nil")
 	}
 	stmt, err := sqlair.Prepare(fmt.Sprintf(deleteCertificateRequestStmt, db.certificateRequestsTable), CertificateRequest{})
 	if err != nil {

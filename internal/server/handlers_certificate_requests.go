@@ -198,7 +198,9 @@ func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
 	}
 }
 
-func RejectCertificate(env *HandlerConfig) http.HandlerFunc {
+// RejectCertificateRequest handler receives an id as a path parameter,
+// rejects the corresponding Certificate Request, and returns a http.StatusNoContent on success
+func RejectCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		idNum, err := strconv.Atoi(id)
@@ -259,6 +261,42 @@ func DeleteCertificate(env *HandlerConfig) http.HandlerFunc {
 		}
 		successResponse := SuccessResponse{Message: "success"}
 		err = writeResponse(w, successResponse, http.StatusOK)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
+		}
+	}
+}
+
+// RevokeCertificate handler receives an id as a path parameter,
+// and attempts to revoke the corresponding certificate request
+// It returns a 200 OK on success
+func RevokeCertificate(env *HandlerConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		idNum, err := strconv.Atoi(id)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		err = env.DB.RevokeCertificate(db.ByCSRID(idNum))
+		if err != nil {
+			log.Println(err)
+			if errors.Is(err, sqlair.ErrNoRows) {
+				writeError(w, http.StatusNotFound, "Not Found")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		if env.SendPebbleNotifications {
+			err := SendPebbleNotification(CertificateUpdate, idNum)
+			if err != nil {
+				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
+			}
+		}
+		successResponse := SuccessResponse{Message: "success"}
+		err = writeResponse(w, successResponse, http.StatusAccepted)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return

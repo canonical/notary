@@ -10,46 +10,37 @@ import (
 
 type Certificate struct {
 	CertificateID int `db:"certificate_id"`
-
-	Issuer       int `db:"issuer_id"`      // if the issuer id == certificate_id, then this is a self-signed certificate
-	PrivateKeyID int `db:"private_key_id"` // if there is no private key, then this certificate cannot sign CSR's
+	IssuerID      int `db:"issuer_id"` // if the issuer id == certificate_id, then this is a self-signed certificate
 
 	CertificatePEM string `db:"certificate"`
-}
-
-type PrivateKey struct {
-	ID int `db:"private_key_id"`
-
-	PrivateKey string `db:"private_key"`
 }
 
 const queryCreateCertificatesTable = `
 	CREATE TABLE IF NOT EXISTS %s (
 	    certificate_id INTEGER PRIMARY KEY AUTOINCREMENT,
-
 		issuer_id INTEGER,
-		private_key_id INTEGER,
 
 		certificate TEXT NOT NULL UNIQUE
 )`
 
 const (
-	createCertificateStmt    = "INSERT INTO %s (certificate, private_key_id, issuer_id) VALUES ($Certificate.certificate, $Certificate.private_key_id, $Certificate.issuer_id)"
-	addCertificateToCSRsStmt = "UPDATE %s SET certificate_id=$Certificate.certificate_id, status=$CertificateRequest.status WHERE id==$CertificateRequest.id or csr==$CertificateRequest.csr"
-	getCertificateStmt       = "SELECT &Certificate.* FROM %s WHERE certificate_id==$Certificate.certificate_id or certificate==$Certificate.certificate"
-	listCertificatesStmt     = "SELECT &Certificate.* FROM %s"
-	deleteCertificateStmt    = "DELETE FROM %s WHERE certificate_id=$Certificate.certificate_id or certificate=$Certificate.certificate"
+	createCertificateStmt   = "INSERT INTO %s (certificate, issuer_id) VALUES ($Certificate.certificate, $Certificate.issuer_id)"
+	addCertificateToCSRStmt = "UPDATE %s SET certificate_id=$Certificate.certificate_id, status=$CertificateRequest.status WHERE id==$CertificateRequest.id or csr==$CertificateRequest.csr"
+	getCertificateStmt      = "SELECT &Certificate.* FROM %s WHERE certificate_id==$Certificate.certificate_id or certificate==$Certificate.certificate"
+	updateCertificateStmt   = "UPDATE %s SET issuer_id=$Certificate.issuer_id WHERE certificate_id==$Certificate.certificate_id or certificate==$Certificate.certificate"
+	listCertificatesStmt    = "SELECT &Certificate.* FROM %s"
+	deleteCertificateStmt   = "DELETE FROM %s WHERE certificate_id=$Certificate.certificate_id or certificate=$Certificate.certificate"
 
 	getCertificateChainStmt = `WITH RECURSIVE cert_chain AS (
     -- Initial query: Start search from the end certificate
-    SELECT certificate_id, certificate, issuer_id, private_key_id
+    SELECT certificate_id, certificate, issuer_id
     FROM %s
     WHERE certificate_id = $Certificate.certificate_id or certificate = $Certificate.certificate
     
     UNION ALL
     
     -- Recursive Query: Move up the chain until issuer_id is 0 (root)
-    SELECT certs.certificate_id, certs.certificate, certs.issuer_id, certs.private_key_id
+    SELECT certs.certificate_id, certs.certificate, certs.issuer_id
     FROM certificates certs
     JOIN cert_chain
       ON certs.certificate_id = cert_chain.issuer_id
@@ -117,36 +108,67 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 		return errors.New("cert validation failed: " + err.Error())
 	}
 	parentID := 0
-	for i := len(certBundle) - 1; i >= 0; i-- {
+	if isSelfSigned(certBundle) {
 		certRow := Certificate{
-			Issuer:         parentID,
-			PrivateKeyID:   0,
-			CertificatePEM: certBundle[i],
+			IssuerID:       0,
+			CertificatePEM: certBundle[0],
 		}
-		stmt, err := sqlair.Prepare(fmt.Sprintf(getCertificateStmt, db.certificatesTable), Certificate{})
+		stmt, err := sqlair.Prepare(fmt.Sprintf(createCertificateStmt, db.certificatesTable), Certificate{})
 		if err != nil {
 			return err
 		}
-		err = db.conn.Query(context.Background(), stmt, certRow).Get(&certRow)
-		childID := int64(certRow.CertificateID)
-		if err == sqlair.ErrNoRows {
-			stmt, err = sqlair.Prepare(fmt.Sprintf(createCertificateStmt, db.certificatesTable), Certificate{})
-			if err != nil {
-				return err
-			}
-			var outcome sqlair.Outcome
-			err = db.conn.Query(context.Background(), stmt, certRow).Get(&outcome)
-			if err != nil {
-				return err
-			}
-			childID, err = outcome.Result().LastInsertId()
-			if err != nil {
-				return err
-			}
-		} else if err != nil {
+		var outcome sqlair.Outcome
+		err = db.conn.Query(context.Background(), stmt, certRow).Get(&outcome)
+		if err != nil {
+			return err
+		}
+		childID, err := outcome.Result().LastInsertId()
+		if err != nil {
+			return err
+		}
+		// Update the certificate to refer to itself
+		certRow.IssuerID = int(childID)
+		stmt, err = sqlair.Prepare(fmt.Sprintf(updateCertificateStmt, db.certificatesTable), Certificate{})
+		if err != nil {
+			return err
+		}
+		err = db.conn.Query(context.Background(), stmt, certRow).Run()
+		if err != nil {
 			return err
 		}
 		parentID = int(childID)
+	} else {
+		// Otherwise, go through the certificate chain in reverse and add certs as their parents
+		for i := len(certBundle) - 1; i >= 0; i-- {
+			certRow := Certificate{
+				IssuerID:       parentID,
+				CertificatePEM: certBundle[i],
+			}
+			stmt, err := sqlair.Prepare(fmt.Sprintf(getCertificateStmt, db.certificatesTable), Certificate{})
+			if err != nil {
+				return err
+			}
+			err = db.conn.Query(context.Background(), stmt, certRow).Get(&certRow)
+			childID := int64(certRow.CertificateID)
+			if err == sqlair.ErrNoRows {
+				stmt, err = sqlair.Prepare(fmt.Sprintf(createCertificateStmt, db.certificatesTable), Certificate{})
+				if err != nil {
+					return err
+				}
+				var outcome sqlair.Outcome
+				err = db.conn.Query(context.Background(), stmt, certRow).Get(&outcome)
+				if err != nil {
+					return err
+				}
+				childID, err = outcome.Result().LastInsertId()
+				if err != nil {
+					return err
+				}
+			} else if err != nil {
+				return err
+			}
+			parentID = int(childID)
+		}
 	}
 	stmt, err := sqlair.Prepare(fmt.Sprintf(updateCertificateRequestStmt, db.certificateRequestsTable), CertificateRequest{})
 	if err != nil {
@@ -205,4 +227,8 @@ func (db *Database) GetCertificateChain(filter CertificateFilter) ([]Certificate
 		return nil, err
 	}
 	return certChain, nil
+}
+
+func isSelfSigned(certBundle []string) bool {
+	return len(certBundle) == 2 && certBundle[0] == certBundle[1]
 }

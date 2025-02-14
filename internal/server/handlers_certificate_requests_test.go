@@ -142,7 +142,7 @@ func createCertificate(url string, client *http.Client, adminToken string, cert 
 }
 
 func rejectCertificate(url string, client *http.Client, adminToken string, id int) (int, error) {
-	req, err := http.NewRequest("POST", url+"/api/v1/certificate_requests/"+strconv.Itoa(id)+"/certificate/reject", nil)
+	req, err := http.NewRequest("POST", url+"/api/v1/certificate_requests/"+strconv.Itoa(id)+"/reject", nil)
 	if err != nil {
 		return 0, err
 	}
@@ -512,7 +512,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 			t.Fatalf("expected no error, got %s", getCertResponse.Error)
 		}
 		if getCertResponse.Result.Status != "Rejected" {
-			t.Fatalf("expected `Rejected` status, got %s", getCertResponse.Result.CertificateChain)
+			t.Fatalf("expected `Rejected` status, got %s", getCertResponse.Result.Status)
 		}
 	})
 

@@ -27,7 +27,6 @@ func ValidateCertificateRequest(csr string) error {
 	if err != nil {
 		return err
 	}
-	// TODO: We should validate the actual certificate request parameters here too. (Has the required fields etc)
 	return nil
 }
 
@@ -76,7 +75,6 @@ func ValidateCertificate(cert string) error {
 			return fmt.Errorf("invalid certificate chain: certificate %d, certificate %d: keys do not match: %s", i, i+1, err.Error())
 		}
 	}
-	// TODO: We should validate the actual certificate parameters here too. (Has the required fields etc)
 	return nil
 }
 
@@ -98,6 +96,28 @@ func CertificateMatchesCSR(cert string, csr string) error {
 	csrKey := parsedCSR.PublicKey.(*rsa.PublicKey)
 	if !csrKey.Equal(certKey) {
 		return errors.New("certificate does not match CSR")
+	}
+	return nil
+}
+
+func ValidatePrivateKey(pk string) error {
+	block, _ := pem.Decode([]byte(pk))
+	if block == nil {
+		return errors.New("failed to decode PEM block")
+	}
+
+	if block.Type != "RSA PRIVATE KEY" && block.Type != "PRIVATE KEY" {
+		return fmt.Errorf("invalid PEM block type: %s", block.Type)
+	}
+
+	var err error
+	if block.Type == "RSA PRIVATE KEY" {
+		_, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+	} else {
+		_, err = x509.ParsePKCS8PrivateKey(block.Bytes)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to parse private key: %v", err)
 	}
 	return nil
 }

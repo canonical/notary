@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"log"
 	"math/big"
 	"net/http"
@@ -46,6 +47,35 @@ type UpdateCertificateAuthorityParams struct {
 
 type UploadCertificateToCertificateAuthorityParams struct {
 	CertificateChain string `json:"certificate_chain"`
+}
+
+func (params *CreateCertificateAuthorityParams) IsValid() (bool, error) {
+	// If a country is provided, it must be exactly two letters (ISO 3166-1 alpha-2).
+	if params.CountryName != "" && len(params.CountryName) != 2 {
+		return false, fmt.Errorf("country_name must be a 2-letter ISO code")
+	}
+
+	// Validate the NotValidAfter field if provided.
+	if params.NotValidAfter != "" {
+		notValidAfter, err := time.Parse(time.RFC3339, params.NotValidAfter)
+		if err != nil {
+			return false, fmt.Errorf("not_valid_after must be a valid RFC3339 timestamp")
+		}
+		if !notValidAfter.After(time.Now()) {
+			return false, errors.New("not_valid_after must be a future time")
+		}
+	}
+	return true, nil
+}
+
+func (updateCAParams *UpdateCertificateAuthorityParams) IsValid() (bool, error) {
+	if updateCAParams.Status == "" {
+		return false, errors.New("status is required")
+	}
+	if updateCAParams.Status != db.CAActive && updateCAParams.Status != db.CAExpired && updateCAParams.Status != db.CAPending && updateCAParams.Status != db.CALegacy {
+		return false, fmt.Errorf("Invalid status. Status must be one of %s, %s, %s, %s", db.CAActive, db.CAExpired, db.CAPending, db.CALegacy)
+	}
+	return true, nil
 }
 
 // createCertificateAuthority uses the input fields from the CA certificate generation form to create
@@ -183,12 +213,16 @@ func CreateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format")
 			return
 		}
+		valid, err := params.IsValid()
+		if !valid {
+			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error())
+			return
+		}
 		csrPEM, privPEM, certPEM := createCertificateAuthority(params)
 		if csrPEM == "" || privPEM == "" {
 			writeError(w, http.StatusInternalServerError, "Failed to create certificate authority")
 			return
 		}
-		var err error
 		if certPEM != "" {
 			err = env.DB.CreateCertificateAuthority(csrPEM, privPEM, certPEM+certPEM)
 		} else {
@@ -242,7 +276,6 @@ func GetCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
 		}
-
 	}
 }
 
@@ -262,6 +295,11 @@ func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format")
 			return
 		}
+		valid, err := params.IsValid()
+		if !valid {
+			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error())
+			return
+		}
 		err = env.DB.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(idNum), params.Status)
 		if err != nil {
 			log.Println(err)
@@ -279,7 +317,6 @@ func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
 		}
-
 	}
 }
 

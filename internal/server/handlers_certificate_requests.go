@@ -96,7 +96,7 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error")
+			writeError(w, http.StatusBadRequest, "Invalid ID")
 			return
 		}
 		csr, err := env.DB.GetCertificateRequestAndChain(db.ByCSRID(idNum))
@@ -168,7 +168,7 @@ func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, "id is not a number")
+			writeError(w, http.StatusBadRequest, "Invalid ID")
 			return
 		}
 		err = env.DB.AddCertificateChainToCertificateRequest(db.ByCSRID(idNum), createCertificateParams.CertificateChain)
@@ -205,7 +205,7 @@ func RejectCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, "id is not a number")
+			writeError(w, http.StatusBadRequest, "Invalid ID")
 			return
 		}
 		err = env.DB.RejectCertificateRequest(db.ByCSRID(idNum))
@@ -240,7 +240,7 @@ func DeleteCertificate(env *HandlerConfig) http.HandlerFunc {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error")
+			writeError(w, http.StatusBadRequest, "Invalid ID")
 			return
 		}
 		err = env.DB.DeleteCertificateRequest(db.ByCSRID(idNum))
@@ -276,7 +276,7 @@ func RevokeCertificate(env *HandlerConfig) http.HandlerFunc {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error")
+			writeError(w, http.StatusBadRequest, "Invalid ID")
 			return
 		}
 		err = env.DB.RevokeCertificate(db.ByCSRID(idNum))

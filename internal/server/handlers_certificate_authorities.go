@@ -9,10 +9,12 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"log"
 	"math/big"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/canonical/notary/internal/db"
@@ -41,11 +43,70 @@ type CreateCertificateAuthorityParams struct {
 }
 
 type UpdateCertificateAuthorityParams struct {
-	Status db.CAStatus `json:"status,omitempty"`
+	Status string `json:"status,omitempty"`
 }
 
 type UploadCertificateToCertificateAuthorityParams struct {
 	CertificateChain string `json:"certificate_chain"`
+}
+
+func (params *CreateCertificateAuthorityParams) IsValid() (bool, error) {
+	// If a country is provided, it must be exactly two letters (ISO 3166-1 alpha-2).
+	if params.CountryName != "" && len(params.CountryName) != 2 {
+		return false, fmt.Errorf("country_name must be a 2-letter ISO code")
+	}
+
+	// If not_valid_after is provided, it must be a valid RFC3339 timestamp and in the future.
+	if params.NotValidAfter != "" {
+		notValidAfter, err := time.Parse(time.RFC3339, params.NotValidAfter)
+		if err != nil {
+			return false, fmt.Errorf("not_valid_after must be a valid RFC3339 timestamp")
+		}
+		if !notValidAfter.After(time.Now()) {
+			return false, errors.New("not_valid_after must be a future time")
+		}
+	}
+	return true, nil
+}
+
+func (updateCAParams *UpdateCertificateAuthorityParams) IsValid() (bool, error) {
+	if updateCAParams.Status == "" {
+		return false, errors.New("status is required")
+	}
+	if _, err := db.NewStatusFromString(updateCAParams.Status); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (params *UploadCertificateToCertificateAuthorityParams) IsValid() (bool, error) {
+	if strings.TrimSpace(params.CertificateChain) == "" {
+		return false, errors.New("certificate_chain is required")
+	}
+
+	rest := []byte(params.CertificateChain)
+	var found bool
+	for {
+		var block *pem.Block
+		block, rest = pem.Decode(rest)
+		if block == nil {
+			break
+		}
+		if block.Type != "CERTIFICATE" {
+			return false, fmt.Errorf("unexpected PEM block type: expected CERTIFICATE")
+		}
+		_, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return false, fmt.Errorf("failed to parse certificate: %v", err)
+		}
+		found = true
+	}
+
+	if !found {
+		return false, errors.New("no valid certificate found in certificate_chain")
+	}
+
+	return true, nil
 }
 
 // createCertificateAuthority uses the input fields from the CA certificate generation form to create
@@ -183,12 +244,16 @@ func CreateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format")
 			return
 		}
+		valid, err := params.IsValid()
+		if !valid {
+			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error())
+			return
+		}
 		csrPEM, privPEM, certPEM := createCertificateAuthority(params)
 		if csrPEM == "" || privPEM == "" {
 			writeError(w, http.StatusInternalServerError, "Failed to create certificate authority")
 			return
 		}
-		var err error
 		if certPEM != "" {
 			err = env.DB.CreateCertificateAuthority(csrPEM, privPEM, certPEM+certPEM)
 		} else {
@@ -215,7 +280,7 @@ func GetCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error")
+			writeError(w, http.StatusBadRequest, "Invalid ID")
 			return
 		}
 
@@ -242,7 +307,6 @@ func GetCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
 		}
-
 	}
 }
 
@@ -253,7 +317,7 @@ func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error")
+			writeError(w, http.StatusBadRequest, "Invalid ID")
 			return
 		}
 
@@ -262,7 +326,17 @@ func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format")
 			return
 		}
-		err = env.DB.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(idNum), params.Status)
+		valid, err := params.IsValid()
+		if !valid {
+			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error())
+			return
+		}
+		status, err := db.NewStatusFromString(params.Status)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error())
+			return
+		}
+		err = env.DB.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(idNum), status)
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, sqlair.ErrNoRows) {
@@ -279,7 +353,6 @@ func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
 		}
-
 	}
 }
 
@@ -290,7 +363,7 @@ func DeleteCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error")
+			writeError(w, http.StatusBadRequest, "Invalid ID")
 			return
 		}
 
@@ -304,6 +377,12 @@ func DeleteCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
+		successResponse := SuccessResponse{Message: "success"}
+		err = writeResponse(w, successResponse, http.StatusOK)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
+		}
 	}
 }
 
@@ -314,12 +393,17 @@ func PostCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error")
+			writeError(w, http.StatusBadRequest, "Invalid ID")
 			return
 		}
 		var UploadCertificateToCertificateAuthorityParams UploadCertificateToCertificateAuthorityParams
 		if err := json.NewDecoder(r.Body).Decode(&UploadCertificateToCertificateAuthorityParams); err != nil {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format")
+			return
+		}
+		valid, err := UploadCertificateToCertificateAuthorityParams.IsValid()
+		if !valid {
+			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error())
 			return
 		}
 

@@ -14,6 +14,7 @@ type CAStatus string
 func (ca CAStatus) String() string {
 	return string(ca)
 }
+
 func (ca CAStatus) MarshalJSON() ([]byte, error) {
 	return json.Marshal(ca.String())
 }
@@ -25,6 +26,22 @@ const (
 	CALegacy  CAStatus = "legacy"
 )
 
+func NewStatusFromString(s string) (CAStatus, error) {
+	statuses := map[CAStatus]struct{}{
+		CAActive:  {},
+		CAExpired: {},
+		CAPending: {},
+		CALegacy:  {},
+	}
+
+	status := CAStatus(s)
+	_, ok := statuses[status]
+	if !ok {
+		return "", fmt.Errorf("invalid status: status must be one of %s, %s, %s, %s", CAActive, CAExpired, CAPending, CALegacy)
+	}
+	return status, nil
+}
+
 type CertificateAuthority struct {
 	CertificateAuthorityID int64 `db:"certificate_authority_id"`
 
@@ -34,6 +51,7 @@ type CertificateAuthority struct {
 	CertificateID int64 `db:"certificate_id"`
 	CSRID         int64 `db:"csr_id"`
 }
+
 type CertificateAuthorityDenormalized struct {
 	CertificateAuthorityID int64    `db:"certificate_authority_id"`
 	Status                 CAStatus `db:"status"`
@@ -209,7 +227,6 @@ func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, ce
 	}
 	err = db.conn.Query(context.Background(), stmt, CARow).Run()
 	return err
-
 }
 
 // UpdateCertificateAuthorityCertificate updates the certificate chain associated with a certificate authority.

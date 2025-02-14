@@ -105,12 +105,29 @@ nCSo5Rj3yTrtNYFLnu+iLCvMb5PcJXE55Pu5OYGktHnvMgc=
 -----END CERTIFICATE-----`
 )
 
+type CreateCertificateAuthorityParams struct {
+	SelfSigned bool `json:"self_signed"`
+
+	CommonName          string `json:"common_name"`
+	SANsDNS             string `json:"sans_dns"`
+	CountryName         string `json:"country_name"`
+	StateOrProvinceName string `json:"state_or_province_name"`
+	LocalityName        string `json:"locality_name"`
+	OrganizationName    string `json:"organization_name"`
+	OrganizationalUnit  string `json:"organizational_unit_name"`
+	NotValidAfter       string `json:"not_valid_after"`
+}
+
+type UpdateCertificateAuthorityParams struct {
+	Status string `json:"status,omitempty"`
+}
+
 type CreateCertificateAuthorityResponse struct {
 	Result SuccessResponse `json:"result"`
 	Error  string          `json:"error,omitempty"`
 }
 
-func createCertificateAuthority(url string, client *http.Client, adminToken string, ca server.CreateCertificateAuthorityParams) (int, *CreateCertificateAuthorityResponse, error) {
+func createCertificateAuthority(url string, client *http.Client, adminToken string, ca CreateCertificateAuthorityParams) (int, *CreateCertificateAuthorityResponse, error) {
 	reqData, err := json.Marshal(ca)
 	if err != nil {
 		return 0, nil, err
@@ -181,7 +198,7 @@ type UpdateCertificateAuthorityResponse struct {
 	Error  string          `json:"error,omitempty"`
 }
 
-func updateCertificateAuthority(url string, client *http.Client, adminToken string, id int, status server.UpdateCertificateAuthorityParams) (int, *UpdateCertificateAuthorityResponse, error) {
+func updateCertificateAuthority(url string, client *http.Client, adminToken string, id int, status UpdateCertificateAuthorityParams) (int, *UpdateCertificateAuthorityResponse, error) {
 	reqData, err := json.Marshal(status)
 	if err != nil {
 		return 0, nil, err
@@ -275,7 +292,7 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 	})
 
 	t.Run("2. Create self signed certificate authority", func(t *testing.T) {
-		createCertificatAuthorityParams := server.CreateCertificateAuthorityParams{
+		createCertificatAuthorityParams := CreateCertificateAuthorityParams{
 			SelfSigned: true,
 
 			CommonName:          "Self Signed CA",
@@ -322,7 +339,7 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 	})
 
 	t.Run("4. Make a new Intermediate CA", func(t *testing.T) {
-		createCertificatAuthorityParams := server.CreateCertificateAuthorityParams{
+		createCertificatAuthorityParams := CreateCertificateAuthorityParams{
 			SelfSigned: false,
 
 			CommonName:          "Not Self Signed CA",
@@ -429,7 +446,7 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		}
 	})
 	t.Run("9. Make first CA legacy", func(t *testing.T) {
-		statusCode, makeLegacyResponse, err := updateCertificateAuthority(ts.URL, client, adminToken, 1, server.UpdateCertificateAuthorityParams{Status: "legacy"})
+		statusCode, makeLegacyResponse, err := updateCertificateAuthority(ts.URL, client, adminToken, 1, UpdateCertificateAuthorityParams{Status: "legacy"})
 		if err != nil {
 			t.Fatal("expected no error, got: ", err)
 		}
@@ -522,4 +539,254 @@ func signCSR(csr string) string {
 	})
 
 	return certPEM.String()
+}
+
+func TestCreateCertificateAuthorityInvalidInputs(t *testing.T) {
+	tempDir := t.TempDir()
+	db_path := filepath.Join(tempDir, "db.sqlite3")
+	ts, _, err := setupServer(db_path)
+	if err != nil {
+		t.Fatalf("couldn't create test server: %s", err)
+	}
+	defer ts.Close()
+	client := ts.Client()
+
+	var adminToken string
+	var nonAdminToken string
+	t.Run("prepare user accounts and tokens", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
+
+	tests := []struct {
+		testName            string
+		selfSigned          bool
+		commonName          string
+		sansDNS             string
+		countryName         string
+		stateOrProvinceName string
+		localityName        string
+		organizationName    string
+		organizationalUnit  string
+		notValidAfter       string
+		error               string
+	}{
+		{
+			testName:            "Invalid Country Name - too long",
+			selfSigned:          true,
+			commonName:          "canonical.com",
+			sansDNS:             "ubuntu.com",
+			countryName:         "Canada",
+			stateOrProvinceName: "Quebec",
+			localityName:        "Montreal",
+			organizationName:    "Canonical",
+			organizationalUnit:  "Identity",
+			notValidAfter:       "2030-01-01T00:00:00Z",
+
+			error: "Invalid request: country_name must be a 2-letter ISO code",
+		},
+		{
+			testName:            "Invalid notValidAfter format - Not RFC3339",
+			selfSigned:          true,
+			commonName:          "canonical.com",
+			sansDNS:             "ubuntu.com",
+			countryName:         "CA",
+			stateOrProvinceName: "Quebec",
+			localityName:        "Montreal",
+			organizationName:    "Canonical",
+			organizationalUnit:  "Identity",
+			notValidAfter:       "2010-01-01 00:00:00Z",
+
+			error: "Invalid request: not_valid_after must be a valid RFC3339 timestamp",
+		},
+		{
+			testName:            "Invalid notValidAfter format - Past time",
+			selfSigned:          true,
+			commonName:          "canonical.com",
+			sansDNS:             "ubuntu.com",
+			countryName:         "CA",
+			stateOrProvinceName: "Quebec",
+			localityName:        "Montreal",
+			organizationName:    "Canonical",
+			organizationalUnit:  "Identity",
+			notValidAfter:       "2010-01-01T00:00:00Z",
+
+			error: "Invalid request: not_valid_after must be a future time",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.testName, func(t *testing.T) {
+			createCertificateAuthorityRequest := CreateCertificateAuthorityParams{
+				SelfSigned:          test.selfSigned,
+				CommonName:          test.commonName,
+				SANsDNS:             test.sansDNS,
+				CountryName:         test.countryName,
+				StateOrProvinceName: test.stateOrProvinceName,
+				LocalityName:        test.localityName,
+				OrganizationName:    test.organizationName,
+				OrganizationalUnit:  test.organizationalUnit,
+				NotValidAfter:       test.notValidAfter,
+			}
+			statusCode, createCertResponse, err := createCertificateAuthority(ts.URL, client, adminToken, createCertificateAuthorityRequest)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if statusCode != http.StatusBadRequest {
+				t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
+			}
+			if createCertResponse.Error != test.error {
+				t.Fatalf("expected error %s, got %s", test.error, createCertResponse.Error)
+			}
+		})
+	}
+}
+
+func TestUpdateCertificateAuthorityParamsInvalidInputs(t *testing.T) {
+	tempDir := t.TempDir()
+	db_path := filepath.Join(tempDir, "db.sqlite3")
+	ts, _, err := setupServer(db_path)
+	if err != nil {
+		t.Fatalf("couldn't create test server: %s", err)
+	}
+	defer ts.Close()
+	client := ts.Client()
+
+	var adminToken string
+	var nonAdminToken string
+	t.Run("prepare user accounts and tokens", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
+
+	// create a self signed CA
+	createCertificatAuthorityParams := CreateCertificateAuthorityParams{
+		SelfSigned: true,
+		CommonName: "Self Signed CA",
+		SANsDNS:    "example.com",
+	}
+
+	statusCode, createCAResponse, err := createCertificateAuthority(ts.URL, client, adminToken, createCertificatAuthorityParams)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if statusCode != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
+	}
+
+	if createCAResponse.Error != "" {
+		t.Fatalf("expected success, got %s", createCAResponse.Error)
+	}
+
+	tests := []struct {
+		testName string
+		status   string
+		error    string
+	}{
+		{
+			testName: "Invalid Status - not supported",
+			status:   "pizza",
+			error:    "Invalid request: invalid status: status must be one of active, expired, pending, legacy",
+		},
+		{
+			testName: "Invalid Status - no status",
+			status:   "",
+			error:    "Invalid request: status is required",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.testName, func(t *testing.T) {
+			updateCertificateAuthorityRequest := UpdateCertificateAuthorityParams{
+				Status: test.status,
+			}
+			statusCode, createCertResponse, err := updateCertificateAuthority(ts.URL, client, adminToken, 1, updateCertificateAuthorityRequest)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if statusCode != http.StatusBadRequest {
+				t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
+			}
+			if createCertResponse.Error != test.error {
+				t.Fatalf("expected error %s, got %s", test.error, createCertResponse.Error)
+			}
+		})
+	}
+}
+
+func TestUploadCertificateToCertificateAuthorityInvalidInputs(t *testing.T) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "db.sqlite3")
+	ts, _, err := setupServer(dbPath)
+	if err != nil {
+		t.Fatalf("couldn't create test server: %s", err)
+	}
+	defer ts.Close()
+	client := ts.Client()
+
+	var adminToken, nonAdminToken string
+	t.Run("prepare accounts", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
+
+	createCAParams := CreateCertificateAuthorityParams{
+		SelfSigned:          false,
+		CommonName:          "Intermediate CA",
+		SANsDNS:             "intermediate.example.com",
+		CountryName:         "US",
+		StateOrProvinceName: "California",
+		LocalityName:        "San Francisco",
+		OrganizationName:    "Canonical",
+		OrganizationalUnit:  "Testing",
+		NotValidAfter:       time.Now().AddDate(5, 0, 0).Format(time.RFC3339),
+	}
+	statusCode, _, err := createCertificateAuthority(ts.URL, client, adminToken, createCAParams)
+	if err != nil {
+		t.Fatalf("error creating certificate authority: %v", err)
+	}
+	if statusCode != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
+	}
+
+	tests := []struct {
+		testName         string
+		certificateChain string
+		expectedError    string
+	}{
+		{
+			testName:         "Empty certificate chain",
+			certificateChain: "",
+			expectedError:    "Invalid request: certificate_chain is required",
+		},
+		{
+			testName:         "Non-PEM input",
+			certificateChain: "not a pem block",
+			expectedError:    "Invalid request: no valid certificate found in certificate_chain",
+		},
+		{
+			testName: "Wrong PEM block type",
+			certificateChain: `-----BEGIN PRIVATE KEY-----
+MIIBVwIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAuQ==
+-----END PRIVATE KEY-----`,
+			expectedError: "Invalid request: unexpected PEM block type: expected CERTIFICATE",
+		},
+		{
+			testName: "Invalid certificate PEM content",
+			certificateChain: `-----BEGIN CERTIFICATE-----
+invalid
+-----END CERTIFICATE-----`,
+			expectedError: "Invalid request: no valid certificate found in certificate_chain",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.testName, func(t *testing.T) {
+			uploadParams := server.UploadCertificateToCertificateAuthorityParams{
+				CertificateChain: tc.certificateChain,
+			}
+			statusCode, uploadResponse, err := uploadCertificateToCertificateAuthority(ts.URL, client, adminToken, 1, uploadParams)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if statusCode != http.StatusBadRequest {
+				t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
+			}
+			if uploadResponse.Error != tc.expectedError {
+				t.Fatalf("expected error %q, got %q", tc.expectedError, uploadResponse.Error)
+			}
+		})
+	}
 }

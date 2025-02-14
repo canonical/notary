@@ -126,7 +126,7 @@ None
 }
 ```
 
-## Post a Certificate for a Certificate Authority
+## Upload a Certificate for a Certificate Authority
 
 This path uploads a certificate for a certificate authority.
 

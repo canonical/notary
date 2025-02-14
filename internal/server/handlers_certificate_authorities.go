@@ -33,7 +33,7 @@ type CreateCertificateAuthorityParams struct {
 	CommonName          string `json:"common_name"`
 	SANsDNS             string `json:"sans_dns"`
 	CountryName         string `json:"country_name"`
-	StateOrLocalityName string `json:"state_or_locality_name"`
+	StateOrProvinceName string `json:"state_or_province_name"`
 	LocalityName        string `json:"locality_name"`
 	OrganizationName    string `json:"organization_name"`
 	OrganizationalUnit  string `json:"organizational_unit_name"`
@@ -71,7 +71,7 @@ func createCertificateAuthority(fields CreateCertificateAuthorityParams) (string
 		Subject: pkix.Name{
 			CommonName:         fields.CommonName,
 			Country:            []string{fields.CountryName},
-			Province:           []string{fields.StateOrLocalityName},
+			Province:           []string{fields.StateOrProvinceName},
 			Locality:           []string{fields.LocalityName},
 			Organization:       []string{fields.OrganizationName},
 			OrganizationalUnit: []string{fields.OrganizationalUnit},
@@ -107,7 +107,7 @@ func createCertificateAuthority(fields CreateCertificateAuthorityParams) (string
 		Subject: pkix.Name{
 			CommonName:         fields.CommonName,
 			Country:            []string{fields.CountryName},
-			Province:           []string{fields.StateOrLocalityName},
+			Province:           []string{fields.StateOrProvinceName},
 			Locality:           []string{fields.LocalityName},
 			Organization:       []string{fields.OrganizationName},
 			OrganizationalUnit: []string{fields.OrganizationalUnit},

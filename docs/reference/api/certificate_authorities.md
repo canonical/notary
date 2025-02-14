@@ -41,7 +41,7 @@ This path creates a new certificate authority.
 - `common_name` (string): The common name of the certificate authority.
 - `sans_dns` (string): The DNS subject alternative names of the certificate authority.
 - `country_name` (string): The country name of the certificate authority.
-- `state_or_locality_name` (string): The state or locality name of the certificate authority.
+- `state_or_province_name` (string): The state or province name of the certificate authority.
 - `locality_name` (string): The locality name of the certificate authority.
 - `organization_name` (string): The organization name of the certificate authority.
 - `organizational_unit_name` (string): The organizational unit name of the certificate authority.

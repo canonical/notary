@@ -20,7 +20,7 @@ import (
 )
 
 type CertificateAuthority struct {
-	CertificateAuthorityID int         `json:"certificate_authority_id"`
+	CertificateAuthorityID int64       `json:"certificate_authority_id"`
 	Status                 db.CAStatus `json:"status"`
 	PrivateKeyPEM          string      `json:"private_key,omitempty"`
 	CertificatePEM         string      `json:"certificate"`
@@ -213,7 +213,7 @@ func CreateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 func GetCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		idNum, err := strconv.Atoi(id)
+		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
@@ -251,7 +251,7 @@ func GetCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		idNum, err := strconv.Atoi(id)
+		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
@@ -288,7 +288,7 @@ func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 func DeleteCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		idNum, err := strconv.Atoi(id)
+		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
@@ -312,7 +312,7 @@ func DeleteCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 func PostCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		idNum, err := strconv.Atoi(id)
+		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return

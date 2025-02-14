@@ -10,8 +10,8 @@ import (
 )
 
 type Certificate struct {
-	CertificateID int `db:"certificate_id"`
-	IssuerID      int `db:"issuer_id"` // if the issuer id == certificate_id, then this is a self-signed certificate
+	CertificateID int64 `db:"certificate_id"`
+	IssuerID      int64 `db:"issuer_id"` // if the issuer id == certificate_id, then this is a self-signed certificate
 
 	CertificatePEM string `db:"certificate"`
 }
@@ -108,7 +108,7 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 	if err != nil {
 		return errors.New("cert validation failed: " + err.Error())
 	}
-	parentID := 0
+	var parentID int64 = 0
 	if isSelfSigned(certBundle) {
 		certRow := Certificate{
 			IssuerID:       0,
@@ -128,7 +128,7 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 			return err
 		}
 		// Update the certificate to refer to itself
-		certRow.IssuerID = int(childID)
+		certRow.IssuerID = childID
 		stmt, err = sqlair.Prepare(fmt.Sprintf(updateCertificateStmt, db.certificatesTable), Certificate{})
 		if err != nil {
 			return err
@@ -137,7 +137,7 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 		if err != nil {
 			return err
 		}
-		parentID = int(childID)
+		parentID = childID
 	} else {
 		// Otherwise, go through the certificate chain in reverse and add certs as their parents
 		for _, v := range slices.Backward(certBundle) {
@@ -150,7 +150,7 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 				return err
 			}
 			err = db.conn.Query(context.Background(), stmt, certRow).Get(&certRow)
-			childID := int64(certRow.CertificateID)
+			childID := certRow.CertificateID
 			if err == sqlair.ErrNoRows {
 				stmt, err = sqlair.Prepare(fmt.Sprintf(createCertificateStmt, db.certificatesTable), Certificate{})
 				if err != nil {
@@ -168,7 +168,7 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 			} else if err != nil {
 				return err
 			}
-			parentID = int(childID)
+			parentID = childID
 		}
 	}
 	stmt, err := sqlair.Prepare(fmt.Sprintf(updateCertificateRequestStmt, db.certificateRequestsTable), CertificateRequest{})

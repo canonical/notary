@@ -18,7 +18,7 @@ func expireAfter() int64 {
 }
 
 type jwtNotaryClaims struct {
-	ID          int    `json:"id"`
+	ID          int64  `json:"id"`
 	Username    string `json:"username"`
 	Permissions int    `json:"permissions"`
 	jwt.StandardClaims
@@ -34,7 +34,7 @@ type LoginResponse struct {
 }
 
 // Helper function to generate a JWT
-func generateJWT(id int, username string, jwtSecret []byte, permissions int) (string, error) {
+func generateJWT(id int64, username string, jwtSecret []byte, permissions int) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtNotaryClaims{
 		ID:          id,
 		Username:    username,

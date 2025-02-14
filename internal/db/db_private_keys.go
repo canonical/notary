@@ -9,7 +9,7 @@ import (
 )
 
 type PrivateKey struct {
-	PrivateKeyID int `db:"private_key_id"`
+	PrivateKeyID int64 `db:"private_key_id"`
 
 	PrivateKeyPEM string `db:"private_key"`
 }

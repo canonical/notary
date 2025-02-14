@@ -1,123 +1,30 @@
 # Notary
 
-Notary is a simple, reliable, and secure certificate management tool. Use it to request, approve, and manage certificate requests for your services. 
+Notary is an open-source TLS Certificate Management software. It provides a secure, reliable, and simple way to manage x.509 certificates for your applications and services.
 
-### Project & Community
+We designed Notary for Enterprise environments where users need to securely manage the lifecycle of a large number of certificates. 
+
+[Get Started Now!](https://canonical-notary.readthedocs-hosted.com/en/latest/tutorials/getting_started/)
+
+## Key features
+
+- **Certificate Authority**: Notary can act as a Certificate Authority (CA) to issue certificates, both as a root and intermediate CA.
+- **Secure Intermediary**: Notary acts as an intermediary between your CA and your certificate requests, providing a secure way to distribute certificates.
+- **User Management**: Decide who can request and provide certificates.
+- **Simple UI**: A simple and intuitive web interface for managing certificates.
+- **Extensive HTTP API**: Accomplish all the tasks you can do in the UI via the HTTP API.
+- **Metrics**: Monitor the state of your certificates and the health of your Notary instance with Prometheus metrics.
+
+## Quick links
+
+- [Documentation](https://canonical-notary.readthedocs-hosted.com/en/latest/)
+- [Snap Store Listing](https://snapcraft.io/notary)
+- [Charmhub Listing](https://charmhub.io/notary-k8s)
+
+## Project & Community
 
 Notary is an open source project that warmly welcomes community contributions, suggestions, fixes, and constructive feedback.
 
 - To contribute to the code Please see [CONTRIBUTING.md](/CONTRIBUTING.md) for guidelines and best practices.
 - Raise software issues or feature requests in [GitHub](https://github.com/canonical/notary/issues)
 - Meet the community and chat with us on [Matrix](https://matrix.to/#/!yAkGlrYcBFYzYRvOlQ:ubuntu.com?via=ubuntu.com&via=matrix.org&via=mozilla.org)
-
-## Getting Started
-
-Install the snap:
-```bash
-sudo snap install notary
-```
-
-Generate (or copy) a certificate and private key to the following location:
-```bash
-sudo openssl req -newkey rsa:2048 -nodes -keyout /var/snap/notary/common/key.pem -x509 -days 1 -out /var/snap/notary/common/cert.pem -subj "/CN=example.com"
-```
-
-Start the service:
-```bash
-sudo snap start notary.notaryd
-```
-
-Navigate to `https://localhost:3000` to access the Notary UI.
-
-## How-to Guides
-
-### Install
-
-#### Snap
-
-```bash
-sudo snap install notary
-```
-
-#### Charmed Operator
-
-```bash
-juju deploy notary-k8s
-```
-
-For more information on using Notary in the Juju ecosystem, read the [charm documentation](https://charmhub.io/notary-k8s).
-
-## Reference
-
-### Configuration
-
-Notary takes a YAML config file as input. The config file can be passed to Notary using the `-config` flag.
-
-The config file requires the following parameters:
-| Key                  | Type              | Description                                                                                                                                                                                                                                         |
-| -------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| key_path             | string            | path to the private key for enabling HTTPS connections                                                                                                                                                                                              |
-| cert_path            | string            | path to a PEM formatted certificate for enabling HTTPS connections                                                                                                                                                                                  |
-| db_path              | string            | path to a sqlite database file. If the file does not exist Notary will attempt to create it.                                                                                                                                                        |
-| port                 | integer (0-65535) | port number on which Notary will listen for all incoming API and frontend connections.                                                                                                                                                              |
-| pebble_notifications | boolean           | Allow Notary to send pebble notices on certificate events (create, update, delete). Pebble needs to be running on the same system as Notary. Read more about Pebble Notices [here](https://github.com/canonical/pebble?tab=readme-ov-file#notices). |
-
-An example config file may look like:
-
-```yaml
-key_path:  "/etc/notary/config/key.pem"
-cert_path: "/etc/notary/config/cert.pem"
-db_path: "/var/lib/notary/database/certs.db"
-port: 3000
-pebble_notifications: true
-```
-
-You can generate the cert and the associated key by running:
-
-```bash
-openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 1 -out cert.pem -subj "/CN=example.com"
-```
-
-Notary does not support insecure http connections.
-
-### API
-
-| Endpoint                                               | HTTP Method | Description                                    | Parameters         |
-| ------------------------------------------------------ | ----------- | ---------------------------------------------- | ------------------ |
-| `/api/v1/certificate_requests`                         | GET         | Get all blog certificate requests              |                    |
-| `/api/v1/certificate_requests`                         | POST        | Create a new certificate request               | csr                |
-| `/api/v1/certificate_requests/{id}`                    | GET         | Get a certificate request by id                |                    |
-| `/api/v1/certificate_requests/{id}`                    | DELETE      | Delete a certificate request by id             |                    |
-| `/api/v1/certificate_requests/{id}/reject`             | POST        | Reject a certificate for a certificate request |                    |
-| `/api/v1/certificate_requests/{id}/certificate`        | POST        | Create a certificate for a certificate request |                    |
-| `/api/v1/certificate_requests/{id}/certificate`        | DELETE      | Delete a certificate for a certificate request |                    |
-| `/api/v1/certificate_authorities`                      | GET         | Get all of the CA's                            |                    |
-| `/api/v1/certificate_authorities`                      | POST        | Create a new CA                                | CAForm             |
-| `/api/v1/certificate_authorities/{id}`                 | GET         | Get a single CA                                |                    |
-| `/api/v1/certificate_authorities/{id}`                 | PUT         | Update the status of a CA                      | status             |
-| `/api/v1/certificate_authorities/{id}`                 | DELETE      | Delete a CA                                    |                    |
-| `/api/v1/certificate_authorities/{id}/certificate`     | POST        | Post a certificate for a CA                    | certificate        |
-| `/api/v1/accounts`                                     | GET         | Get all user accounts                          |                    |
-| `/api/v1/accounts`                                     | POST        | Create a new user account                      | username, password |
-| `/api/v1/accounts/{id}`                                | GET         | Get a user account by id                       |                    |
-| `/api/v1/accounts/{id}`                                | DELETE      | Delete a user account by id                    |                    |
-| `/api/v1/accounts/{id}/change_password`                | POST        | Change a user account's password               | password           |
-| `/login`                                               | POST        | Login to the Notary UI                         | username, password |
-| `/status`                                              | GET         | Get the status of the Notary service           |                    |
-| `/metrics`                                             | Get         | Get Prometheus metrics                         |                    |
-
-An example for a CAForm:
-```json
-{
-    "self_signed": true,
-    "common_name": "example.com",
-    "sans_dns": "example.com",
-    "country_name": "US",
-    "state_or_locality_name": "San Francisco",
-    "locality_name": "",
-    "organization_name": "Canonical",
-    "organizational_unit_name": "Identity",
-    "not_valid_after": "2030-01-01T00:00:00Z"
-}
-```
-`not_valid_after` is only required for self-signed CAs.

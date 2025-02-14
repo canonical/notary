@@ -1,5 +1,7 @@
 APIs
+bool
 CAs
+DNS
 frontend
 HTTPS
 JSON

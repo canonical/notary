@@ -10,7 +10,7 @@ import (
 const (
 	// CommonName:          "Testing Self Signed CA",
 	// CountryName:         "Testing Country",
-	// StateOrLocalityName: "Testing State",
+	// StateOrProvinceName: "Testing State",
 	// LocalityName:        "Testing Locality",
 	// OrganizationName:    "Testing Organization",
 	// OrganizationalUnit:  "Testing OU",

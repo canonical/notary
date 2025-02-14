@@ -6,7 +6,8 @@ We designed Notary for Enterprise environments where users need to securely mana
 
 ## Key features
 
-- **Secure Intermediary**: Notary acts as an intermediary between your CA and your clients, providing a secure way to request and manage certificates.
+- **Certificate Authority**: Notary can act as a Certificate Authority (CA) to issue certificates, both as a root and intermediate CA.
+- **Secure Intermediary**: Notary acts as an intermediary between your CA and your certificate requests, providing a secure way to distribute certificates.
 - **User Management**: Decide who can request and provide certificates.
 - **Simple UI**: A simple and intuitive web interface for managing certificates.
 - **Extensive HTTP API**: Accomplish all the tasks you can do in the UI via the HTTP API.

@@ -20,7 +20,7 @@ import (
 )
 
 type CertificateAuthority struct {
-	CertificateAuthorityID int         `json:"certificate_authority_id"`
+	CertificateAuthorityID int64       `json:"certificate_authority_id"`
 	Status                 db.CAStatus `json:"status"`
 	PrivateKeyPEM          string      `json:"private_key,omitempty"`
 	CertificatePEM         string      `json:"certificate"`
@@ -33,7 +33,7 @@ type CreateCertificateAuthorityParams struct {
 	CommonName          string `json:"common_name"`
 	SANsDNS             string `json:"sans_dns"`
 	CountryName         string `json:"country_name"`
-	StateOrLocalityName string `json:"state_or_locality_name"`
+	StateOrProvinceName string `json:"state_or_province_name"`
 	LocalityName        string `json:"locality_name"`
 	OrganizationName    string `json:"organization_name"`
 	OrganizationalUnit  string `json:"organizational_unit_name"`
@@ -71,7 +71,7 @@ func createCertificateAuthority(fields CreateCertificateAuthorityParams) (string
 		Subject: pkix.Name{
 			CommonName:         fields.CommonName,
 			Country:            []string{fields.CountryName},
-			Province:           []string{fields.StateOrLocalityName},
+			Province:           []string{fields.StateOrProvinceName},
 			Locality:           []string{fields.LocalityName},
 			Organization:       []string{fields.OrganizationName},
 			OrganizationalUnit: []string{fields.OrganizationalUnit},
@@ -107,7 +107,7 @@ func createCertificateAuthority(fields CreateCertificateAuthorityParams) (string
 		Subject: pkix.Name{
 			CommonName:         fields.CommonName,
 			Country:            []string{fields.CountryName},
-			Province:           []string{fields.StateOrLocalityName},
+			Province:           []string{fields.StateOrProvinceName},
 			Locality:           []string{fields.LocalityName},
 			Organization:       []string{fields.OrganizationName},
 			OrganizationalUnit: []string{fields.OrganizationalUnit},
@@ -213,7 +213,7 @@ func CreateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 func GetCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		idNum, err := strconv.Atoi(id)
+		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
@@ -251,7 +251,7 @@ func GetCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		idNum, err := strconv.Atoi(id)
+		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
@@ -288,7 +288,7 @@ func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 func DeleteCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		idNum, err := strconv.Atoi(id)
+		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
@@ -312,7 +312,7 @@ func DeleteCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 func PostCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		idNum, err := strconv.Atoi(id)
+		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return

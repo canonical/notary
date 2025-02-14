@@ -23,7 +23,7 @@ type ChangeAccountParams struct {
 }
 
 type GetAccountResponse struct {
-	ID          int    `json:"id"`
+	ID          int64  `json:"id"`
 	Username    string `json:"username"`
 	Permissions int    `json:"permissions"`
 }
@@ -84,8 +84,8 @@ func GetAccount(env *HandlerConfig) http.HandlerFunc {
 			}
 			account, err = env.DB.GetUser(db.ByUsername(claims.Username))
 		} else {
-			var idNum int
-			idNum, err = strconv.Atoi(id)
+			var idNum int64
+			idNum, err = strconv.ParseInt(id, 10, 64)
 			if err != nil {
 				writeError(w, http.StatusInternalServerError, "Internal Error")
 				return
@@ -171,7 +171,7 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		idInt, err := strconv.Atoi(id)
+		idInt, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
@@ -213,7 +213,7 @@ func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
 func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		var idNum int
+		var idNum int64
 		if id == "me" {
 			claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
 			if err != nil {
@@ -229,7 +229,7 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 			}
 			idNum = account.ID
 		} else {
-			idInt, err := strconv.Atoi(id)
+			idInt, err := strconv.ParseInt(id, 10, 64)
 			if err != nil {
 				log.Println(err)
 				writeError(w, http.StatusInternalServerError, "Internal Error")

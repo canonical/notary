@@ -9,15 +9,15 @@ import (
 )
 
 type CertificateRequest struct {
-	CSR_ID int `db:"csr_id"`
+	CSR_ID int64 `db:"csr_id"`
 
 	CSR           string `db:"csr"`
 	Status        string `db:"status"`
-	CertificateID int    `db:"certificate_id"`
+	CertificateID int64  `db:"certificate_id"`
 }
 
 type CertificateRequestWithChain struct {
-	CSR_ID int `db:"csr_id"`
+	CSR_ID int64 `db:"csr_id"`
 
 	CSR              string `db:"csr"`
 	Status           string `db:"status"`

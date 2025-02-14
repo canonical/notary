@@ -80,25 +80,21 @@ func (updateCAParams *UpdateCertificateAuthorityParams) IsValid() (bool, error) 
 }
 
 func (params *UploadCertificateToCertificateAuthorityParams) IsValid() (bool, error) {
-	// Certificate chain must not be empty.
 	if strings.TrimSpace(params.CertificateChain) == "" {
 		return false, errors.New("certificate_chain is required")
 	}
 
-	// Parse the PEM blocks from the certificate chain.
 	rest := []byte(params.CertificateChain)
 	var found bool
 	for {
 		var block *pem.Block
 		block, rest = pem.Decode(rest)
 		if block == nil {
-			break // no more PEM blocks
+			break
 		}
-		// Ensure that this is a certificate PEM block.
 		if block.Type != "CERTIFICATE" {
 			return false, fmt.Errorf("unexpected PEM block type: %s, expected CERTIFICATE", block.Type)
 		}
-		// Attempt to parse the certificate to validate its correctness.
 		_, err := x509.ParseCertificate(block.Bytes)
 		if err != nil {
 			return false, fmt.Errorf("failed to parse certificate: %v", err)

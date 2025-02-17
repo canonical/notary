@@ -1,8 +1,10 @@
 package server
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"regexp"
@@ -46,10 +48,18 @@ func createMiddlewareStack(middleware ...middleware) middleware {
 func limitRequestSize(maxKilobytes int64) middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.ContentLength > maxKilobytes*1024 {
+			if r.Body == nil || r.ContentLength == 0 {
+				next.ServeHTTP(w, r)
+				return
+			}
+			r.Body = http.MaxBytesReader(w, r.Body, maxKilobytes<<10)
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
 				writeError(w, http.StatusRequestEntityTooLarge, http.StatusText(http.StatusRequestEntityTooLarge))
 				return
 			}
+
+			r.Body = io.NopCloser(bytes.NewReader(body))
 			next.ServeHTTP(w, r)
 		})
 	}

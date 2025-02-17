@@ -187,21 +187,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("2. Create certificate request - Bad Request (csr is missing)", func(t *testing.T) {
-		createCertificateRequestRequest := CreateCertificateRequestParams{}
-		statusCode, createCertResponse, err := createCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if statusCode != http.StatusBadRequest {
-			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
-		}
-		if createCertResponse.Error != "csr is missing" {
-			t.Fatalf("expected error, got %s", createCertResponse.Error)
-		}
-	})
-
-	t.Run("3. Create certificate request", func(t *testing.T) {
+	t.Run("2. Create certificate request", func(t *testing.T) {
 		csr1Path := filepath.Join("testdata", "csr1.pem")
 		csr1, err := os.ReadFile(csr1Path)
 		if err != nil {
@@ -222,7 +208,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("4. List certificate requests - 1 Certificate", func(t *testing.T) {
+	t.Run("3. List certificate requests - 1 Certificate", func(t *testing.T) {
 		statusCode, listCertRequestsResponse, err := listCertificateRequests(ts.URL, client, adminToken)
 		if err != nil {
 			t.Fatal(err)
@@ -241,7 +227,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("5. Get certificate request", func(t *testing.T) {
+	t.Run("4. Get certificate request", func(t *testing.T) {
 		statusCode, getCertRequestResponse, err := getCertificateRequest(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)
@@ -263,7 +249,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("6. Create identical certificate request", func(t *testing.T) {
+	t.Run("5. Create identical certificate request", func(t *testing.T) {
 		csr1Path := filepath.Join("testdata", "csr1.pem")
 		csr1, err := os.ReadFile(csr1Path)
 		if err != nil {
@@ -284,7 +270,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("7. List certificate requests - 1 Certificate", func(t *testing.T) {
+	t.Run("6. List certificate requests - 1 Certificate", func(t *testing.T) {
 		statusCode, listCertRequestsResponse, err := listCertificateRequests(ts.URL, client, adminToken)
 		if err != nil {
 			t.Fatal(err)
@@ -300,7 +286,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("8. Create another certificate request", func(t *testing.T) {
+	t.Run("7. Create another certificate request", func(t *testing.T) {
 		csr2Path := filepath.Join("testdata", "csr2.pem")
 		csr2, err := os.ReadFile(csr2Path)
 		if err != nil {
@@ -321,7 +307,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("9. List certificate requests - 2 Certificates", func(t *testing.T) {
+	t.Run("8. List certificate requests - 2 Certificates", func(t *testing.T) {
 		statusCode, listCertRequestsResponse, err := listCertificateRequests(ts.URL, client, adminToken)
 		if err != nil {
 			t.Fatal(err)
@@ -337,7 +323,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("10. Get certificate request 2", func(t *testing.T) {
+	t.Run("9. Get certificate request 2", func(t *testing.T) {
 		statusCode, getCertRequestResponse, err := getCertificateRequest(ts.URL, client, adminToken, 2)
 		if err != nil {
 			t.Fatal(err)
@@ -359,7 +345,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("11. Delete certificate request 1", func(t *testing.T) {
+	t.Run("10. Delete certificate request 1", func(t *testing.T) {
 		statusCode, err := deleteCertificateRequest(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)
@@ -369,7 +355,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("12. List certificate requests - 1 Certificate", func(t *testing.T) {
+	t.Run("11. List certificate requests - 1 Certificate", func(t *testing.T) {
 		statusCode, listCertRequestsResponse, err := listCertificateRequests(ts.URL, client, adminToken)
 		if err != nil {
 			t.Fatal(err)
@@ -385,7 +371,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("13. Delete certificate request 2", func(t *testing.T) {
+	t.Run("12. Delete certificate request 2", func(t *testing.T) {
 		statusCode, err := deleteCertificateRequest(ts.URL, client, adminToken, 2)
 		if err != nil {
 			t.Fatal(err)
@@ -433,21 +419,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("2. Create Certificate - Bad Request (certificate is missing)", func(t *testing.T) {
-		createCertificateRequest := CreateCertificateParams{}
-		statusCode, createCertResponse, err := createCertificate(ts.URL, client, adminToken, createCertificateRequest)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if statusCode != http.StatusBadRequest {
-			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
-		}
-		if createCertResponse.Error != "certificate is missing" {
-			t.Fatalf("expected error, got %s", createCertResponse.Error)
-		}
-	})
-
-	t.Run("3. Create Certificate", func(t *testing.T) {
+	t.Run("2. Create Certificate", func(t *testing.T) {
 		certPath := filepath.Join("testdata", "csr2_cert.pem")
 		cert, err := os.ReadFile(certPath)
 		if err != nil {
@@ -473,7 +445,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("4. Get Certificate", func(t *testing.T) {
+	t.Run("3. Get Certificate", func(t *testing.T) {
 		statusCode, getCertResponse, err := getCertificateRequest(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)
@@ -489,7 +461,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("5. Reject Certificate", func(t *testing.T) {
+	t.Run("4. Reject Certificate", func(t *testing.T) {
 		statusCode, err := rejectCertificate(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)
@@ -499,7 +471,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("6. Get Certificate", func(t *testing.T) {
+	t.Run("5. Get Certificate", func(t *testing.T) {
 		statusCode, getCertResponse, err := getCertificateRequest(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)
@@ -515,7 +487,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("7. Delete Certificate", func(t *testing.T) {
+	t.Run("6. Delete Certificate", func(t *testing.T) {
 		statusCode, err := deleteCertificateRequest(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)
@@ -525,7 +497,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("8. Get Certificate", func(t *testing.T) {
+	t.Run("7. Get Certificate", func(t *testing.T) {
 		statusCode, getCertResponse, err := getCertificateRequest(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)
@@ -538,4 +510,132 @@ func TestCertificatesEndToEnd(t *testing.T) {
 			t.Fatalf("expected error `Not Found`, got %s", getCertResponse.Error)
 		}
 	})
+}
+
+func TestCreateCertificateRequestInvalidInputs(t *testing.T) {
+	tempDir := t.TempDir()
+	db_path := filepath.Join(tempDir, "db.sqlite3")
+	ts, _, err := setupServer(db_path)
+	if err != nil {
+		t.Fatalf("couldn't create test server: %s", err)
+	}
+	defer ts.Close()
+	client := ts.Client()
+
+	var adminToken string
+	var nonAdminToken string
+	t.Run("prepare user accounts and tokens", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
+
+	tests := []struct {
+		testName string
+		csr      string
+		error    string
+	}{
+		{
+			testName: "No csr",
+			csr:      "",
+			error:    "Invalid request: csr is required",
+		},
+		{
+			testName: "Bad format",
+			csr:      "Bad format",
+			error:    "Invalid request: could not decode PEM block",
+		},
+		{
+			testName: "Wrong PEM block type",
+			csr: `-----BEGIN PRIVATE KEY-----
+MIIBVwIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAuQ==
+-----END PRIVATE KEY-----`,
+			error: "Invalid request: expected PEM block type 'CERTIFICATE REQUEST'",
+		},
+		{
+			testName: "Bad CSR content",
+			csr: `-----BEGIN CERTIFICATE REQUEST-----
+MIIBVwIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAuQ==
+-----END CERTIFICATE REQUEST-----`,
+			error: "Invalid request: could not parse CSR",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.testName, func(t *testing.T) {
+			certRequest := CreateCertificateRequestParams{
+				CSR: test.csr,
+			}
+			statusCode, createCertResponse, err := createCertificateRequest(ts.URL, client, adminToken, certRequest)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if statusCode != http.StatusBadRequest {
+				t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
+			}
+			if createCertResponse.Error != test.error {
+				t.Fatalf("expected error %s, got %s", test.error, createCertResponse.Error)
+			}
+		})
+	}
+}
+
+func TestCreateCertificateInvalidInputs(t *testing.T) {
+	tempDir := t.TempDir()
+	db_path := filepath.Join(tempDir, "db.sqlite3")
+	ts, _, err := setupServer(db_path)
+	if err != nil {
+		t.Fatalf("couldn't create test server: %s", err)
+	}
+	defer ts.Close()
+	client := ts.Client()
+
+	var adminToken string
+	var nonAdminToken string
+	t.Run("prepare user accounts and tokens", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
+
+	tests := []struct {
+		testName    string
+		certificate string
+		error       string
+	}{
+		{
+			testName:    "No certificate",
+			certificate: "",
+			error:       "Invalid request: certificate is required",
+		},
+		{
+			testName:    "Bad format",
+			certificate: "Bad format",
+			error:       "Invalid request: could not decode PEM block",
+		},
+		{
+			testName: "Bad PEM block type",
+			certificate: `-----BEGIN PRIVATE KEY-----
+MIICfjCCAeegAwIBAgIBADANBgkqhkiG9w0BAQ0FADBcMQswCQYDVQQGEwJjYTEL
+-----END PRIVATE KEY-----`,
+			error: "Invalid request: expected PEM block type 'CERTIFICATE'",
+		},
+		{
+			testName: "Bad Certificate content",
+			certificate: `-----BEGIN CERTIFICATE-----
+MIICfjCCAeegAwIBAgIBADANBgkqhkiG9w0BAQ0FADBcMQswCQYDVQQGEwJjYTEL
+-----END CERTIFICATE-----`,
+			error: "Invalid request: could not parse certificate",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.testName, func(t *testing.T) {
+			cert := CreateCertificateParams{
+				Certificate: test.certificate,
+			}
+			statusCode, createCertResponse, err := createCertificate(ts.URL, client, adminToken, cert)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if statusCode != http.StatusBadRequest {
+				t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
+			}
+			if createCertResponse.Error != test.error {
+				t.Fatalf("expected error %s, got %s", test.error, createCertResponse.Error)
+			}
+		})
+	}
 }

@@ -1,8 +1,11 @@
 package server
 
 import (
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -16,8 +19,45 @@ type CreateCertificateRequestParams struct {
 	CSR string `json:"csr"`
 }
 
+func (params *CreateCertificateRequestParams) IsValid() (bool, error) {
+	if strings.TrimSpace(params.CSR) == "" {
+		return false, errors.New("csr is required")
+	}
+	block, _ := pem.Decode([]byte(params.CSR))
+	if block == nil {
+		return false, errors.New("could not decode PEM block")
+	}
+	if block.Type != "CERTIFICATE REQUEST" {
+		return false, fmt.Errorf("expected PEM block type 'CERTIFICATE REQUEST'")
+	}
+	_, err := x509.ParseCertificateRequest(block.Bytes)
+	if err != nil {
+		return false, fmt.Errorf("could not parse CSR")
+	}
+
+	return true, nil
+}
+
 type CreateCertificateParams struct {
 	CertificateChain string `json:"certificate"`
+}
+
+func (params *CreateCertificateParams) IsValid() (bool, error) {
+	if strings.TrimSpace(params.CertificateChain) == "" {
+		return false, errors.New("certificate is required")
+	}
+	block, _ := pem.Decode([]byte(params.CertificateChain))
+	if block == nil {
+		return false, errors.New("could not decode PEM block")
+	}
+	if block.Type != "CERTIFICATE" {
+		return false, fmt.Errorf("expected PEM block type 'CERTIFICATE'")
+	}
+	_, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return false, fmt.Errorf("could not parse certificate")
+	}
+	return true, nil
 }
 
 type CertificateRequest struct {
@@ -61,11 +101,12 @@ func CreateCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format")
 			return
 		}
-		if createCertificateRequestParams.CSR == "" {
-			writeError(w, http.StatusBadRequest, "csr is missing")
+		valid, err := createCertificateRequestParams.IsValid()
+		if !valid {
+			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error())
 			return
 		}
-		err := env.DB.CreateCertificateRequest(createCertificateRequestParams.CSR)
+		err = env.DB.CreateCertificateRequest(createCertificateRequestParams.CSR)
 		if err != nil {
 			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 				writeError(w, http.StatusBadRequest, "given csr already recorded")
@@ -161,8 +202,9 @@ func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format")
 			return
 		}
-		if createCertificateParams.CertificateChain == "" {
-			writeError(w, http.StatusBadRequest, "certificate is missing")
+		valid, err := createCertificateParams.IsValid()
+		if !valid {
+			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error())
 			return
 		}
 		id := r.PathValue("id")

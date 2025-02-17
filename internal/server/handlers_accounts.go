@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"regexp"
@@ -18,8 +19,31 @@ type CreateAccountParams struct {
 	Password string `json:"password"`
 }
 
+func (params *CreateAccountParams) IsValid() (bool, error) {
+	if params.Username == "" {
+		return false, errors.New("username is required")
+	}
+	if params.Password == "" {
+		return false, errors.New("password is required")
+	}
+	if !validatePassword(params.Password) {
+		return false, errors.New("Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.")
+	}
+	return true, nil
+}
+
 type ChangeAccountParams struct {
 	Password string `json:"password"`
+}
+
+func (params *ChangeAccountParams) IsValid() (bool, error) {
+	if params.Password == "" {
+		return false, errors.New("password is required")
+	}
+	if !validatePassword(params.Password) {
+		return false, errors.New("Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.")
+	}
+	return true, nil
 }
 
 type GetAccountResponse struct {
@@ -122,20 +146,17 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format")
 			return
 		}
+		valid, err := createAccountParams.IsValid()
+		if !valid {
+			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error())
+			return
+		}
 		if createAccountParams.Username == "" {
 			writeError(w, http.StatusBadRequest, "Username is required")
 			return
 		}
 		if createAccountParams.Password == "" {
 			writeError(w, http.StatusBadRequest, "Password is required")
-			return
-		}
-		if !validatePassword(createAccountParams.Password) {
-			writeError(
-				w,
-				http.StatusBadRequest,
-				"Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
-			)
 			return
 		}
 		numUsers, err := env.DB.NumUsers()
@@ -242,19 +263,12 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format")
 			return
 		}
-		if changeAccountParams.Password == "" {
-			writeError(w, http.StatusBadRequest, "Password is required")
+		valid, err := changeAccountParams.IsValid()
+		if !valid {
+			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error())
 			return
 		}
-		if !validatePassword(changeAccountParams.Password) {
-			writeError(
-				w,
-				http.StatusBadRequest,
-				"Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
-			)
-			return
-		}
-		err := env.DB.UpdateUserPassword(db.ByUserID(idNum), changeAccountParams.Password)
+		err = env.DB.UpdateUserPassword(db.ByUserID(idNum), changeAccountParams.Password)
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, sqlair.ErrNoRows) {

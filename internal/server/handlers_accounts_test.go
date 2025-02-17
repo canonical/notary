@@ -261,41 +261,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("6. Create account - no username", func(t *testing.T) {
-		createAccountParams := &CreateAccountParams{
-			Username: "",
-			Password: "password",
-		}
-		statusCode, response, err := createAccount(ts.URL, client, adminToken, createAccountParams)
-		if err != nil {
-			t.Fatalf("couldn't create account: %s", err)
-		}
-		if statusCode != http.StatusBadRequest {
-			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
-		}
-		if response.Error != "Username is required" {
-			t.Fatalf("expected error %q, got %q", "Username is required", response.Error)
-		}
-	})
-
-	t.Run("7. Create account - no password", func(t *testing.T) {
-		createAccountParams := &CreateAccountParams{
-			Username: "nopass",
-			Password: "",
-		}
-		statusCode, response, err := createAccount(ts.URL, client, adminToken, createAccountParams)
-		if err != nil {
-			t.Fatalf("couldn't create account: %s", err)
-		}
-		if statusCode != http.StatusBadRequest {
-			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
-		}
-		if response.Error != "Password is required" {
-			t.Fatalf("expected error %q, got %q", "Password is required", response.Error)
-		}
-	})
-
-	t.Run("8. Change account password - success", func(t *testing.T) {
+	t.Run("6. Change account password - success", func(t *testing.T) {
 		changeAccountPasswordParams := &ChangeAccountPasswordParams{
 			Password: "newPassword1",
 		}
@@ -311,7 +277,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("9. Change account password - no user", func(t *testing.T) {
+	t.Run("7. Change account password - no user", func(t *testing.T) {
 		changeAccountPasswordParams := &ChangeAccountPasswordParams{
 			Password: "newPassword1",
 		}
@@ -327,39 +293,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("10. Change account password - no password", func(t *testing.T) {
-		changeAccountPasswordParams := &ChangeAccountPasswordParams{
-			Password: "",
-		}
-		statusCode, response, err := changeAccountPassword(ts.URL, client, adminToken, 1, changeAccountPasswordParams)
-		if err != nil {
-			t.Fatalf("couldn't create account: %s", err)
-		}
-		if statusCode != http.StatusBadRequest {
-			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
-		}
-		if response.Error != "Password is required" {
-			t.Fatalf("expected error %q, got %q", "Password is required", response.Error)
-		}
-	})
-
-	t.Run("11. Change account password - bad password", func(t *testing.T) {
-		changeAccountPasswordParams := &ChangeAccountPasswordParams{
-			Password: "password",
-		}
-		statusCode, response, err := changeAccountPassword(ts.URL, client, adminToken, 1, changeAccountPasswordParams)
-		if err != nil {
-			t.Fatalf("couldn't create account: %s", err)
-		}
-		if statusCode != http.StatusBadRequest {
-			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
-		}
-		if response.Error != "Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol." {
-			t.Fatalf("expected error %q, got %q", "Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.", response.Error)
-		}
-	})
-
-	t.Run("12. Delete account - success", func(t *testing.T) {
+	t.Run("8. Delete account - success", func(t *testing.T) {
 		statusCode, response, err := deleteAccount(ts.URL, client, adminToken, 2)
 		if err != nil {
 			t.Fatalf("couldn't delete account: %s", err)
@@ -372,7 +306,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("13. Delete account - no user", func(t *testing.T) {
+	t.Run("9. Delete account - no user", func(t *testing.T) {
 		statusCode, response, err := deleteAccount(ts.URL, client, adminToken, 100)
 		if err != nil {
 			t.Fatalf("couldn't delete account: %s", err)
@@ -385,7 +319,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("14. Get my admin account - admin token", func(t *testing.T) {
+	t.Run("10. Get my admin account - admin token", func(t *testing.T) {
 		statusCode, response, err := getMyAccount(ts.URL, client, adminToken)
 		if err != nil {
 			t.Fatalf("couldn't get account: %s", err)
@@ -406,4 +340,114 @@ func TestAccountsEndToEnd(t *testing.T) {
 			t.Fatalf("expected permissions 1, got %d", response.Result.Permissions)
 		}
 	})
+}
+
+func TestCreateAccountInvalidInputs(t *testing.T) {
+	tempDir := t.TempDir()
+	db_path := filepath.Join(tempDir, "db.sqlite3")
+	ts, _, err := setupServer(db_path)
+	if err != nil {
+		t.Fatalf("couldn't create test server: %s", err)
+	}
+	defer ts.Close()
+	client := ts.Client()
+
+	var adminToken string
+	var nonAdminToken string
+	t.Run("prepare user accounts and tokens", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
+
+	tests := []struct {
+		testName string
+		username string
+		password string
+		error    string
+	}{
+		{
+			testName: "No username",
+			username: "",
+			password: "password",
+			error:    "Invalid request: username is required",
+		},
+		{
+			testName: "No password",
+			username: "username",
+			password: "",
+			error:    "Invalid request: password is required",
+		},
+		{
+			testName: "bad password",
+			username: "username",
+			password: "123",
+			error:    "Invalid request: Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.testName, func(t *testing.T) {
+			createAccountParams := &CreateAccountParams{
+				Username: test.username,
+				Password: test.password,
+			}
+			statusCode, createCertResponse, err := createAccount(ts.URL, client, adminToken, createAccountParams)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if statusCode != http.StatusBadRequest {
+				t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
+			}
+			if createCertResponse.Error != test.error {
+				t.Fatalf("expected error %s, got %s", test.error, createCertResponse.Error)
+			}
+		})
+	}
+}
+
+func TestChangeAccountPasswordInvalidInputs(t *testing.T) {
+	tempDir := t.TempDir()
+	db_path := filepath.Join(tempDir, "db.sqlite3")
+	ts, _, err := setupServer(db_path)
+	if err != nil {
+		t.Fatalf("couldn't create test server: %s", err)
+	}
+	defer ts.Close()
+	client := ts.Client()
+
+	var adminToken string
+	var nonAdminToken string
+	t.Run("prepare user accounts and tokens", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
+
+	tests := []struct {
+		testName string
+		password string
+		error    string
+	}{
+		{
+			testName: "No password",
+			password: "",
+			error:    "Invalid request: password is required",
+		},
+		{
+			testName: "bad password",
+			password: "123",
+			error:    "Invalid request: Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.testName, func(t *testing.T) {
+			changeAccountParams := &ChangeAccountPasswordParams{
+				Password: test.password,
+			}
+			statusCode, createCertResponse, err := changeAccountPassword(ts.URL, client, adminToken, 1, changeAccountParams)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if statusCode != http.StatusBadRequest {
+				t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
+			}
+			if createCertResponse.Error != test.error {
+				t.Fatalf("expected error %s, got %s", test.error, createCertResponse.Error)
+			}
+		})
+	}
 }

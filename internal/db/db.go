@@ -3,7 +3,6 @@ package db
 
 import (
 	"database/sql"
-	"fmt"
 
 	"github.com/canonical/sqlair"
 	_ "github.com/mattn/go-sqlite3"
@@ -11,21 +10,8 @@ import (
 
 // Database is the object used to communicate with the established repository.
 type Database struct {
-	certificateRequestsTable    string
-	certificatesTable           string
-	usersTable                  string
-	privateKeysTable            string
-	certificateAuthoritiesTable string
-	conn                        *sqlair.DB
+	conn *sqlair.DB
 }
-
-const (
-	certificateRequestsTableName    = "certificate_requests"
-	certificatesTableName           = "certificates"
-	usersTableName                  = "users"
-	privateKeysTableName            = "private_keys"
-	certificateAuthoritiesTableName = "certificate_authorities"
-)
 
 // Close closes the connection to the repository cleanly.
 func (db *Database) Close() error {
@@ -47,27 +33,22 @@ func NewDatabase(databasePath string) (*Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := sqlConnection.Exec(fmt.Sprintf(queryCreateCertificateRequestsTable, certificateRequestsTableName)); err != nil {
+	if _, err := sqlConnection.Exec(queryCreateCertificateRequestsTable); err != nil {
 		return nil, err
 	}
-	if _, err := sqlConnection.Exec(fmt.Sprintf(queryCreateCertificatesTable, certificatesTableName)); err != nil {
+	if _, err := sqlConnection.Exec(queryCreateCertificatesTable); err != nil {
 		return nil, err
 	}
-	if _, err := sqlConnection.Exec(fmt.Sprintf(queryCreateUsersTable, usersTableName)); err != nil {
+	if _, err := sqlConnection.Exec(queryCreateUsersTable); err != nil {
 		return nil, err
 	}
-	if _, err := sqlConnection.Exec(fmt.Sprintf(queryCreatePrivateKeysTable, privateKeysTableName)); err != nil {
+	if _, err := sqlConnection.Exec(queryCreatePrivateKeysTable); err != nil {
 		return nil, err
 	}
-	if _, err := sqlConnection.Exec(fmt.Sprintf(queryCreateCertificateAuthoritiesTable, certificateAuthoritiesTableName)); err != nil {
+	if _, err := sqlConnection.Exec(queryCreateCertificateAuthoritiesTable); err != nil {
 		return nil, err
 	}
 	db := new(Database)
 	db.conn = sqlair.NewDB(sqlConnection)
-	db.certificateRequestsTable = certificateRequestsTableName
-	db.certificatesTable = certificatesTableName
-	db.usersTable = usersTableName
-	db.privateKeysTable = privateKeysTableName
-	db.certificateAuthoritiesTable = certificateAuthoritiesTableName
 	return db, nil
 }

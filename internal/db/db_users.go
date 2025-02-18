@@ -16,7 +16,7 @@ type User struct {
 }
 
 const queryCreateUsersTable = `
-	CREATE TABLE IF NOT EXISTS %s (
+	CREATE TABLE IF NOT EXISTS users (
  		id INTEGER PRIMARY KEY AUTOINCREMENT,
 
 		username TEXT NOT NULL UNIQUE 
@@ -27,17 +27,17 @@ const queryCreateUsersTable = `
 )`
 
 const (
-	listUsersStmt   = "SELECT &User.* from %s"
-	getUserStmt     = "SELECT &User.* from %s WHERE id==$User.id or username==$User.username"
-	createUserStmt  = "INSERT INTO %s (username, hashed_password, permissions) VALUES ($User.username, $User.hashed_password, $User.permissions)"
-	updateUserStmt  = "UPDATE %s SET hashed_password=$User.hashed_password WHERE id==$User.id or username==$User.username"
-	deleteUserStmt  = "DELETE FROM %s WHERE id==$User.id"
-	getNumUsersStmt = "SELECT COUNT(*) AS &NumUsers.count FROM %s"
+	listUsersStmt   = "SELECT &User.* from users"
+	getUserStmt     = "SELECT &User.* from users WHERE id==$User.id or username==$User.username"
+	createUserStmt  = "INSERT INTO users (username, hashed_password, permissions) VALUES ($User.username, $User.hashed_password, $User.permissions)"
+	updateUserStmt  = "UPDATE users SET hashed_password=$User.hashed_password WHERE id==$User.id or username==$User.username"
+	deleteUserStmt  = "DELETE FROM users WHERE id==$User.id"
+	getNumUsersStmt = "SELECT COUNT(*) AS &NumUsers.count FROM users"
 )
 
 // ListUsers returns all of the users and their fields available in the database.
 func (db *Database) ListUsers() ([]User, error) {
-	stmt, err := sqlair.Prepare(fmt.Sprintf(listUsersStmt, db.usersTable), User{})
+	stmt, err := sqlair.Prepare(listUsersStmt, User{})
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func (db *Database) GetUser(filter UserFilter) (*User, error) {
 		return nil, fmt.Errorf("invalid filter: both ID and Username are nil")
 	}
 
-	stmt, err := sqlair.Prepare(fmt.Sprintf(getUserStmt, db.usersTable), User{})
+	stmt, err := sqlair.Prepare(getUserStmt, User{})
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func (db *Database) CreateUser(username string, password string, permission int)
 	if err != nil {
 		return err
 	}
-	stmt, err := sqlair.Prepare(fmt.Sprintf(createUserStmt, db.usersTable), User{})
+	stmt, err := sqlair.Prepare(createUserStmt, User{})
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func (db *Database) UpdateUserPassword(filter UserFilter, password string) error
 	if err != nil {
 		return err
 	}
-	stmt, err := sqlair.Prepare(fmt.Sprintf(updateUserStmt, db.usersTable), User{})
+	stmt, err := sqlair.Prepare(updateUserStmt, User{})
 	if err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ func (db *Database) DeleteUser(filter UserFilter) error {
 	if err != nil {
 		return err
 	}
-	stmt, err := sqlair.Prepare(fmt.Sprintf(deleteUserStmt, db.usersTable), User{})
+	stmt, err := sqlair.Prepare(deleteUserStmt, User{})
 	if err != nil {
 		return err
 	}
@@ -134,7 +134,7 @@ type NumUsers struct {
 
 // NumUsers returns the number of users in the database.
 func (db *Database) NumUsers() (int, error) {
-	stmt, err := sqlair.Prepare(fmt.Sprintf(getNumUsersStmt, db.usersTable), NumUsers{})
+	stmt, err := sqlair.Prepare(getNumUsersStmt, NumUsers{})
 	if err != nil {
 		return 0, err
 	}

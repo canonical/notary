@@ -128,16 +128,6 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 		if err != nil {
 			return err
 		}
-		// Update the certificate to refer to itself
-		certRow.IssuerID = childID
-		stmt, err = sqlair.Prepare(updateCertificateStmt, Certificate{})
-		if err != nil {
-			return err
-		}
-		err = db.conn.Query(context.Background(), stmt, certRow).Run()
-		if err != nil {
-			return err
-		}
 		parentID = childID
 	} else {
 		// Otherwise, go through the certificate chain in reverse and add certs as their parents

@@ -23,9 +23,12 @@ func TestPrivateKeysEndToEnd(t *testing.T) {
 		t.Fatalf("Number of private keys is not 1")
 	}
 
-	err = database.CreatePrivateKey(selfSignedCACertificatePK)
+	pkID, err := database.CreatePrivateKey(selfSignedCACertificatePK)
 	if err != nil {
 		t.Fatalf("Couldn't create private key: %s", err)
+	}
+	if pkID != 1 {
+		t.Fatalf("Couldn't create private key: expected pk id 1, got %d", pkID)
 	}
 
 	pks, err = database.ListPrivateKeys()
@@ -73,11 +76,11 @@ func TestPrivateKeyFails(t *testing.T) {
 	}
 	defer database.Close()
 
-	err = database.CreatePrivateKey("")
+	_, err = database.CreatePrivateKey("")
 	if err == nil {
 		t.Fatalf("Should have failed to create private key")
 	}
-	err = database.CreatePrivateKey("nope")
+	_, err = database.CreatePrivateKey("nope")
 	if err == nil {
 		t.Fatalf("Should have failed to create private key")
 	}

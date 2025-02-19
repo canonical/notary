@@ -215,9 +215,12 @@ func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
 		t.Fatalf("CA found when no CA's should be available")
 	}
 
-	err = database.CreateCertificateAuthority(selfSignedCACertificateRequest, selfSignedCACertificatePK, selfSignedCACertificate+"\n"+selfSignedCACertificate)
+	caID, err := database.CreateCertificateAuthority(selfSignedCACertificateRequest, selfSignedCACertificatePK, selfSignedCACertificate+"\n"+selfSignedCACertificate)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
+	}
+	if caID != 1 {
+		t.Fatalf("Error creating certificate authority: expected CA id to be 1 but it was %d", caID)
 	}
 	cas, err = database.ListCertificateAuthorities()
 	if err != nil {
@@ -288,9 +291,12 @@ func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {
 		t.Fatalf("CA found when no CA's should be available")
 	}
 
-	err = database.CreateCertificateAuthority(selfSignedCACertificateRequest, selfSignedCACertificatePK, "")
+	caID, err := database.CreateCertificateAuthority(selfSignedCACertificateRequest, selfSignedCACertificatePK, "")
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
+	}
+	if caID != 1 {
+		t.Fatalf("Error creating certificate authority: expected CA id to be 1 but it was %d", caID)
 	}
 	cas, err = database.ListCertificateAuthorities()
 	if err != nil {
@@ -365,35 +371,35 @@ func TestCertificateAuthorityFails(t *testing.T) {
 	}
 	defer database.Close()
 
-	err = database.CreateCertificateAuthority("", "", "")
+	_, err = database.CreateCertificateAuthority("", "", "")
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
-	err = database.CreateCertificateAuthority(selfSignedCACertificateRequest, "", "")
+	_, err = database.CreateCertificateAuthority(selfSignedCACertificateRequest, "", "")
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
-	err = database.CreateCertificateAuthority(selfSignedCACertificateRequest, "nope", "")
+	_, err = database.CreateCertificateAuthority(selfSignedCACertificateRequest, "nope", "")
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
-	err = database.CreateCertificateAuthority("nope", selfSignedCACertificatePK, "")
+	_, err = database.CreateCertificateAuthority("nope", selfSignedCACertificatePK, "")
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
-	err = database.CreateCertificateAuthority("", selfSignedCACertificatePK, selfSignedCACertificate+"\n"+selfSignedCACertificate)
+	_, err = database.CreateCertificateAuthority("", selfSignedCACertificatePK, selfSignedCACertificate+"\n"+selfSignedCACertificate)
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
-	err = database.CreateCertificateAuthority(selfSignedCACertificateRequest, "", selfSignedCACertificate+"\n"+selfSignedCACertificate)
+	_, err = database.CreateCertificateAuthority(selfSignedCACertificateRequest, "", selfSignedCACertificate+"\n"+selfSignedCACertificate)
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
-	err = database.CreateCertificateAuthority("nope", selfSignedCACertificatePK, selfSignedCACertificate+"\n"+selfSignedCACertificate)
+	_, err = database.CreateCertificateAuthority("nope", selfSignedCACertificatePK, selfSignedCACertificate+"\n"+selfSignedCACertificate)
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
-	err = database.CreateCertificateAuthority(selfSignedCACertificateRequest, "nope", selfSignedCACertificate+"\n"+selfSignedCACertificate)
+	_, err = database.CreateCertificateAuthority(selfSignedCACertificateRequest, "nope", selfSignedCACertificate+"\n"+selfSignedCACertificate)
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
@@ -460,9 +466,12 @@ func TestSelfSignedCertificateList(t *testing.T) {
 	}
 	defer database.Close()
 
-	err = database.CreateCertificateAuthority(selfSignedCACertificateRequest, selfSignedCACertificatePK, selfSignedCACertificate+"\n"+selfSignedCACertificate)
+	caID, err := database.CreateCertificateAuthority(selfSignedCACertificateRequest, selfSignedCACertificatePK, selfSignedCACertificate+"\n"+selfSignedCACertificate)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
+	}
+	if caID != 1 {
+		t.Fatalf("Error creating certificate authority: expected CA id to be 1 but it was %d", caID)
 	}
 	cas, err := database.ListCertificateAuthorities()
 	if err != nil {

@@ -15,14 +15,20 @@ func TestUsersEndToEnd(t *testing.T) {
 	}
 	defer database.Close()
 
-	err = database.CreateUser("admin", "pw123", 1)
+	userID, err := database.CreateUser("admin", "pw123", 1)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
+	if userID != 1 {
+		t.Fatalf("Couldn't complete Create: expected user id 1, but got %d", userID)
+	}
 
-	err = database.CreateUser("norman", "pw456", 0)
+	userID, err = database.CreateUser("norman", "pw456", 0)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
+	}
+	if userID != 2 {
+		t.Fatalf("Couldn't complete Create: expected user id 1, but got %d", userID)
 	}
 
 	res, err := database.ListUsers()
@@ -82,11 +88,11 @@ func TestCreateUserFails(t *testing.T) {
 	database, _ := db.NewDatabase(":memory:")
 	defer database.Close()
 
-	err := database.CreateUser("admin", "pw123", 1)
+	_, err := database.CreateUser("admin", "pw123", 1)
 	if err != nil {
 		t.Fatalf("Couldn't complete CreateUser: %s", err)
 	}
-	err = database.CreateUser("admin", "pw456", 1)
+	_, err = database.CreateUser("admin", "pw456", 1)
 	if err == nil {
 		t.Fatalf(
 			"An error should have been returned when creating a user with a duplicate username.",
@@ -106,7 +112,7 @@ func TestCreateUserFails(t *testing.T) {
 	if err == nil {
 		t.Fatalf("An error should have been returned when getting a non-existent user.")
 	}
-	err = database.CreateUser("", "pw456", 0)
+	_, err = database.CreateUser("", "pw456", 0)
 	if err == nil {
 		t.Fatalf("An error should have been returned when creating a user with an empty username.")
 	}
@@ -120,7 +126,7 @@ func TestCreateUserFails(t *testing.T) {
 	if num != 1 {
 		t.Fatalf("The number of users should be 1.")
 	}
-	err = database.CreateUser("newUser", "", 0)
+	_, err = database.CreateUser("newUser", "", 0)
 	if err == nil {
 		t.Fatalf("An error should have been returned when creating a user with a nil password.")
 	}
@@ -134,7 +140,7 @@ func TestCreateUserFails(t *testing.T) {
 	if num != 1 {
 		t.Fatalf("The number of users should be 1.")
 	}
-	err = database.CreateUser("newUser", "pw456", 2)
+	_, err = database.CreateUser("newUser", "pw456", 2)
 	if err == nil {
 		t.Fatalf("An error should have been returned when creating a user with an invalid permission level.")
 	}
@@ -147,7 +153,7 @@ func TestGetUserFails(t *testing.T) {
 	database, _ := db.NewDatabase(":memory:")
 	defer database.Close()
 
-	err := database.CreateUser("admin", "pw123", 1)
+	_, err := database.CreateUser("admin", "pw123", 1)
 	if err != nil {
 		t.Fatalf("Couldn't complete CreateUser: %s", err)
 	}
@@ -172,7 +178,7 @@ func TestUpdateUserPasswordFails(t *testing.T) {
 	database, _ := db.NewDatabase(":memory:")
 	defer database.Close()
 	originalPassword := "pw123"
-	err := database.CreateUser("admin", originalPassword, 1)
+	_, err := database.CreateUser("admin", originalPassword, 1)
 	if err != nil {
 		t.Fatalf("Couldn't complete CreateUser: %s", err)
 	}
@@ -216,11 +222,11 @@ func TestDeleteUserFails(t *testing.T) {
 	database, _ := db.NewDatabase(":memory:")
 	defer database.Close()
 
-	err := database.CreateUser("admin", "pw123", 1)
+	_, err := database.CreateUser("admin", "pw123", 1)
 	if err != nil {
 		t.Fatalf("Couldn't complete CreateUser: %s", err)
 	}
-	err = database.CreateUser("normal", "pw456", 0)
+	_, err = database.CreateUser("normal", "pw456", 0)
 	if err != nil {
 		t.Fatalf("Couldn't complete CreateUser: %s", err)
 	}

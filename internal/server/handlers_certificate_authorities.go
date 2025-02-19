@@ -50,6 +50,10 @@ type UploadCertificateToCertificateAuthorityParams struct {
 	CertificateChain string `json:"certificate_chain"`
 }
 
+type SignCertificateRequestParams struct {
+	CertificateAuthorityID string `json:"certificate_authority_id"`
+}
+
 func (params *CreateCertificateAuthorityParams) IsValid() (bool, error) {
 	// If a country is provided, it must be exactly two letters (ISO 3166-1 alpha-2).
 	if params.CountryName != "" && len(params.CountryName) != 2 {
@@ -419,6 +423,50 @@ func PostCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 		err = writeResponse(w, SuccessResponse{Message: "success"}, http.StatusCreated)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
+		}
+	}
+}
+
+func SignCertificateRequest(env *HandlerConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		idNum, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		var signCertificateRequestParams SignCertificateRequestParams
+		if err := json.NewDecoder(r.Body).Decode(&signCertificateRequestParams); err != nil {
+			writeError(w, http.StatusBadRequest, "Invalid JSON format")
+			return
+		}
+		caIDInt, err := strconv.ParseInt(signCertificateRequestParams.CertificateAuthorityID, 10, 64)
+		if err != nil {
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		err = env.DB.SignCertificateRequest(db.ByCSRID(idNum), db.ByCertificateAuthorityID(caIDInt))
+		if err != nil {
+			log.Println(err)
+			if errors.Is(err, sqlair.ErrNoRows) {
+				writeError(w, http.StatusNotFound, "Not Found")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		if env.SendPebbleNotifications {
+			err := SendPebbleNotification(CertificateUpdate, idNum)
+			if err != nil {
+				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
+			}
+		}
+		successResponse := SuccessResponse{Message: "success"}
+		err = writeResponse(w, successResponse, http.StatusAccepted)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return

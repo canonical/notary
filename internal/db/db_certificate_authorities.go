@@ -130,6 +130,7 @@ func (db *Database) ListCertificateAuthorities() ([]CertificateAuthority, error)
 		}
 		return nil, err
 	}
+	// loop over certs and update expiry if necessary
 	return CAs, nil
 }
 
@@ -148,6 +149,7 @@ func (db *Database) ListDenormalizedCertificateAuthorities() ([]CertificateAutho
 		}
 		return nil, err
 	}
+	// loop over certs and update expiry if necessary
 	return CAs, nil
 }
 
@@ -165,6 +167,7 @@ func (db *Database) GetCertificateAuthority(filter CertificateAuthorityFilter) (
 	if err != nil {
 		return nil, err
 	}
+	// update expiry status if necessary
 	return CARow, nil
 }
 
@@ -184,6 +187,7 @@ func (db *Database) GetDenormalizedCertificateAuthority(filter CertificateAuthor
 	if err != nil {
 		return nil, err
 	}
+	// update expiry status if necessary
 	return CADenormalizedRow, nil
 }
 
@@ -248,6 +252,7 @@ func (db *Database) UpdateCertificateAuthorityCertificate(filter CertificateAuth
 	if err != nil {
 		return err
 	}
+	// update expiry
 	err = db.conn.Query(context.Background(), stmt, ca).Run()
 	return err
 }
@@ -340,7 +345,7 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 	if err != nil {
 		return err
 	}
-	err = db.AddCertificateChainToCertificateRequest(csrFilter, certPEM.String())
+	_, err = db.AddCertificateChainToCertificateRequest(csrFilter, certPEM.String())
 	if err != nil {
 		return err
 	}

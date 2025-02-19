@@ -203,19 +203,27 @@ func (db *Database) GetCertificateRequestAndChain(filter CSRFilter) (*Certificat
 }
 
 // CreateCertificateRequest creates a new CSR entry in the repository. The string must be a valid CSR and unique.
-func (db *Database) CreateCertificateRequest(csr string) error {
+func (db *Database) CreateCertificateRequest(csr string) (int64, error) {
 	if err := ValidateCertificateRequest(csr); err != nil {
-		return errors.New("csr validation failed: " + err.Error())
+		return 0, errors.New("csr validation failed: " + err.Error())
 	}
 	stmt, err := sqlair.Prepare(createCertificateRequestStmt, CertificateRequest{})
 	if err != nil {
-		return err
+		return 0, err
 	}
 	row := CertificateRequest{
 		CSR: csr,
 	}
-	err = db.conn.Query(context.Background(), stmt, row).Run()
-	return err
+	var outcome sqlair.Outcome
+	err = db.conn.Query(context.Background(), stmt, row).Get(&outcome)
+	if err != nil {
+		return 0, err
+	}
+	insertedRowID, err := outcome.Result().LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return insertedRowID, nil
 }
 
 // RejectCertificateRequest updates input CSR's row by setting the certificate bundle to "" and moving the row status to "Rejected".

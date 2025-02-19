@@ -71,19 +71,27 @@ func (db *Database) GetPrivateKey(filter PrivateKeyFilter) (*PrivateKey, error) 
 }
 
 // CreatePrivateKey creates a new private key entry in the repository. The string must be a valid private key and unique.
-func (db *Database) CreatePrivateKey(pk string) error {
+func (db *Database) CreatePrivateKey(pk string) (int64, error) {
 	if err := ValidatePrivateKey(pk); err != nil {
-		return errors.New("private key validation failed: " + err.Error())
+		return 0, errors.New("private key validation failed: " + err.Error())
 	}
 	stmt, err := sqlair.Prepare(createPrivateKeyStmt, PrivateKey{})
 	if err != nil {
-		return err
+		return 0, err
 	}
 	row := PrivateKey{
 		PrivateKeyPEM: pk,
 	}
-	err = db.conn.Query(context.Background(), stmt, row).Run()
-	return err
+	var outcome sqlair.Outcome
+	err = db.conn.Query(context.Background(), stmt, row).Get(&outcome)
+	if err != nil {
+		return 0, err
+	}
+	insertedRowID, err := outcome.Result().LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return insertedRowID, nil
 }
 
 // DeletePrivateKey deletes a private key from the database.

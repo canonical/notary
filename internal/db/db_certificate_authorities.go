@@ -1,10 +1,16 @@
 package db
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"math/big"
+	"time"
 
 	"github.com/canonical/sqlair"
 )
@@ -124,6 +130,7 @@ func (db *Database) ListCertificateAuthorities() ([]CertificateAuthority, error)
 		}
 		return nil, err
 	}
+	// loop over certs and update expiry if necessary
 	return CAs, nil
 }
 
@@ -142,6 +149,7 @@ func (db *Database) ListDenormalizedCertificateAuthorities() ([]CertificateAutho
 		}
 		return nil, err
 	}
+	// loop over certs and update expiry if necessary
 	return CAs, nil
 }
 
@@ -159,6 +167,7 @@ func (db *Database) GetCertificateAuthority(filter CertificateAuthorityFilter) (
 	if err != nil {
 		return nil, err
 	}
+	// update expiry status if necessary
 	return CARow, nil
 }
 
@@ -178,55 +187,52 @@ func (db *Database) GetDenormalizedCertificateAuthority(filter CertificateAuthor
 	if err != nil {
 		return nil, err
 	}
+	// update expiry status if necessary
 	return CADenormalizedRow, nil
 }
 
 // CreateCertificateAuthority creates a new certificate authority in the database from a given CSR, private key, and certificate chain.
 // The certificate chain is optional and can be empty.
-func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, certChainPEM string) error {
-	err := db.CreateCertificateRequest(csrPEM)
+func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, certChainPEM string) (int64, error) {
+	csrID, err := db.CreateCertificateRequest(csrPEM)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	err = db.CreatePrivateKey(privPEM)
+	pkID, err := db.CreatePrivateKey(privPEM)
 	if err != nil {
-		return err
+		return 0, err
+	}
+	CARow := CertificateAuthority{
+		CSRID:        csrID,
+		PrivateKeyID: pkID,
+		Status:       CAPending,
 	}
 	if certChainPEM != "" {
-		err = db.AddCertificateChainToCertificateRequest(ByCSRPEM(csrPEM), certChainPEM)
+		certID, err := db.AddCertificateChainToCertificateRequest(ByCSRID(csrID), certChainPEM)
 		if err != nil {
-			return err
+			return 0, err
 		}
-	}
-	csr, err := db.GetCertificateRequest(ByCSRPEM(csrPEM))
-	if err != nil {
-		return err
-	}
-	pk, err := db.GetPrivateKey(ByPrivateKeyPEM(privPEM))
-	if err != nil {
-		return err
-	}
-	var CARow CertificateAuthority
-	if csr.CertificateID != 0 {
 		CARow = CertificateAuthority{
-			CSRID:         csr.CSR_ID,
-			CertificateID: csr.CertificateID,
-			PrivateKeyID:  pk.PrivateKeyID,
+			CSRID:         csrID,
+			CertificateID: certID,
+			PrivateKeyID:  pkID,
 			Status:        CAActive,
-		}
-	} else {
-		CARow = CertificateAuthority{
-			CSRID:        csr.CSR_ID,
-			PrivateKeyID: pk.PrivateKeyID,
-			Status:       CAPending,
 		}
 	}
 	stmt, err := sqlair.Prepare(createCertificateAuthorityStmt, CertificateAuthority{})
 	if err != nil {
-		return err
+		return 0, err
 	}
-	err = db.conn.Query(context.Background(), stmt, CARow).Run()
-	return err
+	var outcome sqlair.Outcome
+	err = db.conn.Query(context.Background(), stmt, CARow).Get(&outcome)
+	if err != nil {
+		return 0, err
+	}
+	insertedRowID, err := outcome.Result().LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return insertedRowID, nil
 }
 
 // UpdateCertificateAuthorityCertificate updates the certificate chain associated with a certificate authority.
@@ -235,25 +241,18 @@ func (db *Database) UpdateCertificateAuthorityCertificate(filter CertificateAuth
 	if err != nil {
 		return err
 	}
-	err = db.AddCertificateChainToCertificateRequest(ByCSRID(ca.CSRID), certChainPEM)
+	certID, err := db.AddCertificateChainToCertificateRequest(ByCSRID(ca.CSRID), certChainPEM)
 	if err != nil {
 		return err
 	}
-	insertedCert, err := sanitizeCertificateBundle(certChainPEM)
-	if err != nil {
-		return err
-	}
-	newCert, err := db.GetCertificate(ByCertificatePEM(insertedCert[0]))
-	if err != nil {
-		return err
-	}
-	ca.CertificateID = newCert.CertificateID
+	ca.CertificateID = certID
 	ca.Status = CAActive
 
 	stmt, err := sqlair.Prepare(updateCertificateAuthorityStmt, CertificateAuthority{})
 	if err != nil {
 		return err
 	}
+	// update expiry
 	err = db.conn.Query(context.Background(), stmt, ca).Run()
 	return err
 }
@@ -285,4 +284,70 @@ func (db *Database) DeleteCertificateAuthority(filter CertificateAuthorityFilter
 	}
 	err = db.conn.Query(context.Background(), stmt, caRow).Run()
 	return err
+}
+
+// SignCertificateRequest receives a CSR and a certificate authority.
+func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter CertificateAuthorityFilter) error {
+	csrRow, err := db.GetCertificateRequest(csrFilter)
+	if err != nil {
+		return err
+	}
+	caRow, err := db.GetCertificateAuthority(caFilter)
+	if err != nil {
+		return err
+	}
+	caCert, err := db.GetCertificate(CertificateFilter{ID: &caRow.CertificateID})
+	if err != nil {
+		return err
+	}
+	caPK, err := db.GetPrivateKey(PrivateKeyFilter{ID: &caRow.PrivateKeyID})
+	if err != nil {
+		return err
+	}
+	certRequest, err := x509.ParseCertificateRequest([]byte(csrRow.CSR))
+	if err != nil {
+		return err
+	}
+	caCertParsed, err := x509.ParseCertificate([]byte(caCert.CertificatePEM))
+	if err != nil {
+		return err
+	}
+	caPrivateKey, err := x509.ParsePKCS1PrivateKey([]byte(caPK.PrivateKeyPEM))
+	if err != nil {
+		return err
+	}
+	if err = certRequest.CheckSignature(); err != nil {
+		return fmt.Errorf("invalid certificate request signature: %w", err)
+	}
+
+	// Create certificate template from the CSR
+	certTemplate := &x509.Certificate{
+		Subject:            certRequest.Subject,
+		EmailAddresses:     certRequest.EmailAddresses,
+		IPAddresses:        certRequest.IPAddresses,
+		URIs:               certRequest.URIs,
+		DNSNames:           certRequest.DNSNames,
+		PublicKey:          certRequest.PublicKey,
+		PublicKeyAlgorithm: certRequest.PublicKeyAlgorithm,
+		// Add standard certificate fields
+		SerialNumber: big.NewInt(time.Now().UnixNano()),
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().AddDate(1, 0, 0), // TODO: make this value dynamic
+		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+	}
+	certBytes, err := x509.CreateCertificate(rand.Reader, certTemplate, caCertParsed, certTemplate.PublicKey, caPrivateKey)
+	if err != nil {
+		return err
+	}
+	certPEM := new(bytes.Buffer)
+	err = pem.Encode(certPEM, &pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
+	if err != nil {
+		return err
+	}
+	_, err = db.AddCertificateChainToCertificateRequest(csrFilter, certPEM.String())
+	if err != nil {
+		return err
+	}
+	return nil
 }

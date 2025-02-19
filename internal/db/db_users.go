@@ -76,22 +76,30 @@ func (db *Database) GetUser(filter UserFilter) (*User, error) {
 // CreateUser creates a new user from a given username, password and permission level.
 // The permission level 1 represents an admin, and a 0 represents a regular user.
 // The password passed in should be in plaintext. This function handles hashing and salting the password before storing it in the database.
-func (db *Database) CreateUser(username string, password string, permission int) error {
+func (db *Database) CreateUser(username string, password string, permission int) (int64, error) {
 	pw, err := HashPassword(password)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	stmt, err := sqlair.Prepare(createUserStmt, User{})
 	if err != nil {
-		return err
+		return 0, err
 	}
 	row := User{
 		Username:       username,
 		HashedPassword: pw,
 		Permissions:    permission,
 	}
-	err = db.conn.Query(context.Background(), stmt, row).Run()
-	return err
+	var outcome sqlair.Outcome
+	err = db.conn.Query(context.Background(), stmt, row).Get(&outcome)
+	if err != nil {
+		return 0, err
+	}
+	insertedRowID, err := outcome.Result().LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return insertedRowID, nil
 }
 
 // UpdateUser updates the password of the given user.

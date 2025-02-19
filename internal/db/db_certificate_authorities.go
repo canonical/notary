@@ -183,50 +183,46 @@ func (db *Database) GetDenormalizedCertificateAuthority(filter CertificateAuthor
 
 // CreateCertificateAuthority creates a new certificate authority in the database from a given CSR, private key, and certificate chain.
 // The certificate chain is optional and can be empty.
-func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, certChainPEM string) error {
-	err := db.CreateCertificateRequest(csrPEM)
+func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, certChainPEM string) (int64, error) {
+	csrID, err := db.CreateCertificateRequest(csrPEM)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	err = db.CreatePrivateKey(privPEM)
+	pkID, err := db.CreatePrivateKey(privPEM)
 	if err != nil {
-		return err
+		return 0, err
+	}
+	CARow := CertificateAuthority{
+		CSRID:        csrID,
+		PrivateKeyID: pkID,
+		Status:       CAPending,
 	}
 	if certChainPEM != "" {
-		err = db.AddCertificateChainToCertificateRequest(ByCSRPEM(csrPEM), certChainPEM)
+		certID, err := db.AddCertificateChainToCertificateRequest(ByCSRID(csrID), certChainPEM)
 		if err != nil {
-			return err
+			return 0, err
 		}
-	}
-	csr, err := db.GetCertificateRequest(ByCSRPEM(csrPEM))
-	if err != nil {
-		return err
-	}
-	pk, err := db.GetPrivateKey(ByPrivateKeyPEM(privPEM))
-	if err != nil {
-		return err
-	}
-	var CARow CertificateAuthority
-	if csr.CertificateID != 0 {
 		CARow = CertificateAuthority{
-			CSRID:         csr.CSR_ID,
-			CertificateID: csr.CertificateID,
-			PrivateKeyID:  pk.PrivateKeyID,
+			CSRID:         csrID,
+			CertificateID: certID,
+			PrivateKeyID:  pkID,
 			Status:        CAActive,
-		}
-	} else {
-		CARow = CertificateAuthority{
-			CSRID:        csr.CSR_ID,
-			PrivateKeyID: pk.PrivateKeyID,
-			Status:       CAPending,
 		}
 	}
 	stmt, err := sqlair.Prepare(createCertificateAuthorityStmt, CertificateAuthority{})
 	if err != nil {
-		return err
+		return 0, err
 	}
-	err = db.conn.Query(context.Background(), stmt, CARow).Run()
-	return err
+	var outcome sqlair.Outcome
+	err = db.conn.Query(context.Background(), stmt, CARow).Get(&outcome)
+	if err != nil {
+		return 0, err
+	}
+	insertedRowID, err := outcome.Result().LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return insertedRowID, nil
 }
 
 // UpdateCertificateAuthorityCertificate updates the certificate chain associated with a certificate authority.
@@ -235,19 +231,11 @@ func (db *Database) UpdateCertificateAuthorityCertificate(filter CertificateAuth
 	if err != nil {
 		return err
 	}
-	err = db.AddCertificateChainToCertificateRequest(ByCSRID(ca.CSRID), certChainPEM)
+	certID, err := db.AddCertificateChainToCertificateRequest(ByCSRID(ca.CSRID), certChainPEM)
 	if err != nil {
 		return err
 	}
-	insertedCert, err := sanitizeCertificateBundle(certChainPEM)
-	if err != nil {
-		return err
-	}
-	newCert, err := db.GetCertificate(ByCertificatePEM(insertedCert[0]))
-	if err != nil {
-		return err
-	}
-	ca.CertificateID = newCert.CertificateID
+	ca.CertificateID = certID
 	ca.Status = CAActive
 
 	stmt, err := sqlair.Prepare(updateCertificateAuthorityStmt, CertificateAuthority{})

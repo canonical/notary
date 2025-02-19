@@ -254,17 +254,18 @@ func CreateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Failed to create certificate authority")
 			return
 		}
+		var newCAID int64
 		if certPEM != "" {
-			err = env.DB.CreateCertificateAuthority(csrPEM, privPEM, certPEM+certPEM)
+			newCAID, err = env.DB.CreateCertificateAuthority(csrPEM, privPEM, certPEM+certPEM)
 		} else {
-			err = env.DB.CreateCertificateAuthority(csrPEM, privPEM, "")
+			newCAID, err = env.DB.CreateCertificateAuthority(csrPEM, privPEM, "")
 		}
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Failed to create certificate authority")
 			return
 		}
 
-		successResponse := SuccessResponse{Message: "Certificate Authority created successfully"}
+		successResponse := CreateSuccessResponse{Message: "Certificate Authority created successfully", ObjectID: newCAID}
 		err = writeResponse(w, successResponse, http.StatusCreated)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")

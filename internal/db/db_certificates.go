@@ -91,22 +91,22 @@ func (db *Database) GetCertificate(filter CertificateFilter) (*Certificate, erro
 }
 
 // AddCertificateChainToCertificateRequestByCSR adds a new certificate chain to a row for a given CSR string.
-func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter, certPEM string) error {
+func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter, certPEM string) (int64, error) {
 	csr, err := db.GetCertificateRequest(csrFilter)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	err = ValidateCertificate(certPEM)
 	if err != nil {
-		return errors.New("cert validation failed: " + err.Error())
+		return 0, errors.New("cert validation failed: " + err.Error())
 	}
 	err = CertificateMatchesCSR(certPEM, csr.CSR)
 	if err != nil {
-		return errors.New("cert validation failed: " + err.Error())
+		return 0, errors.New("cert validation failed: " + err.Error())
 	}
 	certBundle, err := sanitizeCertificateBundle(certPEM)
 	if err != nil {
-		return errors.New("cert validation failed: " + err.Error())
+		return 0, errors.New("cert validation failed: " + err.Error())
 	}
 	var parentID int64 = 0
 	if isSelfSigned(certBundle) {
@@ -117,16 +117,16 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 		// Create the certificate
 		stmt, err := sqlair.Prepare(createCertificateStmt, Certificate{})
 		if err != nil {
-			return err
+			return 0, err
 		}
 		var outcome sqlair.Outcome
 		err = db.conn.Query(context.Background(), stmt, certRow).Get(&outcome)
 		if err != nil {
-			return err
+			return 0, err
 		}
 		childID, err := outcome.Result().LastInsertId()
 		if err != nil {
-			return err
+			return 0, err
 		}
 		parentID = childID
 	} else {
@@ -138,33 +138,33 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 			}
 			stmt, err := sqlair.Prepare(getCertificateStmt, Certificate{})
 			if err != nil {
-				return err
+				return 0, err
 			}
 			err = db.conn.Query(context.Background(), stmt, certRow).Get(&certRow)
 			childID := certRow.CertificateID
 			if err == sqlair.ErrNoRows {
 				stmt, err = sqlair.Prepare(createCertificateStmt, Certificate{})
 				if err != nil {
-					return err
+					return 0, err
 				}
 				var outcome sqlair.Outcome
 				err = db.conn.Query(context.Background(), stmt, certRow).Get(&outcome)
 				if err != nil {
-					return err
+					return 0, err
 				}
 				childID, err = outcome.Result().LastInsertId()
 				if err != nil {
-					return err
+					return 0, err
 				}
 			} else if err != nil {
-				return err
+				return 0, err
 			}
 			parentID = childID
 		}
 	}
 	stmt, err := sqlair.Prepare(updateCertificateRequestStmt, CertificateRequest{})
 	if err != nil {
-		return err
+		return 0, err
 	}
 	newRow := CertificateRequest{
 		CSR:           csr.CSR,
@@ -172,7 +172,7 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 		Status:        "Active",
 	}
 	err = db.conn.Query(context.Background(), stmt, newRow).Run()
-	return err
+	return parentID, err
 }
 
 // DeleteCertificate removes a certificate from the database.

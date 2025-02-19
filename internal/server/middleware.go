@@ -18,6 +18,10 @@ import (
 )
 
 const (
+	MAX_KILOBYTES = 100
+)
+
+const (
 	UserPermission  = 0
 	AdminPermission = 1
 )

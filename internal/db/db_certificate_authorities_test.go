@@ -451,3 +451,35 @@ func TestCertificateAuthorityFails(t *testing.T) {
 		t.Fatalf("Should have failed to delete certificate authority")
 	}
 }
+
+func TestSelfSignedCertificateList(t *testing.T) {
+	tempDir := t.TempDir()
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	if err != nil {
+		t.Fatalf("Couldn't complete NewDatabase: %s", err)
+	}
+	defer database.Close()
+
+	err = database.CreateCertificateAuthority(selfSignedCACertificateRequest, selfSignedCACertificatePK, selfSignedCACertificate+"\n"+selfSignedCACertificate)
+	if err != nil {
+		t.Fatalf("Couldn't create certificate authority: %s", err)
+	}
+	cas, err := database.ListCertificateAuthorities()
+	if err != nil {
+		t.Fatalf("Couldn't list certificate authorities: %s", err)
+	}
+	if len(cas) != 1 {
+		t.Fatalf("%d CA's found when only 1 should be available", len(cas))
+	}
+
+	csrs, err := database.ListCertificateRequestWithCertificates()
+	if err != nil {
+		t.Fatalf("Couldn't list certificates: %s", err)
+	}
+	if len(csrs) != 1 {
+		t.Fatalf("%d certificates found when only 1 should be available", len(csrs))
+	}
+	if csrs[0].CertificateChain == "" {
+		t.Fatalf("certificate should be available for CSR")
+	}
+}

@@ -1,10 +1,16 @@
 package db
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"math/big"
+	"time"
 
 	"github.com/canonical/sqlair"
 )
@@ -273,4 +279,70 @@ func (db *Database) DeleteCertificateAuthority(filter CertificateAuthorityFilter
 	}
 	err = db.conn.Query(context.Background(), stmt, caRow).Run()
 	return err
+}
+
+// SignCertificateRequest receives a CSR and a certificate authority.
+func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter CertificateAuthorityFilter) error {
+	csrRow, err := db.GetCertificateRequest(csrFilter)
+	if err != nil {
+		return err
+	}
+	caRow, err := db.GetCertificateAuthority(caFilter)
+	if err != nil {
+		return err
+	}
+	caCert, err := db.GetCertificate(CertificateFilter{ID: &caRow.CertificateID})
+	if err != nil {
+		return err
+	}
+	caPK, err := db.GetPrivateKey(PrivateKeyFilter{ID: &caRow.PrivateKeyID})
+	if err != nil {
+		return err
+	}
+	certRequest, err := x509.ParseCertificateRequest([]byte(csrRow.CSR))
+	if err != nil {
+		return err
+	}
+	caCertParsed, err := x509.ParseCertificate([]byte(caCert.CertificatePEM))
+	if err != nil {
+		return err
+	}
+	caPrivateKey, err := x509.ParsePKCS1PrivateKey([]byte(caPK.PrivateKeyPEM))
+	if err != nil {
+		return err
+	}
+	if err = certRequest.CheckSignature(); err != nil {
+		return fmt.Errorf("invalid certificate request signature: %w", err)
+	}
+
+	// Create certificate template from the CSR
+	certTemplate := &x509.Certificate{
+		Subject:            certRequest.Subject,
+		EmailAddresses:     certRequest.EmailAddresses,
+		IPAddresses:        certRequest.IPAddresses,
+		URIs:               certRequest.URIs,
+		DNSNames:           certRequest.DNSNames,
+		PublicKey:          certRequest.PublicKey,
+		PublicKeyAlgorithm: certRequest.PublicKeyAlgorithm,
+		// Add standard certificate fields
+		SerialNumber: big.NewInt(time.Now().UnixNano()),
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().AddDate(1, 0, 0), // TODO: make this value dynamic
+		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+	}
+	certBytes, err := x509.CreateCertificate(rand.Reader, certTemplate, caCertParsed, certTemplate.PublicKey, caPrivateKey)
+	if err != nil {
+		return err
+	}
+	certPEM := new(bytes.Buffer)
+	err = pem.Encode(certPEM, &pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
+	if err != nil {
+		return err
+	}
+	err = db.AddCertificateChainToCertificateRequest(csrFilter, certPEM.String())
+	if err != nil {
+		return err
+	}
+	return nil
 }

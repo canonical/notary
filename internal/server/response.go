@@ -10,6 +10,11 @@ type SuccessResponse struct {
 	Message string `json:"message"`
 }
 
+type CreateSuccessResponse struct {
+	Message  string `json:"message"`
+	ObjectID int64  `json:"object_id"`
+}
+
 // writeResponse is a helper function that writes a JSON response to the http.ResponseWriter
 func writeResponse(w http.ResponseWriter, v any, status int) error {
 	type response struct {

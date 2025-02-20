@@ -22,11 +22,11 @@ func Example() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	err = database.CreateCertificateRequest(BananaCSR)
+	csrID, err := database.CreateCertificateRequest(BananaCSR)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	err = database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(BananaCSR), BananaCert)
+	_, err = database.AddCertificateChainToCertificateRequest(db.ByCSRID(csrID), BananaCert)
 	if err != nil {
 		log.Fatalln(err)
 	}

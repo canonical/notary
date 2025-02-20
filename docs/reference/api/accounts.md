@@ -46,7 +46,8 @@ This path creates a new account. The first account can be created without authen
 ```json
 {
     "result": {
-        "message": "success"
+        "message": "success",
+        "object_id": 1
     }
 }
 ```

@@ -12,6 +12,9 @@ import (
 )
 
 func TestNewSuccess(t *testing.T) {
+	tempDir := t.TempDir()
+	db_path := filepath.Join(tempDir, "db.sqlite3")
+
 	certPath := filepath.Join("testdata", "cert.pem")
 	cert, err := os.ReadFile(certPath)
 	if err != nil {
@@ -22,7 +25,7 @@ func TestNewSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot read file: %s", err)
 	}
-	s, err := server.New(8000, cert, key, "certs.db", false)
+	s, err := server.New(8000, cert, key, db_path, false)
 	if err != nil {
 		t.Errorf("Error occurred: %s", err)
 	}

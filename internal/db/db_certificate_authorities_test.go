@@ -197,6 +197,23 @@ oGt/1rU+zmCN7mGPCg3umH03IC0TriljL2bFsoux3Xq7Vl0lqoPZZLUGDJrXpiGV
 SflYYJftO+CL0+pBmylIZZgozUR5ZgRCbLBYntCRlD4S
 -----END CERTIFICATE-----
 `
+	exampleCSR = `-----BEGIN CERTIFICATE REQUEST-----
+MIICsTCCAZkCAQAwbDELMAkGA1UEBhMCQ0ExFDASBgNVBAgMC05vdmEgU2NvdGlh
+MRAwDgYDVQQHDAdIYWxpZmF4MSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0
+eSBMdGQxEjAQBgNVBAMMCWFwcGxlLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEP
+ADCCAQoCggEBAOhDSpNbeFiXMQzQcobExHqYMEGzqpX8N9+AR6/HPZWBybgx1hr3
+ejqsKornzpVph/dO9UC7O9aBlG071O9VQGHt3OU3rkZIk2009vYwLuSrAlJtnUne
+p7KKn2lZGvh7jVyZE5RkS0X27vlT0soANsmcVq/82VneHrF/nbDcK6DOjQpS5o5l
+EiNk2CIpYGUkw3WnQF4pBk8t4bNOl3nfpaAOfnmNuBX3mWyfPnaKMCENMpDqL9FR
+V/O5bIPLmyH30OHUEJUkWOmFt9GFi+QfMoM0fR34KmRbDz79hZZb/yVPZZJl7l6i
+FWXkNR3gxdEnwCZkTgWk5OqS9dCJOtsDE8ECAwEAAaAAMA0GCSqGSIb3DQEBCwUA
+A4IBAQCqBX5WaNv/HjkzAyNXYuCToCb8GjmiMqL54t+1nEI1QTm6axQXivEbQT3x
+GIh7uQYC06wHE23K6Znc1/G+o3y6lID07rvhBNal1qoXUiq6CsAqk+DXYdd8MEh5
+joerEedFqcW+WTUDcqddfIyDAGPqrM9j6/E+aFYyZjJ/xRuMf1zlWMljRiwj1NI9
+NxqjsYYQ3zxfUjv8gxXm0hN8Up1O9saoEF+zbuWNdiUWd6Ih3/3u5VBNSxgVOrDQ
+CeXyyzkMx1pWTx0rWa7NSa+DMKVVzv46pck/9kLB4gPL8zqvIOMQsf74N0VcbVfd
+9jQR8mPXQYPUERl1ZhNrkzkyA0kd
+-----END CERTIFICATE REQUEST-----`
 )
 
 func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
@@ -235,7 +252,7 @@ func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
 	}
-	if ca.Status != "active" || ca.CertificatePEM == "" {
+	if ca.Status != "active" || ca.CertificateChain == "" {
 		t.Fatalf("Certificate authority is not active or missing certificate")
 	}
 
@@ -250,7 +267,7 @@ func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
 	if ca.Status != db.CALegacy {
 		t.Fatalf("Certificate authority status is not legacy")
 	}
-	if ca.CertificatePEM == "" {
+	if ca.CertificateChain == "" {
 		t.Fatalf("Certificate should not have been removed when updating status to legacy")
 	}
 
@@ -265,7 +282,7 @@ func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
 	if ca.Status != db.CALegacy {
 		t.Fatalf("Certificate authority status is not legacy")
 	}
-	if ca.CertificatePEM == "" {
+	if ca.CertificateChain == "" {
 		t.Fatalf("Certificate should not have been removed when updating status to Active")
 	}
 
@@ -311,7 +328,7 @@ func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
 	}
-	if ca.Status != "pending" || ca.CertificatePEM != "" {
+	if ca.Status != "pending" || ca.CertificateChain != "" {
 		t.Fatalf("Certificate authority is not pending or has a certificate")
 	}
 
@@ -323,7 +340,7 @@ func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
 	}
-	if ca.Status != "active" || ca.CertificatePEM != intermediateCACertificate {
+	if ca.Status != "active" || ca.CertificateChain != intermediateCACertificate {
 		t.Fatalf("Certificate authority is not active or has a certificate")
 	}
 
@@ -338,7 +355,7 @@ func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {
 	if ca.Status != "legacy" {
 		t.Fatalf("Certificate authority status is not legacy")
 	}
-	if ca.CertificatePEM == "" {
+	if ca.CertificateChain == "" {
 		t.Fatalf("Certificate should not have been removed when updating status to legacy")
 	}
 
@@ -353,7 +370,7 @@ func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {
 	if ca.Status != "active" {
 		t.Fatalf("Certificate authority status is not active")
 	}
-	if ca.CertificatePEM == "" {
+	if ca.CertificateChain == "" {
 		t.Fatalf("Certificate should not have been removed when updating status to Active")
 	}
 
@@ -491,4 +508,37 @@ func TestSelfSignedCertificateList(t *testing.T) {
 	if csrs[0].CertificateChain == "" {
 		t.Fatalf("certificate should be available for CSR")
 	}
+}
+
+func TestSigningCSRs(t *testing.T) {
+	tempDir := t.TempDir()
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	if err != nil {
+		t.Fatalf("Couldn't complete NewDatabase: %s", err)
+	}
+	defer database.Close()
+
+	caID, err := database.CreateCertificateAuthority(selfSignedCACertificateRequest, selfSignedCACertificatePK, selfSignedCACertificate+"\n"+selfSignedCACertificate)
+	if err != nil {
+		t.Fatalf("Couldn't create certificate authority: %s", err)
+	}
+	csrID, err := database.CreateCertificateRequest(exampleCSR)
+	if err != nil {
+		t.Fatalf("Couldn't create CSR: %s", err)
+	}
+
+	err = database.SignCertificateRequest(db.ByCSRID(csrID), db.ByCertificateAuthorityID(caID))
+	if err != nil {
+		t.Fatalf("Couldn't sign CSR: %s", err)
+	}
+
+	csr, err := database.GetCertificateRequestAndChain(db.ByCSRID(csrID))
+	if err != nil {
+		t.Fatalf("Couldn't get csr: %s", err)
+	}
+	if csr.CertificateChain == "" {
+		t.Fatalf("Signed certificate not found.")
+	}
+
+	// Sign a isCA csr
 }

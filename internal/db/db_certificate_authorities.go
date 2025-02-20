@@ -62,7 +62,7 @@ type CertificateAuthorityDenormalized struct {
 	CertificateAuthorityID int64    `db:"certificate_authority_id"`
 	Status                 CAStatus `db:"status"`
 	PrivateKeyPEM          string   `db:"private_key"`
-	CertificatePEM         string   `db:"certificate"`
+	CertificateChain       string   `db:"certificate_chain"`
 	CSRPEM                 string   `db:"csr"`
 }
 
@@ -90,29 +90,85 @@ const (
 	deleteCertificateAuthorityStmt = "DELETE FROM certificate_authorities WHERE certificate_authority_id=$CertificateAuthority.certificate_authority_id or csr_id=$CertificateAuthority.csr_id"
 
 	listDenormalizedCertificateAuthoritiesStmt = `
+WITH RECURSIVE cas_with_chain AS (    
+    SELECT 
+        cas.certificate_authority_id,
+        cas.private_key_id,
+		cas.csr_id,
+        cas.status,
+        certs.certificate_id,
+        certs.issuer_id,
+        certs.certificate,
+        COALESCE(certs.certificate, '') AS chain
+    FROM certificate_authorities cas
+    LEFT JOIN certificates certs ON cas.certificate_id = certs.certificate_id
+
+    UNION ALL
+
+    SELECT 
+        cc.certificate_authority_id,
+		cc.private_key_id,
+		cc.csr_id,
+        cc.status,
+        certs.certificate_id,
+        certs.issuer_id,
+        certs.certificate,
+        cc.chain || CHAR(10) || certs.certificate AS chain
+    FROM cas_with_chain cc
+    JOIN certificates certs ON certs.certificate_id = cc.issuer_id
+)
 	SELECT 
-		ca.certificate_authority_id as &CertificateAuthorityDenormalized.certificate_authority_id,
-		ca.status as &CertificateAuthorityDenormalized.status,
+		cc.certificate_authority_id as &CertificateAuthorityDenormalized.certificate_authority_id,
+		cc.status as &CertificateAuthorityDenormalized.status,
 		pk.private_key AS &CertificateAuthorityDenormalized.private_key,
-		cert.certificate AS &CertificateAuthorityDenormalized.certificate,
-		csr.csr AS &CertificateAuthorityDenormalized.csr
-	FROM certificate_authorities ca
-	LEFT JOIN certificates cert ON ca.certificate_id = cert.certificate_id
-	LEFT JOIN certificate_requests csr ON ca.csr_id = csr.csr_id
-	LEFT JOIN private_keys pk ON ca.private_key_id = pk.private_key_id
-	`
+		cc.chain AS &CertificateAuthorityDenormalized.certificate_chain,
+		csrs.csr AS &CertificateAuthorityDenormalized.csr
+	FROM cas_with_chain cc
+	LEFT JOIN private_keys pk ON cc.private_key_id = pk.private_key_id
+	LEFT JOIN certificate_requests csrs ON cc.csr_id = csrs.csr_id
+	WHERE cc.chain = '' OR cc.issuer_id = 0
+`
 	getDenormalizedCertificateAuthorityStmt = `
+WITH RECURSIVE cas_with_chain AS (    
+    SELECT 
+        cas.certificate_authority_id,
+        cas.private_key_id,
+		cas.csr_id,
+        cas.status,
+        certs.certificate_id,
+        certs.issuer_id,
+        certs.certificate,
+        COALESCE(certs.certificate, '') AS chain
+    FROM certificate_authorities cas
+    LEFT JOIN certificates certs ON cas.certificate_id = certs.certificate_id
+
+    UNION ALL
+
+    SELECT 
+        cc.certificate_authority_id,
+		cc.private_key_id,
+		cc.csr_id,
+        cc.status,
+        certs.certificate_id,
+        certs.issuer_id,
+        certs.certificate,
+        cc.chain || CHAR(10) || certs.certificate AS chain
+    FROM cas_with_chain cc
+    JOIN certificates certs ON certs.certificate_id = cc.issuer_id
+)
 	SELECT 
-		ca.certificate_authority_id as &CertificateAuthorityDenormalized.certificate_authority_id,
-		ca.status as &CertificateAuthorityDenormalized.status,
+		cc.certificate_authority_id as &CertificateAuthorityDenormalized.certificate_authority_id,
+		cc.status as &CertificateAuthorityDenormalized.status,
 		pk.private_key AS &CertificateAuthorityDenormalized.private_key,
-		cert.certificate AS &CertificateAuthorityDenormalized.certificate,
-		csr.csr AS &CertificateAuthorityDenormalized.csr
-	FROM certificate_authorities ca
-	LEFT JOIN certificates cert ON ca.certificate_id = cert.certificate_id
-	LEFT JOIN certificate_requests csr ON ca.csr_id = csr.csr_id
-	LEFT JOIN private_keys pk ON ca.private_key_id = pk.private_key_id
-	WHERE ca.certificate_authority_id==$CertificateAuthority.certificate_authority_id or ca.csr_id==$CertificateAuthority.csr_id or csr.csr==$CertificateAuthorityDenormalized.csr
+		cc.chain AS &CertificateAuthorityDenormalized.certificate_chain,
+		csrs.csr AS &CertificateAuthorityDenormalized.csr
+	FROM cas_with_chain cc
+	LEFT JOIN private_keys pk ON cc.private_key_id = pk.private_key_id
+	LEFT JOIN certificate_requests csrs ON cc.csr_id = csrs.csr_id
+	WHERE cc.certificate_authority_id==$CertificateAuthority.certificate_authority_id 
+			or cc.csr_id==$CertificateAuthority.csr_id 
+			or csrs.csr==$CertificateAuthorityDenormalized.csr
+			and (issuer_id = 0 OR chain = '')
 	`
 )
 
@@ -287,15 +343,7 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 	if err != nil {
 		return err
 	}
-	caRow, err := db.GetCertificateAuthority(caFilter)
-	if err != nil {
-		return err
-	}
-	caCert, err := db.GetCertificate(CertificateFilter{ID: &caRow.CertificateID})
-	if err != nil {
-		return err
-	}
-	caPK, err := db.GetPrivateKey(PrivateKeyFilter{ID: &caRow.PrivateKeyID})
+	caRow, err := db.GetDenormalizedCertificateAuthority(caFilter)
 	if err != nil {
 		return err
 	}
@@ -303,11 +351,11 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 	if err != nil {
 		return err
 	}
-	caCertParsed, err := x509.ParseCertificate([]byte(caCert.CertificatePEM))
+	caCertParsed, err := x509.ParseCertificate([]byte(caRow.CertificateChain)) // TODO: update this to get the first thing instead of the chain
 	if err != nil {
 		return err
 	}
-	caPrivateKey, err := x509.ParsePKCS1PrivateKey([]byte(caPK.PrivateKeyPEM))
+	caPrivateKey, err := x509.ParsePKCS1PrivateKey([]byte(caRow.PrivateKeyPEM))
 	if err != nil {
 		return err
 	}
@@ -324,10 +372,11 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 		DNSNames:           certRequest.DNSNames,
 		PublicKey:          certRequest.PublicKey,
 		PublicKeyAlgorithm: certRequest.PublicKeyAlgorithm,
+
 		// Add standard certificate fields
 		SerialNumber: big.NewInt(time.Now().UnixNano()),
 		NotBefore:    time.Now(),
-		NotAfter:     time.Now().AddDate(1, 0, 0), // TODO: make this value dynamic
+		NotAfter:     time.Now().AddDate(1, 0, 0),
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 	}
@@ -340,9 +389,6 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 	if err != nil {
 		return err
 	}
-	err = db.AddCertificateChainToCertificateRequest(csrFilter, certPEM.String())
-	if err != nil {
-		return err
-	}
-	return nil
+	_, err = db.AddCertificateChainToCertificateRequest(csrFilter, certPEM.String()+caRow.CertificateChain)
+	return err
 }

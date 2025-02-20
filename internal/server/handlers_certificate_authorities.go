@@ -228,7 +228,7 @@ func ListCertificateAuthorities(env *HandlerConfig) http.HandlerFunc {
 				Status:                 ca.Status,
 				PrivateKeyPEM:          "",
 				CSRPEM:                 ca.CSRPEM,
-				CertificatePEM:         ca.CertificatePEM,
+				CertificatePEM:         ca.CertificateChain,
 			}
 		}
 		err = writeResponse(w, caResponse, http.StatusOK)
@@ -304,7 +304,7 @@ func GetCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			Status:                 ca.Status,
 			PrivateKeyPEM:          "",
 			CSRPEM:                 ca.CSRPEM,
-			CertificatePEM:         ca.CertificatePEM,
+			CertificatePEM:         ca.CertificateChain,
 		}
 
 		err = writeResponse(w, caResponse, http.StatusOK)

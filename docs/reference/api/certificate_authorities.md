@@ -52,7 +52,8 @@ This path creates a new certificate authority.
 ```json
 {
     "result": {
-        "message": "Certificate Authority created successfully"
+        "message": "Certificate Authority created successfully",
+        "object_id": 1
     }
 }
 ```

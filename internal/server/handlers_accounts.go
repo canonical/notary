@@ -168,7 +168,7 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 		if numUsers == 0 {
 			permission = AdminPermission
 		}
-		err = env.DB.CreateUser(createAccountParams.Username, createAccountParams.Password, permission)
+		newUserID, err := env.DB.CreateUser(createAccountParams.Username, createAccountParams.Password, permission)
 		if err != nil {
 			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 				writeError(w, http.StatusBadRequest, "account with given username already exists")
@@ -178,7 +178,7 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		successResponse := SuccessResponse{Message: "success"}
+		successResponse := CreateSuccessResponse{Message: "success", ObjectID: newUserID}
 		err = writeResponse(w, successResponse, http.StatusCreated)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")

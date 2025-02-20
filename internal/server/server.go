@@ -36,7 +36,7 @@ func SendPebbleNotification(key NotificationKey, request_id int64) error {
 	if err != nil {
 		return fmt.Errorf("couldn't get a string representation of the notification key: %w", err)
 	}
-	cmd := exec.Command("pebble", "notify", keyStr, fmt.Sprintf("request_id=%v", request_id))
+	cmd := exec.Command("pebble", "notify", keyStr, fmt.Sprintf("request_id=%v", request_id)) // #nosec: G204
 	err = cmd.Run()
 	if err != nil {
 		return fmt.Errorf("couldn't execute a pebble notify: %w", err)

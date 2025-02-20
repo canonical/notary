@@ -28,7 +28,7 @@ type Config struct {
 // Validate opens and processes the given yaml file, and catches errors in the process
 func Validate(filePath string) (Config, error) {
 	config := Config{}
-	configYaml, err := os.ReadFile(filePath)
+	configYaml, err := os.ReadFile(filePath) // #nosec: G304
 	if err != nil {
 		return Config{}, err
 	}
@@ -53,7 +53,7 @@ func Validate(filePath string) (Config, error) {
 	if c.DBPath == "" {
 		return Config{}, errors.New("`db_path` is empty")
 	}
-	dbfile, err := os.OpenFile(c.DBPath, os.O_CREATE|os.O_RDONLY, 0o644)
+	dbfile, err := os.OpenFile(c.DBPath, os.O_CREATE|os.O_RDONLY, 0o600)
 	if err != nil {
 		return Config{}, err
 	}

@@ -40,7 +40,7 @@ func TestInvalidKeyFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot read file: %s", err)
 	}
-	_, err = server.New(8000, cert, []byte{}, "certs.db", false)
+	_, err = server.New(8000, cert, []byte{}, "notary.db", false)
 	if err == nil {
 		t.Errorf("No error was thrown for invalid key")
 	}

@@ -18,7 +18,7 @@ func TestConnect(t *testing.T) {
 }
 
 func Example() {
-	database, err := db.NewDatabase("./certs.db")
+	database, err := db.NewDatabase("./notary.db")
 	if err != nil {
 		log.Fatalln(err)
 	}

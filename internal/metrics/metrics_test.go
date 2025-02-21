@@ -98,11 +98,11 @@ func generateCertPair(daysRemaining int) (string, string, string) {
 func initializeTestDB(t *testing.T, database *db.Database) {
 	for _, v := range []int{5, 10, 32} {
 		csr, cert, ca := generateCertPair(v)
-		err := database.CreateCertificateRequest(csr)
+		csrID, err := database.CreateCertificateRequest(csr)
 		if err != nil {
 			t.Fatalf("couldn't create test csr: %s", err)
 		}
-		err = database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(csr), fmt.Sprintf("%s%s", cert, ca))
+		_, err = database.AddCertificateChainToCertificateRequest(db.ByCSRID(csrID), fmt.Sprintf("%s%s", cert, ca))
 		if err != nil {
 			t.Fatalf("couldn't create test cert: %s", err)
 		}

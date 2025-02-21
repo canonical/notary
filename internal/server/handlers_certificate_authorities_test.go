@@ -396,8 +396,8 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		if getCAResponse.Error != "" {
 			t.Fatalf("expected no error, got %s", getCAResponse.Error)
 		}
-		if getCAResponse.Result.CertificateAuthorityID != 2 {
-			t.Fatalf("expected ID %d, got %d", 2, getCAResponse.Result.CertificateAuthorityID)
+		if getCAResponse.Result.ID != 2 {
+			t.Fatalf("expected ID %d, got %d", 2, getCAResponse.Result.ID)
 		}
 		if getCAResponse.Result.Status != "pending" {
 			t.Fatalf("expected pending status, got %s", getCAResponse.Result.Status)

@@ -22,11 +22,11 @@ import (
 )
 
 type CertificateAuthority struct {
-	CertificateAuthorityID int64       `json:"certificate_authority_id"`
-	Status                 db.CAStatus `json:"status"`
-	PrivateKeyPEM          string      `json:"private_key,omitempty"`
-	CertificatePEM         string      `json:"certificate"`
-	CSRPEM                 string      `json:"csr"`
+	ID             int64       `json:"id"`
+	Status         db.CAStatus `json:"status"`
+	PrivateKeyPEM  string      `json:"private_key,omitempty"`
+	CertificatePEM string      `json:"certificate"`
+	CSRPEM         string      `json:"csr"`
 }
 
 type CreateCertificateAuthorityParams struct {
@@ -220,11 +220,11 @@ func ListCertificateAuthorities(env *HandlerConfig) http.HandlerFunc {
 		caResponse := make([]CertificateAuthority, len(cas))
 		for i, ca := range cas {
 			caResponse[i] = CertificateAuthority{
-				CertificateAuthorityID: ca.CertificateAuthorityID,
-				Status:                 ca.Status,
-				PrivateKeyPEM:          "",
-				CSRPEM:                 ca.CSRPEM,
-				CertificatePEM:         ca.CertificatePEM,
+				ID:             ca.CertificateAuthorityID,
+				Status:         ca.Status,
+				PrivateKeyPEM:  "",
+				CSRPEM:         ca.CSRPEM,
+				CertificatePEM: ca.CertificatePEM,
 			}
 		}
 		err = writeResponse(w, caResponse, http.StatusOK)
@@ -296,11 +296,11 @@ func GetCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 		caResponse := CertificateAuthority{
-			CertificateAuthorityID: ca.CertificateAuthorityID,
-			Status:                 ca.Status,
-			PrivateKeyPEM:          "",
-			CSRPEM:                 ca.CSRPEM,
-			CertificatePEM:         ca.CertificatePEM,
+			ID:             ca.CertificateAuthorityID,
+			Status:         ca.Status,
+			PrivateKeyPEM:  "",
+			CSRPEM:         ca.CSRPEM,
+			CertificatePEM: ca.CertificatePEM,
 		}
 
 		err = writeResponse(w, caResponse, http.StatusOK)

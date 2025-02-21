@@ -17,7 +17,7 @@ Start Notary with the `--config` flag to specify the path to the configuration f
 ```yaml
 key_path:  "/etc/notary/config/key.pem"
 cert_path: "/etc/notary/config/cert.pem"
-db_path: "/var/lib/notary/database/certs.db"
+db_path: "/var/lib/notary/database/notary.db"
 port: 3000
 pebble_notifications: true
 ```

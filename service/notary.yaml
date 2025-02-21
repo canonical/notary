@@ -1,5 +1,5 @@
 key_path:  "/var/snap/notary/common/key.pem"
 cert_path: "/var/snap/notary/common/cert.pem"
-db_path: "/var/snap/notary/common/certs.db"
+db_path: "/var/snap/notary/common/notary.db"
 port: 3000
 pebble_notifications: false

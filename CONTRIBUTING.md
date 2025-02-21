@@ -63,7 +63,7 @@ Create a `notary.yaml` file with the following content:
 ```yaml
 key_path:  "key.pem"
 cert_path: "cert.pem"
-db_path: "certs.db"
+db_path: "notary.db"
 port: 3000
 pebble_notifications: false
 ```

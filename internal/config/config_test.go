@@ -14,24 +14,24 @@ const (
 	validPK     = `Whatever key content`
 	validConfig = `key_path:  "./key_test.pem"
 cert_path: "./cert_test.pem"
-db_path: "./certs.db"
+db_path: "./notary.db"
 port: 8000`
 	noCertPathConfig = `key_path:  "./key_test.pem"
-db_path: "./certs.db"
+db_path: "./notary.db"
 port: 8000`
 	noKeyPathConfig = `cert_path: "./cert_test.pem"
-db_path: "./certs.db"
+db_path: "./notary.db"
 port: 8000`
 	noDBPathConfig = `key_path:  "./key_test.pem"
 cert_path: "./cert_test.pem"
 port: 8000`
 	wrongCertPathConfig = `key_path:  "./key_test.pem"
 cert_path: "./cert_test_wrong.pem"
-db_path: "./certs.db"
+db_path: "./notary.db"
 port: 8000`
 	wrongKeyPathConfig = `key_path:  "./key_test_wrong.pem"
 cert_path: "./cert_test.pem"
-db_path: "./certs.db"
+db_path: "./notary.db"
 port: 8000`
 	invalidYAMLConfig = `just_an=invalid
 yaml.here`

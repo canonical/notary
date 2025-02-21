@@ -106,7 +106,7 @@ func CreateCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error())
 			return
 		}
-		err = env.DB.CreateCertificateRequest(createCertificateRequestParams.CSR)
+		newCSRID, err := env.DB.CreateCertificateRequest(createCertificateRequestParams.CSR)
 		if err != nil {
 			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 				writeError(w, http.StatusBadRequest, "given csr already recorded")
@@ -121,7 +121,7 @@ func CreateCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		successResponse := SuccessResponse{Message: "success"}
+		successResponse := CreateSuccessResponse{Message: "success", ID: newCSRID}
 		err = writeResponse(w, successResponse, http.StatusCreated)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
@@ -213,7 +213,7 @@ func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid ID")
 			return
 		}
-		err = env.DB.AddCertificateChainToCertificateRequest(db.ByCSRID(idNum), createCertificateParams.CertificateChain)
+		newCertID, err := env.DB.AddCertificateChainToCertificateRequest(db.ByCSRID(idNum), createCertificateParams.CertificateChain)
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, sqlair.ErrNoRows) ||
@@ -231,7 +231,7 @@ func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
 				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
 			}
 		}
-		successResponse := SuccessResponse{Message: "success"}
+		successResponse := CreateSuccessResponse{Message: "success", ID: newCertID}
 		err = writeResponse(w, successResponse, http.StatusCreated)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")

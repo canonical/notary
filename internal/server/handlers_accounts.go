@@ -178,7 +178,7 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		successResponse := CreateSuccessResponse{Message: "success", ObjectID: newUserID}
+		successResponse := CreateSuccessResponse{Message: "success", ID: newUserID}
 		err = writeResponse(w, successResponse, http.StatusCreated)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")

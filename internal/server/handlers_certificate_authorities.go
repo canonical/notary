@@ -265,7 +265,7 @@ func CreateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 
-		successResponse := CreateSuccessResponse{Message: "Certificate Authority created successfully", ObjectID: newCAID}
+		successResponse := CreateSuccessResponse{Message: "Certificate Authority created successfully", ID: newCAID}
 		err = writeResponse(w, successResponse, http.StatusCreated)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")

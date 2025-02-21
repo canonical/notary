@@ -11,8 +11,8 @@ type SuccessResponse struct {
 }
 
 type CreateSuccessResponse struct {
-	Message  string `json:"message"`
-	ObjectID int64  `json:"object_id"`
+	Message string `json:"message"`
+	ID      int64  `json:"id"`
 }
 
 // writeResponse is a helper function that writes a JSON response to the http.ResponseWriter

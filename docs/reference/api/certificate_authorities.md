@@ -53,7 +53,7 @@ This path creates a new certificate authority.
 {
     "result": {
         "message": "Certificate Authority created successfully",
-        "object_id": 1
+        "id": 1
     }
 }
 ```

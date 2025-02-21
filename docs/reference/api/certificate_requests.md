@@ -45,7 +45,7 @@ This path creates a new certificate request.
 {
     "result": {
         "message": "success",
-        "object_id": 1
+        "id": 1
     }
 }
 ```
@@ -116,7 +116,7 @@ This path creates a certificate for a certificate request.
 {
     "result": {
         "message": "success",
-        "object_id": 1
+        "id": 1
     }
 }
 ```

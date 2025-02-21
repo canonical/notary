@@ -121,7 +121,7 @@ func CreateCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		successResponse := CreateSuccessResponse{Message: "success", ObjectID: newCSRID}
+		successResponse := CreateSuccessResponse{Message: "success", ID: newCSRID}
 		err = writeResponse(w, successResponse, http.StatusCreated)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
@@ -231,7 +231,7 @@ func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
 				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
 			}
 		}
-		successResponse := CreateSuccessResponse{Message: "success", ObjectID: newCertID}
+		successResponse := CreateSuccessResponse{Message: "success", ID: newCertID}
 		err = writeResponse(w, successResponse, http.StatusCreated)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")

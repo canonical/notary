@@ -434,52 +434,9 @@ func PostCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
 	}
 }
 
-// SignCertificateRequest
-func SignCertificateRequest(env *HandlerConfig) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		id := r.PathValue("id")
-		idNum, err := strconv.ParseInt(id, 10, 64)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error")
-			return
-		}
-		var signCertificateRequestParams SignCertificateRequestParams
-		if err := json.NewDecoder(r.Body).Decode(&signCertificateRequestParams); err != nil {
-			writeError(w, http.StatusBadRequest, "Invalid JSON format")
-			return
-		}
-		caIDInt, err := strconv.ParseInt(signCertificateRequestParams.CertificateAuthorityID, 10, 64)
-		if err != nil {
-			log.Println(err)
-			writeError(w, http.StatusInternalServerError, "Internal Error")
-			return
-		}
-		err = env.DB.SignCertificateRequest(db.ByCSRID(idNum), db.ByCertificateAuthorityID(caIDInt))
-		if err != nil {
-			log.Println(err)
-			if errors.Is(err, sqlair.ErrNoRows) {
-				writeError(w, http.StatusNotFound, "Not Found")
-				return
-			}
-			writeError(w, http.StatusInternalServerError, "Internal Error")
-			return
-		}
-		if env.SendPebbleNotifications {
-			err := SendPebbleNotification(CertificateUpdate, idNum)
-			if err != nil {
-				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
-			}
-		}
-		successResponse := SuccessResponse{Message: "success"}
-		err = writeResponse(w, successResponse, http.StatusAccepted)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error")
-			return
-		}
-	}
-}
-
-// SignCertificateAuthority
+// SignCertificateAuthority handler receives the ID of an existing active certificate authority in Notary
+// to sign any pending intermediate certificate authority available in Notary.
+// It returns a 202 Accepted on success.
 func SignCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")

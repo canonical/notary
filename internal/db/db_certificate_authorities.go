@@ -51,6 +51,7 @@ func NewStatusFromString(s string) (CAStatus, error) {
 type CertificateAuthority struct {
 	CertificateAuthorityID int64 `db:"certificate_authority_id"`
 
+	CRL    string   `db:"crl"`
 	Status CAStatus `db:"status"`
 
 	PrivateKeyID  int64 `db:"private_key_id"`
@@ -60,6 +61,7 @@ type CertificateAuthority struct {
 
 type CertificateAuthorityDenormalized struct {
 	CertificateAuthorityID int64    `db:"certificate_authority_id"`
+	CRL                    string   `db:"crl"`
 	Status                 CAStatus `db:"status"`
 	PrivateKeyPEM          string   `db:"private_key"`
 	CertificateChain       string   `db:"certificate_chain"`
@@ -70,6 +72,7 @@ const queryCreateCertificateAuthoritiesTable = `
 	CREATE TABLE IF NOT EXISTS certificate_authorities (
 	    certificate_authority_id INTEGER PRIMARY KEY AUTOINCREMENT,
 
+		crl TEXT,
 		status TEXT DEFAULT 'Pending', 
 
 		private_key_id INTEGER,
@@ -83,10 +86,10 @@ const queryCreateCertificateAuthoritiesTable = `
 )`
 
 const (
-	createCertificateAuthorityStmt = "INSERT INTO certificate_authorities (status, private_key_id, csr_id, certificate_id) VALUES ($CertificateAuthority.status, $CertificateAuthority.private_key_id, $CertificateAuthority.csr_id, $CertificateAuthority.certificate_id)"
+	createCertificateAuthorityStmt = "INSERT INTO certificate_authorities (crl, status, private_key_id, csr_id, certificate_id) VALUES ($CertificateAuthority.crl, $CertificateAuthority.status, $CertificateAuthority.private_key_id, $CertificateAuthority.csr_id, $CertificateAuthority.certificate_id)"
 	getCertificateAuthorityStmt    = "SELECT &CertificateAuthority.* FROM certificate_authorities WHERE certificate_authority_id==$CertificateAuthority.certificate_authority_id or csr_id==$CertificateAuthority.csr_id"
 	listCertificateAuthoritiesStmt = "SELECT &CertificateAuthority.* FROM certificate_authorities"
-	updateCertificateAuthorityStmt = "UPDATE certificate_authorities SET status=$CertificateAuthority.status, certificate_id=$CertificateAuthority.certificate_id WHERE certificate_authority_id==$CertificateAuthority.certificate_authority_id or csr_id==$CertificateAuthority.csr_id"
+	updateCertificateAuthorityStmt = "UPDATE certificate_authorities SET crl=$CertificateAuthority.crl, status=$CertificateAuthority.status, certificate_id=$CertificateAuthority.certificate_id WHERE certificate_authority_id==$CertificateAuthority.certificate_authority_id or csr_id==$CertificateAuthority.csr_id"
 	deleteCertificateAuthorityStmt = "DELETE FROM certificate_authorities WHERE certificate_authority_id=$CertificateAuthority.certificate_authority_id or csr_id=$CertificateAuthority.csr_id"
 
 	listDenormalizedCertificateAuthoritiesStmt = `
@@ -96,6 +99,7 @@ WITH RECURSIVE cas_with_chain AS (
         cas.private_key_id,
 		cas.csr_id,
         cas.status,
+        cas.crl,
         certs.certificate_id,
         certs.issuer_id,
         certs.certificate,
@@ -110,6 +114,7 @@ WITH RECURSIVE cas_with_chain AS (
 		cc.private_key_id,
 		cc.csr_id,
         cc.status,
+		cc.crl,
         certs.certificate_id,
         certs.issuer_id,
         certs.certificate,
@@ -119,6 +124,7 @@ WITH RECURSIVE cas_with_chain AS (
 )
 	SELECT 
 		cc.certificate_authority_id as &CertificateAuthorityDenormalized.certificate_authority_id,
+		cc.crl as &CertificateAuthorityDenormalized.crl,
 		cc.status as &CertificateAuthorityDenormalized.status,
 		pk.private_key AS &CertificateAuthorityDenormalized.private_key,
 		cc.chain AS &CertificateAuthorityDenormalized.certificate_chain,
@@ -135,6 +141,7 @@ WITH RECURSIVE cas_with_chain AS (
         cas.private_key_id,
 		cas.csr_id,
         cas.status,
+        cas.crl,
         certs.certificate_id,
         certs.issuer_id,
         certs.certificate,
@@ -149,6 +156,7 @@ WITH RECURSIVE cas_with_chain AS (
 		cc.private_key_id,
 		cc.csr_id,
         cc.status,
+		cc.crl,
         certs.certificate_id,
         certs.issuer_id,
         certs.certificate,
@@ -158,6 +166,7 @@ WITH RECURSIVE cas_with_chain AS (
 )
 	SELECT 
 		cc.certificate_authority_id as &CertificateAuthorityDenormalized.certificate_authority_id,
+		cc.crl as &CertificateAuthorityDenormalized.crl,
 		cc.status as &CertificateAuthorityDenormalized.status,
 		pk.private_key AS &CertificateAuthorityDenormalized.private_key,
 		cc.chain AS &CertificateAuthorityDenormalized.certificate_chain,
@@ -254,6 +263,7 @@ func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, ce
 	if err != nil {
 		return 0, err
 	}
+	// TODO create CRL
 	CARow := CertificateAuthority{
 		CSRID:        csrID,
 		PrivateKeyID: pkID,
@@ -305,6 +315,7 @@ func (db *Database) UpdateCertificateAuthorityCertificate(filter CertificateAuth
 		return err
 	}
 	err = db.conn.Query(context.Background(), stmt, ca).Run()
+	// TODO: do we need to update CRL here?
 	return err
 }
 
@@ -432,3 +443,32 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 	}
 	return err
 }
+
+// func (db *Database) RevokeCertificate(csrFilter CSRFilter, caFilter CertificateAuthorityFilter) error {
+// TODO
+// get cert from csr
+// put cert into crl
+// if csr is for a CA: set the CA as pending and detach cert from there too
+// detach cert from csr
+// return nil
+// }
+// RevokeCertificate updates the input CSR's row by setting the certificate bundle to "" and sets the row status to "Revoked".
+// func (db *Database) RevokeCertificate(filter CSRFilter) error {
+// 	oldRow, err := db.GetCertificateRequest(filter)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	stmt, err := sqlair.Prepare(updateCertificateRequestStmt, CertificateRequest{})
+// 	if err != nil {
+// 		return err
+// 	}
+// 	newRow := CertificateRequest{
+// 		CSR_ID:        oldRow.CSR_ID,
+// 		CSR:           oldRow.CSR,
+// 		CertificateID: 0,
+// 		Status:        "Revoked",
+// 	}
+
+// 	err = db.conn.Query(context.Background(), stmt, newRow).Run()
+// 	return err
+// }

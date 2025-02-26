@@ -310,42 +310,6 @@ func DeleteCertificate(env *HandlerConfig) http.HandlerFunc {
 	}
 }
 
-// RevokeCertificate handler receives an id as a path parameter,
-// and attempts to revoke the corresponding certificate request
-// It returns a 200 OK on success
-func RevokeCertificate(env *HandlerConfig) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		id := r.PathValue("id")
-		idNum, err := strconv.ParseInt(id, 10, 64)
-		if err != nil {
-			writeError(w, http.StatusBadRequest, "Invalid ID")
-			return
-		}
-		err = env.DB.RevokeCertificate(db.ByCSRID(idNum))
-		if err != nil {
-			log.Println(err)
-			if errors.Is(err, sqlair.ErrNoRows) {
-				writeError(w, http.StatusNotFound, "Not Found")
-				return
-			}
-			writeError(w, http.StatusInternalServerError, "Internal Error")
-			return
-		}
-		if env.SendPebbleNotifications {
-			err := SendPebbleNotification(CertificateUpdate, idNum)
-			if err != nil {
-				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
-			}
-		}
-		successResponse := SuccessResponse{Message: "success"}
-		err = writeResponse(w, successResponse, http.StatusAccepted)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error")
-			return
-		}
-	}
-}
-
 // SignCertificateRequest handler receives the ID of an existing active certificate authority in Notary
 // to sign any certificate request available in Notary.
 // It returns a 202 Accepted on success.

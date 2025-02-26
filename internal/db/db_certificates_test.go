@@ -76,10 +76,10 @@ func TestCertificatesEndToEnd(t *testing.T) {
 	if retrievedCSRWithCert.CertificateChain != BananaCert+"\n"+IntermediateCert+"\n"+RootCert {
 		t.Fatalf("The certificate that was uploaded does not match the certificate that was given.\n Retrieved: %s\nGiven: %s", retrievedCSRWithCert.CertificateChain, BananaCert+IntermediateCert+RootCert)
 	}
-	err = database.RevokeCertificate(db.ByCSRPEM(BananaCSR))
-	if err != nil {
-		t.Fatalf("Couldn't complete Update to revoke certificate: %s", err)
-	}
+	// err = database.RevokeCertificate(db.ByCSRPEM(BananaCSR)) TODO
+	// if err != nil {
+	// 	t.Fatalf("Couldn't complete Update to revoke certificate: %s", err)
+	// }
 	retrievedCSR, _ = database.GetCertificateRequest(db.ByCSRPEM(BananaCSR))
 	if retrievedCSR.Status != "Revoked" {
 		t.Fatalf("Couldn't revoke certificate")

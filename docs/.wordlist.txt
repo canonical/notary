@@ -1,6 +1,7 @@
 APIs
 bool
 CAs
+CSR
 DNS
 frontend
 HTTPS

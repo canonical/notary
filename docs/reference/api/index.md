@@ -4,14 +4,14 @@ Notary exposes a RESTful API for managing certificate requests, certificate auth
 
 ## Resources
 
-The API exposes the following Notary-specific resources:
+The API exposes both Notary-specific and generic resources. The Notary-specific resources are described below:
 
-| Resource                                                | Description                                                                                                                                                                      |
-| :------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [**Certificate Authority**](certificate_authorities.md) | Represents a Notary-owned Certificate Authority. Notary users can use Certificate Authorities to sign certificate requests for external entities.                                |
-| [**Certificate Request**](certificate_requests.md)      | Represents a certificate request made by an external entity. Users can sign the request with one of Notary's Certificate Authorities or with any external Certificate Authority. |
+| Resource                                                | Description                                                                                                                                                                                                                                                                                                                                                             |
+| :------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [**Certificate Authority**](certificate_authorities.md) | Represents a Notary-owned Certificate Authority. These authorities can be used by Notary users to sign certificate requests submitted by external entities.                                                                                                                                                                                                             |
+| [**Certificate Request**](certificate_requests.md)      | Represents a certificate request made by an external entity. Users can get the certificate request signed in one of two ways:<ul><li>Internally: the request is signed with one of Notary's Certificate Authorities</li><li>Externally: The CSR is retrieved, signed by an external process, and the resulting certificate is then imported back into Notary.</li></ul> |
 
-The API also exposes generic resources with commonly understood definitions (ex.`accounts`, `login`, `metrics`).
+In addition to the Notary-specific resources, the API also provides access to generic resources (e.g., accounts, login, metrics) with commonly understood definitions.
 
 ## Authentication
 

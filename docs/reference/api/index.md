@@ -6,10 +6,10 @@ Notary exposes a RESTful API for managing certificate requests, certificate auth
 
 The API exposes the following Notary-specific resources:
 
-| Resource                                                | Description                                                                                                                                       |
-| :------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [**Certificate Authority**](certificate_authorities.md) | Represents a Notary owned Certificate Authority. Notary users can use Certificate Authorities to sign certificate requests for external entities. |
-| [**Certificate Request**](certificate_requests.md)      | Represents a certificate request made by an external entity.                                                                                      |
+| Resource                                                | Description                                                                                                                                                                       |
+| :------------------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [**Certificate Authority**](certificate_authorities.md) | Represents a Notary-owned Certificate Authority. Notary users can use Certificate Authorities to sign certificate requests for external entities.                                 |
+| [**Certificate Request**](certificate_requests.md)      | Represents a certificate request made by an external entity. Users can sign the request with one of Notary's Certificate Authorities, or with any external Certificate Authority. |
 
 The API also exposes generic resources with commonly understood definitions (ex.`accounts`, `login`, `metrics`).
 

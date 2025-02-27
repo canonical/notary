@@ -70,7 +70,7 @@ type CertificateRequest struct {
 // ListCertificateRequests returns all of the Certificate Requests
 func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		csrs, err := env.DB.ListCertificateRequestWithCertificates()
+		csrs, err := env.DB.ListCertificateRequestWithCertificatesWithoutCAS()
 		if err != nil {
 			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
@@ -150,6 +150,17 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
+		_, err = env.DB.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(csr.CSR_ID))
+		if err != nil && !errors.Is(err, sqlair.ErrNoRows) {
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		if err == nil {
+			log.Println(err)
+			writeError(w, http.StatusBadRequest, "this CSR is associated with a CA. Please use the certificate_authorities path to get.")
+			return
+		}
 		certificateRequestResponse := CertificateRequest{
 			ID:               csr.CSR_ID,
 			CSR:              csr.CSR,
@@ -174,6 +185,17 @@ func DeleteCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
+		_, err = env.DB.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
+		if err != nil && !errors.Is(err, sqlair.ErrNoRows) {
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		if err == nil {
+			log.Println(err)
+			writeError(w, http.StatusBadRequest, "this CSR is associated with a CA. Please use the certificate_authorities path to delete.")
+			return
+		}
 		err = env.DB.DeleteCertificateRequest(db.ByCSRID(idNum))
 		if err != nil {
 			log.Println(err)
@@ -193,9 +215,9 @@ func DeleteCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 	}
 }
 
-// CreateCertificate handler receives an id as a path parameter,
+// PostCertificateRequestCertificate handler receives an id as a path parameter,
 // and attempts to add a given certificate to the corresponding certificate request
-func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
+func PostCertificateRequestCertificate(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var createCertificateParams CreateCertificateParams
 		if err := json.NewDecoder(r.Body).Decode(&createCertificateParams); err != nil {
@@ -211,6 +233,17 @@ func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, "Invalid ID")
+			return
+		}
+		_, err = env.DB.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
+		if err != nil && !errors.Is(err, sqlair.ErrNoRows) {
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		if err == nil {
+			log.Println(err)
+			writeError(w, http.StatusBadRequest, "this CSR is associated with a CA. Please use the certificate_authorities path to upload certificate.")
 			return
 		}
 		newCertID, err := env.DB.AddCertificateChainToCertificateRequest(db.ByCSRID(idNum), createCertificateParams.CertificateChain)
@@ -250,6 +283,17 @@ func RejectCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid ID")
 			return
 		}
+		_, err = env.DB.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
+		if err != nil && !errors.Is(err, sqlair.ErrNoRows) {
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		if err == nil {
+			log.Println(err)
+			writeError(w, http.StatusBadRequest, "this CSR is associated with a CA. Please use the certificate_authorities path to interact.")
+			return
+		}
 		err = env.DB.RejectCertificateRequest(db.ByCSRID(idNum))
 		if err != nil {
 			log.Println(err)
@@ -283,6 +327,17 @@ func DeleteCertificate(env *HandlerConfig) http.HandlerFunc {
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, "Invalid ID")
+			return
+		}
+		_, err = env.DB.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
+		if err != nil && !errors.Is(err, sqlair.ErrNoRows) {
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		if err == nil {
+			log.Println(err)
+			writeError(w, http.StatusBadRequest, "this CSR is associated with a CA. Please use the certificate_authorities path to delete.")
 			return
 		}
 		err = env.DB.DeleteCertificateRequest(db.ByCSRID(idNum))
@@ -319,6 +374,17 @@ func RevokeCertificate(env *HandlerConfig) http.HandlerFunc {
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, "Invalid ID")
+			return
+		}
+		_, err = env.DB.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
+		if err != nil && !errors.Is(err, sqlair.ErrNoRows) {
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		if err == nil {
+			log.Println(err)
+			writeError(w, http.StatusBadRequest, "this CSR is associated with a CA. Please use the certificate_authorities path to revoke.")
 			return
 		}
 		err = env.DB.RevokeCertificate(db.ByCSRID(idNum))
@@ -360,6 +426,17 @@ func SignCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 		var signCertificateRequestParams SignCertificateRequestParams
 		if err := json.NewDecoder(r.Body).Decode(&signCertificateRequestParams); err != nil {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format")
+			return
+		}
+		_, err = env.DB.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
+		if err != nil && !errors.Is(err, sqlair.ErrNoRows) {
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		if err == nil {
+			log.Println(err)
+			writeError(w, http.StatusBadRequest, "this CSR is associated with a CA. Please use the certificate_authorities path to sign.")
 			return
 		}
 		caIDInt, err := strconv.ParseInt(signCertificateRequestParams.CertificateAuthorityID, 10, 64)

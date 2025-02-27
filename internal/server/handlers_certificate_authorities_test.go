@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"fmt"
 	"math/big"
 	"net/http"
 	"os"
@@ -1076,15 +1077,15 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 			t.Fatalf("expected no error, got %s", createCertResponse.Error)
 		}
 	})
-	t.Run("11. Try Signing already signed CSR - should fail", func(t *testing.T) {
+	t.Run("11. Try Signing a CA CSR - should fail", func(t *testing.T) {
 		statusCode, signCertificateRequestResponse, err := signCertificateRequest(ts.URL, client, adminToken, 1, server.SignCertificateRequestParams{CertificateAuthorityID: "1"})
 		if err != nil {
 			t.Fatal("expected no error, got: ", err)
 		}
-		if statusCode != http.StatusInternalServerError {
-			t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, statusCode)
+		if statusCode != http.StatusBadRequest {
+			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
 		}
-		if signCertificateRequestResponse.Error != "Internal Error" {
+		if signCertificateRequestResponse.Error != "this CSR is associated with a CA. Please use the certificate_authorities path to sign." {
 			t.Fatalf("expected success, got %s", signCertificateRequestResponse.Error)
 		}
 	})
@@ -1121,32 +1122,166 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if listCSRsResponse.Error != "" {
 			t.Fatalf("expected success, got %s", listCSRsResponse.Error)
 		}
-		if len(listCSRsResponse.Result) != 4 {
+		if len(listCSRsResponse.Result) != 2 {
 			t.Fatalf("expected 2 certificates, got %d", len(listCSRsResponse.Result))
 		}
 		if listCSRsResponse.Result[0].Status != "Active" {
-			t.Fatalf("expected first CA to be active, got %s", listCSRsResponse.Result[3].Status)
+			t.Fatalf("expected first csr to be active, got %s", listCSRsResponse.Result[3].Status)
 		}
-		if strings.Count(listCSRsResponse.Result[0].CertificateChain, "BEGIN CERTIFICATE") != 1 {
-			t.Fatalf("expected second CA to have a chain with 1 certificates")
+		if strings.Count(listCSRsResponse.Result[0].CertificateChain, "BEGIN CERTIFICATE") != 2 {
+			t.Fatalf("expected first csr to have a chain with 2 certificates")
 		}
 		if listCSRsResponse.Result[1].Status != "Active" {
-			t.Fatalf("expected first CA to be active")
+			t.Fatalf("expected second csr to be active")
 		}
-		if strings.Count(listCSRsResponse.Result[1].CertificateChain, "BEGIN CERTIFICATE") != 2 {
-			t.Fatalf("expected second CA to have a chain with 2 certificates")
+		if strings.Count(listCSRsResponse.Result[1].CertificateChain, "BEGIN CERTIFICATE") != 3 {
+			t.Fatalf("expected second csr to have a chain with 3 certificates")
 		}
-		if listCSRsResponse.Result[2].Status != "Active" {
-			t.Fatalf("expected first CA to be active, got %s", listCSRsResponse.Result[3].Status)
+	})
+}
+
+func TestUnsuccessfulRequestsMadeToCACSRs(t *testing.T) {
+	tempDir := t.TempDir()
+	db_path := filepath.Join(tempDir, "db.sqlite3")
+	ts, _, err := setupServer(db_path)
+	if err != nil {
+		t.Fatalf("couldn't create test server: %s", err)
+	}
+	defer ts.Close()
+	client := ts.Client()
+
+	var adminToken string
+	var nonAdminToken string
+	t.Run("prepare user accounts and tokens", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
+
+	t.Run("1. Create self signed certificate authority", func(t *testing.T) {
+		createCertificatAuthorityParams := CreateCertificateAuthorityParams{
+			SelfSigned: true,
+
+			CommonName:          "Self Signed CA",
+			SANsDNS:             "example.com",
+			CountryName:         "TR",
+			StateOrProvinceName: "Istanbul",
+			LocalityName:        "Kadikoy",
+			OrganizationName:    "Canonical",
+			OrganizationalUnit:  "Identity",
+			NotValidAfter:       "2030-01-01T00:00:00Z",
 		}
-		if strings.Count(listCSRsResponse.Result[2].CertificateChain, "BEGIN CERTIFICATE") != 2 {
-			t.Fatalf("expected second CA to have a chain with 2 certificates")
+		statusCode, createCAResponse, err := createCertificateAuthority(ts.URL, client, adminToken, createCertificatAuthorityParams)
+		if err != nil {
+			t.Fatal(err)
 		}
-		if listCSRsResponse.Result[3].Status != "Active" {
-			t.Fatalf("expected first CA to be active")
+		if statusCode != http.StatusCreated {
+			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		if strings.Count(listCSRsResponse.Result[3].CertificateChain, "BEGIN CERTIFICATE") != 3 {
-			t.Fatalf("expected second CA to have a chain with 3 certificates")
+		if createCAResponse.Error != "" {
+			t.Fatalf("expected success, got %s", createCAResponse.Error)
+		}
+	})
+
+	t.Run("2. Create Intermediate certificate authority", func(t *testing.T) {
+		createCertificatAuthorityParams := CreateCertificateAuthorityParams{
+			SelfSigned: false,
+
+			CommonName:          "Not Self Signed CA",
+			SANsDNS:             "examplest.com",
+			CountryName:         "TR",
+			StateOrProvinceName: "Istanbul",
+			LocalityName:        "Kadikoy",
+			OrganizationName:    "Canonical",
+			OrganizationalUnit:  "Identity",
+			NotValidAfter:       "2030-01-01T00:00:00Z",
+		}
+		statusCode, createCAResponse, err := createCertificateAuthority(ts.URL, client, adminToken, createCertificatAuthorityParams)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if statusCode != http.StatusCreated {
+			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
+		}
+		if createCAResponse.Error != "" {
+			t.Fatalf("expected success, got %s", createCAResponse.Error)
+		}
+	})
+
+	t.Run("3. Create CSR", func(t *testing.T) {
+		csr1Path := filepath.Join("testdata", "csr1.pem")
+		csr1, err := os.ReadFile(csr1Path)
+		if err != nil {
+			t.Fatalf("cannot read file: %s", err)
+		}
+		createCertificateRequestRequest := CreateCertificateRequestParams{CSR: string(csr1)}
+		statusCode, createCSRResponse, err := createCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if statusCode != http.StatusCreated {
+			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
+		}
+		if createCSRResponse.Error != "" {
+			t.Fatalf("expected no error, got %s", createCSRResponse.Error)
+		}
+	})
+
+	t.Run("4. Get CSRs - only 1 should appear", func(t *testing.T) {
+		statusCode, listCertsResponse, err := listCertificateRequests(ts.URL, client, adminToken)
+		fmt.Println(listCertsResponse.Result)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if statusCode != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+		}
+		if len(listCertsResponse.Result) != 1 {
+			t.Fatalf("expected 1 CSR in list, got %d", len(listCertsResponse.Result))
+		}
+		if listCertsResponse.Error != "" {
+			t.Fatalf("expected no error, got %s", listCertsResponse.Error)
+		}
+		if listCertsResponse.Result[0].CertificateChain != "" {
+			t.Fatalf("expected no certificate, got '%s'", listCertsResponse.Result[0].CertificateChain)
+		}
+	})
+	t.Run("5. Get CSR - should fail", func(t *testing.T) {
+		statusCode, getCertResponse, err := getCertificateRequest(ts.URL, client, adminToken, 2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if statusCode != http.StatusBadRequest {
+			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
+		}
+		if getCertResponse.Error != "this CSR is associated with a CA. Please use the certificate_authorities path to get." {
+			t.Fatalf("expected correct error, got %s", getCertResponse.Error)
+		}
+	})
+	t.Run("6. Delete CA CSR - should fail", func(t *testing.T) {
+		statusCode, err := deleteCertificateRequest(ts.URL, client, adminToken, 2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if statusCode != http.StatusBadRequest {
+			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
+		}
+	})
+	t.Run("7. Reject CA CSR - should fail", func(t *testing.T) {
+		statusCode, err := rejectCertificate(ts.URL, client, adminToken, 2)
+		if err != nil {
+			t.Fatal("expected no error, got: ", err)
+		}
+		if statusCode != http.StatusBadRequest {
+			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
+		}
+	})
+	t.Run("8. Sign CA CSR - should fail", func(t *testing.T) {
+		statusCode, signCertificateRequestResponse, err := signCertificateRequest(ts.URL, client, adminToken, 1, server.SignCertificateRequestParams{CertificateAuthorityID: "1"})
+		if err != nil {
+			t.Fatal("expected no error, got: ", err)
+		}
+		if statusCode != http.StatusBadRequest {
+			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
+		}
+		if signCertificateRequestResponse.Error != "this CSR is associated with a CA. Please use the certificate_authorities path to sign." {
+			t.Fatalf("expected correct error, got %s", signCertificateRequestResponse.Error)
 		}
 	})
 }

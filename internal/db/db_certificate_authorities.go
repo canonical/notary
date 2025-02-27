@@ -15,6 +15,8 @@ import (
 	"github.com/canonical/sqlair"
 )
 
+const expiryYears = 1
+
 type CAStatus string
 
 func (ca CAStatus) String() string {
@@ -400,7 +402,7 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 		// Add standard certificate fields
 		SerialNumber: big.NewInt(time.Now().UnixNano()),
 		NotBefore:    time.Now(),
-		NotAfter:     time.Now().AddDate(1, 0, 0),
+		NotAfter:     time.Now().AddDate(expiryYears, 0, 0),
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 	}

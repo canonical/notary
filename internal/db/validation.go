@@ -12,6 +12,13 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// BCRYPT_COST is used to tune the password hashing algorithm's time.
+// For better protection against brute-force attacks, this should be
+// set higher, at the cost of performance.
+// A good rule of thumb is to set this so that it takes over 250 ms
+// to hash a password on common hardware.
+const BCRYPT_COST = 13
+
 // ValidateCertificateRequest validates the given CSR string to the following:
 // The string must be a valid PEM string, and should be of type CERTIFICATE REQUEST
 // The PEM string should be able to be parsed into a x509 Certificate Request
@@ -149,7 +156,7 @@ func HashPassword(password string) (string, error) {
 	if strings.TrimSpace(password) == "" {
 		return "", fmt.Errorf("password cannot be empty")
 	}
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), BCRYPT_COST)
 	if err != nil {
 		return "", err
 	}

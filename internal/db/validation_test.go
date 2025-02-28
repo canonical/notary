@@ -418,3 +418,9 @@ func TestCertificateMatchesCSRFail(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkHashPassword(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		db.HashPassword("Correct Staple Horse")
+	}
+}

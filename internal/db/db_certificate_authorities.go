@@ -381,13 +381,13 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 	if err = certRequest.CheckSignature(); err != nil {
 		return fmt.Errorf("invalid certificate request signature: %w", err)
 	}
-	CSRIsForACertificateAuthority := true
+	CSRIsForACertificateAuthority := false
 	caToBeSigned, err := db.GetCertificateAuthority(ByCertificateAuthorityCSRID(csrRow.CSR_ID))
-	if err != nil {
-		if !errors.Is(err, sqlair.ErrNoRows) {
-			return err
-		}
-		CSRIsForACertificateAuthority = false
+	if realError(err) {
+		return err
+	}
+	if rowFound(err) {
+		CSRIsForACertificateAuthority = true
 	}
 	// Create certificate template from the CSR
 	certTemplate := &x509.Certificate{
@@ -433,4 +433,12 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 		}
 	}
 	return err
+}
+
+func rowFound(err error) bool {
+	return err == nil
+}
+
+func realError(err error) bool {
+	return err != nil && !errors.Is(err, sqlair.ErrNoRows)
 }

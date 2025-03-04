@@ -40,11 +40,12 @@ const queryCreateCertificateRequestsTable = `
 )`
 
 const (
-	listCertificateRequestsStmt  = "SELECT &CertificateRequest.* FROM certificate_requests"
-	getCertificateRequestStmt    = "SELECT &CertificateRequest.* FROM certificate_requests WHERE csr_id==$CertificateRequest.csr_id or csr==$CertificateRequest.csr"
-	updateCertificateRequestStmt = "UPDATE certificate_requests SET certificate_id=$CertificateRequest.certificate_id, status=$CertificateRequest.status WHERE csr_id==$CertificateRequest.csr_id or csr==$CertificateRequest.csr"
-	createCertificateRequestStmt = "INSERT INTO certificate_requests (csr) VALUES ($CertificateRequest.csr)"
-	deleteCertificateRequestStmt = "DELETE FROM certificate_requests WHERE csr_id=$CertificateRequest.csr_id or csr=$CertificateRequest.csr"
+	listCertificateRequestsStmt           = "SELECT &CertificateRequest.* FROM certificate_requests"
+	listCertificateRequestsWithoutCASStmt = "SELECT csrs.&CertificateRequest.csr_id, csrs.&CertificateRequest.csr, csrs.&CertificateRequest.status, csrs.&CertificateRequest.certificate_id FROM certificate_requests csrs LEFT JOIN certificate_authorities cas ON csrs.csr_id = cas.csr_id WHERE cas.certificate_authority_id IS NULL"
+	getCertificateRequestStmt             = "SELECT &CertificateRequest.* FROM certificate_requests WHERE csr_id==$CertificateRequest.csr_id or csr==$CertificateRequest.csr"
+	updateCertificateRequestStmt          = "UPDATE certificate_requests SET certificate_id=$CertificateRequest.certificate_id, status=$CertificateRequest.status WHERE csr_id==$CertificateRequest.csr_id or csr==$CertificateRequest.csr"
+	createCertificateRequestStmt          = "INSERT INTO certificate_requests (csr) VALUES ($CertificateRequest.csr)"
+	deleteCertificateRequestStmt          = "DELETE FROM certificate_requests WHERE csr_id=$CertificateRequest.csr_id or csr=$CertificateRequest.csr"
 
 	listCertificateRequestsWithCertificatesStmt = `
 WITH RECURSIVE certificate_chain AS (
@@ -82,6 +83,44 @@ SELECT
 	chain AS &CertificateRequestWithChain.certificate_chain
 FROM certificate_chain
 WHERE chain = '' OR issuer_id = 0`
+	listCertificateRequestsWithCertificatesWithoutCASStmt = `
+WITH RECURSIVE certificate_chain AS (
+    SELECT 
+        csr.csr_id,
+        csr.csr,
+		csr.status,
+        cert.certificate_id,
+        cert.issuer_id,
+        cert.certificate,
+        COALESCE(cert.certificate, '') AS chain
+    FROM certificate_requests csr
+    LEFT JOIN certificates cert 
+      ON csr.certificate_id = cert.certificate_id
+    
+    UNION ALL
+    
+    -- Recursive Query: Find the issuer certificate in the certificates table
+    SELECT 
+        cc.csr_id,
+        cc.csr,
+		cc.status,
+        cert.certificate_id,
+        cert.issuer_id,
+        cert.certificate,
+        cc.chain || CHAR(10) || cert.certificate AS chain
+    FROM certificates cert
+    JOIN certificate_chain cc
+      ON cert.certificate_id = cc.issuer_id
+)
+SELECT 
+	cc.&CertificateRequestWithChain.csr_id,
+	cc.&CertificateRequestWithChain.csr,
+	cc.&CertificateRequestWithChain.status,
+	chain AS &CertificateRequestWithChain.certificate_chain
+FROM certificate_chain cc
+LEFT JOIN certificate_authorities cas ON cc.csr_id = cas.csr_id 
+WHERE cas.certificate_authority_id IS NULL AND (chain = '' OR issuer_id = 0)`
+
 	getCertificateRequestWithCertificateStmt = `
 WITH RECURSIVE certificate_chain AS (
     SELECT 
@@ -137,9 +176,43 @@ func (db *Database) ListCertificateRequests() ([]CertificateRequest, error) {
 	return csrs, nil
 }
 
+// ListCertificateRequestsWithoutCAS gets every CertificateRequest entry in the table.
+func (db *Database) ListCertificateRequestsWithoutCAS() ([]CertificateRequest, error) {
+	stmt, err := sqlair.Prepare(listCertificateRequestsWithoutCASStmt, CertificateRequest{})
+	if err != nil {
+		return nil, err
+	}
+	var csrs []CertificateRequest
+	err = db.conn.Query(context.Background(), stmt).GetAll(&csrs)
+	if err != nil {
+		if errors.Is(err, sqlair.ErrNoRows) {
+			return csrs, nil
+		}
+		return nil, err
+	}
+	return csrs, nil
+}
+
 // ListCertificateRequestWithCertificates gets every CertificateRequest entry in the table.
 func (db *Database) ListCertificateRequestWithCertificates() ([]CertificateRequestWithChain, error) {
 	stmt, err := sqlair.Prepare(listCertificateRequestsWithCertificatesStmt, CertificateRequestWithChain{})
+	if err != nil {
+		return nil, err
+	}
+	var csrs []CertificateRequestWithChain
+	err = db.conn.Query(context.Background(), stmt).GetAll(&csrs)
+	if err != nil {
+		if errors.Is(err, sqlair.ErrNoRows) {
+			return csrs, nil
+		}
+		return nil, err
+	}
+	return csrs, nil
+}
+
+// ListCertificateRequestWithCertificatesWithoutCAS gets every CertificateRequest entry in the table.
+func (db *Database) ListCertificateRequestWithCertificatesWithoutCAS() ([]CertificateRequestWithChain, error) {
+	stmt, err := sqlair.Prepare(listCertificateRequestsWithCertificatesWithoutCASStmt, CertificateRequestWithChain{})
 	if err != nil {
 		return nil, err
 	}

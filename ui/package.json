@@ -12,14 +12,14 @@
   },
   "dependencies": {
     "@canonical/react-components": "^1.10.0",
-    "@tanstack/react-query": "^5.66.9",
+    "@tanstack/react-query": "^5.66.11",
     "jwt-decode": "^4.0.0",
-    "next": "15.1.7",
+    "next": "15.2.0",
     "pkijs": "^3.2.4",
     "react": "^18",
     "react-cookie": "^7.2.2",
     "react-dom": "^18",
-    "sass": "^1.85.0",
+    "sass": "^1.85.1",
     "vanilla-framework": "^4.21.0"
   },
   "devDependencies": {
@@ -29,10 +29,10 @@
     "@types/react-dom": "^18",
     "@vitejs/plugin-react": "^4.3.4",
     "eslint": "^8",
-    "eslint-config-next": "15.1.7",
+    "eslint-config-next": "15.2.0",
     "jsdom": "^26.0.0",
     "typescript": "^5",
-    "vitest": "^3.0.6"
+    "vitest": "^3.0.7"
   },
   "overrides": {
     "rollup": "npm:@rollup/wasm-node@*"

@@ -1082,11 +1082,11 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if err != nil {
 			t.Fatal("expected no error, got: ", err)
 		}
-		if statusCode != http.StatusInternalServerError {
-			t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, statusCode)
+		if statusCode != http.StatusNotFound {
+			t.Fatalf("expected status %d, got %d", http.StatusNotFound, statusCode)
 		}
-		if signCertificateRequestResponse.Error != "Internal Error" {
-			t.Fatalf("expected internal error, got %s", signCertificateRequestResponse.Error)
+		if signCertificateRequestResponse.Error != "Not Found" {
+			t.Fatalf("expected not found, got %s", signCertificateRequestResponse.Error)
 		}
 	})
 	t.Run("12. Sign CSRs with each CA", func(t *testing.T) {
@@ -1247,10 +1247,10 @@ func TestUnsuccessfulRequestsMadeToCACSRs(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if statusCode != http.StatusInternalServerError {
-			t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, statusCode)
+		if statusCode != http.StatusNotFound {
+			t.Fatalf("expected status %d, got %d", http.StatusNotFound, statusCode)
 		}
-		if getCertResponse.Error != "Internal Error" {
+		if getCertResponse.Error != "Not Found" {
 			t.Fatalf("expected correct error, got %s", getCertResponse.Error)
 		}
 	})
@@ -1259,8 +1259,8 @@ func TestUnsuccessfulRequestsMadeToCACSRs(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if statusCode != http.StatusInternalServerError {
-			t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, statusCode)
+		if statusCode != http.StatusNotFound {
+			t.Fatalf("expected status %d, got %d", http.StatusNotFound, statusCode)
 		}
 	})
 	t.Run("7. Reject CA CSR - should fail", func(t *testing.T) {
@@ -1268,8 +1268,8 @@ func TestUnsuccessfulRequestsMadeToCACSRs(t *testing.T) {
 		if err != nil {
 			t.Fatal("expected no error, got: ", err)
 		}
-		if statusCode != http.StatusInternalServerError {
-			t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, statusCode)
+		if statusCode != http.StatusNotFound {
+			t.Fatalf("expected status %d, got %d", http.StatusNotFound, statusCode)
 		}
 	})
 	t.Run("8. Sign CA CSR - should fail", func(t *testing.T) {
@@ -1277,10 +1277,10 @@ func TestUnsuccessfulRequestsMadeToCACSRs(t *testing.T) {
 		if err != nil {
 			t.Fatal("expected no error, got: ", err)
 		}
-		if statusCode != http.StatusInternalServerError {
-			t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, statusCode)
+		if statusCode != http.StatusNotFound {
+			t.Fatalf("expected status %d, got %d", http.StatusNotFound, statusCode)
 		}
-		if signCertificateRequestResponse.Error != "Internal Error" {
+		if signCertificateRequestResponse.Error != "Not Found" {
 			t.Fatalf("expected correct error, got %s", signCertificateRequestResponse.Error)
 		}
 	})

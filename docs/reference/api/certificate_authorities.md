@@ -148,3 +148,25 @@ This path uploads a certificate for a certificate authority.
     }
 }
 ```
+
+## Sign a Certificate Authority with another Certificate Authority
+
+This path signs any intermediate certificate authority with another active root or intermediate certificate authority.
+
+| Method | Path                                               |
+| :----- | :------------------------------------------------- |
+| `POST` | `/api/v1/certificate_authorities/{id}/sign` |
+
+### Parameters
+
+- `certificate_authority_id` (string): The ID of the Certificate Authority that will sign this Certificate Authority.
+
+### Sample Response
+
+```json
+{
+    "result": {
+        "message": "success"
+    }
+}
+```

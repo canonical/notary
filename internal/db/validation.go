@@ -122,7 +122,7 @@ func ValidatePrivateKey(pk string) error {
 	return nil
 }
 
-// SanitizeCertificateBundle takes in a valid certificate string and formats it
+// SanitizeCertificateBundle takes in a valid certificate string and formats it.
 // The final list has pure certificate PEM strings with no trailing or leading whitespace
 func sanitizeCertificateBundle(cert string) ([]string, error) {
 	var buff bytes.Buffer

@@ -23,7 +23,7 @@ func TestPrivateKeysEndToEnd(t *testing.T) {
 		t.Fatalf("Number of private keys is not 1")
 	}
 
-	pkID, err := database.CreatePrivateKey(selfSignedCACertificatePK)
+	pkID, err := database.CreatePrivateKey(RootCAPrivateKey)
 	if err != nil {
 		t.Fatalf("Couldn't create private key: %s", err)
 	}
@@ -43,14 +43,14 @@ func TestPrivateKeysEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't get private key: %s", err)
 	}
-	if pk.PrivateKeyPEM != selfSignedCACertificatePK {
+	if pk.PrivateKeyPEM != RootCAPrivateKey {
 		t.Fatalf("Private key is not correct")
 	}
-	pk, err = database.GetPrivateKey(db.ByPrivateKeyPEM(selfSignedCACertificatePK))
+	pk, err = database.GetPrivateKey(db.ByPrivateKeyPEM(RootCAPrivateKey))
 	if err != nil {
 		t.Fatalf("Couldn't get private key: %s", err)
 	}
-	if pk.PrivateKeyPEM != selfSignedCACertificatePK {
+	if pk.PrivateKeyPEM != RootCAPrivateKey {
 		t.Fatalf("Private key is not correct")
 	}
 
@@ -101,12 +101,12 @@ func TestPrivateKeyFails(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Should have failed to get private key")
 	}
-	_, err = database.GetPrivateKey(db.ByPrivateKeyPEM(selfSignedCACertificatePK))
+	_, err = database.GetPrivateKey(db.ByPrivateKeyPEM(RootCAPrivateKey))
 	if err == nil {
 		t.Fatalf("Should have failed to get private key")
 	}
 
-	err = database.DeletePrivateKey(db.ByPrivateKeyPEM(selfSignedCACertificatePK))
+	err = database.DeletePrivateKey(db.ByPrivateKeyPEM(RootCAPrivateKey))
 	if err != nil {
 		t.Fatalf("Couldn't delete private key: %s", err)
 	}

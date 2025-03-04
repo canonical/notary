@@ -70,7 +70,7 @@ type CertificateRequest struct {
 // ListCertificateRequests returns all of the Certificate Requests
 func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		csrs, err := env.DB.ListCertificateRequestWithCertificates()
+		csrs, err := env.DB.ListCertificateRequestWithCertificatesWithoutCAS()
 		if err != nil {
 			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
@@ -150,6 +150,17 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
+		_, err = env.DB.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(csr.CSR_ID))
+		if rowFound(err) {
+			log.Println(err)
+			writeError(w, http.StatusNotFound, "Not Found")
+			return
+		}
+		if realError(err) {
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
 		certificateRequestResponse := CertificateRequest{
 			ID:               csr.CSR_ID,
 			CSR:              csr.CSR,
@@ -174,6 +185,17 @@ func DeleteCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
+		_, err = env.DB.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
+		if rowFound(err) {
+			log.Println(err)
+			writeError(w, http.StatusNotFound, "Not Found")
+			return
+		}
+		if realError(err) {
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
 		err = env.DB.DeleteCertificateRequest(db.ByCSRID(idNum))
 		if err != nil {
 			log.Println(err)
@@ -193,9 +215,9 @@ func DeleteCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 	}
 }
 
-// CreateCertificate handler receives an id as a path parameter,
+// PostCertificateRequestCertificate handler receives an id as a path parameter,
 // and attempts to add a given certificate to the corresponding certificate request
-func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
+func PostCertificateRequestCertificate(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var createCertificateParams CreateCertificateParams
 		if err := json.NewDecoder(r.Body).Decode(&createCertificateParams); err != nil {
@@ -211,6 +233,17 @@ func CreateCertificate(env *HandlerConfig) http.HandlerFunc {
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, "Invalid ID")
+			return
+		}
+		_, err = env.DB.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
+		if rowFound(err) {
+			log.Println(err)
+			writeError(w, http.StatusNotFound, "Not Found")
+			return
+		}
+		if realError(err) {
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
 		newCertID, err := env.DB.AddCertificateChainToCertificateRequest(db.ByCSRID(idNum), createCertificateParams.CertificateChain)
@@ -250,6 +283,17 @@ func RejectCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid ID")
 			return
 		}
+		_, err = env.DB.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
+		if rowFound(err) {
+			log.Println(err)
+			writeError(w, http.StatusNotFound, "Not Found")
+			return
+		}
+		if realError(err) {
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
 		err = env.DB.RejectCertificateRequest(db.ByCSRID(idNum))
 		if err != nil {
 			log.Println(err)
@@ -283,6 +327,17 @@ func DeleteCertificate(env *HandlerConfig) http.HandlerFunc {
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, "Invalid ID")
+			return
+		}
+		_, err = env.DB.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
+		if rowFound(err) {
+			log.Println(err)
+			writeError(w, http.StatusNotFound, "Not Found")
+			return
+		}
+		if realError(err) {
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
 		err = env.DB.DeleteCertificateRequest(db.ByCSRID(idNum))
@@ -321,6 +376,17 @@ func RevokeCertificate(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid ID")
 			return
 		}
+		_, err = env.DB.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
+		if rowFound(err) {
+			log.Println(err)
+			writeError(w, http.StatusNotFound, "Not Found")
+			return
+		}
+		if realError(err) {
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
 		err = env.DB.RevokeCertificate(db.ByCSRID(idNum))
 		if err != nil {
 			log.Println(err)
@@ -344,4 +410,70 @@ func RevokeCertificate(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 	}
+}
+
+// SignCertificateRequest handler receives the ID of an existing active certificate authority in Notary
+// to sign any certificate request available in Notary.
+// It returns a 202 Accepted on success.
+func SignCertificateRequest(env *HandlerConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		idNum, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		var signCertificateRequestParams SignCertificateRequestParams
+		if err := json.NewDecoder(r.Body).Decode(&signCertificateRequestParams); err != nil {
+			writeError(w, http.StatusBadRequest, "Invalid JSON format")
+			return
+		}
+		_, err = env.DB.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
+		if rowFound(err) {
+			log.Println(err)
+			writeError(w, http.StatusNotFound, "Not Found")
+			return
+		}
+		if realError(err) {
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		caIDInt, err := strconv.ParseInt(signCertificateRequestParams.CertificateAuthorityID, 10, 64)
+		if err != nil {
+			log.Println(err)
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		err = env.DB.SignCertificateRequest(db.ByCSRID(idNum), db.ByCertificateAuthorityID(caIDInt))
+		if err != nil {
+			log.Println(err)
+			if errors.Is(err, sqlair.ErrNoRows) {
+				writeError(w, http.StatusNotFound, "Not Found")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		if env.SendPebbleNotifications {
+			err := SendPebbleNotification(CertificateUpdate, idNum)
+			if err != nil {
+				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
+			}
+		}
+		successResponse := SuccessResponse{Message: "success"}
+		err = writeResponse(w, successResponse, http.StatusAccepted)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
+		}
+	}
+}
+
+func realError(err error) bool {
+	return err != nil && !errors.Is(err, sqlair.ErrNoRows)
+}
+
+func rowFound(err error) bool {
+	return err == nil
 }

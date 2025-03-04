@@ -143,6 +143,28 @@ None
 }
 ```
 
+## Sign a Certificate Request with a Certificate Authority
+
+This path signs any certificate request with an active root or intermediate certificate authority.
+
+| Method | Path                                               |
+| :----- | :------------------------------------------------- |
+| `POST` | `/api/v1/certificate_requests/{id}/sign` |
+
+### Parameters
+
+- `certificate_authority_id` (string): The ID of the Certificate Authority that will sign this certificate request.
+
+### Sample Response
+
+```json
+{
+    "result": {
+        "message": "success"
+    }
+}
+```
+
 ## Delete a Certificate for a Certificate Request
 
 This path deletes a certificate for a certificate request.

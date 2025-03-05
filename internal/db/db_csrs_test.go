@@ -248,3 +248,44 @@ func TestRejectCertificateRequestFails(t *testing.T) {
 		t.Fatalf("CSR Should not have been rejected")
 	}
 }
+
+func TestCASNotShowingUpInCSRsTable(t *testing.T) {
+	tempDir := t.TempDir()
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	if err != nil {
+		t.Fatalf("Couldn't complete NewDatabase: %s", err)
+	}
+	defer database.Close()
+	_, err = database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACertificate+"\n"+RootCACertificate)
+	if err != nil {
+		t.Fatalf("Couldn't create certificate authority: %s", err)
+	}
+	_, err = database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, "")
+	if err != nil {
+		t.Fatalf("Couldn't create certificate authority: %s", err)
+	}
+	_, err = database.CreateCertificateRequest(AppleCSR)
+	if err != nil {
+		t.Fatalf("Failed to create CSR: %s", err)
+	}
+	csrs, err := database.ListCertificateRequestsWithoutCAS()
+	if err != nil {
+		t.Fatalf("err: %s", err.Error())
+	}
+	if len(csrs) != 1 {
+		t.Fatalf("Expected to see only 1 CSR, saw %d", len(csrs))
+	}
+	if csrs[0].Status != "Outstanding" {
+		t.Fatalf("Expected CSR to be in pending state, was %s", csrs[0].Status)
+	}
+	csrswithchain, err := database.ListCertificateRequestWithCertificatesWithoutCAS()
+	if err != nil {
+		t.Fatalf("err: %s", err.Error())
+	}
+	if len(csrswithchain) != 1 {
+		t.Fatalf("Expected to see only 1 CSR, saw %d", len(csrswithchain))
+	}
+	if csrswithchain[0].Status != "Outstanding" {
+		t.Fatalf("Expected CSR to be in pending state, was %s", csrswithchain[0].Status)
+	}
+}

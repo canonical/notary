@@ -2,7 +2,9 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log"
 
 	"github.com/canonical/sqlair"
 )
@@ -37,19 +39,10 @@ const (
 
 // ListUsers returns all of the users and their fields available in the database.
 func (db *Database) ListUsers() ([]User, error) {
-	stmt, err := sqlair.Prepare(listUsersStmt, User{})
-	if err != nil {
-		return nil, err
-	}
-	var users []User
-	err = db.conn.Query(context.Background(), stmt).GetAll(&users)
-	if err != nil {
-		return nil, err
-	}
-	return users, nil
+	return ListEntities[User](db, listUsersStmt)
 }
 
-// GetUserByID retrieves the name, password and the permission level of a user.
+// GetUser retrieves the name, password and the permission level of a user.
 func (db *Database) GetUser(filter UserFilter) (*User, error) {
 	var userRow User
 
@@ -59,18 +52,10 @@ func (db *Database) GetUser(filter UserFilter) (*User, error) {
 	case filter.Username != nil:
 		userRow = User{Username: *filter.Username}
 	default:
-		return nil, fmt.Errorf("invalid filter: both ID and Username are nil")
+		return nil, InvalidFilterError("user", "both ID and Username are nil")
 	}
 
-	stmt, err := sqlair.Prepare(getUserStmt, User{})
-	if err != nil {
-		return nil, err
-	}
-	err = db.conn.Query(context.Background(), stmt, userRow).Get(&userRow)
-	if err != nil {
-		return nil, err
-	}
-	return &userRow, nil
+	return GetOneEntity(db, getUserStmt, userRow)
 }
 
 // CreateUser creates a new user from a given username, password and permission level.
@@ -79,11 +64,13 @@ func (db *Database) GetUser(filter UserFilter) (*User, error) {
 func (db *Database) CreateUser(username string, password string, permission int) (int64, error) {
 	pw, err := HashPassword(password)
 	if err != nil {
-		return 0, err
+		log.Println(err)
+		return 0, fmt.Errorf("%w: failed to create user", ErrInternal)
 	}
 	stmt, err := sqlair.Prepare(createUserStmt, User{})
 	if err != nil {
-		return 0, err
+		log.Println(err)
+		return 0, fmt.Errorf("%w: failed to create user", ErrInternal)
 	}
 	row := User{
 		Username:       username,
@@ -93,11 +80,16 @@ func (db *Database) CreateUser(username string, password string, permission int)
 	var outcome sqlair.Outcome
 	err = db.conn.Query(context.Background(), stmt, row).Get(&outcome)
 	if err != nil {
-		return 0, err
+		log.Println(err)
+		if isUniqueConstraintError(err) {
+			return 0, fmt.Errorf("%w: username already exists", ErrAlreadyExists)
+		}
+		return 0, fmt.Errorf("%w: failed to create user", ErrInternal)
 	}
 	insertedRowID, err := outcome.Result().LastInsertId()
 	if err != nil {
-		return 0, err
+		log.Println(err)
+		return 0, fmt.Errorf("%w: failed to create user", ErrInternal)
 	}
 	return insertedRowID, nil
 }
@@ -111,15 +103,24 @@ func (db *Database) UpdateUserPassword(filter UserFilter, password string) error
 	}
 	hashedPassword, err := HashPassword(password)
 	if err != nil {
-		return err
+		log.Println(err)
+		return fmt.Errorf("%w: failed to hash password", ErrInternal)
 	}
 	stmt, err := sqlair.Prepare(updateUserStmt, User{})
 	if err != nil {
-		return err
+		log.Println(err)
+		return fmt.Errorf("%w: failed to prepare update user statement", ErrInternal)
 	}
 	userRow.HashedPassword = hashedPassword
 	err = db.conn.Query(context.Background(), stmt, userRow).Run()
-	return err
+	if err != nil {
+		log.Println(err)
+		if errors.Is(err, sqlair.ErrNoRows) {
+			return fmt.Errorf("%w: user not found", ErrNotFound)
+		}
+		return fmt.Errorf("%w: failed to update user", ErrInternal)
+	}
+	return nil
 }
 
 // DeleteUserByID removes a user from the table.
@@ -130,10 +131,13 @@ func (db *Database) DeleteUser(filter UserFilter) error {
 	}
 	stmt, err := sqlair.Prepare(deleteUserStmt, User{})
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: failed to prepare delete user statement", ErrInternal)
 	}
 	err = db.conn.Query(context.Background(), stmt, userRow).Run()
-	return err
+	if err != nil {
+		return fmt.Errorf("%w: failed to delete user", ErrInternal)
+	}
+	return nil
 }
 
 type NumUsers struct {
@@ -144,12 +148,12 @@ type NumUsers struct {
 func (db *Database) NumUsers() (int, error) {
 	stmt, err := sqlair.Prepare(getNumUsersStmt, NumUsers{})
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("%w: failed to prepare get number of users statement", ErrInternal)
 	}
 	result := NumUsers{}
 	err = db.conn.Query(context.Background(), stmt).Get(&result)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("%w: failed to get number of users", ErrInternal)
 	}
 	return result.Count, nil
 }

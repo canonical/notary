@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/canonical/notary/internal/db"
-	"github.com/canonical/sqlair"
 	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -68,8 +67,7 @@ func Login(env *HandlerConfig) http.HandlerFunc {
 		}
 		userAccount, err := env.DB.GetUser(db.ByUsername(loginParams.Username))
 		if err != nil {
-			log.Println(err)
-			if errors.Is(err, sqlair.ErrNoRows) {
+			if errors.Is(err, db.ErrNotFound) || errors.Is(err, db.ErrInvalidFilter) {
 				writeError(w, http.StatusUnauthorized, "The username or password is incorrect. Try again.")
 				return
 			}

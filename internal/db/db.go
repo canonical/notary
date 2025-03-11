@@ -3,6 +3,9 @@ package db
 
 import (
 	"database/sql"
+	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/canonical/sqlair"
 	_ "github.com/mattn/go-sqlite3"
@@ -51,4 +54,24 @@ func NewDatabase(databasePath string) (*Database, error) {
 	db := new(Database)
 	db.conn = sqlair.NewDB(sqlConnection)
 	return db, nil
+}
+
+var (
+	ErrNotFound      = errors.New("resource not found")
+	ErrInternal      = errors.New("internal error")
+	ErrInvalidFilter = errors.New("invalid filter")
+	ErrAlreadyExists = errors.New("resource already exists")
+)
+
+// InvalidFilterError creates a more specific invalid filter error
+func InvalidFilterError(filterType, message string) error {
+	return fmt.Errorf("%w: %s - %s", ErrInvalidFilter, filterType, message)
+}
+
+func isUniqueConstraintError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	return strings.Contains(err.Error(), "UNIQUE constraint failed")
 }

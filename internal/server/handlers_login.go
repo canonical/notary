@@ -9,19 +9,19 @@ import (
 
 	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/sqlair"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func expireAfter() int64 {
-	return time.Now().Add(time.Hour * 1).Unix()
+func expireAfter() time.Time {
+	return time.Now().Add(time.Hour * 1)
 }
 
 type jwtNotaryClaims struct {
 	ID          int64  `json:"id"`
 	Username    string `json:"username"`
 	Permissions int    `json:"permissions"`
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 }
 
 type LoginParams struct {
@@ -35,12 +35,13 @@ type LoginResponse struct {
 
 // Helper function to generate a JWT
 func generateJWT(id int64, username string, jwtSecret []byte, permissions int) (string, error) {
+	expiresAt := jwt.NewNumericDate(expireAfter())
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtNotaryClaims{
 		ID:          id,
 		Username:    username,
 		Permissions: permissions,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expireAfter(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: expiresAt,
 		},
 	})
 	tokenString, err := token.SignedString(jwtSecret)

@@ -177,22 +177,43 @@ WITH RECURSIVE cas_with_chain AS (
 
 // ListCertificateAuthorities gets every Certificate Authority entry in the table.
 func (db *Database) ListCertificateAuthorities() ([]CertificateAuthority, error) {
-	return ListEntities[CertificateAuthority](db, listCertificateAuthoritiesStmt)
+	cas, err := ListEntities[CertificateAuthority](db, listCertificateAuthoritiesStmt)
+	if err != nil {
+		log.Println(err)
+		return nil, fmt.Errorf("%w: failed to list certificate authorities", ErrInternal)
+	}
+	return cas, nil
 }
 
 // ListDenormalizedCertificateAuthorities gets every CertificateAuthority entry in the table
 // but instead of returning ID's that reference other table rows, it embeds the row data directly into the response object.
 func (db *Database) ListDenormalizedCertificateAuthorities() ([]CertificateAuthorityDenormalized, error) {
-	return ListEntities[CertificateAuthorityDenormalized](db, listDenormalizedCertificateAuthoritiesStmt)
+	cas, err := ListEntities[CertificateAuthorityDenormalized](db, listDenormalizedCertificateAuthoritiesStmt)
+	if err != nil {
+		log.Println(err)
+		return nil, fmt.Errorf("%w: failed to list denormalized certificate authorities", ErrInternal)
+	}
+	return cas, nil
 }
 
 // GetCertificateAuthority gets a certificate authority row from the database.
 func (db *Database) GetCertificateAuthority(filter CertificateAuthorityFilter) (*CertificateAuthority, error) {
 	CARow, err := filter.AsCertificateAuthority()
 	if err != nil {
-		return nil, InvalidFilterError("certificate authority", err.Error())
+		return nil, err
 	}
-	return GetOneEntity(db, getCertificateAuthorityStmt, *CARow)
+	stmt, err := sqlair.Prepare(getCertificateAuthorityStmt, CertificateAuthority{})
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to get certificate authority", ErrInternal)
+	}
+	err = db.conn.Query(context.Background(), stmt, CARow).Get(CARow)
+	if err != nil {
+		if errors.Is(err, sqlair.ErrNoRows) {
+			return nil, NotFoundError("certificate authority")
+		}
+		return nil, fmt.Errorf("%w: failed to get certificate authority", ErrInternal)
+	}
+	return CARow, nil
 }
 
 // GetDenormalizedCertificateAuthority gets a certificate authority row from the database

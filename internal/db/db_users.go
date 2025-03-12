@@ -39,7 +39,11 @@ const (
 
 // ListUsers returns all of the users and their fields available in the database.
 func (db *Database) ListUsers() ([]User, error) {
-	return ListEntities[User](db, listUsersStmt)
+	users, err := ListEntities[User](db, listUsersStmt)
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to list users", ErrInternal)
+	}
+	return users, nil
 }
 
 // GetUser retrieves the name, password and the permission level of a user.
@@ -55,7 +59,16 @@ func (db *Database) GetUser(filter UserFilter) (*User, error) {
 		return nil, InvalidFilterError("user", "both ID and Username are nil")
 	}
 
-	return GetOneEntity(db, getUserStmt, userRow)
+	user, err := GetOneEntity[User](db, getUserStmt, userRow)
+	if err != nil {
+		log.Println(err)
+		if errors.Is(err, sqlair.ErrNoRows) {
+			return nil, NotFoundError("user")
+		}
+		return nil, fmt.Errorf("%w: failed to get user", ErrInternal)
+	}
+
+	return user, nil
 }
 
 // CreateUser creates a new user from a given username, password and permission level.

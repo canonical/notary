@@ -54,7 +54,12 @@ var ErrInvalidCertificate = errors.New("invalid certificate")
 
 // ListCertificateRequests gets every CertificateRequest entry in the table.
 func (db *Database) ListCertificates() ([]Certificate, error) {
-	return ListEntities[Certificate](db, listCertificatesStmt)
+	certs, err := ListEntities[Certificate](db, listCertificatesStmt)
+	if err != nil {
+		log.Println(err)
+		return nil, fmt.Errorf("%w: failed to list certificates", ErrInternal)
+	}
+	return certs, nil
 }
 
 // GetCertificateByID gets a certificate row from the repository from a given ID.
@@ -70,7 +75,15 @@ func (db *Database) GetCertificate(filter CertificateFilter) (*Certificate, erro
 		return nil, InvalidFilterError("certificate", "both ID and PEM are nil")
 	}
 
-	return GetOneEntity(db, getCertificateStmt, certRow)
+	cert, err := GetOneEntity[Certificate](db, getCertificateStmt, certRow)
+	if err != nil {
+		log.Println(err)
+		if errors.Is(err, sqlair.ErrNoRows) {
+			return nil, NotFoundError("certificate")
+		}
+		return nil, fmt.Errorf("%w: failed to get certificate", ErrInternal)
+	}
+	return cert, nil
 }
 
 // AddCertificateChainToCertificateRequestByCSR adds a new certificate chain to a row for a given CSR string.

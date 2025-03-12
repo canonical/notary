@@ -63,6 +63,10 @@ var (
 	ErrAlreadyExists = errors.New("resource already exists")
 )
 
+func NotFoundError(entityName string) error {
+	return fmt.Errorf("%w: %s", ErrNotFound, entityName)
+}
+
 // InvalidFilterError creates a more specific invalid filter error
 func InvalidFilterError(filterType, message string) error {
 	return fmt.Errorf("%w: %s - %s", ErrInvalidFilter, filterType, message)

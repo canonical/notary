@@ -162,60 +162,42 @@ WHERE (csr_id = $CertificateRequestWithChain.csr_id OR csr = $CertificateRequest
 
 var ErrInvalidCertificateRequest = errors.New("invalid certificate request")
 
+func listCertificateRequests(db *Database, stmt string) ([]CertificateRequest, error) {
+	csrs, err := ListEntities[CertificateRequest](db, stmt)
+	if err != nil {
+		log.Println(err)
+		return nil, fmt.Errorf("%w: failed to list certificate requests", ErrInternal)
+	}
+	return csrs, nil
+}
+
+func listCertificateRequestsWithChain(db *Database, stmt string) ([]CertificateRequestWithChain, error) {
+	csrs, err := ListEntities[CertificateRequestWithChain](db, stmt)
+	if err != nil {
+		log.Println(err)
+		return nil, fmt.Errorf("%w: failed to list certificate requests", ErrInternal)
+	}
+	return csrs, nil
+}
+
 // ListCertificateRequests gets every CertificateRequest entry in the table.
 func (db *Database) ListCertificateRequests() ([]CertificateRequest, error) {
-	return ListEntities[CertificateRequest](db, listCertificateRequestsStmt)
+	return listCertificateRequests(db, listCertificateRequestsStmt)
 }
 
 // ListCertificateRequestsWithoutCAS gets every CertificateRequest entry in the table.
 func (db *Database) ListCertificateRequestsWithoutCAS() ([]CertificateRequest, error) {
-	stmt, err := sqlair.Prepare(listCertificateRequestsWithoutCASStmt, CertificateRequest{})
-	if err != nil {
-		return nil, err
-	}
-	var csrs []CertificateRequest
-	err = db.conn.Query(context.Background(), stmt).GetAll(&csrs)
-	if err != nil {
-		if errors.Is(err, sqlair.ErrNoRows) {
-			return csrs, nil
-		}
-		return nil, err
-	}
-	return csrs, nil
+	return listCertificateRequests(db, listCertificateRequestsWithoutCASStmt)
 }
 
 // ListCertificateRequestWithCertificates gets every CertificateRequest entry in the table.
 func (db *Database) ListCertificateRequestWithCertificates() ([]CertificateRequestWithChain, error) {
-	stmt, err := sqlair.Prepare(listCertificateRequestsWithCertificatesStmt, CertificateRequestWithChain{})
-	if err != nil {
-		return nil, err
-	}
-	var csrs []CertificateRequestWithChain
-	err = db.conn.Query(context.Background(), stmt).GetAll(&csrs)
-	if err != nil {
-		if errors.Is(err, sqlair.ErrNoRows) {
-			return csrs, nil
-		}
-		return nil, err
-	}
-	return csrs, nil
+	return listCertificateRequestsWithChain(db, listCertificateRequestsWithCertificatesStmt)
 }
 
 // ListCertificateRequestWithCertificatesWithoutCAS gets every CertificateRequest entry in the table.
 func (db *Database) ListCertificateRequestWithCertificatesWithoutCAS() ([]CertificateRequestWithChain, error) {
-	stmt, err := sqlair.Prepare(listCertificateRequestsWithCertificatesWithoutCASStmt, CertificateRequestWithChain{})
-	if err != nil {
-		return nil, err
-	}
-	var csrs []CertificateRequestWithChain
-	err = db.conn.Query(context.Background(), stmt).GetAll(&csrs)
-	if err != nil {
-		if errors.Is(err, sqlair.ErrNoRows) {
-			return csrs, nil
-		}
-		return nil, err
-	}
-	return csrs, nil
+	return listCertificateRequestsWithChain(db, listCertificateRequestsWithCertificatesWithoutCASStmt)
 }
 
 // GetCertificateRequestByID gets a CSR row from the repository from a given ID.
@@ -231,7 +213,14 @@ func (db *Database) GetCertificateRequest(filter CSRFilter) (*CertificateRequest
 		return nil, InvalidFilterError("certificate request", "both ID and PEM are nil")
 	}
 
-	return GetOneEntity(db, getCertificateRequestStmt, csrRow)
+	csr, err := GetOneEntity[CertificateRequest](db, getCertificateRequestStmt, csrRow)
+	if err != nil {
+		log.Println(err)
+		if errors.Is(err, sqlair.ErrNoRows) {
+			return nil, NotFoundError("certificate request")
+		}
+	}
+	return csr, nil
 }
 
 // GetCertificateRequestAndChain gets a CSR row from the repository from a given ID.
@@ -352,7 +341,7 @@ func (db *Database) DeleteCertificateRequest(filter CSRFilter) error {
 	case filter.PEM != nil:
 		csrRow = CertificateRequest{CSR: *filter.PEM}
 	default:
-		return fmt.Errorf("%w: both ID and PEM are nil", ErrInvalidFilter)
+		return InvalidFilterError("certificate request", "both ID and PEM are nil")
 	}
 	stmt, err := sqlair.Prepare(deleteCertificateRequestStmt, CertificateRequest{})
 	if err != nil {

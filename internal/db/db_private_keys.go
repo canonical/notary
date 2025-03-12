@@ -32,7 +32,12 @@ const (
 
 // ListPrivateKeys gets every PrivateKey entry in the table.
 func (db *Database) ListPrivateKeys() ([]PrivateKey, error) {
-	return ListEntities[PrivateKey](db, listPrivateKeysStmt)
+	privateKeys, err := ListEntities[PrivateKey](db, listPrivateKeysStmt)
+	if err != nil {
+		log.Println(err)
+		return nil, fmt.Errorf("%w: failed to list private keys", ErrInternal)
+	}
+	return privateKeys, nil
 }
 
 // GetPrivateKey gets a private key row from the repository from a given ID or PEM.
@@ -48,7 +53,15 @@ func (db *Database) GetPrivateKey(filter PrivateKeyFilter) (*PrivateKey, error) 
 		return nil, InvalidFilterError("private key", "both ID and PEM are nil")
 	}
 
-	return GetOneEntity(db, getPrivateKeyStmt, pkRow)
+	pk, err := GetOneEntity[PrivateKey](db, getPrivateKeyStmt, pkRow)
+	if err != nil {
+		log.Println(err)
+		if errors.Is(err, sqlair.ErrNoRows) {
+			return nil, NotFoundError("private key")
+		}
+		return nil, fmt.Errorf("%w: failed to get private key", ErrInternal)
+	}
+	return pk, nil
 }
 
 // CreatePrivateKey creates a new private key entry in the repository. The string must be a valid private key and unique.

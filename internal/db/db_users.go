@@ -59,7 +59,7 @@ func (db *Database) GetUser(filter UserFilter) (*User, error) {
 		return nil, InvalidFilterError("user", "both ID and Username are nil")
 	}
 
-	user, err := GetOneEntity[User](db, getUserStmt, userRow)
+	user, err := GetOneEntity(db, getUserStmt, userRow)
 	if err != nil {
 		log.Println(err)
 		if errors.Is(err, sqlair.ErrNoRows) {
@@ -78,6 +78,9 @@ func (db *Database) CreateUser(username string, password string, permission int)
 	pw, err := HashPassword(password)
 	if err != nil {
 		log.Println(err)
+		if errors.Is(err, ErrInvalidInput) {
+			return 0, fmt.Errorf("%w: invalid password", ErrInvalidInput)
+		}
 		return 0, fmt.Errorf("%w: failed to create user", ErrInternal)
 	}
 	stmt, err := sqlair.Prepare(createUserStmt, User{})
@@ -96,6 +99,12 @@ func (db *Database) CreateUser(username string, password string, permission int)
 		log.Println(err)
 		if isUniqueConstraintError(err) {
 			return 0, fmt.Errorf("%w: username already exists", ErrAlreadyExists)
+		}
+		if isCheckUsernameOrPasswordConstraintError(err) {
+			return 0, fmt.Errorf("%w: invalid username or password", ErrInvalidInput)
+		}
+		if isCheckPermissionsConstraintError(err) {
+			return 0, fmt.Errorf("%w: invalid permissions", ErrInvalidInput)
 		}
 		return 0, fmt.Errorf("%w: failed to create user", ErrInternal)
 	}
@@ -117,6 +126,9 @@ func (db *Database) UpdateUserPassword(filter UserFilter, password string) error
 	hashedPassword, err := HashPassword(password)
 	if err != nil {
 		log.Println(err)
+		if errors.Is(err, ErrInvalidInput) {
+			return fmt.Errorf("%w: invalid password", ErrInvalidInput)
+		}
 		return fmt.Errorf("%w: failed to hash password", ErrInternal)
 	}
 	stmt, err := sqlair.Prepare(updateUserStmt, User{})

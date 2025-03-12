@@ -208,6 +208,7 @@ func (db *Database) GetCertificateAuthority(filter CertificateAuthorityFilter) (
 	}
 	err = db.conn.Query(context.Background(), stmt, CARow).Get(CARow)
 	if err != nil {
+		log.Println(err)
 		if errors.Is(err, sqlair.ErrNoRows) {
 			return nil, NotFoundError("certificate authority")
 		}
@@ -466,5 +467,5 @@ func rowFound(err error) bool {
 }
 
 func realError(err error) bool {
-	return err != nil && !errors.Is(err, sqlair.ErrNoRows)
+	return err != nil && !errors.Is(err, sqlair.ErrNoRows) && !errors.Is(err, ErrNotFound)
 }

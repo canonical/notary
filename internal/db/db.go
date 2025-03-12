@@ -61,6 +61,7 @@ var (
 	ErrInternal      = errors.New("internal error")
 	ErrInvalidFilter = errors.New("invalid filter")
 	ErrAlreadyExists = errors.New("resource already exists")
+	ErrInvalidInput  = errors.New("invalid input")
 )
 
 func NotFoundError(entityName string) error {
@@ -78,4 +79,20 @@ func isUniqueConstraintError(err error) bool {
 	}
 
 	return strings.Contains(err.Error(), "UNIQUE constraint failed")
+}
+
+func isCheckUsernameOrPasswordConstraintError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	return strings.Contains(err.Error(), "CHECK constraint failed: trim")
+}
+
+func isCheckPermissionsConstraintError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	return strings.Contains(err.Error(), "CHECK constraint failed: permissions IN (0,1)")
 }

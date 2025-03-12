@@ -147,7 +147,7 @@ func sanitizeCertificateBundle(cert string) ([]string, error) {
 // Takes the password string, makes sure it's not empty, and hashes it using bcrypt
 func HashPassword(password string) (string, error) {
 	if strings.TrimSpace(password) == "" {
-		return "", fmt.Errorf("password cannot be empty")
+		return "", fmt.Errorf("%w: password cannot be empty", ErrInvalidInput)
 	}
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {

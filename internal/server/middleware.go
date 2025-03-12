@@ -13,7 +13,7 @@ import (
 
 	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/metrics"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 

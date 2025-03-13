@@ -160,8 +160,6 @@ FROM certificate_chain
 WHERE (csr_id = $CertificateRequestWithChain.csr_id OR csr = $CertificateRequestWithChain.csr) AND (chain = '' OR issuer_id = 0)`
 )
 
-var ErrInvalidCertificateRequest = errors.New("invalid certificate request")
-
 func listCertificateRequests(db *Database, stmt string) ([]CertificateRequest, error) {
 	csrs, err := ListEntities[CertificateRequest](db, stmt)
 	if err != nil {
@@ -268,7 +266,7 @@ func (db *Database) CreateCertificateRequest(csr string) (int64, error) {
 	var outcome sqlair.Outcome
 	err = db.conn.Query(context.Background(), stmt, row).Get(&outcome)
 	if err != nil {
-		if isUniqueConstraintError(err) {
+		if IsConstraintError(err, "UNIQUE constraint failed") {
 			return 0, fmt.Errorf("%w: certificate request already exists", ErrAlreadyExists)
 		}
 		log.Println(err)

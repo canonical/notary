@@ -50,8 +50,6 @@ const (
 SELECT &Certificate.* FROM cert_chain;`
 )
 
-var ErrInvalidCertificate = errors.New("invalid certificate")
-
 // ListCertificateRequests gets every CertificateRequest entry in the table.
 func (db *Database) ListCertificates() ([]Certificate, error) {
 	certs, err := ListEntities[Certificate](db, listCertificatesStmt)
@@ -119,7 +117,7 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 		var outcome sqlair.Outcome
 		err = db.conn.Query(context.Background(), stmt, certRow).Get(&outcome)
 		if err != nil {
-			if isUniqueConstraintError(err) {
+			if IsConstraintError(err, "UNIQUE constraint failed") {
 				return 0, fmt.Errorf("%w: certificate already exists", ErrAlreadyExists)
 			}
 			log.Println(err)
@@ -154,7 +152,7 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 				var outcome sqlair.Outcome
 				err = db.conn.Query(context.Background(), stmt, certRow).Get(&outcome)
 				if err != nil {
-					if isUniqueConstraintError(err) {
+					if IsConstraintError(err, "UNIQUE constraint failed") {
 						return 0, fmt.Errorf("%w: certificate already exists", ErrAlreadyExists)
 					}
 					log.Println(err)

@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/canonical/notary/internal/db"
-	"github.com/canonical/sqlair"
 )
 
 type CreateCertificateRequestParams struct {
@@ -443,12 +442,4 @@ func SignCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 	}
-}
-
-func realError(err error) bool {
-	return err != nil && !errors.Is(err, sqlair.ErrNoRows)
-}
-
-func rowFound(err error) bool {
-	return err == nil
 }

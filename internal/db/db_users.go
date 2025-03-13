@@ -93,18 +93,16 @@ func (db *Database) CreateUser(username string, password string, permission int)
 		HashedPassword: pw,
 		Permissions:    permission,
 	}
+	err = ValidateUser(row)
+	if err != nil {
+		return 0, err
+	}
 	var outcome sqlair.Outcome
 	err = db.conn.Query(context.Background(), stmt, row).Get(&outcome)
 	if err != nil {
 		log.Println(err)
-		if isUniqueConstraintError(err) {
+		if IsConstraintError(err, "UNIQUE constraint failed") {
 			return 0, fmt.Errorf("%w: username already exists", ErrAlreadyExists)
-		}
-		if isCheckUsernameOrPasswordConstraintError(err) {
-			return 0, fmt.Errorf("%w: invalid username or password", ErrInvalidInput)
-		}
-		if isCheckPermissionsConstraintError(err) {
-			return 0, fmt.Errorf("%w: invalid permissions", ErrInvalidInput)
 		}
 		return 0, fmt.Errorf("%w: failed to create user", ErrInternal)
 	}
@@ -134,7 +132,7 @@ func (db *Database) UpdateUserPassword(filter UserFilter, password string) error
 	stmt, err := sqlair.Prepare(updateUserStmt, User{})
 	if err != nil {
 		log.Println(err)
-		return fmt.Errorf("%w: failed to prepare update user statement", ErrInternal)
+		return fmt.Errorf("%w: failed to update user", ErrInternal)
 	}
 	userRow.HashedPassword = hashedPassword
 	err = db.conn.Query(context.Background(), stmt, userRow).Run()
@@ -156,7 +154,7 @@ func (db *Database) DeleteUser(filter UserFilter) error {
 	}
 	stmt, err := sqlair.Prepare(deleteUserStmt, User{})
 	if err != nil {
-		return fmt.Errorf("%w: failed to prepare delete user statement", ErrInternal)
+		return fmt.Errorf("%w: failed to delete user", ErrInternal)
 	}
 	err = db.conn.Query(context.Background(), stmt, userRow).Run()
 	if err != nil {
@@ -173,7 +171,7 @@ type NumUsers struct {
 func (db *Database) NumUsers() (int, error) {
 	stmt, err := sqlair.Prepare(getNumUsersStmt, NumUsers{})
 	if err != nil {
-		return 0, fmt.Errorf("%w: failed to prepare get number of users statement", ErrInternal)
+		return 0, fmt.Errorf("%w: failed to get number of users", ErrInternal)
 	}
 	result := NumUsers{}
 	err = db.conn.Query(context.Background(), stmt).Get(&result)

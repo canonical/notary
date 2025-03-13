@@ -122,6 +122,19 @@ func ValidatePrivateKey(pk string) error {
 	return nil
 }
 
+func ValidateUser(user User) error {
+	if user.Username == "" {
+		return fmt.Errorf("%w: invalid username or password", ErrInvalidInput)
+	}
+	if user.HashedPassword == "" {
+		return fmt.Errorf("%w: invalid username or password", ErrInvalidInput)
+	}
+	if user.Permissions != 0 && user.Permissions != 1 {
+		return fmt.Errorf("%w: invalid permissions", ErrInvalidInput)
+	}
+	return nil
+}
+
 // SanitizeCertificateBundle takes in a valid certificate string and formats it.
 // The final list has pure certificate PEM strings with no trailing or leading whitespace
 func sanitizeCertificateBundle(cert string) ([]string, error) {

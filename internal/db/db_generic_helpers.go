@@ -7,7 +7,7 @@ import (
 	"github.com/canonical/sqlair"
 )
 
-// ListEntities is a generic function that retrieves all entities of a given type.
+// ListEntities retrieves all entities of a given type from the database.
 func ListEntities[T any](db *Database, query string) ([]T, error) {
 	stmt, err := sqlair.Prepare(query, *new(T))
 	if err != nil {
@@ -23,7 +23,7 @@ func ListEntities[T any](db *Database, query string) ([]T, error) {
 	return entities, nil
 }
 
-// GetOneEntity executes a database query and gets a single entity.
+// GetOneEntity retrieves a single entity of a given type from the database.
 func GetOneEntity[T any](db *Database, query string, params T) (*T, error) {
 	stmt, err := sqlair.Prepare(query, *new(T))
 	if err != nil {

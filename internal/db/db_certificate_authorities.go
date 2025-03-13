@@ -223,7 +223,6 @@ func (db *Database) GetDenormalizedCertificateAuthority(filter CertificateAuthor
 	CADenormalizedRow, DenormalizedCAErr := filter.AsCertificateAuthorityDenormalized()
 	CARow, CAerr := filter.AsCertificateAuthority()
 	if CAerr != nil && DenormalizedCAErr != nil {
-		log.Println(CAerr, DenormalizedCAErr)
 		return nil, InvalidFilterError("certificate authority", "only CA ID, CSR ID, or CSR PEM is supported")
 	}
 	stmt, err := sqlair.Prepare(getDenormalizedCertificateAuthorityStmt, CertificateAuthority{}, CertificateAuthorityDenormalized{})
@@ -278,7 +277,7 @@ func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, ce
 	var outcome sqlair.Outcome
 	err = db.conn.Query(context.Background(), stmt, CARow).Get(&outcome)
 	if err != nil {
-		if isUniqueConstraintError(err) {
+		if IsConstraintError(err, "UNIQUE constraint failed") {
 			return 0, fmt.Errorf("%w: certificate authority already exists", ErrAlreadyExists)
 		}
 		log.Println(err)

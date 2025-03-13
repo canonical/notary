@@ -82,7 +82,7 @@ func (db *Database) CreatePrivateKey(pk string) (int64, error) {
 	err = db.conn.Query(context.Background(), stmt, row).Get(&outcome)
 	if err != nil {
 		log.Println(err)
-		if isUniqueConstraintError(err) {
+		if IsConstraintError(err, "UNIQUE constraint failed") {
 			return 0, fmt.Errorf("%w: private key already exists", ErrAlreadyExists)
 		}
 		return 0, fmt.Errorf("%w: failed to create private key", ErrInternal)
@@ -111,7 +111,7 @@ func (db *Database) DeletePrivateKey(filter PrivateKeyFilter) error {
 	stmt, err := sqlair.Prepare(deletePrivateKeyStmt, PrivateKey{})
 	if err != nil {
 		log.Println(err)
-		return fmt.Errorf("%w: failed to prepare delete private key statement", ErrInternal)
+		return fmt.Errorf("%w: failed to delete private key", ErrInternal)
 	}
 	err = db.conn.Query(context.Background(), stmt, pkRow).Run()
 	if err != nil {

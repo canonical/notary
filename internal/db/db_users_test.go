@@ -1,7 +1,7 @@
 package db_test
 
 import (
-	"strings"
+	"errors"
 	"testing"
 
 	"github.com/canonical/notary/internal/db"
@@ -98,8 +98,8 @@ func TestCreateUserFails(t *testing.T) {
 			"An error should have been returned when creating a user with a duplicate username.",
 		)
 	}
-	if !strings.Contains(err.Error(), "UNIQUE constraint failed") {
-		t.Fatalf("The error should include 'UNIQUE constraint failed'")
+	if !errors.Is(err, db.ErrAlreadyExists) {
+		t.Fatalf("An error should have been returned when creating a user with a duplicate username.")
 	}
 	num, err := database.NumUsers()
 	if err != nil {
@@ -116,8 +116,8 @@ func TestCreateUserFails(t *testing.T) {
 	if err == nil {
 		t.Fatalf("An error should have been returned when creating a user with an empty username.")
 	}
-	if !strings.Contains(err.Error(), "CHECK constraint failed") {
-		t.Fatalf("The error should include 'CHECK constraint failed'")
+	if !errors.Is(err, db.ErrInvalidInput) {
+		t.Fatalf("An ErrInvalidInput should have been returned when creating a user with an empty username.")
 	}
 	num, err = database.NumUsers()
 	if err != nil {
@@ -130,8 +130,8 @@ func TestCreateUserFails(t *testing.T) {
 	if err == nil {
 		t.Fatalf("An error should have been returned when creating a user with a nil password.")
 	}
-	if !strings.Contains(err.Error(), "password cannot be empty") {
-		t.Fatalf("The error should include 'password cannot be empty'")
+	if !errors.Is(err, db.ErrInvalidInput) {
+		t.Fatalf("An ErrInvalidInput should have been returned when creating a user with a nil password.")
 	}
 	num, err = database.NumUsers()
 	if err != nil {
@@ -144,8 +144,8 @@ func TestCreateUserFails(t *testing.T) {
 	if err == nil {
 		t.Fatalf("An error should have been returned when creating a user with an invalid permission level.")
 	}
-	if !strings.Contains(err.Error(), "CHECK constraint failed: permissions IN (0,1)") {
-		t.Fatalf("The error should include 'CHECK constraint failed: permissions IN (0,1)'")
+	if !errors.Is(err, db.ErrInvalidInput) {
+		t.Fatalf("An ErrInvalidInput should have been returned when creating a user with an invalid permission level.")
 	}
 }
 
@@ -206,8 +206,8 @@ func TestUpdateUserPasswordFails(t *testing.T) {
 	if err == nil {
 		t.Fatalf("An error should have been returned when updating a user with an empty password.")
 	}
-	if !strings.Contains(err.Error(), "password cannot be empty") {
-		t.Fatalf("The error should include 'password cannot be empty'")
+	if !errors.Is(err, db.ErrInvalidInput) {
+		t.Fatalf("An ErrInvalidInput should have been returned when updating a user with an empty password.")
 	}
 	retrievedUser, err = database.GetUser(db.ByUserID(1))
 	if err != nil {

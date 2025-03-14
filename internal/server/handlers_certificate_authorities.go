@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/canonical/notary/internal/db"
-	"github.com/canonical/sqlair"
 )
 
 type CertificateAuthority struct {
@@ -221,7 +220,6 @@ func ListCertificateAuthorities(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cas, err := env.DB.ListDenormalizedCertificateAuthorities()
 		if err != nil {
-			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
@@ -295,8 +293,7 @@ func GetCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 
 		ca, err := env.DB.GetDenormalizedCertificateAuthority(db.ByCertificateAuthorityID(idNum))
 		if err != nil {
-			log.Println(err)
-			if errors.Is(err, sqlair.ErrNoRows) {
+			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}
@@ -347,8 +344,7 @@ func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 		}
 		err = env.DB.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(idNum), status)
 		if err != nil {
-			log.Println(err)
-			if errors.Is(err, sqlair.ErrNoRows) {
+			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}
@@ -378,8 +374,7 @@ func DeleteCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 
 		err = env.DB.DeleteCertificateAuthority(db.ByCertificateAuthorityID(idNum))
 		if err != nil {
-			log.Println(err)
-			if errors.Is(err, sqlair.ErrNoRows) {
+			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}
@@ -418,8 +413,7 @@ func PostCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
 
 		err = env.DB.UpdateCertificateAuthorityCertificate(db.ByCertificateAuthorityID(idNum), UploadCertificateToCertificateAuthorityParams.CertificateChain)
 		if err != nil {
-			log.Println(err)
-			if errors.Is(err, sqlair.ErrNoRows) {
+			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}
@@ -463,8 +457,7 @@ func SignCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 		}
 		err = env.DB.SignCertificateRequest(db.ByCSRID(caToBeSigned.CSRID), db.ByCertificateAuthorityID(caIDInt))
 		if err != nil {
-			log.Println(err)
-			if errors.Is(err, sqlair.ErrNoRows) {
+			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}

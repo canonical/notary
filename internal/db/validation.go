@@ -122,6 +122,19 @@ func ValidatePrivateKey(pk string) error {
 	return nil
 }
 
+func ValidateUser(user User) error {
+	if user.Username == "" {
+		return fmt.Errorf("invalid username or password")
+	}
+	if user.HashedPassword == "" {
+		return fmt.Errorf("invalid username or password")
+	}
+	if user.Permissions != 0 && user.Permissions != 1 {
+		return fmt.Errorf("invalid permissions")
+	}
+	return nil
+}
+
 // SanitizeCertificateBundle takes in a valid certificate string and formats it.
 // The final list has pure certificate PEM strings with no trailing or leading whitespace
 func sanitizeCertificateBundle(cert string) ([]string, error) {
@@ -147,7 +160,7 @@ func sanitizeCertificateBundle(cert string) ([]string, error) {
 // Takes the password string, makes sure it's not empty, and hashes it using bcrypt
 func HashPassword(password string) (string, error) {
 	if strings.TrimSpace(password) == "" {
-		return "", fmt.Errorf("password cannot be empty")
+		return "", fmt.Errorf("%w: password cannot be empty", ErrInvalidInput)
 	}
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {

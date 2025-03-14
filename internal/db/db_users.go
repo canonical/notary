@@ -56,14 +56,14 @@ func (db *Database) GetUser(filter UserFilter) (*User, error) {
 	case filter.Username != nil:
 		userRow = User{Username: *filter.Username}
 	default:
-		return nil, InvalidFilterError("user", "both ID and Username are nil")
+		return nil, fmt.Errorf("%w: user - both ID and Username are nil", ErrInvalidFilter)
 	}
 
 	user, err := GetOneEntity(db, getUserStmt, userRow)
 	if err != nil {
 		log.Println(err)
 		if errors.Is(err, sqlair.ErrNoRows) {
-			return nil, NotFoundError("user")
+			return nil, fmt.Errorf("%w: %s", ErrNotFound, "user")
 		}
 		return nil, fmt.Errorf("%w: failed to get user", ErrInternal)
 	}
@@ -95,7 +95,7 @@ func (db *Database) CreateUser(username string, password string, permission int)
 	}
 	err = ValidateUser(row)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("%w: %e", ErrInvalidInput, err)
 	}
 	var outcome sqlair.Outcome
 	err = db.conn.Query(context.Background(), stmt, row).Get(&outcome)

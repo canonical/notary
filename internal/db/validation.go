@@ -124,13 +124,13 @@ func ValidatePrivateKey(pk string) error {
 
 func ValidateUser(user User) error {
 	if user.Username == "" {
-		return fmt.Errorf("%w: invalid username or password", ErrInvalidInput)
+		return fmt.Errorf("invalid username or password")
 	}
 	if user.HashedPassword == "" {
-		return fmt.Errorf("%w: invalid username or password", ErrInvalidInput)
+		return fmt.Errorf("invalid username or password")
 	}
 	if user.Permissions != 0 && user.Permissions != 1 {
-		return fmt.Errorf("%w: invalid permissions", ErrInvalidInput)
+		return fmt.Errorf("invalid permissions")
 	}
 	return nil
 }

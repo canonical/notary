@@ -50,14 +50,14 @@ func (db *Database) GetPrivateKey(filter PrivateKeyFilter) (*PrivateKey, error) 
 	case filter.PEM != nil:
 		pkRow = PrivateKey{PrivateKeyPEM: *filter.PEM}
 	default:
-		return nil, InvalidFilterError("private key", "both ID and PEM are nil")
+		return nil, fmt.Errorf("%w: private key - both ID and PEM are nil", ErrInvalidFilter)
 	}
 
 	pk, err := GetOneEntity[PrivateKey](db, getPrivateKeyStmt, pkRow)
 	if err != nil {
 		log.Println(err)
 		if errors.Is(err, sqlair.ErrNoRows) {
-			return nil, NotFoundError("private key")
+			return nil, fmt.Errorf("%w: %s", ErrNotFound, "private key")
 		}
 		return nil, fmt.Errorf("%w: failed to get private key", ErrInternal)
 	}
@@ -105,7 +105,7 @@ func (db *Database) DeletePrivateKey(filter PrivateKeyFilter) error {
 	case filter.PEM != nil:
 		pkRow = PrivateKey{PrivateKeyPEM: *filter.PEM}
 	default:
-		return InvalidFilterError("private key", "both ID and PEM are nil")
+		return fmt.Errorf("%w: private key - both ID and PEM are nil", ErrInvalidFilter)
 	}
 
 	stmt, err := sqlair.Prepare(deletePrivateKeyStmt, PrivateKey{})

@@ -70,14 +70,14 @@ func (db *Database) GetCertificate(filter CertificateFilter) (*Certificate, erro
 	case filter.PEM != nil:
 		certRow = Certificate{CertificatePEM: *filter.PEM}
 	default:
-		return nil, InvalidFilterError("certificate", "both ID and PEM are nil")
+		return nil, fmt.Errorf("%w: certificate - both ID and PEM are nil", ErrInvalidFilter)
 	}
 
 	cert, err := GetOneEntity[Certificate](db, getCertificateStmt, certRow)
 	if err != nil {
 		log.Println(err)
 		if errors.Is(err, sqlair.ErrNoRows) {
-			return nil, NotFoundError("certificate")
+			return nil, fmt.Errorf("%w: %s", ErrNotFound, "certificate")
 		}
 		return nil, fmt.Errorf("%w: failed to get certificate", ErrInternal)
 	}
@@ -92,15 +92,15 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 	}
 	err = ValidateCertificate(certPEM)
 	if err != nil {
-		return 0, ErrInvalidCertificate
+		return 0, fmt.Errorf("%w: %e", ErrInvalidCertificate, err)
 	}
 	err = CertificateMatchesCSR(certPEM, csr.CSR)
 	if err != nil {
-		return 0, ErrInvalidCertificate
+		return 0, fmt.Errorf("%w: %e", ErrInvalidCertificate, err)
 	}
 	certBundle, err := sanitizeCertificateBundle(certPEM)
 	if err != nil {
-		return 0, ErrInvalidCertificate
+		return 0, fmt.Errorf("%w: %e", ErrInvalidCertificate, err)
 	}
 	var parentID int64 = 0
 	if isSelfSigned(certBundle) {
@@ -198,7 +198,7 @@ func (db *Database) DeleteCertificate(filter CertificateFilter) error {
 	case filter.PEM != nil:
 		certRow = Certificate{CertificatePEM: *filter.PEM}
 	default:
-		return InvalidFilterError("certificate", "both ID and PEM are nil")
+		return fmt.Errorf("%w: certificate - both ID and PEM are nil", ErrInvalidFilter)
 	}
 
 	stmt, err := sqlair.Prepare(deleteCertificateStmt, Certificate{})
@@ -227,7 +227,7 @@ func (db *Database) GetCertificateChain(filter CertificateFilter) ([]Certificate
 	case filter.PEM != nil:
 		certRow = Certificate{CertificatePEM: *filter.PEM}
 	default:
-		return nil, InvalidFilterError("certificate", "both ID and PEM are nil")
+		return nil, fmt.Errorf("%w: certificate - both ID and PEM are nil", ErrInvalidFilter)
 	}
 
 	stmt, err := sqlair.Prepare(getCertificateChainStmt, Certificate{})

@@ -160,42 +160,44 @@ FROM certificate_chain
 WHERE (csr_id = $CertificateRequestWithChain.csr_id OR csr = $CertificateRequestWithChain.csr) AND (chain = '' OR issuer_id = 0)`
 )
 
-func listCertificateRequests(db *Database, stmt string) ([]CertificateRequest, error) {
-	csrs, err := ListEntities[CertificateRequest](db, stmt)
-	if err != nil {
-		log.Println(err)
-		return nil, fmt.Errorf("%w: failed to list certificate requests", ErrInternal)
-	}
-	return csrs, nil
-}
-
-func listCertificateRequestsWithChain(db *Database, stmt string) ([]CertificateRequestWithChain, error) {
-	csrs, err := ListEntities[CertificateRequestWithChain](db, stmt)
-	if err != nil {
-		log.Println(err)
-		return nil, fmt.Errorf("%w: failed to list certificate requests", ErrInternal)
-	}
-	return csrs, nil
-}
-
 // ListCertificateRequests gets every CertificateRequest entry in the table.
 func (db *Database) ListCertificateRequests() ([]CertificateRequest, error) {
-	return listCertificateRequests(db, listCertificateRequestsStmt)
+	csrs, err := ListEntities[CertificateRequest](db, listCertificateRequestsStmt)
+	if err != nil {
+		log.Println(err)
+		return nil, fmt.Errorf("%w: failed to list certificate requests", ErrInternal)
+	}
+	return csrs, nil
 }
 
 // ListCertificateRequestsWithoutCAS gets every CertificateRequest entry in the table.
 func (db *Database) ListCertificateRequestsWithoutCAS() ([]CertificateRequest, error) {
-	return listCertificateRequests(db, listCertificateRequestsWithoutCASStmt)
+	csrs, err := ListEntities[CertificateRequest](db, listCertificateRequestsWithoutCASStmt)
+	if err != nil {
+		log.Println(err)
+		return nil, fmt.Errorf("%w: failed to list certificate requests", ErrInternal)
+	}
+	return csrs, nil
 }
 
 // ListCertificateRequestWithCertificates gets every CertificateRequest entry in the table.
 func (db *Database) ListCertificateRequestWithCertificates() ([]CertificateRequestWithChain, error) {
-	return listCertificateRequestsWithChain(db, listCertificateRequestsWithCertificatesStmt)
+	csrs, err := ListEntities[CertificateRequestWithChain](db, listCertificateRequestsWithCertificatesStmt)
+	if err != nil {
+		log.Println(err)
+		return nil, fmt.Errorf("%w: failed to list certificate requests", ErrInternal)
+	}
+	return csrs, nil
 }
 
 // ListCertificateRequestWithCertificatesWithoutCAS gets every CertificateRequest entry in the table.
 func (db *Database) ListCertificateRequestWithCertificatesWithoutCAS() ([]CertificateRequestWithChain, error) {
-	return listCertificateRequestsWithChain(db, listCertificateRequestsWithCertificatesWithoutCASStmt)
+	csrs, err := ListEntities[CertificateRequestWithChain](db, listCertificateRequestsWithCertificatesWithoutCASStmt)
+	if err != nil {
+		log.Println(err)
+		return nil, fmt.Errorf("%w: failed to list certificate requests", ErrInternal)
+	}
+	return csrs, nil
 }
 
 // GetCertificateRequestByID gets a CSR row from the repository from a given ID.
@@ -208,14 +210,14 @@ func (db *Database) GetCertificateRequest(filter CSRFilter) (*CertificateRequest
 	case filter.PEM != nil:
 		csrRow = CertificateRequest{CSR: *filter.PEM}
 	default:
-		return nil, InvalidFilterError("certificate request", "both ID and PEM are nil")
+		return nil, fmt.Errorf("%w: certificate request - both ID and PEM are nil", ErrInvalidFilter)
 	}
 
 	csr, err := GetOneEntity[CertificateRequest](db, getCertificateRequestStmt, csrRow)
 	if err != nil {
 		log.Println(err)
 		if errors.Is(err, sqlair.ErrNoRows) {
-			return nil, NotFoundError("certificate request")
+			return nil, fmt.Errorf("%w: %s", ErrNotFound, "certificate request")
 		}
 	}
 	return csr, nil
@@ -231,7 +233,7 @@ func (db *Database) GetCertificateRequestAndChain(filter CSRFilter) (*Certificat
 	case filter.PEM != nil:
 		csrRow = CertificateRequestWithChain{CSR: *filter.PEM}
 	default:
-		return nil, InvalidFilterError("certificate request", "both ID and PEM are nil")
+		return nil, fmt.Errorf("%w: certificate request - both ID and PEM are nil", ErrInvalidFilter)
 	}
 
 	stmt, err := sqlair.Prepare(getCertificateRequestWithCertificateStmt, CertificateRequestWithChain{})
@@ -253,7 +255,7 @@ func (db *Database) GetCertificateRequestAndChain(filter CSRFilter) (*Certificat
 // CreateCertificateRequest creates a new CSR entry in the repository. The string must be a valid CSR and unique.
 func (db *Database) CreateCertificateRequest(csr string) (int64, error) {
 	if err := ValidateCertificateRequest(csr); err != nil {
-		return 0, ErrInvalidCertificateRequest
+		return 0, fmt.Errorf("%w: %e", ErrInvalidCertificateRequest, err)
 	}
 	stmt, err := sqlair.Prepare(createCertificateRequestStmt, CertificateRequest{})
 	if err != nil {
@@ -339,7 +341,7 @@ func (db *Database) DeleteCertificateRequest(filter CSRFilter) error {
 	case filter.PEM != nil:
 		csrRow = CertificateRequest{CSR: *filter.PEM}
 	default:
-		return InvalidFilterError("certificate request", "both ID and PEM are nil")
+		return fmt.Errorf("%w: certificate request - both ID and PEM are nil", ErrInvalidFilter)
 	}
 	stmt, err := sqlair.Prepare(deleteCertificateRequestStmt, CertificateRequest{})
 	if err != nil {

@@ -114,7 +114,7 @@ func GetAccount(env *HandlerConfig) http.HandlerFunc {
 			account, err = env.DB.GetUser(db.ByUserID(idNum))
 		}
 		if err != nil {
-			if errors.Is(err, db.ErrNotFound) || errors.Is(err, db.ErrInvalidFilter) {
+			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}
@@ -195,7 +195,7 @@ func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
 		}
 		account, err := env.DB.GetUser(db.ByUserID(idInt))
 		if err != nil {
-			if errors.Is(err, db.ErrNotFound) || errors.Is(err, db.ErrInvalidFilter) {
+			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}

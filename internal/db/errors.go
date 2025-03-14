@@ -2,7 +2,6 @@ package db
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 )
 
@@ -15,16 +14,6 @@ var (
 	ErrInvalidCertificate        = errors.New("invalid certificate")
 	ErrInvalidCertificateRequest = errors.New("invalid certificate request")
 )
-
-// NotFoundError customizes the error message for not found errors
-func NotFoundError(entityName string) error {
-	return fmt.Errorf("%w: %s", ErrNotFound, entityName)
-}
-
-// InvalidFilterError customizes the error message for invalid filter errors
-func InvalidFilterError(filterType, message string) error {
-	return fmt.Errorf("%w: %s - %s", ErrInvalidFilter, filterType, message)
-}
 
 // IsConstraintError checks if the error is a constraint error
 func IsConstraintError(err error, constraint string) bool {

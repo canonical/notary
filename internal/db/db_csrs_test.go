@@ -1,6 +1,7 @@
 package db_test
 
 import (
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -180,12 +181,18 @@ func TestDeleteCertificateRequest(t *testing.T) {
 		t.Fatalf("Failed to create CSR: %s", err)
 	}
 	err = database.DeleteCertificateRequest(db.ByCSRPEM("this is definitely not a csr"))
-	if err != nil {
-		t.Fatalf("Deleting a nonexistent CSR should not return an error: %s", err)
+	if err == nil {
+		t.Fatalf("Deleting a nonexistent CSR should return an error")
+	}
+	if !errors.Is(err, db.ErrNotFound) {
+		t.Fatalf("Expected a not found error when deleting a nonexistent CSR, got %s", err)
 	}
 	err = database.DeleteCertificateRequest(db.ByCSRID(-1))
-	if err != nil {
-		t.Fatalf("Deleting a nonexistent CSR should not return an error: %s", err)
+	if err == nil {
+		t.Fatalf("Deleting a nonexistent CSR should return an error")
+	}
+	if !errors.Is(err, db.ErrNotFound) {
+		t.Fatalf("Expected a not found error when deleting a nonexistent CSR, got %s", err)
 	}
 	csr, err := database.GetCertificateRequest(db.ByCSRPEM(AppleCSR))
 	if err != nil {

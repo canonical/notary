@@ -190,17 +190,10 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 
 // DeleteCertificate removes a certificate from the database.
 func (db *Database) DeleteCertificate(filter CertificateFilter) error {
-	var certRow Certificate
-
-	switch {
-	case filter.ID != nil:
-		certRow = Certificate{CertificateID: *filter.ID}
-	case filter.PEM != nil:
-		certRow = Certificate{CertificatePEM: *filter.PEM}
-	default:
-		return fmt.Errorf("%w: certificate - both ID and PEM are nil", ErrInvalidFilter)
+	certRow, err := db.GetCertificate(filter)
+	if err != nil {
+		return err
 	}
-
 	stmt, err := sqlair.Prepare(deleteCertificateStmt, Certificate{})
 	if err != nil {
 		log.Println(err)
@@ -209,9 +202,6 @@ func (db *Database) DeleteCertificate(filter CertificateFilter) error {
 	err = db.conn.Query(context.Background(), stmt, certRow).Run()
 	if err != nil {
 		log.Println(err)
-		if errors.Is(err, sqlair.ErrNoRows) {
-			return fmt.Errorf("%w: certificate not found", ErrNotFound)
-		}
 		return fmt.Errorf("%w: failed to delete certificate", ErrInternal)
 	}
 	return nil

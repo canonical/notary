@@ -311,9 +311,6 @@ func (db *Database) UpdateCertificateAuthorityCertificate(filter CertificateAuth
 	}
 	err = db.conn.Query(context.Background(), stmt, ca).Run()
 	if err != nil {
-		if errors.Is(err, sqlair.ErrNoRows) {
-			return fmt.Errorf("%w: certificate authority not found", ErrNotFound)
-		}
 		log.Println(err)
 		return fmt.Errorf("%w: failed to update certificate authority", ErrInternal)
 	}
@@ -334,9 +331,6 @@ func (db *Database) UpdateCertificateAuthorityStatus(filter CertificateAuthority
 	}
 	err = db.conn.Query(context.Background(), stmt, ca).Run()
 	if err != nil {
-		if errors.Is(err, sqlair.ErrNoRows) {
-			return fmt.Errorf("%w: certificate authority not found", ErrNotFound)
-		}
 		log.Println(err)
 		return fmt.Errorf("%w: failed to update certificate authority", ErrInternal)
 	}
@@ -345,9 +339,9 @@ func (db *Database) UpdateCertificateAuthorityStatus(filter CertificateAuthority
 
 // DeleteCertificateAuthority removes a certificate authority from the database.
 func (db *Database) DeleteCertificateAuthority(filter CertificateAuthorityFilter) error {
-	caRow, err := filter.AsCertificateAuthority()
+	caRow, err := db.GetCertificateAuthority(filter)
 	if err != nil {
-		return fmt.Errorf("%w: certificate authority - %s", ErrInvalidFilter, err.Error())
+		return err
 	}
 	stmt, err := sqlair.Prepare(deleteCertificateAuthorityStmt, CertificateAuthority{})
 	if err != nil {
@@ -356,9 +350,6 @@ func (db *Database) DeleteCertificateAuthority(filter CertificateAuthorityFilter
 	}
 	err = db.conn.Query(context.Background(), stmt, caRow).Run()
 	if err != nil {
-		if errors.Is(err, sqlair.ErrNoRows) {
-			return fmt.Errorf("%w: certificate authority not found", ErrNotFound)
-		}
 		log.Println(err)
 		return fmt.Errorf("%w: failed to delete certificate authority", ErrInternal)
 	}

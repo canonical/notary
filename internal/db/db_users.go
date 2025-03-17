@@ -138,9 +138,6 @@ func (db *Database) UpdateUserPassword(filter UserFilter, password string) error
 	err = db.conn.Query(context.Background(), stmt, userRow).Run()
 	if err != nil {
 		log.Println(err)
-		if errors.Is(err, sqlair.ErrNoRows) {
-			return fmt.Errorf("%w: user not found", ErrNotFound)
-		}
 		return fmt.Errorf("%w: failed to update user", ErrInternal)
 	}
 	return nil

@@ -1,6 +1,7 @@
 package db_test
 
 import (
+	"errors"
 	"path/filepath"
 	"testing"
 
@@ -107,7 +108,10 @@ func TestPrivateKeyFails(t *testing.T) {
 	}
 
 	err = database.DeletePrivateKey(db.ByPrivateKeyPEM(RootCAPrivateKey))
-	if err != nil {
-		t.Fatalf("Couldn't delete private key: %s", err)
+	if err == nil {
+		t.Fatalf("Should have failed to delete nonexistent private key")
+	}
+	if !errors.Is(err, db.ErrNotFound) {
+		t.Fatalf("Expected a not found error when deleting a nonexistent private key, got %s", err)
 	}
 }

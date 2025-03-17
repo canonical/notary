@@ -97,15 +97,9 @@ func (db *Database) CreatePrivateKey(pk string) (int64, error) {
 
 // DeletePrivateKey deletes a private key from the database.
 func (db *Database) DeletePrivateKey(filter PrivateKeyFilter) error {
-	var pkRow PrivateKey
-
-	switch {
-	case filter.ID != nil:
-		pkRow = PrivateKey{PrivateKeyID: *filter.ID}
-	case filter.PEM != nil:
-		pkRow = PrivateKey{PrivateKeyPEM: *filter.PEM}
-	default:
-		return fmt.Errorf("%w: private key - both ID and PEM are nil", ErrInvalidFilter)
+	pkRow, err := db.GetPrivateKey(filter)
+	if err != nil {
+		return err
 	}
 
 	stmt, err := sqlair.Prepare(deletePrivateKeyStmt, PrivateKey{})

@@ -333,16 +333,11 @@ func (db *Database) RevokeCertificate(filter CSRFilter) error {
 
 // DeleteCertificateRequest removes a CSR from the database.
 func (db *Database) DeleteCertificateRequest(filter CSRFilter) error {
-	var csrRow CertificateRequest
-
-	switch {
-	case filter.ID != nil:
-		csrRow = CertificateRequest{CSR_ID: *filter.ID}
-	case filter.PEM != nil:
-		csrRow = CertificateRequest{CSR: *filter.PEM}
-	default:
-		return fmt.Errorf("%w: certificate request - both ID and PEM are nil", ErrInvalidFilter)
+	csrRow, err := db.GetCertificateRequest(filter)
+	if err != nil {
+		return err
 	}
+
 	stmt, err := sqlair.Prepare(deleteCertificateRequestStmt, CertificateRequest{})
 	if err != nil {
 		log.Println(err)

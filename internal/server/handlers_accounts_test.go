@@ -285,13 +285,14 @@ func TestAccountsEndToEnd(t *testing.T) {
 		if err != nil {
 			t.Fatalf("couldn't create account: %s", err)
 		}
-		if statusCode != http.StatusUnauthorized {
-			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, statusCode)
+		if statusCode != http.StatusNotFound {
+			t.Fatalf("expected status %d, got %d", http.StatusNotFound, statusCode)
 		}
-		if response.Error != "Unauthorized" {
-			t.Fatalf("expected error %q, got %q", "Unauthorized", response.Error)
+		if response.Error != "Not Found" {
+			t.Fatalf("expected error %q, got %q", "Not Found", response.Error)
 		}
 	})
+
 	t.Run("8. Delete account - success", func(t *testing.T) {
 		statusCode, response, err := deleteAccount(ts.URL, client, adminToken, 2)
 		if err != nil {

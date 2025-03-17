@@ -263,7 +263,7 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 		err = env.DB.UpdateUserPassword(db.ByUserID(idNum), changeAccountParams.Password)
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
-				writeError(w, http.StatusUnauthorized, "Unauthorized")
+				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}
 			writeError(w, http.StatusInternalServerError, "Internal Error")

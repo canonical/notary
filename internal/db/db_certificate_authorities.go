@@ -204,6 +204,7 @@ func (db *Database) GetCertificateAuthority(filter CertificateAuthorityFilter) (
 	}
 	stmt, err := sqlair.Prepare(getCertificateAuthorityStmt, CertificateAuthority{})
 	if err != nil {
+		log.Println(err)
 		return nil, fmt.Errorf("%w: failed to get certificate authority due to sql compilation error", ErrInternal)
 	}
 	err = db.conn.Query(context.Background(), stmt, CARow).Get(CARow)

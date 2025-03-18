@@ -95,6 +95,7 @@ func (db *Database) CreateUser(username string, password string, permission int)
 	}
 	err = ValidateUser(row)
 	if err != nil {
+		log.Println(err)
 		return 0, fmt.Errorf("%w: %e", ErrInvalidInput, err)
 	}
 	var outcome sqlair.Outcome
@@ -151,10 +152,12 @@ func (db *Database) DeleteUser(filter UserFilter) error {
 	}
 	stmt, err := sqlair.Prepare(deleteUserStmt, User{})
 	if err != nil {
+		log.Println(err)
 		return fmt.Errorf("%w: failed to delete user due to sql compilation error", ErrInternal)
 	}
 	err = db.conn.Query(context.Background(), stmt, userRow).Run()
 	if err != nil {
+		log.Println(err)
 		return fmt.Errorf("%w: failed to delete user", ErrInternal)
 	}
 	return nil
@@ -168,11 +171,13 @@ type NumUsers struct {
 func (db *Database) NumUsers() (int, error) {
 	stmt, err := sqlair.Prepare(getNumUsersStmt, NumUsers{})
 	if err != nil {
+		log.Println(err)
 		return 0, fmt.Errorf("%w: failed to get number of users due to sql compilation error", ErrInternal)
 	}
 	result := NumUsers{}
 	err = db.conn.Query(context.Background(), stmt).Get(&result)
 	if err != nil {
+		log.Println(err)
 		return 0, fmt.Errorf("%w: failed to get number of users", ErrInternal)
 	}
 	return result.Count, nil

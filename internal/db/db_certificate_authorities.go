@@ -370,7 +370,7 @@ func (db *Database) DeleteCertificateAuthority(filter CertificateAuthorityFilter
 
 // SignCertificateRequest receives a CSR and a certificate authority.
 // The CSR filter finds the CSR to sign. the CA Filter finds the CA that will issue the certificate.
-func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter CertificateAuthorityFilter) error {
+func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter CertificateAuthorityFilter, externalHostname string) error {
 	csrRow, err := db.GetCertificateRequest(csrFilter)
 	if err != nil {
 		return err
@@ -419,7 +419,6 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 		CSRIsForACertificateAuthority = true
 	}
 	// Create certificate template from the CSR
-	// TODO: add CRLDistributionPoints URI here
 	certTemplate := &x509.Certificate{
 		Subject:            certRequest.Subject,
 		EmailAddresses:     certRequest.EmailAddresses,
@@ -435,7 +434,10 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 		NotAfter:     time.Now().AddDate(expiryYears, 0, 0),
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+
+		CRLDistributionPoints: []string{fmt.Sprintf("https://%s/api/v1/certificate_authorities/%d/crl", externalHostname, caRow.CertificateAuthorityID)},
 	}
+
 	if CSRIsForACertificateAuthority {
 		certTemplate.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageCRLSign
 		certTemplate.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
@@ -496,4 +498,20 @@ func rowFound(err error) bool {
 
 func realError(err error) bool {
 	return err != nil && !errors.Is(err, sqlair.ErrNoRows) && !errors.Is(err, ErrNotFound)
+}
+
+func createCRL(certPEM string, pkPEM string) (string, error) {
+	crlBytes, err := x509.CreateRevocationList(rand.Reader, &x509.RevocationList{
+		Number:     big.NewInt(time.Now().UnixNano()),
+		ThisUpdate: time.Now(),
+		NextUpdate: time.Now().AddDate(expiryYears, 0, 0),
+	}, template, priv)
+	if err != nil {
+		return "", err
+	}
+	crlPEM := new(bytes.Buffer)
+	err = pem.Encode(crlPEM, &pem.Block{Type: "X509 CRL", Bytes: crlBytes})
+	if err != nil {
+		return "", err
+	}
 }

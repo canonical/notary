@@ -20,12 +20,18 @@ import (
 	"github.com/canonical/notary/internal/db"
 )
 
+const nextUpdateYears = 1
+
 type CertificateAuthority struct {
 	ID             int64       `json:"id"`
 	Status         db.CAStatus `json:"status"`
 	PrivateKeyPEM  string      `json:"private_key,omitempty"`
 	CertificatePEM string      `json:"certificate"`
 	CSRPEM         string      `json:"csr"`
+}
+
+type CRL struct {
+	CRL string `json:"crl"`
 }
 
 type CreateCertificateAuthorityParams struct {
@@ -117,23 +123,23 @@ func (params *UploadCertificateToCertificateAuthorityParams) IsValid() (bool, er
 }
 
 // createCertificateAuthority uses the input fields from the CA certificate generation form to create
-// an x.509 certificate request, a private key, and optionally a self-signed certificate. It returns them as PEM strings.
-func createCertificateAuthority(fields CreateCertificateAuthorityParams) (string, string, string) {
+// an x.509 certificate request, a private key, a CRL, and optionally a self-signed certificate. It returns them as PEM strings.
+func createCertificateAuthority(fields CreateCertificateAuthorityParams) (string, string, string, string) {
 	// Create the private key for the CA
 	priv, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
-		return "", "", ""
+		log.Println("error creating certificate authority: %w", err)
+		return "", "", "", ""
 	}
-
 	privPEM := new(bytes.Buffer)
 	err = pem.Encode(privPEM, &pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(priv),
 	})
 	if err != nil {
-		return "", "", ""
+		log.Println("error creating certificate authority: %w", err)
+		return "", "", "", ""
 	}
-
 	// Create the certificate request for the CA
 	csrTemplate := &x509.CertificateRequest{
 		Subject: pkix.Name{
@@ -146,30 +152,27 @@ func createCertificateAuthority(fields CreateCertificateAuthorityParams) (string
 		},
 		DNSNames: []string{fields.SANsDNS},
 	}
-
 	if fields.SANsDNS != "" {
 		csrTemplate.DNSNames = []string{fields.SANsDNS}
 	}
-
 	csrBytes, err := x509.CreateCertificateRequest(rand.Reader, csrTemplate, priv)
 	if err != nil {
-		return "", "", ""
+		log.Println("error creating certificate authority: %w", err)
+		return "", "", "", ""
 	}
-
 	csrPEM := new(bytes.Buffer)
 	err = pem.Encode(csrPEM, &pem.Block{
 		Type:  "CERTIFICATE REQUEST",
 		Bytes: csrBytes,
 	})
 	if err != nil {
-		return "", "", ""
+		log.Println("error creating certificate authority: %w", err)
+		return "", "", "", ""
 	}
-
 	// If this is not a self-signed CA, don't create a self-signed certificate
 	if !fields.SelfSigned {
-		return csrPEM.String(), privPEM.String(), ""
+		return csrPEM.String(), privPEM.String(), "", ""
 	}
-
 	template := &x509.Certificate{
 		SerialNumber: big.NewInt(time.Now().UnixNano()),
 		Subject: pkix.Name{
@@ -190,28 +193,43 @@ func createCertificateAuthority(fields CreateCertificateAuthorityParams) (string
 	if fields.NotValidAfter != "" {
 		notAfter, err := time.Parse(time.RFC3339, fields.NotValidAfter)
 		if err != nil {
-			return "", "", ""
+			log.Println("error creating certificate authority: %w", err)
+			return "", "", "", ""
 		}
 		template.NotAfter = notAfter
 	} else {
 		template.NotAfter = time.Now().AddDate(10, 0, 0) // Default 10 years
 	}
-
 	derBytes, err := x509.CreateCertificate(rand.Reader, template, template, &priv.PublicKey, priv)
 	if err != nil {
-		return "", "", ""
+		log.Println("error creating certificate authority: %w", err)
+		return "", "", "", ""
 	}
-
 	certPEM := new(bytes.Buffer)
 	err = pem.Encode(certPEM, &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: derBytes,
 	})
 	if err != nil {
-		return "", "", ""
+		log.Println("error creating certificate authority: %w", err)
+		return "", "", "", ""
 	}
-
-	return csrPEM.String(), privPEM.String(), certPEM.String()
+	crlBytes, err := x509.CreateRevocationList(rand.Reader, &x509.RevocationList{
+		Number:     big.NewInt(time.Now().UnixNano()),
+		ThisUpdate: time.Now(),
+		NextUpdate: time.Now().AddDate(nextUpdateYears, 0, 0),
+	}, template, priv)
+	if err != nil {
+		log.Println("error creating certificate authority: %w", err)
+		return "", "", "", ""
+	}
+	crlPEM := new(bytes.Buffer)
+	err = pem.Encode(crlPEM, &pem.Block{Type: "X509 CRL", Bytes: crlBytes})
+	if err != nil {
+		log.Println("error creating certificate authority: %w", err)
+		return "", "", "", ""
+	}
+	return csrPEM.String(), privPEM.String(), crlPEM.String(), certPEM.String()
 }
 
 // ListCertificateAuthorities handler returns a list of all Certificate Authorities
@@ -255,16 +273,16 @@ func CreateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error())
 			return
 		}
-		csrPEM, privPEM, certPEM := createCertificateAuthority(params)
+		csrPEM, privPEM, crlPEM, certPEM := createCertificateAuthority(params)
 		if csrPEM == "" || privPEM == "" {
 			writeError(w, http.StatusInternalServerError, "Failed to create certificate authority")
 			return
 		}
 		var newCAID int64
 		if certPEM != "" {
-			newCAID, err = env.DB.CreateCertificateAuthority(csrPEM, privPEM, certPEM+certPEM)
+			newCAID, err = env.DB.CreateCertificateAuthority(csrPEM, privPEM, crlPEM, certPEM+certPEM)
 		} else {
-			newCAID, err = env.DB.CreateCertificateAuthority(csrPEM, privPEM, "")
+			newCAID, err = env.DB.CreateCertificateAuthority(csrPEM, privPEM, crlPEM, "")
 		}
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Failed to create certificate authority")
@@ -458,6 +476,74 @@ func SignCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 		err = env.DB.SignCertificateRequest(db.ByCSRID(caToBeSigned.CSRID), db.ByCertificateAuthorityID(caIDInt))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
+				writeError(w, http.StatusNotFound, "Not Found")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		if env.SendPebbleNotifications {
+			err := SendPebbleNotification(CertificateUpdate, idNum)
+			if err != nil {
+				log.Printf("pebble notify failed: %s. continuing silently.", err.Error())
+			}
+		}
+		successResponse := SuccessResponse{Message: "success"}
+		err = writeResponse(w, successResponse, http.StatusAccepted)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
+		}
+	}
+}
+
+// GetCertificateAuthorityCRL handler returns the CRL of the associated CA
+// It returns a 200 OK on success
+func GetCertificateAuthorityCRL(env *HandlerConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		idNum, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "Invalid ID")
+			return
+		}
+
+		ca, err := env.DB.GetDenormalizedCertificateAuthority(db.ByCertificateAuthorityID(idNum))
+		if err != nil {
+			log.Println(err)
+			if errors.Is(err, sqlair.ErrNoRows) {
+				writeError(w, http.StatusNotFound, "Not Found")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		crlResponse := CRL{CRL: ca.CRL}
+
+		err = writeResponse(w, crlResponse, http.StatusOK)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
+		}
+	}
+}
+
+// RevokeCertificateAuthorityCertificate handler receives an id as a path parameter,
+// and revokes the corresponding certificate by placing the certificate serial number to the CRL
+// It returns a 200 OK on success
+func RevokeCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		idNum, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "Invalid ID")
+			return
+		}
+		err = env.DB.RevokeCertificate(db.ByCSRID(idNum))
+		// TODO: does this work rn?
+		if err != nil {
+			log.Println(err)
+			if errors.Is(err, sqlair.ErrNoRows) {
 				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}

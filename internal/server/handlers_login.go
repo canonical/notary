@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/hashing"
 	"github.com/golang-jwt/jwt/v5"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func expireAfter() time.Time {
@@ -68,14 +68,16 @@ func Login(env *HandlerConfig) http.HandlerFunc {
 		}
 		userAccount, err := env.DB.GetUser(db.ByUsername(loginParams.Username))
 		if err != nil {
-			if errors.Is(err, db.ErrNotFound) || errors.Is(err, db.ErrInvalidFilter) {
-				writeError(w, http.StatusUnauthorized, "The username or password is incorrect. Try again.")
+			if !errors.Is(err, db.ErrNotFound) && !errors.Is(err, db.ErrInvalidFilter) {
+				writeError(w, http.StatusInternalServerError, "Internal Error")
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error")
-			return
 		}
-		if err := bcrypt.CompareHashAndPassword([]byte(userAccount.HashedPassword), []byte(loginParams.Password)); err != nil {
+		hashedPassword := ""
+		if userAccount != nil {
+			hashedPassword = userAccount.HashedPassword
+		}
+		if err := hashing.CompareHashAndPassword(hashedPassword, loginParams.Password); err != nil {
 			writeError(w, http.StatusUnauthorized, "The username or password is incorrect. Try again.")
 			return
 		}

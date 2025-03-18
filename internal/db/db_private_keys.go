@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/canonical/sqlair"
 )
@@ -31,17 +32,10 @@ const (
 
 // ListPrivateKeys gets every PrivateKey entry in the table.
 func (db *Database) ListPrivateKeys() ([]PrivateKey, error) {
-	stmt, err := sqlair.Prepare(listPrivateKeysStmt, PrivateKey{})
+	privateKeys, err := ListEntities[PrivateKey](db, listPrivateKeysStmt)
 	if err != nil {
-		return nil, err
-	}
-	var privateKeys []PrivateKey
-	err = db.conn.Query(context.Background(), stmt).GetAll(&privateKeys)
-	if err != nil {
-		if errors.Is(err, sqlair.ErrNoRows) {
-			return privateKeys, nil
-		}
-		return nil, err
+		log.Println(err)
+		return nil, fmt.Errorf("%w: failed to list private keys", err)
 	}
 	return privateKeys, nil
 }
@@ -56,28 +50,30 @@ func (db *Database) GetPrivateKey(filter PrivateKeyFilter) (*PrivateKey, error) 
 	case filter.PEM != nil:
 		pkRow = PrivateKey{PrivateKeyPEM: *filter.PEM}
 	default:
-		return nil, fmt.Errorf("invalid filter identifier: both ID and PEM are nil")
+		return nil, fmt.Errorf("%w: private key - both ID and PEM are nil", ErrInvalidFilter)
 	}
 
-	stmt, err := sqlair.Prepare(getPrivateKeyStmt, PrivateKey{})
+	pk, err := GetOneEntity[PrivateKey](db, getPrivateKeyStmt, pkRow)
 	if err != nil {
-		return nil, err
+		log.Println(err)
+		if errors.Is(err, sqlair.ErrNoRows) {
+			return nil, fmt.Errorf("%w: %s", ErrNotFound, "private key")
+		}
+		return nil, fmt.Errorf("%w: failed to get private key", err)
 	}
-	err = db.conn.Query(context.Background(), stmt, pkRow).Get(&pkRow)
-	if err != nil {
-		return nil, err
-	}
-	return &pkRow, nil
+	return pk, nil
 }
 
 // CreatePrivateKey creates a new private key entry in the repository. The string must be a valid private key and unique.
 func (db *Database) CreatePrivateKey(pk string) (int64, error) {
 	if err := ValidatePrivateKey(pk); err != nil {
-		return 0, errors.New("private key validation failed: " + err.Error())
+		log.Println(err)
+		return 0, errors.New("Invalid private key: " + err.Error())
 	}
 	stmt, err := sqlair.Prepare(createPrivateKeyStmt, PrivateKey{})
 	if err != nil {
-		return 0, err
+		log.Println(err)
+		return 0, fmt.Errorf("%w: failed to create private key due to sql compilation error", ErrInternal)
 	}
 	row := PrivateKey{
 		PrivateKeyPEM: pk,
@@ -85,35 +81,36 @@ func (db *Database) CreatePrivateKey(pk string) (int64, error) {
 	var outcome sqlair.Outcome
 	err = db.conn.Query(context.Background(), stmt, row).Get(&outcome)
 	if err != nil {
-		return 0, err
+		log.Println(err)
+		if IsConstraintError(err, "UNIQUE constraint failed") {
+			return 0, fmt.Errorf("%w: private key already exists", ErrAlreadyExists)
+		}
+		return 0, fmt.Errorf("%w: failed to create private key", ErrInternal)
 	}
 	insertedRowID, err := outcome.Result().LastInsertId()
 	if err != nil {
-		return 0, err
+		log.Println(err)
+		return 0, fmt.Errorf("%w: failed to create private key", ErrInternal)
 	}
 	return insertedRowID, nil
 }
 
 // DeletePrivateKey deletes a private key from the database.
 func (db *Database) DeletePrivateKey(filter PrivateKeyFilter) error {
-	var pkRow PrivateKey
-
-	switch {
-	case filter.ID != nil:
-		pkRow = PrivateKey{PrivateKeyID: *filter.ID}
-	case filter.PEM != nil:
-		pkRow = PrivateKey{PrivateKeyPEM: *filter.PEM}
-	default:
-		return fmt.Errorf("invalid filter identifier: both ID and PEM are nil")
+	pkRow, err := db.GetPrivateKey(filter)
+	if err != nil {
+		return err
 	}
 
 	stmt, err := sqlair.Prepare(deletePrivateKeyStmt, PrivateKey{})
 	if err != nil {
-		return err
+		log.Println(err)
+		return fmt.Errorf("%w: failed to delete private key due to sql compilation error", ErrInternal)
 	}
 	err = db.conn.Query(context.Background(), stmt, pkRow).Run()
 	if err != nil {
-		return err
+		log.Println(err)
+		return fmt.Errorf("%w: failed to delete private key", ErrInternal)
 	}
 	return nil
 }

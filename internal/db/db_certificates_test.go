@@ -1,6 +1,7 @@
 package db_test
 
 import (
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -114,8 +115,11 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		t.Fatalf("Expected 3 Certificates, only got %d", len(certs))
 	}
 	err = database.DeleteCertificate(db.ByCertificatePEM("Nonexistent cert"))
-	if err != nil {
-		t.Fatalf("Attempting to delete a nonexistent certificate should not return an error")
+	if err == nil {
+		t.Fatalf("Attempting to delete a nonexistent certificate should return an error")
+	}
+	if !errors.Is(err, db.ErrNotFound) {
+		t.Fatalf("Expected a not found error when deleting a nonexistent certificate, got %s", err)
 	}
 	certs, err = database.ListCertificates()
 	if err != nil {

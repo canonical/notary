@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"time"
 
@@ -176,37 +177,23 @@ WITH RECURSIVE cas_with_chain AS (
 
 // ListCertificateAuthorities gets every Certificate Authority entry in the table.
 func (db *Database) ListCertificateAuthorities() ([]CertificateAuthority, error) {
-	stmt, err := sqlair.Prepare(listCertificateAuthoritiesStmt, CertificateAuthority{})
+	cas, err := ListEntities[CertificateAuthority](db, listCertificateAuthoritiesStmt)
 	if err != nil {
-		return nil, err
+		log.Println(err)
+		return nil, fmt.Errorf("%w: failed to list certificate authorities", err)
 	}
-	var CAs []CertificateAuthority
-	err = db.conn.Query(context.Background(), stmt).GetAll(&CAs)
-	if err != nil {
-		if errors.Is(err, sqlair.ErrNoRows) {
-			return CAs, nil
-		}
-		return nil, err
-	}
-	return CAs, nil
+	return cas, nil
 }
 
 // ListDenormalizedCertificateAuthorities gets every CertificateAuthority entry in the table
 // but instead of returning ID's that reference other table rows, it embeds the row data directly into the response object.
 func (db *Database) ListDenormalizedCertificateAuthorities() ([]CertificateAuthorityDenormalized, error) {
-	stmt, err := sqlair.Prepare(listDenormalizedCertificateAuthoritiesStmt, CertificateAuthorityDenormalized{})
+	cas, err := ListEntities[CertificateAuthorityDenormalized](db, listDenormalizedCertificateAuthoritiesStmt)
 	if err != nil {
-		return nil, err
+		log.Println(err)
+		return nil, fmt.Errorf("%w: failed to list denormalized certificate authorities", err)
 	}
-	var CAs []CertificateAuthorityDenormalized
-	err = db.conn.Query(context.Background(), stmt).GetAll(&CAs)
-	if err != nil {
-		if errors.Is(err, sqlair.ErrNoRows) {
-			return CAs, nil
-		}
-		return nil, err
-	}
-	return CAs, nil
+	return cas, nil
 }
 
 // GetCertificateAuthority gets a certificate authority row from the database.
@@ -217,11 +204,16 @@ func (db *Database) GetCertificateAuthority(filter CertificateAuthorityFilter) (
 	}
 	stmt, err := sqlair.Prepare(getCertificateAuthorityStmt, CertificateAuthority{})
 	if err != nil {
-		return nil, err
+		log.Println(err)
+		return nil, fmt.Errorf("%w: failed to get certificate authority due to sql compilation error", ErrInternal)
 	}
 	err = db.conn.Query(context.Background(), stmt, CARow).Get(CARow)
 	if err != nil {
-		return nil, err
+		log.Println(err)
+		if errors.Is(err, sqlair.ErrNoRows) {
+			return nil, fmt.Errorf("%w: %s", ErrNotFound, "certificate authority")
+		}
+		return nil, fmt.Errorf("%w: failed to get certificate authority", ErrInternal)
 	}
 	return CARow, nil
 }
@@ -232,15 +224,20 @@ func (db *Database) GetDenormalizedCertificateAuthority(filter CertificateAuthor
 	CADenormalizedRow, DenormalizedCAErr := filter.AsCertificateAuthorityDenormalized()
 	CARow, CAerr := filter.AsCertificateAuthority()
 	if CAerr != nil && DenormalizedCAErr != nil {
-		return nil, fmt.Errorf("invalid filter: only CA ID, CSR ID, or CSR PEM is supported")
+		return nil, fmt.Errorf("%w: certificate authority - only CA ID, CSR ID, or CSR PEM is supported", ErrInvalidFilter)
 	}
 	stmt, err := sqlair.Prepare(getDenormalizedCertificateAuthorityStmt, CertificateAuthority{}, CertificateAuthorityDenormalized{})
 	if err != nil {
-		return nil, err
+		log.Println(err)
+		return nil, fmt.Errorf("%w: failed to get denormalized certificate authority due to sql compilation error", ErrInternal)
 	}
 	err = db.conn.Query(context.Background(), stmt, CARow, CADenormalizedRow).Get(CADenormalizedRow)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, sqlair.ErrNoRows) {
+			return nil, fmt.Errorf("%w: certificate authority not found", ErrNotFound)
+		}
+		log.Println(err)
+		return nil, fmt.Errorf("%w: failed to get denormalized certificate authority", ErrInternal)
 	}
 	return CADenormalizedRow, nil
 }
@@ -275,16 +272,22 @@ func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, ce
 	}
 	stmt, err := sqlair.Prepare(createCertificateAuthorityStmt, CertificateAuthority{})
 	if err != nil {
-		return 0, err
+		log.Println(err)
+		return 0, fmt.Errorf("%w: failed to create certificate authority due to sql compilation error", ErrInternal)
 	}
 	var outcome sqlair.Outcome
 	err = db.conn.Query(context.Background(), stmt, CARow).Get(&outcome)
 	if err != nil {
-		return 0, err
+		if IsConstraintError(err, "UNIQUE constraint failed") {
+			return 0, fmt.Errorf("%w: certificate authority already exists", ErrAlreadyExists)
+		}
+		log.Println(err)
+		return 0, fmt.Errorf("%w: failed to create certificate authority", ErrInternal)
 	}
 	insertedRowID, err := outcome.Result().LastInsertId()
 	if err != nil {
-		return 0, err
+		log.Println(err)
+		return 0, fmt.Errorf("%w: failed to create certificate authority", ErrInternal)
 	}
 	return insertedRowID, nil
 }
@@ -304,10 +307,15 @@ func (db *Database) UpdateCertificateAuthorityCertificate(filter CertificateAuth
 
 	stmt, err := sqlair.Prepare(updateCertificateAuthorityStmt, CertificateAuthority{})
 	if err != nil {
-		return err
+		log.Println(err)
+		return fmt.Errorf("%w: failed to update certificate authority due to sql compilation error", ErrInternal)
 	}
 	err = db.conn.Query(context.Background(), stmt, ca).Run()
-	return err
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("%w: failed to update certificate authority", ErrInternal)
+	}
+	return nil
 }
 
 // UpdateCertificateAuthorityStatus updates the status of a certificate authority.
@@ -319,24 +327,34 @@ func (db *Database) UpdateCertificateAuthorityStatus(filter CertificateAuthority
 	ca.Status = status
 	stmt, err := sqlair.Prepare(updateCertificateAuthorityStmt, CertificateAuthority{})
 	if err != nil {
-		return err
+		log.Println(err)
+		return fmt.Errorf("%w: failed to update certificate authority due to sql compilation error", ErrInternal)
 	}
 	err = db.conn.Query(context.Background(), stmt, ca).Run()
-	return err
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("%w: failed to update certificate authority", ErrInternal)
+	}
+	return nil
 }
 
 // DeleteCertificateAuthority removes a certificate authority from the database.
 func (db *Database) DeleteCertificateAuthority(filter CertificateAuthorityFilter) error {
-	caRow, err := filter.AsCertificateAuthority()
+	caRow, err := db.GetCertificateAuthority(filter)
 	if err != nil {
 		return err
 	}
 	stmt, err := sqlair.Prepare(deleteCertificateAuthorityStmt, CertificateAuthority{})
 	if err != nil {
-		return err
+		log.Println(err)
+		return fmt.Errorf("%w: failed to delete certificate authority due to sql compilation error", ErrInternal)
 	}
 	err = db.conn.Query(context.Background(), stmt, caRow).Run()
-	return err
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("%w: failed to delete certificate authority", ErrInternal)
+	}
+	return nil
 }
 
 // SignCertificateRequest receives a CSR and a certificate authority.
@@ -379,7 +397,7 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 		return err
 	}
 	if err = certRequest.CheckSignature(); err != nil {
-		return fmt.Errorf("invalid certificate request signature: %w", err)
+		return fmt.Errorf("%w: invalid certificate request signature", err)
 	}
 	CSRIsForACertificateAuthority := false
 	caToBeSigned, err := db.GetCertificateAuthority(ByCertificateAuthorityCSRID(csrRow.CSR_ID))
@@ -440,5 +458,5 @@ func rowFound(err error) bool {
 }
 
 func realError(err error) bool {
-	return err != nil && !errors.Is(err, sqlair.ErrNoRows)
+	return err != nil && !errors.Is(err, sqlair.ErrNoRows) && !errors.Is(err, ErrNotFound)
 }

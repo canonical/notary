@@ -8,10 +8,8 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
-	"strings"
 
 	"github.com/canonical/notary/internal/db"
-	"github.com/canonical/sqlair"
 )
 
 type CreateAccountParams struct {
@@ -74,7 +72,6 @@ func ListAccounts(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		accounts, err := env.DB.ListUsers()
 		if err != nil {
-			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
@@ -117,8 +114,7 @@ func GetAccount(env *HandlerConfig) http.HandlerFunc {
 			account, err = env.DB.GetUser(db.ByUserID(idNum))
 		}
 		if err != nil {
-			log.Println(err)
-			if errors.Is(err, sqlair.ErrNoRows) {
+			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}
@@ -170,11 +166,10 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 		}
 		newUserID, err := env.DB.CreateUser(createAccountParams.Username, createAccountParams.Password, permission)
 		if err != nil {
-			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			if errors.Is(err, db.ErrAlreadyExists) {
 				writeError(w, http.StatusBadRequest, "account with given username already exists")
 				return
 			}
-			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
@@ -200,8 +195,7 @@ func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
 		}
 		account, err := env.DB.GetUser(db.ByUserID(idInt))
 		if err != nil {
-			log.Println(err)
-			if errors.Is(err, sqlair.ErrNoRows) {
+			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}
@@ -214,8 +208,7 @@ func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
 		}
 		err = env.DB.DeleteUser(db.ByUserID(idInt))
 		if err != nil {
-			log.Println(err)
-			if errors.Is(err, sqlair.ErrNoRows) {
+			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}
@@ -244,7 +237,6 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 			}
 			account, err := env.DB.GetUser(db.ByUsername(claims.Username))
 			if err != nil {
-				log.Println(err)
 				writeError(w, http.StatusUnauthorized, "Unauthorized")
 				return
 			}
@@ -270,8 +262,7 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 		}
 		err = env.DB.UpdateUserPassword(db.ByUserID(idNum), changeAccountParams.Password)
 		if err != nil {
-			log.Println(err)
-			if errors.Is(err, sqlair.ErrNoRows) {
+			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}

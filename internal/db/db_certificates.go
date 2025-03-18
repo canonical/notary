@@ -55,7 +55,7 @@ func (db *Database) ListCertificates() ([]Certificate, error) {
 	certs, err := ListEntities[Certificate](db, listCertificatesStmt)
 	if err != nil {
 		log.Println(err)
-		return nil, fmt.Errorf("%w: failed to list certificates", ErrInternal)
+		return nil, fmt.Errorf("%w: failed to list certificates", err)
 	}
 	return certs, nil
 }
@@ -79,7 +79,7 @@ func (db *Database) GetCertificate(filter CertificateFilter) (*Certificate, erro
 		if errors.Is(err, sqlair.ErrNoRows) {
 			return nil, fmt.Errorf("%w: %s", ErrNotFound, "certificate")
 		}
-		return nil, fmt.Errorf("%w: failed to get certificate", ErrInternal)
+		return nil, fmt.Errorf("%w: failed to get certificate", err)
 	}
 	return cert, nil
 }
@@ -112,7 +112,7 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 		stmt, err := sqlair.Prepare(createCertificateStmt, Certificate{})
 		if err != nil {
 			log.Println(err)
-			return 0, fmt.Errorf("%w: failed to create certificate", ErrInternal)
+			return 0, fmt.Errorf("%w: failed to create certificate due to sql compilation error", ErrInternal)
 		}
 		var outcome sqlair.Outcome
 		err = db.conn.Query(context.Background(), stmt, certRow).Get(&outcome)
@@ -139,7 +139,7 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 			stmt, err := sqlair.Prepare(getCertificateStmt, Certificate{})
 			if err != nil {
 				log.Println(err)
-				return 0, fmt.Errorf("%w: failed to get certificate", ErrInternal)
+				return 0, fmt.Errorf("%w: failed to get certificate due to sql compilation error", ErrInternal)
 			}
 			err = db.conn.Query(context.Background(), stmt, certRow).Get(&certRow)
 			childID := certRow.CertificateID
@@ -147,7 +147,7 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 				stmt, err = sqlair.Prepare(createCertificateStmt, Certificate{})
 				if err != nil {
 					log.Println(err)
-					return 0, fmt.Errorf("%w: failed to create certificate", ErrInternal)
+					return 0, fmt.Errorf("%w: failed to create certificate due to sql compilation error", ErrInternal)
 				}
 				var outcome sqlair.Outcome
 				err = db.conn.Query(context.Background(), stmt, certRow).Get(&outcome)
@@ -173,7 +173,7 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 	stmt, err := sqlair.Prepare(updateCertificateRequestStmt, CertificateRequest{})
 	if err != nil {
 		log.Println(err)
-		return 0, fmt.Errorf("%w: failed to add certificate chain to certificate request", ErrInternal)
+		return 0, fmt.Errorf("%w: failed to add certificate chain to certificate request due to sql compilation error", ErrInternal)
 	}
 	newRow := CertificateRequest{
 		CSR:           csr.CSR,
@@ -197,7 +197,7 @@ func (db *Database) DeleteCertificate(filter CertificateFilter) error {
 	stmt, err := sqlair.Prepare(deleteCertificateStmt, Certificate{})
 	if err != nil {
 		log.Println(err)
-		return fmt.Errorf("%w: failed to delete certificate", ErrInternal)
+		return fmt.Errorf("%w: failed to delete certificate due to sql compilation error", ErrInternal)
 	}
 	err = db.conn.Query(context.Background(), stmt, certRow).Run()
 	if err != nil {
@@ -223,7 +223,7 @@ func (db *Database) GetCertificateChain(filter CertificateFilter) ([]Certificate
 	stmt, err := sqlair.Prepare(getCertificateChainStmt, Certificate{})
 	if err != nil {
 		log.Println(err)
-		return nil, fmt.Errorf("%w: failed to get certificate chain", ErrInternal)
+		return nil, fmt.Errorf("%w: failed to get certificate chain due to sql compilation error", ErrInternal)
 	}
 	var certChain []Certificate
 	err = db.conn.Query(context.Background(), stmt, certRow).GetAll(&certChain)

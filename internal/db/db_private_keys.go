@@ -35,7 +35,7 @@ func (db *Database) ListPrivateKeys() ([]PrivateKey, error) {
 	privateKeys, err := ListEntities[PrivateKey](db, listPrivateKeysStmt)
 	if err != nil {
 		log.Println(err)
-		return nil, fmt.Errorf("%w: failed to list private keys", ErrInternal)
+		return nil, fmt.Errorf("%w: failed to list private keys", err)
 	}
 	return privateKeys, nil
 }
@@ -59,7 +59,7 @@ func (db *Database) GetPrivateKey(filter PrivateKeyFilter) (*PrivateKey, error) 
 		if errors.Is(err, sqlair.ErrNoRows) {
 			return nil, fmt.Errorf("%w: %s", ErrNotFound, "private key")
 		}
-		return nil, fmt.Errorf("%w: failed to get private key", ErrInternal)
+		return nil, fmt.Errorf("%w: failed to get private key", err)
 	}
 	return pk, nil
 }
@@ -73,7 +73,7 @@ func (db *Database) CreatePrivateKey(pk string) (int64, error) {
 	stmt, err := sqlair.Prepare(createPrivateKeyStmt, PrivateKey{})
 	if err != nil {
 		log.Println(err)
-		return 0, fmt.Errorf("%w: failed to create private key", ErrInternal)
+		return 0, fmt.Errorf("%w: failed to create private key due to sql compilation error", ErrInternal)
 	}
 	row := PrivateKey{
 		PrivateKeyPEM: pk,
@@ -105,7 +105,7 @@ func (db *Database) DeletePrivateKey(filter PrivateKeyFilter) error {
 	stmt, err := sqlair.Prepare(deletePrivateKeyStmt, PrivateKey{})
 	if err != nil {
 		log.Println(err)
-		return fmt.Errorf("%w: failed to delete private key", ErrInternal)
+		return fmt.Errorf("%w: failed to delete private key due to sql compilation error", ErrInternal)
 	}
 	err = db.conn.Query(context.Background(), stmt, pkRow).Run()
 	if err != nil {

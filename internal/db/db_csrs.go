@@ -165,7 +165,7 @@ func (db *Database) ListCertificateRequests() ([]CertificateRequest, error) {
 	csrs, err := ListEntities[CertificateRequest](db, listCertificateRequestsStmt)
 	if err != nil {
 		log.Println(err)
-		return nil, fmt.Errorf("%w: failed to list certificate requests", ErrInternal)
+		return nil, fmt.Errorf("%w: failed to list certificate requests", err)
 	}
 	return csrs, nil
 }
@@ -175,7 +175,7 @@ func (db *Database) ListCertificateRequestsWithoutCAS() ([]CertificateRequest, e
 	csrs, err := ListEntities[CertificateRequest](db, listCertificateRequestsWithoutCASStmt)
 	if err != nil {
 		log.Println(err)
-		return nil, fmt.Errorf("%w: failed to list certificate requests", ErrInternal)
+		return nil, fmt.Errorf("%w: failed to list certificate requests", err)
 	}
 	return csrs, nil
 }
@@ -185,7 +185,7 @@ func (db *Database) ListCertificateRequestWithCertificates() ([]CertificateReque
 	csrs, err := ListEntities[CertificateRequestWithChain](db, listCertificateRequestsWithCertificatesStmt)
 	if err != nil {
 		log.Println(err)
-		return nil, fmt.Errorf("%w: failed to list certificate requests", ErrInternal)
+		return nil, fmt.Errorf("%w: failed to list certificate requests", err)
 	}
 	return csrs, nil
 }
@@ -195,7 +195,7 @@ func (db *Database) ListCertificateRequestWithCertificatesWithoutCAS() ([]Certif
 	csrs, err := ListEntities[CertificateRequestWithChain](db, listCertificateRequestsWithCertificatesWithoutCASStmt)
 	if err != nil {
 		log.Println(err)
-		return nil, fmt.Errorf("%w: failed to list certificate requests", ErrInternal)
+		return nil, fmt.Errorf("%w: failed to list certificate requests", err)
 	}
 	return csrs, nil
 }
@@ -219,6 +219,7 @@ func (db *Database) GetCertificateRequest(filter CSRFilter) (*CertificateRequest
 		if errors.Is(err, sqlair.ErrNoRows) {
 			return nil, fmt.Errorf("%w: %s", ErrNotFound, "certificate request")
 		}
+		return nil, fmt.Errorf("%w: failed to get certificate request", err)
 	}
 	return csr, nil
 }
@@ -239,7 +240,7 @@ func (db *Database) GetCertificateRequestAndChain(filter CSRFilter) (*Certificat
 	stmt, err := sqlair.Prepare(getCertificateRequestWithCertificateStmt, CertificateRequestWithChain{})
 	if err != nil {
 		log.Println(err)
-		return nil, fmt.Errorf("%w: failed to get certificate request", ErrInternal)
+		return nil, fmt.Errorf("%w: failed to get certificate request due to sql compilation error", ErrInternal)
 	}
 	err = db.conn.Query(context.Background(), stmt, csrRow).Get(&csrRow)
 	if err != nil {
@@ -260,7 +261,7 @@ func (db *Database) CreateCertificateRequest(csr string) (int64, error) {
 	stmt, err := sqlair.Prepare(createCertificateRequestStmt, CertificateRequest{})
 	if err != nil {
 		log.Println(err)
-		return 0, fmt.Errorf("%w: failed to create certificate request", ErrInternal)
+		return 0, fmt.Errorf("%w: failed to create certificate request due to sql compilation error", ErrInternal)
 	}
 	row := CertificateRequest{
 		CSR: csr,
@@ -341,7 +342,7 @@ func (db *Database) DeleteCertificateRequest(filter CSRFilter) error {
 	stmt, err := sqlair.Prepare(deleteCertificateRequestStmt, CertificateRequest{})
 	if err != nil {
 		log.Println(err)
-		return fmt.Errorf("%w: failed to delete certificate request", ErrInternal)
+		return fmt.Errorf("%w: failed to delete certificate request due to sql compilation error", ErrInternal)
 	}
 	err = db.conn.Query(context.Background(), stmt, csrRow).Run()
 	if err != nil {

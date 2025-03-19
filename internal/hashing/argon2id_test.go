@@ -37,67 +37,67 @@ func TestExternallyGeneratedHashMatchesCanBeValidated(t *testing.T) {
 
 func TestInvalidPHCArgon2idStringsReturnDefaultParamsAndError(t *testing.T) {
 	testCases := []struct {
-		desc string
+		desc  string
 		input string
 	}{
 		{
-			desc: "Empty string",
+			desc:  "Empty string",
 			input: "",
 		},
 		{
-			desc: "Random string",
+			desc:  "Random string",
 			input: "hjljdh7223%%asduy$$dcfas kjf",
 		},
 		{
-			desc: "Not enough fields",
+			desc:  "Not enough fields",
 			input: "$argon2id$v=19$salt$password",
 		},
 		{
-			desc: "Too many fields",
+			desc:  "Too many fields",
 			input: "$argon2id$v=19$m=6,t=2,p=1$salt$password$extra",
 		},
 		{
-			desc: "Wrong hash identifier",
+			desc:  "Wrong hash identifier",
 			input: "$argon2i$v=19$m=16,t=2,p=1$cE5sS1k4eTNkdEhjRENsag$Rd6mkWZZPLjfbXG9Uaia4Q",
 		},
 		{
-			desc: "Wrong hash version",
+			desc:  "Wrong hash version",
 			input: "$argon2id$v=42$m=16,t=2,p=1$cE5sS1k4eTNkdEhjRENsag$Rd6mkWZZPLjfbXG9Uaia4Q",
 		},
 		{
-			desc: "Badly formatted parameters",
+			desc:  "Badly formatted parameters",
 			input: "$argon2id$v=19$m:16,t:2,p:1$cE5sS1k4eTNkdEhjRENsag$Rd6mkWZZPLjfbXG9Uaia4Q",
 		},
 		{
-			desc: "Missing memory parameter",
+			desc:  "Missing memory parameter",
 			input: "$argon2id$v=19$t=2,p=1$cE5sS1k4eTNkdEhjRENsag$Rd6mkWZZPLjfbXG9Uaia4Q",
 		},
 		{
-			desc: "Missing time parameter",
+			desc:  "Missing time parameter",
 			input: "$argon2id$v=19$m=16,p=1$cE5sS1k4eTNkdEhjRENsag$Rd6mkWZZPLjfbXG9Uaia4Q",
 		},
 		{
-			desc: "Missing parallelism parameter",
+			desc:  "Missing parallelism parameter",
 			input: "$argon2id$v=19$m=16,t=2$cE5sS1k4eTNkdEhjRENsag$Rd6mkWZZPLjfbXG9Uaia4Q",
 		},
 		{
-			desc: "Memory not uint",
+			desc:  "Memory not uint",
 			input: "$argon2id$v=19$m=sixteen,t=2,p=1$cE5sS1k4eTNkdEhjRENsag$Rd6mkWZZPLjfbXG9Uaia4Q",
 		},
 		{
-			desc: "Time not uint",
+			desc:  "Time not uint",
 			input: "$argon2id$v=19$m=16,t=two,p=1$cE5sS1k4eTNkdEhjRENsag$Rd6mkWZZPLjfbXG9Uaia4Q",
 		},
 		{
-			desc: "Parallelism not uint",
+			desc:  "Parallelism not uint",
 			input: "$argon2id$v=19$m=16,t=2,p=one$cE5sS1k4eTNkdEhjRENsag$Rd6mkWZZPLjfbXG9Uaia4Q",
 		},
 		{
-			desc: "Salt not valid base64",
+			desc:  "Salt not valid base64",
 			input: "$argon2id$v=19$m=16,t=2,p=1$%cE5sS1k4eTNkdEhjRENsag$Rd6mkWZZPLjfbXG9Uaia4Q",
 		},
 		{
-			desc: "Hash valid base64",
+			desc:  "Hash valid base64",
 			input: "$argon2id$v=19$m=16,t=2,p=1$cE5sS1k4eTNkdEhjRENsag$R%d6mkWZZPLjfbXG9Uaia4Q",
 		},
 	}

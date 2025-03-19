@@ -46,7 +46,7 @@ func HashPassword(password string) (string, error) {
 
 	encoded_salt := base64.RawStdEncoding.EncodeToString(salt)
 	encoded_hash := base64.RawStdEncoding.EncodeToString(hash)
-	hashedPassword := fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s",
+	hashedPassword := fmt.Sprintf(phcFormat,
 		argon2.Version,
 		DefaultArgon2IDParameters.Memory,
 		DefaultArgon2IDParameters.Time,

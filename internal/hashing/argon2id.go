@@ -6,13 +6,15 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"strconv"
+	"math"
 	"strings"
 
 	"golang.org/x/crypto/argon2"
 )
 
-const phcFormat = "$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s"
+const phcEncFormat = "$argon2id$v=19$m=%d,t=%d,p=%d$%s$%s"
+
+var phcDecFormat = strings.ReplaceAll(phcEncFormat, "$", " ")
 
 type Argon2IDParameters struct {
 	SaltLength uint32 // bytes
@@ -20,6 +22,22 @@ type Argon2IDParameters struct {
 	Memory     uint32 // kibibytes
 	Threads    uint8  // number of threads
 	KeyLength  uint32 // bytes
+}
+
+type phcEncoding struct {
+	params Argon2IDParameters
+	salt   []byte
+	key    []byte
+}
+
+func (e *phcEncoding) String() string {
+	return fmt.Sprintf(phcEncFormat,
+		e.params.Memory,
+		e.params.Time,
+		e.params.Threads,
+		base64.RawStdEncoding.EncodeToString(e.salt),
+		base64.RawStdEncoding.EncodeToString(e.key),
+	)
 }
 
 // Default parameters recommended by OWASP
@@ -35,26 +53,18 @@ var ErrInvalidPassword = errors.New("invalid password")
 
 // Takes the password string, makes sure it's not empty, and hashes it using argon2id
 func HashPassword(password string) (string, error) {
+	var err error
 	if strings.TrimSpace(password) == "" {
 		return "", fmt.Errorf("%w: password cannot be empty", ErrInvalidPassword)
 	}
-	salt, err := generateSalt(DefaultArgon2IDParameters.SaltLength)
+	encoding := phcEncoding{params: DefaultArgon2IDParameters}
+	encoding.salt, err = generateSalt(DefaultArgon2IDParameters.SaltLength)
 	if err != nil {
 		return "", err
 	}
-	hash := hashPasswordWithSaltAndParams(password, salt, DefaultArgon2IDParameters)
+	encoding.key = hashPasswordWithSaltAndParams(password, encoding.salt, encoding.params)
 
-	encoded_salt := base64.RawStdEncoding.EncodeToString(salt)
-	encoded_hash := base64.RawStdEncoding.EncodeToString(hash)
-	hashedPassword := fmt.Sprintf(phcFormat,
-		argon2.Version,
-		DefaultArgon2IDParameters.Memory,
-		DefaultArgon2IDParameters.Time,
-		DefaultArgon2IDParameters.Threads,
-		encoded_salt,
-		encoded_hash,
-	)
-	return string(hashedPassword), nil
+	return encoding.String(), nil
 }
 
 // CompareHashAndPassword takes a hashed password string and a password,
@@ -65,18 +75,18 @@ func HashPassword(password string) (string, error) {
 // hash the password with the default parameters to prevent an attacker from
 // getting information from the timing of a login failure.
 func CompareHashAndPassword(hashedPassword string, password string) error {
-	params, salt, hash, err := parseArgon2IDPHC(hashedPassword)
+	encoding, err := parseArgon2IDPHC(hashedPassword)
 	if err != nil {
 		// The hashedPassword was not parseable, hash the password with default values
 		// to spend the same amount of time.
-		salt = make([]byte, params.SaltLength)
-		hash = make([]byte, params.KeyLength)
+		encoding.salt = make([]byte, encoding.params.SaltLength)
+		encoding.key = make([]byte, encoding.params.KeyLength)
 	}
-	newHash := hashPasswordWithSaltAndParams(password, salt, params)
-	if subtle.ConstantTimeCompare(newHash, hash) == 1 {
+	newHash := hashPasswordWithSaltAndParams(password, encoding.salt, encoding.params)
+	if subtle.ConstantTimeCompare(newHash, encoding.key) == 1 {
 		return nil
 	}
-	return fmt.Errorf("password did not match")
+	return fmt.Errorf("password did not match: %v", encoding)
 }
 
 func hashPasswordWithSaltAndParams(password string, salt []byte, params Argon2IDParameters) []byte {
@@ -99,68 +109,41 @@ func generateSalt(n uint32) ([]byte, error) {
 	return b, nil
 }
 
-// Parses a PHC string for Argon2id, and returns Argon2id parameters, the salt and the hash
-func parseArgon2IDPHC(phc string) (Argon2IDParameters, []byte, []byte, error) {
-	fields := strings.Split(phc, "$")
-	if len(fields) != 6 {
-		return DefaultArgon2IDParameters, nil, nil, fmt.Errorf("not enough fields")
-	}
-	if fields[1] != "argon2id" {
-		return DefaultArgon2IDParameters, nil, nil, fmt.Errorf("unsupported mode: %v", fields[1])
-	}
-	if fields[2] != fmt.Sprintf("v=%d", argon2.Version) {
-		return DefaultArgon2IDParameters, nil, nil, fmt.Errorf("unsupported version: %v", fields[2])
-	}
-
-	kvs := strings.Split(fields[3], ",")
-
-	params := make(map[string]string)
-	for _, kv := range kvs {
-		parts := strings.Split(kv, "=")
-		if len(parts) != 2 {
-			return DefaultArgon2IDParameters, nil, nil, fmt.Errorf("invalid parameters format: %v", parts)
-		}
-		params[parts[0]] = parts[1]
-	}
-
-	m, ok := params["m"]
-	if !ok {
-		return DefaultArgon2IDParameters, nil, nil, fmt.Errorf("missing memory parameter")
-	}
-	t, ok := params["t"]
-	if !ok {
-		return DefaultArgon2IDParameters, nil, nil, fmt.Errorf("missing time parameter")
-	}
-	p, ok := params["p"]
-	if !ok {
-		return DefaultArgon2IDParameters, nil, nil, fmt.Errorf("missing parallelism parameter")
-	}
-	memory, err := strconv.ParseUint(m, 10, 32)
+// Parses a PHC string for Argon2id, and returns an encoding struct
+func parseArgon2IDPHC(phc string) (phcEncoding, error) {
+	var (
+		encoding phcEncoding
+		salt     string
+		key      string
+	)
+	phc = strings.Replace(phc, "$", " ", 5) // There should be only 5 delimiters
+	_, err := fmt.Sscanf(phc, phcDecFormat,
+		&encoding.params.Memory, &encoding.params.Time,
+		&encoding.params.Threads, &salt, &key,
+	)
 	if err != nil {
-		return DefaultArgon2IDParameters, nil, nil, fmt.Errorf("cannot parse memory to uint32: %v", err)
-	}
-	time, err := strconv.ParseUint(t, 10, 32)
-	if err != nil {
-		return DefaultArgon2IDParameters, nil, nil, fmt.Errorf("cannot parse time to uint32: %v", err)
-	}
-	threads, err := strconv.ParseUint(p, 10, 8)
-	if err != nil {
-		return DefaultArgon2IDParameters, nil, nil, fmt.Errorf("cannot parse parallelism to uint8: %v", err)
+		return phcEncoding{params: DefaultArgon2IDParameters}, fmt.Errorf("cannot decode argon2 phc string: %v", err)
 	}
 
-	parameters := DefaultArgon2IDParameters
-	parameters.Memory = uint32(memory)
-	parameters.Time = uint32(time)
-	parameters.Threads = uint8(threads)
-
-	salt, err := base64.RawStdEncoding.Strict().DecodeString(fields[4])
+	encoding.salt, err = base64.RawStdEncoding.Strict().DecodeString(salt)
 	if err != nil {
-		return DefaultArgon2IDParameters, nil, nil, fmt.Errorf("cannot base64 decode salt: %v", err)
+		return phcEncoding{params: DefaultArgon2IDParameters}, fmt.Errorf("cannot base64 decode salt: %v", err)
 	}
-	hashedPassword, err := base64.RawStdEncoding.Strict().DecodeString(fields[5])
-	if err != nil {
-		return DefaultArgon2IDParameters, nil, nil, fmt.Errorf("cannot base64 decode hash: %v", err)
+	saltLength := len(encoding.salt)
+	if saltLength > math.MaxUint32 {
+		return phcEncoding{params: DefaultArgon2IDParameters}, fmt.Errorf("salt too long")
 	}
+	encoding.params.SaltLength = uint32(saltLength)
 
-	return parameters, salt, hashedPassword, nil
+	encoding.key, err = base64.RawStdEncoding.Strict().DecodeString(key)
+	if err != nil {
+		return phcEncoding{params: DefaultArgon2IDParameters}, fmt.Errorf("cannot base64 decode key: %v", err)
+	}
+	keyLength := len(encoding.key)
+	if keyLength > math.MaxUint32 {
+		return phcEncoding{params: DefaultArgon2IDParameters}, fmt.Errorf("key too long")
+	}
+	encoding.params.KeyLength = uint32(keyLength)
+
+	return encoding, nil
 }

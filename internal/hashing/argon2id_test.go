@@ -13,7 +13,7 @@ func TestHashPasswordMatchesCanBeValidated(t *testing.T) {
 
 	err = CompareHashAndPassword(hash, password)
 	if err != nil {
-		t.Fatalf("password should match hash: %v", err)
+		t.Fatalf("password %v should match hash %v, got error: %v", password, hash, err)
 	}
 }
 
@@ -103,12 +103,12 @@ func TestInvalidPHCArgon2idStringsReturnDefaultParamsAndError(t *testing.T) {
 	}
 	for _, tC := range testCases {
 		t.Run(tC.desc, func(t *testing.T) {
-			params, _, _, err := parseArgon2IDPHC(tC.input)
+			encoding, err := parseArgon2IDPHC(tC.input)
 			if err == nil {
 				t.Errorf("should have failed parsing: %s", tC.input)
 			}
-			if params != DefaultArgon2IDParameters {
-				t.Errorf("expected default parameters, got: %v", params)
+			if encoding.params != DefaultArgon2IDParameters {
+				t.Errorf("expected default parameters, got: %v", encoding.params)
 			}
 		})
 	}

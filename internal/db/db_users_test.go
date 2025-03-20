@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/canonical/notary/internal/db"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/canonical/notary/internal/hashing"
 )
 
 func TestUsersEndToEnd(t *testing.T) {
@@ -62,7 +62,7 @@ func TestUsersEndToEnd(t *testing.T) {
 	if retrievedUser.Username != "admin" {
 		t.Fatalf("The user from the database doesn't match the user that was given")
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(retrievedUser.HashedPassword), []byte("pw123")); err != nil {
+	if err := hashing.CompareHashAndPassword(retrievedUser.HashedPassword, "pw123"); err != nil {
 		t.Fatalf("The user's password doesn't match the one stored in the database")
 	}
 
@@ -79,7 +79,7 @@ func TestUsersEndToEnd(t *testing.T) {
 		t.Fatalf("Couldn't complete Update: %s", err)
 	}
 	retrievedUser, _ = database.GetUser(db.ByUsername("norman"))
-	if err := bcrypt.CompareHashAndPassword([]byte(retrievedUser.HashedPassword), []byte("thebestpassword")); err != nil {
+	if err := hashing.CompareHashAndPassword(retrievedUser.HashedPassword, "thebestpassword"); err != nil {
 		t.Fatalf("The new password that was given does not match the password that was stored.")
 	}
 }
@@ -191,7 +191,7 @@ func TestUpdateUserPasswordFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete GetUser: %s", err)
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(retrievedUser.HashedPassword), []byte(originalPassword)); err != nil {
+	if err := hashing.CompareHashAndPassword(retrievedUser.HashedPassword, originalPassword); err != nil {
 		t.Fatalf("The user's password doesn't match the one stored in the database")
 	}
 	num, err := database.NumUsers()
@@ -213,7 +213,7 @@ func TestUpdateUserPasswordFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete GetUser: %s", err)
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(retrievedUser.HashedPassword), []byte(originalPassword)); err != nil {
+	if err := hashing.CompareHashAndPassword(retrievedUser.HashedPassword, originalPassword); err != nil {
 		t.Fatalf("The user's password doesn't match the one stored in the database")
 	}
 }

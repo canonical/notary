@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/server"
 )
 
@@ -121,10 +122,6 @@ type CreateCertificateAuthorityParams struct {
 	NotValidAfter       string `json:"not_valid_after"`
 }
 
-type UpdateCertificateAuthorityParams struct {
-	Status string `json:"status,omitempty"`
-}
-
 type CreateCertificateAuthorityResponse struct {
 	Result SuccessResponse `json:"result"`
 	Error  string          `json:"error,omitempty"`
@@ -194,6 +191,10 @@ func getCertificateAuthority(url string, client *http.Client, adminToken string,
 		return 0, nil, err
 	}
 	return res.StatusCode, &getCertificateAuthorityResponse, nil
+}
+
+type UpdateCertificateAuthorityParams struct {
+	Status string `json:"status,omitempty"`
 }
 
 type UpdateCertificateAuthorityResponse struct {
@@ -315,6 +316,72 @@ func signCertificateAuthority(url string, client *http.Client, adminToken string
 		return 0, nil, err
 	}
 	return res.StatusCode, &signCertificateAuthorityResponse, nil
+}
+
+type RevokeCertificateAuthorityCertificateResponse struct {
+	Result SuccessResponse `json:"result"`
+	Error  string          `json:"error,omitempty"`
+}
+
+func revokeCertificateAuthority(url string, client *http.Client, adminToken string, id int) (int, *RevokeCertificateAuthorityCertificateResponse, error) {
+	req, err := http.NewRequest("POST", url+"/api/v1/certificate_authorities/"+strconv.Itoa(id)+"/revoke", nil)
+	if err != nil {
+		return 0, nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+adminToken)
+	res, err := client.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	var RevokeCertificateAuthorityResponse RevokeCertificateAuthorityCertificateResponse
+	if err := json.NewDecoder(res.Body).Decode(&RevokeCertificateAuthorityResponse); err != nil {
+		return 0, nil, err
+	}
+	return res.StatusCode, &RevokeCertificateAuthorityResponse, nil
+}
+
+type RevokeCertificateRequestResponse struct {
+	Result SuccessResponse `json:"result"`
+	Error  string          `json:"error,omitempty"`
+}
+
+func revokeCertificateRequest(url string, client *http.Client, adminToken string, id int) (int, *RevokeCertificateRequestResponse, error) {
+	req, err := http.NewRequest("POST", url+"/api/v1/certificate_requests/"+strconv.Itoa(id)+"/certificate/revoke", nil)
+	if err != nil {
+		return 0, nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+adminToken)
+	res, err := client.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	var RevokeCertificateRequestResponse RevokeCertificateRequestResponse
+	if err := json.NewDecoder(res.Body).Decode(&RevokeCertificateRequestResponse); err != nil {
+		return 0, nil, err
+	}
+	return res.StatusCode, &RevokeCertificateRequestResponse, nil
+}
+
+type GetCRLResponse struct {
+	Result server.CertificateAuthority `json:"result"`
+	Error  string                      `json:"error,omitempty"`
+}
+
+func getCertificateAuthorityCRLRequest(url string, client *http.Client, adminToken string, id int) (int, *GetCRLResponse, error) {
+	req, err := http.NewRequest("GET", url+"/api/v1/certificate_authorities/"+strconv.Itoa(id)+"/crl", nil)
+	if err != nil {
+		return 0, nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+adminToken)
+	res, err := client.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	var GetCRLResponse GetCRLResponse
+	if err := json.NewDecoder(res.Body).Decode(&GetCRLResponse); err != nil {
+		return 0, nil, err
+	}
+	return res.StatusCode, &GetCRLResponse, nil
 }
 
 // sign a csr with a self signed ca
@@ -1015,11 +1082,11 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if err != nil {
 			t.Fatal("expected no error, got: ", err)
 		}
-		if statusCode != http.StatusInternalServerError {
-			t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, statusCode)
+		if statusCode != http.StatusNotFound {
+			t.Fatalf("expected status %d, got %d", http.StatusNotFound, statusCode)
 		}
-		if signCertificateRequestResponse.Error != "Internal Error" {
-			t.Fatalf("expected success, got %s", signCertificateRequestResponse.Error)
+		if signCertificateRequestResponse.Error != "Not Found" {
+			t.Fatalf("expected Not Found, got %s", signCertificateRequestResponse.Error)
 		}
 	})
 
@@ -1282,6 +1349,311 @@ func TestUnsuccessfulRequestsMadeToCACSRs(t *testing.T) {
 		}
 		if signCertificateRequestResponse.Error != "Not Found" {
 			t.Fatalf("expected correct error, got %s", signCertificateRequestResponse.Error)
+		}
+	})
+}
+
+func TestCertificateRevocationListsEndToEnd(t *testing.T) {
+	tempDir := t.TempDir()
+	db_path := filepath.Join(tempDir, "db.sqlite3")
+	ts, _, err := setupServer(db_path)
+	if err != nil {
+		t.Fatalf("couldn't create test server: %s", err)
+	}
+	defer ts.Close()
+	client := ts.Client()
+
+	var adminToken string
+	var nonAdminToken string
+	t.Run("prepare user accounts and tokens", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
+
+	t.Run("1. Create self signed certificate authority", func(t *testing.T) {
+		createCertificatAuthorityParams := CreateCertificateAuthorityParams{
+			SelfSigned: true,
+
+			CommonName:          "Self Signed CA",
+			CountryName:         "TR",
+			StateOrProvinceName: "Istanbul",
+			LocalityName:        "Kadikoy",
+			OrganizationName:    "Canonical",
+			OrganizationalUnit:  "Identity",
+			NotValidAfter:       "2030-01-01T00:00:00Z",
+		}
+		statusCode, createCAResponse, err := createCertificateAuthority(ts.URL, client, adminToken, createCertificatAuthorityParams)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if statusCode != http.StatusCreated {
+			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
+		}
+		if createCAResponse.Error != "" {
+			t.Fatalf("expected success, got %s", createCAResponse.Error)
+		}
+	})
+	t.Run("2. Create Intermediate CA", func(t *testing.T) {
+		createCertificatAuthorityParams := CreateCertificateAuthorityParams{
+			SelfSigned: false,
+
+			CommonName:          "Intermediate CA",
+			CountryName:         "TR",
+			StateOrProvinceName: "Istanbul",
+			LocalityName:        "Kadikoy",
+			OrganizationName:    "Canonical",
+			OrganizationalUnit:  "Identity",
+			NotValidAfter:       "2030-01-01T00:00:00Z",
+		}
+		statusCode, createCAResponse, err := createCertificateAuthority(ts.URL, client, adminToken, createCertificatAuthorityParams)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if statusCode != http.StatusCreated {
+			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
+		}
+		if createCAResponse.Error != "" {
+			t.Fatalf("expected success, got %s", createCAResponse.Error)
+		}
+	})
+
+	t.Run("3. Get CA CRL's. Root CA should have one, Intermediate shouldn't", func(t *testing.T) {
+		statusCode, cas, err := listCertificateAuthorities(ts.URL, client, adminToken)
+		if statusCode != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+		}
+		if err != nil {
+			t.Fatal("expected no error, got: ", err)
+		}
+		if len(cas.Result) != 2 {
+			t.Fatalf("expected 2 certificate authorities, got %d", len(cas.Result))
+		}
+		if cas.Result[0].CRL == "" {
+			t.Fatalf("expected root CA to have a CRL")
+		}
+		if cas.Result[1].CRL != "" {
+			t.Fatalf("expected intermediate CA to not have a CRL")
+		}
+		// crl, err := db.ParseCRL(cas.Result[0].CRL)
+		// if err != nil {
+		// 	t.Fatalf("expected no error when parsing CRL, got: %s", err)
+		// }
+		// if len(crl.RevokedCertificateEntries) != 0 {
+		// 	t.Fatalf("expected no revoked certificates, got %d", len(crl.RevokedCertificateEntries))
+		// } TODO
+	})
+
+	t.Run("4. Sign Intermediate CA", func(t *testing.T) {
+		statusCode, signCAResponse, err := signCertificateAuthority(ts.URL, client, adminToken, 2, server.SignCertificateAuthorityParams{CertificateAuthorityID: "1"})
+		if err != nil {
+			t.Fatal("expected no error, got: ", err)
+		}
+		if statusCode != http.StatusAccepted {
+			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
+		}
+		if signCAResponse.Error != "" {
+			t.Fatalf("expected success, got %s", signCAResponse.Error)
+		}
+	})
+
+	t.Run("5. Get CA CRL's. Both should have one.", func(t *testing.T) {
+		statusCode, cas, err := listCertificateAuthorities(ts.URL, client, adminToken)
+		if statusCode != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+		}
+		if err != nil {
+			t.Fatal("expected no error, got: ", err)
+		}
+		if len(cas.Result) != 2 {
+			t.Fatalf("expected 2 certificate authorities, got %d", len(cas.Result))
+		}
+		if cas.Result[0].CRL == "" {
+			t.Fatalf("expected root CA to have a CRL")
+		}
+		if cas.Result[1].CRL == "" {
+			t.Fatalf("expected intermediate CA to have a CRL")
+		}
+		// crl, err := db.ParseCRL(cas.Result[1].CRL)
+		// if err != nil {
+		// 	t.Fatalf("expected no error when parsing CRL, got: %s", err)
+		// }
+		// if len(crl.RevokedCertificateEntries) != 0 {
+		// 	t.Fatalf("expected no revoked certificates, got %d", len(crl.RevokedCertificateEntries))
+		// } TODO
+	})
+
+	t.Run("6. Add 2 CSR's and sign them.", func(t *testing.T) {
+		csr1Path := filepath.Join("testdata", "csr1.pem")
+		csr1, err := os.ReadFile(csr1Path)
+		if err != nil {
+			t.Fatalf("cannot read file: %s", err)
+		}
+		createCertificateRequestRequest := CreateCertificateRequestParams{CSR: string(csr1)}
+		statusCode, createCertResponse, err := createCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if statusCode != http.StatusCreated {
+			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
+		}
+		if createCertResponse.Error != "" {
+			t.Fatalf("expected no error, got %s", createCertResponse.Error)
+		}
+		csr2Path := filepath.Join("testdata", "csr2.pem")
+		csr2, err := os.ReadFile(csr2Path)
+		if err != nil {
+			t.Fatalf("cannot read file: %s", err)
+		}
+		createCertificateRequestRequest = CreateCertificateRequestParams{CSR: string(csr2)}
+		statusCode, createCertResponse, err = createCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if statusCode != http.StatusCreated {
+			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
+		}
+		if createCertResponse.Error != "" {
+			t.Fatalf("expected no error, got %s", createCertResponse.Error)
+		}
+		statusCode, signCertificateRequestResponse, err := signCertificateRequest(ts.URL, client, adminToken, 3, server.SignCertificateRequestParams{CertificateAuthorityID: "1"})
+		if err != nil {
+			t.Fatal("expected no error, got: ", err)
+		}
+		if statusCode != http.StatusAccepted {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+		}
+		if signCertificateRequestResponse.Error != "" {
+			t.Fatalf("expected success, got %s", signCertificateRequestResponse.Error)
+		}
+		statusCode, signCertificateRequestResponse, err = signCertificateRequest(ts.URL, client, adminToken, 4, server.SignCertificateRequestParams{CertificateAuthorityID: "2"})
+		if err != nil {
+			t.Fatal("expected no error, got: ", err)
+		}
+		if statusCode != http.StatusAccepted {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+		}
+		if signCertificateRequestResponse.Error != "" {
+			t.Fatalf("expected success, got %s", signCertificateRequestResponse.Error)
+		}
+	})
+	t.Run("7. Get CSR's. Both should have the correct CRLDistributionPoint extension.", func(t *testing.T) {
+		statusCode, listCSRsResponse, err := listCertificateRequests(ts.URL, client, adminToken)
+		if statusCode != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+		}
+		if err != nil {
+			t.Fatalf("expected no error, got: %s", err)
+		}
+		if len(listCSRsResponse.Result) != 2 {
+			t.Fatalf("expected 2 certificates, got %d", len(listCSRsResponse.Result))
+		}
+		for i, csr := range listCSRsResponse.Result {
+			certs, err := db.ParseCertificateChain(csr.CertificateChain)
+			if err != nil {
+				t.Fatalf("expected no error, got: %s", err)
+			}
+			if len(certs) != i+2 {
+				t.Fatalf("expected %d certificates, got %d", i+2, len(certs))
+			}
+			if certs[0].CRLDistributionPoints == nil {
+				t.Fatalf("expected CRLDistributionPoints to be set")
+			}
+			if certs[0].CRLDistributionPoints[0] != fmt.Sprintf("https://example.com/api/v1/certificate_authorities/%d/crl", i+1) {
+				t.Fatalf("expected CRLDistributionPoint to have the correct URI")
+			}
+		}
+	})
+
+	t.Run("8. Revoke both certificates.", func(t *testing.T) {
+		statusCode, response, err := revokeCertificateRequest(ts.URL, client, adminToken, 3)
+		if err != nil {
+			t.Fatal("expected no error, got: ", err)
+		}
+		if statusCode != http.StatusAccepted {
+			t.Fatalf("expected status %d, got %d", http.StatusAccepted, statusCode)
+		}
+		if response.Error != "" {
+			t.Fatalf("expected success, got %s", response.Error)
+		}
+		statusCode, response, err = revokeCertificateRequest(ts.URL, client, adminToken, 4)
+		if err != nil {
+			t.Fatal("expected no error, got: ", err)
+		}
+		if statusCode != http.StatusAccepted {
+			t.Fatalf("expected status %d, got %d", http.StatusAccepted, statusCode)
+		}
+		if response.Error != "" {
+			t.Fatalf("expected success, got %s", response.Error)
+		}
+		statusCode, listCSRsResponse, err := listCertificateRequests(ts.URL, client, adminToken)
+		if statusCode != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+		}
+		if err != nil {
+			t.Fatalf("expected no error, got: %s", err)
+		}
+		if len(listCSRsResponse.Result) != 2 {
+			t.Fatalf("expected 2 certificates, got %d", len(listCSRsResponse.Result))
+		}
+		for _, csr := range listCSRsResponse.Result {
+			if csr.CertificateChain != "" {
+				t.Fatalf("expected no certificate, got '%s'", csr.CertificateChain)
+			}
+		}
+	})
+
+	t.Run("9. Get both CA's. Each CA should have 1 certificate in their CRL", func(t *testing.T) {
+		statusCode, cas, err := listCertificateAuthorities(ts.URL, client, adminToken)
+		if statusCode != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+		}
+		if err != nil {
+			t.Fatalf("expected no error, got: %s", err)
+		}
+		if len(cas.Result) != 2 {
+			t.Fatalf("expected 2 certificate authorities, got %d", len(cas.Result))
+		}
+		for _, ca := range cas.Result {
+			crl, err := db.ParseCRL(ca.CRL)
+			if err != nil {
+				t.Fatalf("expected no error when parsing CRL, got: %s", err)
+			}
+			if len(crl.RevokedCertificateEntries) != 1 {
+				t.Fatalf("expected 1 revoked certificate, got %d", len(crl.RevokedCertificateEntries))
+			}
+			if crl.RevokedCertificateEntries[0].SerialNumber == big.NewInt(int64(0)) {
+				t.Fatalf("expected a real serial number, got %d", crl.RevokedCertificateEntries[0].SerialNumber)
+			}
+		}
+	})
+
+	t.Run("10. Revoke Intermediate CA", func(t *testing.T) {
+		statusCode, response, err := revokeCertificateAuthority(ts.URL, client, adminToken, 2)
+		if err != nil {
+			t.Fatalf("expected no error, got: %s", err)
+		}
+		if statusCode != http.StatusAccepted {
+			t.Fatalf("expected status %d, got %d", http.StatusAccepted, statusCode)
+		}
+		if response.Error != "" {
+			t.Fatalf("expected success, got %s", response.Error)
+		}
+		statusCode, cas, err := listCertificateAuthorities(ts.URL, client, adminToken)
+		if statusCode != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+		}
+		if err != nil {
+			t.Fatalf("expected no error, got: %s", err)
+		}
+		if cas.Result[1].Status != "pending" {
+			t.Fatalf("expected revoked intermediate CA to have revoked status")
+		}
+		if cas.Result[1].CertificatePEM != "" {
+			t.Fatalf("expected revoked intermediate CA to not have a certificate")
+		}
+		crl, err := db.ParseCRL(cas.Result[0].CRL)
+		if err != nil {
+			t.Fatalf("expected no error when parsing CRL, got: %s", err)
+		}
+		if len(crl.RevokedCertificateEntries) != 2 {
+			t.Fatalf("expected 2 revoked certificates, got %d", len(crl.RevokedCertificateEntries))
 		}
 	})
 }

@@ -12,6 +12,7 @@ import (
 type ConfigYAML struct {
 	KeyPath             string `yaml:"key_path"`
 	CertPath            string `yaml:"cert_path"`
+	ExternalHostname    string `yaml:"external_hostname"`
 	DBPath              string `yaml:"db_path"`
 	Port                int    `yaml:"port"`
 	PebbleNotifications bool   `yaml:"pebble_notifications"`
@@ -20,6 +21,7 @@ type ConfigYAML struct {
 type Config struct {
 	Key                        []byte
 	Cert                       []byte
+	ExternalHostname           string
 	DBPath                     string
 	Port                       int
 	PebbleNotificationsEnabled bool
@@ -50,6 +52,9 @@ func Validate(filePath string) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	if c.ExternalHostname == "" {
+		return Config{}, errors.New("`external_hostname` is empty")
+	}
 	if c.DBPath == "" {
 		return Config{}, errors.New("`db_path` is empty")
 	}
@@ -73,6 +78,7 @@ func Validate(filePath string) (Config, error) {
 
 	config.Cert = cert
 	config.Key = key
+	config.ExternalHostname = c.ExternalHostname
 	config.DBPath = c.DBPath
 	config.Port = c.Port
 	config.PebbleNotificationsEnabled = c.PebbleNotifications

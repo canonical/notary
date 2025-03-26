@@ -363,8 +363,8 @@ func revokeCertificateRequest(url string, client *http.Client, adminToken string
 }
 
 type GetCRLResponse struct {
-	Result server.CertificateAuthority `json:"result"`
-	Error  string                      `json:"error,omitempty"`
+	Result server.CRL `json:"result"`
+	Error  string     `json:"error,omitempty"`
 }
 
 func getCertificateAuthorityCRLRequest(url string, client *http.Client, adminToken string, id int) (int, *GetCRLResponse, error) {
@@ -1640,6 +1640,21 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		}
 		if len(crl.RevokedCertificateEntries) != 2 {
 			t.Fatalf("expected 2 revoked certificates, got %d", len(crl.RevokedCertificateEntries))
+		}
+	})
+	t.Run("11. Get CRL as a non-authenticated user", func(t *testing.T) {
+		statusCode, result, err := getCertificateAuthorityCRLRequest(ts.URL, client, "", 1)
+		if err != nil {
+			t.Fatalf("expected no error, got: %s", err)
+		}
+		if statusCode != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+		}
+		if result.Error != "" {
+			t.Fatalf("expected no error, got %s", result.Error)
+		}
+		if result.Result.CRL == "" {
+			t.Fatalf("expected CRL to be available")
 		}
 	})
 }

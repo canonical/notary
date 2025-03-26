@@ -28,7 +28,7 @@ func NewHandler(config *HandlerConfig) http.Handler {
 	apiV1Router.HandleFunc("DELETE /certificate_authorities/{id}", adminOnly(config.JWTSecret, DeleteCertificateAuthority(config)))
 	apiV1Router.HandleFunc("POST /certificate_authorities/{id}/sign", adminOnly(config.JWTSecret, SignCertificateAuthority(config)))
 	apiV1Router.HandleFunc("POST /certificate_authorities/{id}/certificate", adminOnly(config.JWTSecret, PostCertificateAuthorityCertificate(config)))
-	apiV1Router.HandleFunc("GET /certificate_authorities/{id}/crl", adminOrUser(config.JWTSecret, GetCertificateAuthorityCRL(config)))
+	apiV1Router.HandleFunc("GET /certificate_authorities/{id}/crl", GetCertificateAuthorityCRL(config))
 	apiV1Router.HandleFunc("POST /certificate_authorities/{id}/revoke", adminOnly(config.JWTSecret, RevokeCertificateAuthorityCertificate(config)))
 
 	apiV1Router.HandleFunc("GET /accounts", adminOnly(config.JWTSecret, ListAccounts(config)))

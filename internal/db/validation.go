@@ -7,6 +7,9 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"strings"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 // ValidateCertificateRequest validates the given CSR string to the following:
@@ -164,3 +167,4 @@ func HashPassword(password string) (string, error) {
 		return "", err
 	}
 	return string(hashedPassword), nil
+}

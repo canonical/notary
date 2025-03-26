@@ -1431,13 +1431,6 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if cas.Result[1].CRL != "" {
 			t.Fatalf("expected intermediate CA to not have a CRL")
 		}
-		// crl, err := db.ParseCRL(cas.Result[0].CRL)
-		// if err != nil {
-		// 	t.Fatalf("expected no error when parsing CRL, got: %s", err)
-		// }
-		// if len(crl.RevokedCertificateEntries) != 0 {
-		// 	t.Fatalf("expected no revoked certificates, got %d", len(crl.RevokedCertificateEntries))
-		// } TODO
 	})
 
 	t.Run("4. Sign Intermediate CA", func(t *testing.T) {
@@ -1470,13 +1463,6 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if cas.Result[1].CRL == "" {
 			t.Fatalf("expected intermediate CA to have a CRL")
 		}
-		// crl, err := db.ParseCRL(cas.Result[1].CRL)
-		// if err != nil {
-		// 	t.Fatalf("expected no error when parsing CRL, got: %s", err)
-		// }
-		// if len(crl.RevokedCertificateEntries) != 0 {
-		// 	t.Fatalf("expected no revoked certificates, got %d", len(crl.RevokedCertificateEntries))
-		// } TODO
 	})
 
 	t.Run("6. Add 2 CSR's and sign them.", func(t *testing.T) {

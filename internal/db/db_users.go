@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/canonical/notary/internal/hashing"
 	"github.com/canonical/sqlair"
 )
 
@@ -75,10 +76,10 @@ func (db *Database) GetUser(filter UserFilter) (*User, error) {
 // The permission level 1 represents an admin, and a 0 represents a regular user.
 // The password passed in should be in plaintext. This function handles hashing and salting the password before storing it in the database.
 func (db *Database) CreateUser(username string, password string, permission int) (int64, error) {
-	pw, err := HashPassword(password)
+	pw, err := hashing.HashPassword(password)
 	if err != nil {
 		log.Println(err)
-		if errors.Is(err, ErrInvalidInput) {
+		if errors.Is(err, hashing.ErrInvalidPassword) {
 			return 0, fmt.Errorf("%w: invalid password", ErrInvalidInput)
 		}
 		return 0, fmt.Errorf("%w: failed to create user", ErrInternal)
@@ -122,10 +123,10 @@ func (db *Database) UpdateUserPassword(filter UserFilter, password string) error
 	if err != nil {
 		return err
 	}
-	hashedPassword, err := HashPassword(password)
+	hashedPassword, err := hashing.HashPassword(password)
 	if err != nil {
 		log.Println(err)
-		if errors.Is(err, ErrInvalidInput) {
+		if errors.Is(err, hashing.ErrInvalidPassword) {
 			return fmt.Errorf("%w: invalid password", ErrInvalidInput)
 		}
 		return fmt.Errorf("%w: failed to hash password", ErrInternal)

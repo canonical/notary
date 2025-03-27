@@ -109,7 +109,6 @@ func TestBadConfigFail(t *testing.T) {
 	}{
 		{"no cert path", noCertPathConfig, "`cert_path` is empty"},
 		{"no key path", noKeyPathConfig, "`key_path` is empty"},
-		{"no external hostname", noExternalHostnameConfig, "`external_hostname` is empty"},
 		{"no db path", noDBPathConfig, "`db_path` is empty"},
 		{"wrong cert path", wrongCertPathConfig, "no such file or directory"},
 		{"wrong key path", wrongKeyPathConfig, "no such file or directory"},
@@ -129,5 +128,19 @@ func TestBadConfigFail(t *testing.T) {
 		if !strings.Contains(err.Error(), tc.ExpectedError) {
 			t.Errorf("Expected error not found: %s", err)
 		}
+	}
+}
+
+func TestNoExternalHostname(t *testing.T) {
+	writeConfigErr := os.WriteFile("config.yaml", []byte(noExternalHostnameConfig), 0o644)
+	if writeConfigErr != nil {
+		t.Fatalf("Error writing config file")
+	}
+	conf, err := config.Validate("config.yaml")
+	if err != nil {
+		t.Fatalf("Error occurred: %s", err)
+	}
+	if conf.ExternalHostname != "localhost" {
+		t.Fatalf("External hostname default value wasn't localhost")
 	}
 }

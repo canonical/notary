@@ -53,7 +53,7 @@ func Validate(filePath string) (Config, error) {
 		return Config{}, err
 	}
 	if c.ExternalHostname == "" {
-		return Config{}, errors.New("`external_hostname` is empty")
+		c.ExternalHostname = "localhost"
 	}
 	if c.DBPath == "" {
 		return Config{}, errors.New("`db_path` is empty")

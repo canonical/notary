@@ -7,9 +7,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"strings"
-
-	"golang.org/x/crypto/bcrypt"
 )
 
 // ValidateCertificateRequest validates the given CSR string to the following:
@@ -133,38 +130,4 @@ func ValidateUser(user User) error {
 		return fmt.Errorf("invalid permissions")
 	}
 	return nil
-}
-
-// SanitizeCertificateBundle takes in a valid certificate string and formats it.
-// The final list has pure certificate PEM strings with no trailing or leading whitespace
-func sanitizeCertificateBundle(cert string) ([]string, error) {
-	var buff bytes.Buffer
-	var output []string
-	certData := []byte(cert)
-	for {
-		certBlock, rest := pem.Decode(certData)
-		if certBlock == nil {
-			break
-		}
-		err := pem.Encode(&buff, certBlock)
-		if err != nil {
-			return nil, err
-		}
-		output = append(output, buff.String())
-		buff.Reset()
-		certData = rest
-	}
-	return output, nil
-}
-
-// Takes the password string, makes sure it's not empty, and hashes it using bcrypt
-func HashPassword(password string) (string, error) {
-	if strings.TrimSpace(password) == "" {
-		return "", fmt.Errorf("%w: password cannot be empty", ErrInvalidInput)
-	}
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return "", err
-	}
-	return string(hashedPassword), nil
 }

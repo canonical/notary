@@ -8,20 +8,19 @@ import (
 	"time"
 
 	"github.com/canonical/notary/internal/db"
-	"github.com/canonical/sqlair"
-	"github.com/golang-jwt/jwt"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/canonical/notary/internal/hashing"
+	"github.com/golang-jwt/jwt/v5"
 )
 
-func expireAfter() int64 {
-	return time.Now().Add(time.Hour * 1).Unix()
+func expireAfter() time.Time {
+	return time.Now().Add(time.Hour * 1)
 }
 
 type jwtNotaryClaims struct {
 	ID          int64  `json:"id"`
 	Username    string `json:"username"`
 	Permissions int    `json:"permissions"`
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 }
 
 type LoginParams struct {
@@ -35,12 +34,13 @@ type LoginResponse struct {
 
 // Helper function to generate a JWT
 func generateJWT(id int64, username string, jwtSecret []byte, permissions int) (string, error) {
+	expiresAt := jwt.NewNumericDate(expireAfter())
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtNotaryClaims{
 		ID:          id,
 		Username:    username,
 		Permissions: permissions,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expireAfter(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: expiresAt,
 		},
 	})
 	tokenString, err := token.SignedString(jwtSecret)
@@ -68,15 +68,16 @@ func Login(env *HandlerConfig) http.HandlerFunc {
 		}
 		userAccount, err := env.DB.GetUser(db.ByUsername(loginParams.Username))
 		if err != nil {
-			log.Println(err)
-			if errors.Is(err, sqlair.ErrNoRows) {
-				writeError(w, http.StatusUnauthorized, "The username or password is incorrect. Try again.")
+			if !errors.Is(err, db.ErrNotFound) && !errors.Is(err, db.ErrInvalidFilter) {
+				writeError(w, http.StatusInternalServerError, "Internal Error")
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error")
-			return
 		}
-		if err := bcrypt.CompareHashAndPassword([]byte(userAccount.HashedPassword), []byte(loginParams.Password)); err != nil {
+		hashedPassword := ""
+		if userAccount != nil {
+			hashedPassword = userAccount.HashedPassword
+		}
+		if err := hashing.CompareHashAndPassword(hashedPassword, loginParams.Password); err != nil {
 			writeError(w, http.StatusUnauthorized, "The username or password is incorrect. Try again.")
 			return
 		}

@@ -1,11 +1,11 @@
 package db_test
 
 import (
-	"strings"
+	"errors"
 	"testing"
 
 	"github.com/canonical/notary/internal/db"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/canonical/notary/internal/hashing"
 )
 
 func TestUsersEndToEnd(t *testing.T) {
@@ -62,7 +62,7 @@ func TestUsersEndToEnd(t *testing.T) {
 	if retrievedUser.Username != "admin" {
 		t.Fatalf("The user from the database doesn't match the user that was given")
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(retrievedUser.HashedPassword), []byte("pw123")); err != nil {
+	if err := hashing.CompareHashAndPassword(retrievedUser.HashedPassword, "pw123"); err != nil {
 		t.Fatalf("The user's password doesn't match the one stored in the database")
 	}
 
@@ -79,7 +79,7 @@ func TestUsersEndToEnd(t *testing.T) {
 		t.Fatalf("Couldn't complete Update: %s", err)
 	}
 	retrievedUser, _ = database.GetUser(db.ByUsername("norman"))
-	if err := bcrypt.CompareHashAndPassword([]byte(retrievedUser.HashedPassword), []byte("thebestpassword")); err != nil {
+	if err := hashing.CompareHashAndPassword(retrievedUser.HashedPassword, "thebestpassword"); err != nil {
 		t.Fatalf("The new password that was given does not match the password that was stored.")
 	}
 }
@@ -98,8 +98,8 @@ func TestCreateUserFails(t *testing.T) {
 			"An error should have been returned when creating a user with a duplicate username.",
 		)
 	}
-	if !strings.Contains(err.Error(), "UNIQUE constraint failed") {
-		t.Fatalf("The error should include 'UNIQUE constraint failed'")
+	if !errors.Is(err, db.ErrAlreadyExists) {
+		t.Fatalf("An error should have been returned when creating a user with a duplicate username.")
 	}
 	num, err := database.NumUsers()
 	if err != nil {
@@ -116,8 +116,8 @@ func TestCreateUserFails(t *testing.T) {
 	if err == nil {
 		t.Fatalf("An error should have been returned when creating a user with an empty username.")
 	}
-	if !strings.Contains(err.Error(), "CHECK constraint failed") {
-		t.Fatalf("The error should include 'CHECK constraint failed'")
+	if !errors.Is(err, db.ErrInvalidInput) {
+		t.Fatalf("An ErrInvalidInput should have been returned when creating a user with an empty username.")
 	}
 	num, err = database.NumUsers()
 	if err != nil {
@@ -130,8 +130,8 @@ func TestCreateUserFails(t *testing.T) {
 	if err == nil {
 		t.Fatalf("An error should have been returned when creating a user with a nil password.")
 	}
-	if !strings.Contains(err.Error(), "password cannot be empty") {
-		t.Fatalf("The error should include 'password cannot be empty'")
+	if !errors.Is(err, db.ErrInvalidInput) {
+		t.Fatalf("An ErrInvalidInput should have been returned when creating a user with a nil password.")
 	}
 	num, err = database.NumUsers()
 	if err != nil {
@@ -144,8 +144,8 @@ func TestCreateUserFails(t *testing.T) {
 	if err == nil {
 		t.Fatalf("An error should have been returned when creating a user with an invalid permission level.")
 	}
-	if !strings.Contains(err.Error(), "CHECK constraint failed: permissions IN (0,1)") {
-		t.Fatalf("The error should include 'CHECK constraint failed: permissions IN (0,1)'")
+	if !errors.Is(err, db.ErrInvalidInput) {
+		t.Fatalf("An ErrInvalidInput should have been returned when creating a user with an invalid permission level.")
 	}
 }
 
@@ -191,7 +191,7 @@ func TestUpdateUserPasswordFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete GetUser: %s", err)
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(retrievedUser.HashedPassword), []byte(originalPassword)); err != nil {
+	if err := hashing.CompareHashAndPassword(retrievedUser.HashedPassword, originalPassword); err != nil {
 		t.Fatalf("The user's password doesn't match the one stored in the database")
 	}
 	num, err := database.NumUsers()
@@ -206,14 +206,14 @@ func TestUpdateUserPasswordFails(t *testing.T) {
 	if err == nil {
 		t.Fatalf("An error should have been returned when updating a user with an empty password.")
 	}
-	if !strings.Contains(err.Error(), "password cannot be empty") {
-		t.Fatalf("The error should include 'password cannot be empty'")
+	if !errors.Is(err, db.ErrInvalidInput) {
+		t.Fatalf("An ErrInvalidInput should have been returned when updating a user with an empty password.")
 	}
 	retrievedUser, err = database.GetUser(db.ByUserID(1))
 	if err != nil {
 		t.Fatalf("Couldn't complete GetUser: %s", err)
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(retrievedUser.HashedPassword), []byte(originalPassword)); err != nil {
+	if err := hashing.CompareHashAndPassword(retrievedUser.HashedPassword, originalPassword); err != nil {
 		t.Fatalf("The user's password doesn't match the one stored in the database")
 	}
 }

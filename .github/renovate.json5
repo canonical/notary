@@ -1,0 +1,46 @@
+{
+    $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+    extends: [
+      'config:recommended',
+      ':disableRateLimiting',
+      ':noUnscheduledUpdates',
+      ':semanticCommits',
+    ],
+    automerge: true,
+    automergeStrategy: 'squash',
+    automergeType: 'pr',
+    platformAutomerge: true,
+    schedule: [
+      'after 1am and before 3am on monday',
+    ],
+    timezone: 'Etc/UTC',
+    enabledManagers: [
+      'github-actions',
+      'gomod',
+      'npm'
+    ],
+    packageRules: [
+      {
+        matchManagers: [
+          'github-actions',
+        ],
+        groupName: 'github_actions',
+        commitMessagePrefix: 'chore: ',
+      },
+      {
+        matchManagers: [
+          'gomod',
+        ],
+        groupName: 'go_dependencies',
+        commitMessagePrefix: 'chore: ',
+      },
+      {
+        matchManagers: [
+          'npm',
+        ],
+        groupName: 'UI dependencies',
+        commitMessagePrefix: 'chore: ',
+      },
+    ],
+    bumpVersion: "patch",
+  }

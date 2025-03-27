@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/canonical/notary/internal/db"
-	"github.com/canonical/sqlair"
 )
 
 type CreateCertificateRequestParams struct {
@@ -72,7 +71,6 @@ func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		csrs, err := env.DB.ListCertificateRequestWithCertificatesWithoutCAS()
 		if err != nil {
-			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
@@ -108,16 +106,14 @@ func CreateCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 		}
 		newCSRID, err := env.DB.CreateCertificateRequest(createCertificateRequestParams.CSR)
 		if err != nil {
-			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			if errors.Is(err, db.ErrAlreadyExists) {
 				writeError(w, http.StatusBadRequest, "given csr already recorded")
 				return
 			}
-			if strings.Contains(err.Error(), "csr validation failed") {
-				log.Println(err)
+			if errors.Is(err, db.ErrInvalidCertificateRequest) {
 				writeError(w, http.StatusBadRequest, "csr validation failed")
 				return
 			}
-			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
@@ -142,8 +138,7 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 		}
 		csr, err := env.DB.GetCertificateRequestAndChain(db.ByCSRID(idNum))
 		if err != nil {
-			log.Println(err)
-			if errors.Is(err, sqlair.ErrNoRows) {
+			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}
@@ -152,12 +147,10 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 		}
 		_, err = env.DB.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(csr.CSR_ID))
 		if rowFound(err) {
-			log.Println(err)
 			writeError(w, http.StatusNotFound, "Not Found")
 			return
 		}
 		if realError(err) {
-			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
@@ -187,19 +180,16 @@ func DeleteCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 		}
 		_, err = env.DB.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
 		if rowFound(err) {
-			log.Println(err)
 			writeError(w, http.StatusNotFound, "Not Found")
 			return
 		}
 		if realError(err) {
-			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
 		err = env.DB.DeleteCertificateRequest(db.ByCSRID(idNum))
 		if err != nil {
-			log.Println(err)
-			if errors.Is(err, sqlair.ErrNoRows) {
+			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}
@@ -237,21 +227,17 @@ func PostCertificateRequestCertificate(env *HandlerConfig) http.HandlerFunc {
 		}
 		_, err = env.DB.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
 		if rowFound(err) {
-			log.Println(err)
 			writeError(w, http.StatusNotFound, "Not Found")
 			return
 		}
 		if realError(err) {
-			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
 		newCertID, err := env.DB.AddCertificateChainToCertificateRequest(db.ByCSRID(idNum), createCertificateParams.CertificateChain)
 		if err != nil {
-			log.Println(err)
-			if errors.Is(err, sqlair.ErrNoRows) ||
-				err.Error() == "certificate does not match CSR" ||
-				strings.Contains(err.Error(), "cert validation failed") {
+			if errors.Is(err, db.ErrNotFound) ||
+				errors.Is(err, db.ErrInvalidCertificate) {
 				writeError(w, http.StatusBadRequest, "Bad Request")
 				return
 			}
@@ -285,19 +271,16 @@ func RejectCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 		}
 		_, err = env.DB.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
 		if rowFound(err) {
-			log.Println(err)
 			writeError(w, http.StatusNotFound, "Not Found")
 			return
 		}
 		if realError(err) {
-			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
 		err = env.DB.RejectCertificateRequest(db.ByCSRID(idNum))
 		if err != nil {
-			log.Println(err)
-			if errors.Is(err, sqlair.ErrNoRows) {
+			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}
@@ -331,19 +314,16 @@ func DeleteCertificate(env *HandlerConfig) http.HandlerFunc {
 		}
 		_, err = env.DB.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
 		if rowFound(err) {
-			log.Println(err)
 			writeError(w, http.StatusNotFound, "Not Found")
 			return
 		}
 		if realError(err) {
-			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
 		err = env.DB.DeleteCertificateRequest(db.ByCSRID(idNum))
 		if err != nil {
-			log.Println(err)
-			if errors.Is(err, sqlair.ErrNoRows) {
+			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusBadRequest, "Bad Request")
 				return
 			}
@@ -378,19 +358,16 @@ func RevokeCertificate(env *HandlerConfig) http.HandlerFunc {
 		}
 		_, err = env.DB.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
 		if rowFound(err) {
-			log.Println(err)
 			writeError(w, http.StatusNotFound, "Not Found")
 			return
 		}
 		if realError(err) {
-			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
 		err = env.DB.RevokeCertificate(db.ByCSRID(idNum))
 		if err != nil {
-			log.Println(err)
-			if errors.Is(err, sqlair.ErrNoRows) {
+			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}
@@ -430,25 +407,21 @@ func SignCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 		}
 		_, err = env.DB.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
 		if rowFound(err) {
-			log.Println(err)
 			writeError(w, http.StatusNotFound, "Not Found")
 			return
 		}
 		if realError(err) {
-			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
 		caIDInt, err := strconv.ParseInt(signCertificateRequestParams.CertificateAuthorityID, 10, 64)
 		if err != nil {
-			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
 		err = env.DB.SignCertificateRequest(db.ByCSRID(idNum), db.ByCertificateAuthorityID(caIDInt))
 		if err != nil {
-			log.Println(err)
-			if errors.Is(err, sqlair.ErrNoRows) {
+			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found")
 				return
 			}
@@ -471,7 +444,7 @@ func SignCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 }
 
 func realError(err error) bool {
-	return err != nil && !errors.Is(err, sqlair.ErrNoRows)
+	return err != nil && !errors.Is(err, db.ErrNotFound)
 }
 
 func rowFound(err error) bool {

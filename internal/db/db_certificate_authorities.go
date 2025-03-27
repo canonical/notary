@@ -553,7 +553,10 @@ func (db *Database) RevokeCertificate(filter CSRFilter) error {
 		if err != nil {
 			return err
 		}
-		db.UpdateCertificateAuthorityCRL(ByCertificateAuthorityID(ca.CertificateAuthorityID), newCRL)
+		err = db.UpdateCertificateAuthorityCRL(ByCertificateAuthorityID(ca.CertificateAuthorityID), newCRL)
+		if err != nil {
+			return err
+		}
 	}
 
 	stmt, err := sqlair.Prepare(updateCertificateRequestStmt, CertificateRequest{})
@@ -569,8 +572,10 @@ func (db *Database) RevokeCertificate(filter CSRFilter) error {
 
 	ca, err = db.GetCertificateAuthority(ByCertificateAuthorityCSRID(oldRow.CSR_ID))
 	if rowFound(err) {
-		db.UpdateCertificateAuthorityStatus(ByCertificateAuthorityID(ca.CertificateAuthorityID), CAPending)
-		db.UpdateCertificateAuthorityCertificate(ByCertificateAuthorityID(ca.CertificateAuthorityID), "")
+		err = db.UpdateCertificateAuthorityStatus(ByCertificateAuthorityID(ca.CertificateAuthorityID), CAPending)
+		if err != nil {
+			return err
+		}
 	}
 	if realError(err) {
 		return err

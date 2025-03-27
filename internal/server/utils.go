@@ -14,10 +14,13 @@ import (
 func generateSKI(priv *rsa.PrivateKey) ([]byte, error) {
 	pubKeyBytes, _ := x509.MarshalPKIXPublicKey(&priv.PublicKey)
 	var spki struct {
-		_                asn1.RawValue
+		Algorithm        asn1.RawValue
 		SubjectPublicKey asn1.BitString
 	}
-	asn1.Unmarshal(pubKeyBytes, &spki)
+	_, err := asn1.Unmarshal(pubKeyBytes, &spki)
+	if err != nil {
+		return nil, err
+	}
 	hash := sha1.Sum(spki.SubjectPublicKey.Bytes)
 	return hash[:], nil
 }

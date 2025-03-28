@@ -16,7 +16,8 @@ func setupServer(filepath string) (*httptest.Server, *server.HandlerConfig, erro
 		return nil, nil, err
 	}
 	config := &server.HandlerConfig{
-		DB: testdb,
+		DB:               testdb,
+		ExternalHostname: "example.com",
 	}
 	ts := httptest.NewTLSServer(server.NewHandler(config))
 	return ts, config, nil

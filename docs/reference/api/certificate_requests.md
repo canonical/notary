@@ -121,13 +121,38 @@ This path creates a certificate for a certificate request.
 }
 ```
 
-## Reject a Certificate for a Certificate Request
+## Reject a Certificate Request
 
-This path rejects a certificate for a certificate request.
+This path rejects a certificate request. This has no meaning in the TLS ecosystem, 
+and is used for users to easily differentiate outstanding certificates.
+
+| Method | Path                                       |
+| :----- | :----------------------------------------- |
+| `POST` | `/api/v1/certificate_requests/{id}/reject` |
+
+### Parameters
+
+None
+
+### Sample Response
+
+```json
+{
+    "result": {
+        "message": "success"
+    }
+}
+```
+
+## Revoke a Certificate from a Certificate Request
+
+This path revokes an existing certificate from a certificate request. This path only works if the certificate request was signed in notary.
+Notary will place the certificate's serial number in the CRL of the issuing CA.
+
 
 | Method | Path                                                   |
 | :----- | :----------------------------------------------------- |
-| `POST` | `/api/v1/certificate_requests/{id}/certificate/reject` |
+| `POST` | `/api/v1/certificate_requests/{id}/certificate/revoke` |
 
 ### Parameters
 

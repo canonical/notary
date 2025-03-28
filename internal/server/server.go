@@ -14,8 +14,9 @@ import (
 
 type HandlerConfig struct {
 	DB                      *db.Database
-	SendPebbleNotifications bool
+	ExternalHostname        string
 	JWTSecret               []byte
+	SendPebbleNotifications bool
 }
 
 type NotificationKey int
@@ -53,7 +54,7 @@ func generateJWTSecret() ([]byte, error) {
 }
 
 // New creates an environment and an http server with handlers that Go can start listening to
-func New(port int, cert []byte, key []byte, dbPath string, pebbleNotificationsEnabled bool) (*http.Server, error) {
+func New(port int, cert []byte, key []byte, dbPath string, externalHostname string, pebbleNotificationsEnabled bool) (*http.Server, error) {
 	serverCerts, err := tls.X509KeyPair(cert, key)
 	if err != nil {
 		return nil, err
@@ -71,6 +72,7 @@ func New(port int, cert []byte, key []byte, dbPath string, pebbleNotificationsEn
 	env.DB = db
 	env.SendPebbleNotifications = pebbleNotificationsEnabled
 	env.JWTSecret = jwtSecret
+	env.ExternalHostname = externalHostname
 	router := NewHandler(env)
 
 	s := &http.Server{

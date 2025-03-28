@@ -80,6 +80,20 @@ FSMVFFeS89IfbO294ipP8UD/A9DpMTOCl1bTnfgSef9tJ5GOoXKeiW+Pr/NpVWJE
 Vr1E5wQ9VYY3TJRfnqnxhckuNqW8ePnL6uyeCw==
 -----END CERTIFICATE-----
 `
+	RootCACRL = `-----BEGIN X509 CRL-----
+MIIB8zCB3AIBATANBgkqhkiG9w0BAQsFADByMQswCQYDVQQGEwJUUjEOMAwGA1UE
+CBMFSXptaXIxEjAQBgNVBAcTCU5hcmxpZGVyZTESMBAGA1UEChMJQ2Fub25pY2Fs
+MREwDwYDVQQLEwhJZGVudGl0eTEYMBYGA1UEAxMPVGVzdGluZyBSb290IENBFw0y
+NTAzMjUwMDUwNTVaFw0yNjAzMjUwMDUwNTVaoDYwNDAfBgNVHSMEGDAWgBQF3ex7
+fP5MLxLqm+dYzdPtP0droDARBgNVHRQECgIIGC/lcS7/dH4wDQYJKoZIhvcNAQEL
+BQADggEBAFLrH+1paVPKYr8cRAEBPtSRxp23YbbbcC40irmmYlHoOEooRAJ8+nw3
+ZUX4A527Bjr+Pbu/9klXZhCAS4r8fFT3veJQ1mp/kEZOsBG9h0bCN4Jwpqix2f1W
+6z3AcPiwg636KPaze8pwUcqSfQSwmfzwl3E8vkzD29dy6tXwKTdgaUP7uHrzeHDi
+rtA9e9+8gbbad1I9lwdd2Q4qgt3mUIjwn5SV9sSEaSApT8i/Z72RHLpGJNl3JpO1
+0599PMgFeP6VruT8IYhfj7iEY2lqiyWMXoXsgGwhD8PAqKcJ03vavUNrfhkT+Jl9
+yxat/tt2TxlkcAxv4nrxhR208GXqpE0=
+-----END X509 CRL-----
+`
 	IntermediateCACSR = `-----BEGIN CERTIFICATE REQUEST-----
 MIIDSDCCAjACAQAwgYMxCzAJBgNVBAYTAlRSMQ4wDAYDVQQIEwVJem1pcjESMBAG
 A1UEBxMJTmFybGlkZXJlMRIwEAYDVQQKEwlDYW5vbmljYWwxETAPBgNVBAsTCElk
@@ -153,6 +167,20 @@ C7MI8h70C2nSuECxBB5dQvX+cUZPAxTvdROWD2jytfwduqpFg06gUFuKjQo3pXgV
 FEA+f5Axiq+6pfJeYRF4cb7ceNJ0f+fGfm7j0A==
 -----END CERTIFICATE-----
 `
+	IntermediateCACRL = `-----BEGIN X509 CRL-----
+MIICBTCB7gIBATANBgkqhkiG9w0BAQsFADCBgzELMAkGA1UEBhMCVFIxDjAMBgNV
+BAgTBUl6bWlyMRIwEAYDVQQHEwlOYXJsaWRlcmUxEjAQBgNVBAoTCUNhbm9uaWNh
+bDERMA8GA1UECxMISWRlbnRpdHkxKTAnBgNVBAMTIFRlc3RpbmcgSW50ZXJtZWRp
+YXRlIENlcnRpZmljYXRlFw0yNTAzMjUwMDUwNTVaFw0yNjAzMjUwMDUwNTVaoDYw
+NDAfBgNVHSMEGDAWgBREnJQLncuVZCk2z8p/Kmrm7sdtuzARBgNVHRQECgIIGC/l
+cS897V0wDQYJKoZIhvcNAQELBQADggEBABAdQokdJ/Ji4kPJ7W7H97EOKg80OISB
+TuY+ivizzY4b9bogrA5C7pbRMpVDDDGIiYThEHh43LxJb4lB/1GgtPSGonRRuoXG
+ypkZpBVGVhXXs2C5WiIbn0swQ0bi4rfUjk1tLdPITkBMWR78SjOAqVaOQ97s5g38
+2v04Z79xL0vABtpUrF55gvArdzo6oAIlLplbBFeajqxJE2qH8umnWLHYV7EVwI+4
+geYi6/WRzkRvV/+PEO09Mz/cYyv64DaFrz86EvdQb10Xt4Cf805MOY2WlvxtlI9e
+QVKXWaC6xJiv+IBj0fNbi7wh3BOO8qaqvXvCgRdQt4UMqnKTgm2br0M=
+-----END X509 CRL-----
+`
 )
 
 func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
@@ -171,7 +199,7 @@ func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
 		t.Fatalf("CA found when no CA's should be available")
 	}
 
-	caID, err := database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACertificate+"\n"+RootCACertificate)
+	caID, err := database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
@@ -247,7 +275,7 @@ func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {
 		t.Fatalf("CA found when no CA's should be available")
 	}
 
-	caID, err := database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, "")
+	caID, err := database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, "", "")
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
@@ -327,35 +355,39 @@ func TestCertificateAuthorityFails(t *testing.T) {
 	}
 	defer database.Close()
 
-	_, err = database.CreateCertificateAuthority("", "", "")
+	_, err = database.CreateCertificateAuthority("", "", "", "")
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
-	_, err = database.CreateCertificateAuthority(RootCACSR, "", "")
+	_, err = database.CreateCertificateAuthority(RootCACSR, "", "", "")
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
-	_, err = database.CreateCertificateAuthority(RootCACSR, "nope", "")
+	_, err = database.CreateCertificateAuthority(RootCACSR, "nope", "", "")
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
-	_, err = database.CreateCertificateAuthority("nope", RootCAPrivateKey, "")
+	_, err = database.CreateCertificateAuthority("nope", RootCAPrivateKey, RootCACRL, "")
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
-	_, err = database.CreateCertificateAuthority("", RootCAPrivateKey, RootCACertificate+"\n"+RootCACertificate)
+	_, err = database.CreateCertificateAuthority("", RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate)
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
-	_, err = database.CreateCertificateAuthority(RootCACSR, "", RootCACertificate+"\n"+RootCACertificate)
+	_, err = database.CreateCertificateAuthority(RootCACSR, "", RootCACRL, RootCACertificate+"\n"+RootCACertificate)
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
-	_, err = database.CreateCertificateAuthority("nope", RootCAPrivateKey, RootCACertificate+"\n"+RootCACertificate)
+	_, err = database.CreateCertificateAuthority("nope", RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate)
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
-	_, err = database.CreateCertificateAuthority(RootCACSR, "nope", RootCACertificate+"\n"+RootCACertificate)
+	_, err = database.CreateCertificateAuthority(RootCACSR, "nope", RootCACRL, RootCACertificate+"\n"+RootCACertificate)
+	if err == nil {
+		t.Fatalf("Should have failed to create certificate authority")
+	}
+	_, err = database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, "", RootCACertificate+"\n"+RootCACertificate)
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
@@ -422,7 +454,7 @@ func TestSelfSignedCertificateList(t *testing.T) {
 	}
 	defer database.Close()
 
-	caID, err := database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACertificate+"\n"+RootCACertificate)
+	caID, err := database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
@@ -457,7 +489,7 @@ func TestSigningCSRsFromSelfSignedCertificate(t *testing.T) {
 	}
 	defer database.Close()
 
-	caID, err := database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACertificate+"\n"+RootCACertificate)
+	caID, err := database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
@@ -466,7 +498,7 @@ func TestSigningCSRsFromSelfSignedCertificate(t *testing.T) {
 		t.Fatalf("Couldn't create CSR: %s", err)
 	}
 
-	err = database.SignCertificateRequest(db.ByCSRID(csrID), db.ByCertificateAuthorityID(caID))
+	err = database.SignCertificateRequest(db.ByCSRID(csrID), db.ByCertificateAuthorityID(caID), "example.com")
 	if err != nil {
 		t.Fatalf("Couldn't sign CSR: %s", err)
 	}
@@ -488,7 +520,7 @@ func TestSigningCSRsFromIntermediateCertificate(t *testing.T) {
 	}
 	defer database.Close()
 
-	caID, err := database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, IntermediateCACertificate+"\n"+RootCACertificate)
+	caID, err := database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, IntermediateCACRL, IntermediateCACertificate+"\n"+RootCACertificate)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
@@ -501,7 +533,7 @@ func TestSigningCSRsFromIntermediateCertificate(t *testing.T) {
 		t.Fatalf("Couldn't create CSR: %s", err)
 	}
 
-	err = database.SignCertificateRequest(db.ByCSRID(csrID), db.ByCertificateAuthorityID(caID))
+	err = database.SignCertificateRequest(db.ByCSRID(csrID), db.ByCertificateAuthorityID(caID), "example.com")
 	if err != nil {
 		t.Fatalf("Couldn't sign certificate authority: %s", err)
 	}
@@ -526,7 +558,7 @@ func TestSigningCSRFromUnsignedIntermediateCertificate(t *testing.T) {
 	}
 	defer database.Close()
 
-	caID, err := database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, "")
+	caID, err := database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, "", "")
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
@@ -539,7 +571,7 @@ func TestSigningCSRFromUnsignedIntermediateCertificate(t *testing.T) {
 		t.Fatalf("Couldn't create CSR: %s", err)
 	}
 
-	err = database.SignCertificateRequest(db.ByCSRID(csrID), db.ByCertificateAuthorityID(caID))
+	err = database.SignCertificateRequest(db.ByCSRID(csrID), db.ByCertificateAuthorityID(caID), "example.com")
 	if err == nil {
 		t.Fatalf("Expected signing to fail: %s", err)
 	}
@@ -561,17 +593,17 @@ func TestSigningIntermediateCAByRootCA(t *testing.T) {
 	}
 	defer database.Close()
 
-	rootCAID, err := database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACertificate+"\n"+RootCACertificate)
+	rootCAID, err := database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
 
-	intermediateCAID, err := database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, "")
+	intermediateCAID, err := database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, "", "")
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
 
-	err = database.SignCertificateRequest(db.ByCSRPEM(IntermediateCACSR), db.ByCertificateAuthorityID(rootCAID))
+	err = database.SignCertificateRequest(db.ByCSRPEM(IntermediateCACSR), db.ByCertificateAuthorityID(rootCAID), "example.com")
 	if err != nil {
 		t.Fatalf("Couldn't sign certificate authority: %s", err)
 	}
@@ -584,14 +616,14 @@ func TestSigningIntermediateCAByRootCA(t *testing.T) {
 		t.Fatalf("Expected root ca certificate chain to be 1 certificates long.")
 	}
 	if strings.Count(cas[1].CertificateChain, "BEGIN CERTIFICATE") != 2 {
-		t.Fatalf("Expected intermediate ca certificate chain to be 1 certificates long.")
+		t.Fatalf("Expected intermediate ca certificate chain to be 2 certificates long.")
 	}
 
 	csrID, err := database.CreateCertificateRequest(AppleCSR)
 	if err != nil {
 		t.Fatalf("Couldn't create CSR: %s", err)
 	}
-	err = database.SignCertificateRequest(db.ByCSRID(csrID), db.ByCertificateAuthorityID(intermediateCAID))
+	err = database.SignCertificateRequest(db.ByCSRID(csrID), db.ByCertificateAuthorityID(intermediateCAID), "example.com")
 	if err != nil {
 		t.Fatalf("Couldn't sign certificate authority: %s", err)
 	}
@@ -607,7 +639,7 @@ func TestSigningIntermediateCAByRootCA(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't create CSR: %s", err)
 	}
-	err = database.SignCertificateRequest(db.ByCSRID(csrID), db.ByCertificateAuthorityID(rootCAID))
+	err = database.SignCertificateRequest(db.ByCSRID(csrID), db.ByCertificateAuthorityID(rootCAID), "example.com")
 	if err != nil {
 		t.Fatalf("Couldn't sign certificate authority: %s", err)
 	}
@@ -617,5 +649,186 @@ func TestSigningIntermediateCAByRootCA(t *testing.T) {
 	}
 	if strings.Count(csr.CertificateChain, "BEGIN CERTIFICATE") != 2 {
 		t.Fatalf("Expected end certificate chain to be 2 certificates long.")
+	}
+}
+func TestCertificateRevocationListsEndToEnd(t *testing.T) {
+	tempDir := t.TempDir()
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	if err != nil {
+		t.Fatalf("Couldn't complete NewDatabase: %s", err)
+	}
+	defer database.Close()
+
+	// The root CA has a valid CRL with no entries.
+	rootCAID, err := database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate)
+	if err != nil {
+		t.Fatalf("Couldn't create certificate authority: %s", err)
+	}
+	rootCA, err := database.GetCertificateAuthority(db.ByCertificateAuthorityID(rootCAID))
+	if err != nil {
+		t.Fatalf("Couldn't get certificate authority: %s", err)
+	}
+	crl, err := db.ParseCRL(rootCA.CRL)
+	if err != nil {
+		t.Fatalf("Couldn't parse certificate revocation list: %s", err)
+	}
+	if len(crl.RevokedCertificateEntries) != 0 {
+		t.Fatalf("CRL has unexpected entry")
+	}
+
+	// The intermediate CA has no CRL.
+	intermediateCAID, err := database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, "", "")
+	if err != nil {
+		t.Fatalf("Couldn't create certificate authority: %s", err)
+	}
+	intermediateCA, err := database.GetDenormalizedCertificateAuthority(db.ByCertificateAuthorityID(intermediateCAID))
+	if err != nil {
+		t.Fatalf("Couldn't get certificate authority: %s", err)
+	}
+	if intermediateCA.CRL != "" {
+		t.Fatalf("CRL available for a CA without a certificate")
+	}
+
+	// The signed intermediate CA has a valid and empty CRL,
+	// and its certificate has a CRLDistributionPoint extension that points to the root CA's CRL.
+	err = database.SignCertificateRequest(db.ByCSRPEM(IntermediateCACSR), db.ByCertificateAuthorityID(rootCAID), "example.com")
+	if err != nil {
+		t.Fatalf("Couldn't sign certificate authority: %s", err)
+	}
+	intermediateCA, err = database.GetDenormalizedCertificateAuthority(db.ByCertificateAuthorityID(intermediateCAID))
+	if err != nil {
+		t.Fatalf("Couldn't get certificate authority: %s", err)
+	}
+	if intermediateCA.CRL == "" {
+		t.Fatalf("CRL not available for a CA with a certificate")
+	}
+	crl, err = db.ParseCRL(intermediateCA.CRL)
+	if err != nil {
+		t.Fatalf("Couldn't parse certificate revocation list: %s", err)
+	}
+	if len(crl.RevokedCertificateEntries) != 0 {
+		t.Fatalf("CRL has unexpected entry")
+	}
+	certs, err := db.ParseCertificateChain(intermediateCA.CertificateChain)
+	if err != nil {
+		t.Fatalf("Couldn't parse certificate chain: %s", err)
+	}
+	if certs[0].CRLDistributionPoints[0] != "https://example.com/api/v1/certificate_authorities/1/crl" {
+		t.Fatalf("CRLDistributionPoint extension false: expected https://example.com/api/v1/certificate_authorities/1/crl but got %s", certs[0].CRLDistributionPoints[0])
+	}
+
+	// The signed CSR has a CRLDistributionPoint extension that points to the Intermediate CA's CRL with the correct hostname.
+	csrID, err := database.CreateCertificateRequest(AppleCSR)
+	if err != nil {
+		t.Fatalf("Couldn't create CSR: %s", err)
+	}
+	err = database.SignCertificateRequest(db.ByCSRID(csrID), db.ByCertificateAuthorityID(intermediateCAID), "example.com")
+	if err != nil {
+		t.Fatalf("Couldn't sign certificate authority: %s", err)
+	}
+	csr, err := database.GetCertificateRequestAndChain(db.ByCSRPEM(AppleCSR))
+	if err != nil {
+		t.Fatalf("Couldn't get CSR: %s", err)
+	}
+	certs, err = db.ParseCertificateChain(csr.CertificateChain)
+	if err != nil {
+		t.Fatalf("Couldn't parse certificate chain: %s", err)
+	}
+	if certs[0].CRLDistributionPoints[0] != "https://example.com/api/v1/certificate_authorities/2/crl" {
+		t.Fatalf("CRLDistributionPoint extension false: expected https://example.com/api/v1/certificate_authorities/2/crl but got %s", certs[0].CRLDistributionPoints[0])
+	}
+
+	// The revoked certificate's serial number is placed in the intermediate CA CRL
+	err = database.RevokeCertificate(db.ByCSRID(csrID))
+	if err != nil {
+		t.Fatalf("Couldn't revoke csr: %s", err)
+	}
+	AppleCertSerial := certs[0].SerialNumber.String()
+	intermediateCA, err = database.GetDenormalizedCertificateAuthority(db.ByCertificateAuthorityID(intermediateCAID))
+	if err != nil {
+		t.Fatalf("Couldn't get certificate authority: %s", err)
+	}
+	crl, err = db.ParseCRL(intermediateCA.CRL)
+	if err != nil {
+		t.Fatalf("Couldn't parse certificate revocation list: %s", err)
+	}
+	if len(crl.RevokedCertificateEntries) != 1 {
+		t.Fatalf("CRL should have 1 entry, but has %d", len(crl.RevokedCertificateEntries))
+	}
+	if crl.RevokedCertificateEntries[0].SerialNumber.String() != AppleCertSerial {
+		t.Fatalf("CRL should have serial %s, but has %s", AppleCertSerial, crl.RevokedCertificateEntries[0].SerialNumber.String())
+	}
+
+	// The signed certificate has a CRLDistributionPoint extension that points to the root CA's CRL with the correct hostname.
+	csrID, err = database.CreateCertificateRequest(StrawberryCSR)
+	if err != nil {
+		t.Fatalf("Couldn't create CSR: %s", err)
+	}
+	err = database.SignCertificateRequest(db.ByCSRID(csrID), db.ByCertificateAuthorityID(rootCAID), "example.com")
+	if err != nil {
+		t.Fatalf("Couldn't sign certificate authority: %s", err)
+	}
+	csr, err = database.GetCertificateRequestAndChain(db.ByCSRID(csrID))
+	if err != nil {
+		t.Fatalf("Couldn't get csr: %s", err)
+	}
+	if strings.Count(csr.CertificateChain, "BEGIN CERTIFICATE") != 2 {
+		t.Fatalf("Expected end certificate chain to be 2 certificates long.")
+	}
+	certs, err = db.ParseCertificateChain(csr.CertificateChain)
+	if err != nil {
+		t.Fatalf("Couldn't parse certificate chain: %s", err)
+	}
+	if certs[0].CRLDistributionPoints[0] != "https://example.com/api/v1/certificate_authorities/1/crl" {
+		t.Fatalf("CRLDistributionPoint extension false: expected https://example.com/api/v1/certificate_authorities/1/crl but got %s", certs[0].CRLDistributionPoints[0])
+	}
+
+	// The revoked certificate's serial number is placed in the root CA CRL
+	err = database.RevokeCertificate(db.ByCSRID(csrID))
+	if err != nil {
+		t.Fatalf("Couldn't revoke csr: %s", err)
+	}
+	StrawberryCertSerial := certs[0].SerialNumber.String()
+	rootCA, err = database.GetCertificateAuthority(db.ByCertificateAuthorityID(rootCAID))
+	if err != nil {
+		t.Fatalf("Couldn't get certificate authority: %s", err)
+	}
+	crl, err = db.ParseCRL(rootCA.CRL)
+	if err != nil {
+		t.Fatalf("Couldn't parse certificate revocation list: %s", err)
+	}
+	if len(crl.RevokedCertificateEntries) != 1 {
+		t.Fatalf("CRL should have 1 entry, but has %d", len(crl.RevokedCertificateEntries))
+	}
+	if crl.RevokedCertificateEntries[0].SerialNumber.String() != StrawberryCertSerial {
+		t.Fatalf("CRL should have serial %s, but has %s", StrawberryCertSerial, crl.RevokedCertificateEntries[0].SerialNumber.String())
+	}
+
+	// The revoked intermediate CA's certificate's serial number is placed in the root CA CRL
+	err = database.RevokeCertificate(db.ByCSRPEM(intermediateCA.CSRPEM))
+	if err != nil {
+		t.Fatalf("Couldn't revoke csr: %s", err)
+	}
+	certs, err = db.ParseCertificateChain(intermediateCA.CertificateChain)
+	if err != nil {
+		t.Fatalf("Couldn't parse certificate chain: %s", err)
+	}
+	IntermediateCACertSerial := certs[0].SerialNumber.String()
+	rootCA, err = database.GetCertificateAuthority(db.ByCertificateAuthorityID(rootCAID))
+	if err != nil {
+		t.Fatalf("Couldn't get certificate authority: %s", err)
+	}
+	crl, err = db.ParseCRL(rootCA.CRL)
+	if err != nil {
+		t.Fatalf("Couldn't parse certificate revocation list: %s", err)
+	}
+	if len(crl.RevokedCertificateEntries) != 2 {
+		t.Fatalf("CRL should have 2 entries, but has %d", len(crl.RevokedCertificateEntries))
+	}
+	if crl.RevokedCertificateEntries[0].SerialNumber.String() != StrawberryCertSerial {
+		t.Fatalf("CRL should have serial %s, but has %s", IntermediateCACertSerial, crl.RevokedCertificateEntries[0].SerialNumber.String())
+	}
+	if crl.RevokedCertificateEntries[1].SerialNumber.String() != IntermediateCACertSerial {
+		t.Fatalf("CRL should have serial %s, but has %s", IntermediateCACertSerial, crl.RevokedCertificateEntries[0].SerialNumber.String())
 	}
 }

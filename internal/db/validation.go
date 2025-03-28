@@ -131,25 +131,3 @@ func ValidateUser(user User) error {
 	}
 	return nil
 }
-
-// SanitizeCertificateBundle takes in a valid certificate string and formats it.
-// The final list has pure certificate PEM strings with no trailing or leading whitespace
-func sanitizeCertificateBundle(cert string) ([]string, error) {
-	var buff bytes.Buffer
-	var output []string
-	certData := []byte(cert)
-	for {
-		certBlock, rest := pem.Decode(certData)
-		if certBlock == nil {
-			break
-		}
-		err := pem.Encode(&buff, certBlock)
-		if err != nil {
-			return nil, err
-		}
-		output = append(output, buff.String())
-		buff.Reset()
-		certData = rest
-	}
-	return output, nil
-}

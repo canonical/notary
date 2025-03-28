@@ -346,7 +346,7 @@ func DeleteCertificate(env *HandlerConfig) http.HandlerFunc {
 }
 
 // RevokeCertificate handler receives an id as a path parameter,
-// and attempts to revoke the corresponding certificate request
+// and attempts to revoke the corresponding certificate request by adding the certificate to the CRL
 // It returns a 200 OK on success
 func RevokeCertificate(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -419,7 +419,7 @@ func SignCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
-		err = env.DB.SignCertificateRequest(db.ByCSRID(idNum), db.ByCertificateAuthorityID(caIDInt))
+		err = env.DB.SignCertificateRequest(db.ByCSRID(idNum), db.ByCertificateAuthorityID(caIDInt), env.ExternalHostname)
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found")

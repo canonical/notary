@@ -98,7 +98,7 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 	if err != nil {
 		return 0, fmt.Errorf("%w: %e", ErrInvalidCertificate, err)
 	}
-	certBundle, err := sanitizeCertificateBundle(certPEM)
+	certBundle, err := SplitCertificateBundle(certPEM)
 	if err != nil {
 		return 0, fmt.Errorf("%w: %e", ErrInvalidCertificate, err)
 	}

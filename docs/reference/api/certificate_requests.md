@@ -123,8 +123,9 @@ This path creates a certificate for a certificate request.
 
 ## Reject a Certificate Request
 
-This path rejects a certificate request. This has no meaning in the TLS ecosystem, 
-and is used for users to easily differentiate outstanding certificates.
+This path rejects a certificate request. This is different than revoking a certificate, in that 
+this endpoint will reject a CSR that has never had a certificate assigned while revoking requires
+an already generated certificate.
 
 | Method | Path                                       |
 | :----- | :----------------------------------------- |

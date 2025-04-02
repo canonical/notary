@@ -139,10 +139,7 @@ func createCertificateAuthority(fields CreateCertificateAuthorityParams) (string
 	if err != nil {
 		return "", "", "", "", fmt.Errorf("error creating certificate authority: %w", err)
 	}
-	skiHash, err := generateSKI(priv)
-	if err != nil {
-		return "", "", "", "", fmt.Errorf("error creating certificate authority: %w", err)
-	}
+	skiHash := generateSKI(priv)
 	// Create the certificate request for the CA
 	csrTemplate := &x509.CertificateRequest{
 		Subject: pkix.Name{

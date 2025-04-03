@@ -147,7 +147,7 @@ None
 
 ## Revoke a Certificate
 
-This path revokes an existing certificate from a certificate request. This path only works if the certificate request was signed in notary.
+This path revokes an existing certificate. This path only works if the certificate request was signed in notary.
 Notary will place the certificate's serial number in the CRL of the issuing CA.
 
 

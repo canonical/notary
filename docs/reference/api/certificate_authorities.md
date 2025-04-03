@@ -85,7 +85,7 @@ None
 
 ## Get the CRL of a Certificate Authority
 
-This path returns a pem formatted string of the CRL for the given certificate authority.
+This path returns a PEM formatted string of the CRL for the given certificate authority.
 
 | Method | Path                                   |
 | :----- | :------------------------------------- |

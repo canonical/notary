@@ -105,15 +105,12 @@ func TestCSRsEndToEnd(t *testing.T) {
 		t.Fatalf("Certificate chain was not added to CSR")
 	}
 
-	if err = database.RevokeCertificate(db.ByCSRPEM(BananaCSR)); err != nil {
-		t.Fatalf("Couldn't revoke CSR: %s", err)
+	if err = database.RevokeCertificate(db.ByCSRPEM(BananaCSR)); !errors.Is(err, db.ErrInvalidInput) {
+		t.Fatalf("Should have failed to revoke CSR.")
 	}
-	bananaCSR, err = database.GetCertificateRequest(db.ByCSRPEM(BananaCSR))
+	_, err = database.GetCertificateRequest(db.ByCSRPEM(BananaCSR))
 	if err != nil {
 		t.Fatalf("Couldn't get CSR: %s", err)
-	}
-	if bananaCSR.Status != "Revoked" {
-		t.Fatalf("CSR was not revoked")
 	}
 
 	if err = database.RejectCertificateRequest(db.ByCSRPEM(StrawberryCSR)); err != nil {

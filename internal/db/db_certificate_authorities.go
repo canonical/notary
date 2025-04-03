@@ -522,43 +522,60 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 func (db *Database) RevokeCertificate(filter CSRFilter) error {
 	oldRow, err := db.GetCertificateRequestAndChain(filter)
 	if err != nil {
-		return err
+		log.Println(err)
+		return fmt.Errorf("%w: no certificate request found", ErrNotFound)
 	}
 	if oldRow.CertificateChain == "" {
 		return fmt.Errorf("%w: no certificate to revoke with associated CSR", ErrInvalidInput)
 	}
 	certChain, err := SplitCertificateBundle(oldRow.CertificateChain)
 	if err != nil {
-		return err
+		log.Println(err)
+		return fmt.Errorf("%w: couldn't process certificate chain", ErrInternal)
 	}
 	issuerCert, err := db.GetCertificate(ByCertificatePEM(certChain[1]))
 	if err != nil {
-		return err
+		log.Println(err)
+		return fmt.Errorf("%w: issuer certificate not found", ErrInternal)
 	}
 	revokedCert, err := db.GetCertificate(ByCertificatePEM(certChain[0]))
 	if err != nil {
-		return err
+		log.Println(err)
+		return fmt.Errorf("%w: certificate to be revoked not found", ErrInternal)
 	}
 	ca, err := db.GetCertificateAuthority(ByCertificateAuthorityCertificateID(issuerCert.CertificateID))
-	if rowFound(err) {
-		caWithPK, err := db.GetDenormalizedCertificateAuthority(ByCertificateAuthorityID(ca.CertificateAuthorityID))
-		if err != nil {
-			return err
-		}
-		newCRL, err := AddCertificateToCRL(oldRow.CertificateChain, caWithPK.PrivateKeyPEM, ca.CRL)
-		if err != nil {
-			return err
-		}
-		err = db.DeleteCertificate(ByCertificateID(revokedCert.CertificateID))
-		if err != nil {
-			return err
-		}
-		err = db.UpdateCertificateAuthorityCRL(ByCertificateAuthorityID(ca.CertificateAuthorityID), newCRL)
-		if err != nil {
-			return err
-		}
+	if !rowFound(err) {
+		return fmt.Errorf("%w: certificates need to be signed by a notary managed certificate authority in order to be revoked", ErrInvalidInput)
 	}
-
+	if realError(err) {
+		log.Println(err)
+		return fmt.Errorf("%w: couldn't get certificate authority of issuer", ErrInternal)
+	}
+	caWithPK, err := db.GetDenormalizedCertificateAuthority(ByCertificateAuthorityID(ca.CertificateAuthorityID))
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("%w: issuer certificate authority not found", ErrInternal)
+	}
+	newCRL, err := AddCertificateToCRL(oldRow.CertificateChain, caWithPK.PrivateKeyPEM, ca.CRL)
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("%w: couldn't add certificate to certificate authority", ErrInternal)
+	}
+	err = db.DeleteCertificate(ByCertificateID(revokedCert.CertificateID))
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("%w: couldn't delete certificate from notary", ErrInternal)
+	}
+	err = db.UpdateCertificateAuthorityCRL(ByCertificateAuthorityID(ca.CertificateAuthorityID), newCRL)
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("%w: couldn't add new CRL to certificate authority", ErrInternal)
+	}
+	err = db.UpdateCertificateAuthorityStatus(ByCertificateAuthorityID(ca.CertificateAuthorityID), CAPending)
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("%w: couldn't update certificate authority status to pending", ErrInternal)
+	}
 	stmt, err := sqlair.Prepare(updateCertificateRequestStmt, CertificateRequest{})
 	if err != nil {
 		return err
@@ -568,17 +585,6 @@ func (db *Database) RevokeCertificate(filter CSRFilter) error {
 		CSR:           oldRow.CSR,
 		CertificateID: 0,
 		Status:        "Revoked",
-	}
-
-	ca, err = db.GetCertificateAuthority(ByCertificateAuthorityCSRID(oldRow.CSR_ID))
-	if rowFound(err) {
-		err = db.UpdateCertificateAuthorityStatus(ByCertificateAuthorityID(ca.CertificateAuthorityID), CAPending)
-		if err != nil {
-			return err
-		}
-	}
-	if realError(err) {
-		return err
 	}
 
 	err = db.conn.Query(context.Background(), stmt, newRow).Run()

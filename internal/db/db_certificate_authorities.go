@@ -54,6 +54,7 @@ func NewStatusFromString(s string) (CAStatus, error) {
 type CertificateAuthority struct {
 	CertificateAuthorityID int64 `db:"certificate_authority_id"`
 
+	CRL    string   `db:"crl"`
 	Status CAStatus `db:"status"`
 
 	PrivateKeyID  int64 `db:"private_key_id"`
@@ -63,6 +64,7 @@ type CertificateAuthority struct {
 
 type CertificateAuthorityDenormalized struct {
 	CertificateAuthorityID int64    `db:"certificate_authority_id"`
+	CRL                    string   `db:"crl"`
 	Status                 CAStatus `db:"status"`
 	PrivateKeyPEM          string   `db:"private_key"`
 	CertificateChain       string   `db:"certificate_chain"`
@@ -73,6 +75,7 @@ const queryCreateCertificateAuthoritiesTable = `
 	CREATE TABLE IF NOT EXISTS certificate_authorities (
 	    certificate_authority_id INTEGER PRIMARY KEY AUTOINCREMENT,
 
+		crl TEXT,
 		status TEXT DEFAULT 'Pending', 
 
 		private_key_id INTEGER,
@@ -86,10 +89,10 @@ const queryCreateCertificateAuthoritiesTable = `
 )`
 
 const (
-	createCertificateAuthorityStmt = "INSERT INTO certificate_authorities (status, private_key_id, csr_id, certificate_id) VALUES ($CertificateAuthority.status, $CertificateAuthority.private_key_id, $CertificateAuthority.csr_id, $CertificateAuthority.certificate_id)"
-	getCertificateAuthorityStmt    = "SELECT &CertificateAuthority.* FROM certificate_authorities WHERE certificate_authority_id==$CertificateAuthority.certificate_authority_id or csr_id==$CertificateAuthority.csr_id"
+	createCertificateAuthorityStmt = "INSERT INTO certificate_authorities (crl, status, private_key_id, csr_id, certificate_id) VALUES ($CertificateAuthority.crl, $CertificateAuthority.status, $CertificateAuthority.private_key_id, $CertificateAuthority.csr_id, $CertificateAuthority.certificate_id)"
+	getCertificateAuthorityStmt    = "SELECT &CertificateAuthority.* FROM certificate_authorities WHERE certificate_authority_id==$CertificateAuthority.certificate_authority_id or csr_id==$CertificateAuthority.csr_id or certificate_id==$CertificateAuthority.certificate_id"
 	listCertificateAuthoritiesStmt = "SELECT &CertificateAuthority.* FROM certificate_authorities"
-	updateCertificateAuthorityStmt = "UPDATE certificate_authorities SET status=$CertificateAuthority.status, certificate_id=$CertificateAuthority.certificate_id WHERE certificate_authority_id==$CertificateAuthority.certificate_authority_id or csr_id==$CertificateAuthority.csr_id"
+	updateCertificateAuthorityStmt = "UPDATE certificate_authorities SET crl=$CertificateAuthority.crl, status=$CertificateAuthority.status, certificate_id=$CertificateAuthority.certificate_id WHERE certificate_authority_id==$CertificateAuthority.certificate_authority_id or csr_id==$CertificateAuthority.csr_id"
 	deleteCertificateAuthorityStmt = "DELETE FROM certificate_authorities WHERE certificate_authority_id=$CertificateAuthority.certificate_authority_id or csr_id=$CertificateAuthority.csr_id"
 
 	listDenormalizedCertificateAuthoritiesStmt = `
@@ -99,6 +102,7 @@ WITH RECURSIVE cas_with_chain AS (
         cas.private_key_id,
 		cas.csr_id,
         cas.status,
+        cas.crl,
         certs.certificate_id,
         certs.issuer_id,
         certs.certificate,
@@ -113,6 +117,7 @@ WITH RECURSIVE cas_with_chain AS (
 		cc.private_key_id,
 		cc.csr_id,
         cc.status,
+		cc.crl,
         certs.certificate_id,
         certs.issuer_id,
         certs.certificate,
@@ -122,6 +127,7 @@ WITH RECURSIVE cas_with_chain AS (
 )
 	SELECT 
 		cc.certificate_authority_id as &CertificateAuthorityDenormalized.certificate_authority_id,
+		cc.crl as &CertificateAuthorityDenormalized.crl,
 		cc.status as &CertificateAuthorityDenormalized.status,
 		pk.private_key AS &CertificateAuthorityDenormalized.private_key,
 		cc.chain AS &CertificateAuthorityDenormalized.certificate_chain,
@@ -138,6 +144,7 @@ WITH RECURSIVE cas_with_chain AS (
         cas.private_key_id,
 		cas.csr_id,
         cas.status,
+        cas.crl,
         certs.certificate_id,
         certs.issuer_id,
         certs.certificate,
@@ -152,6 +159,7 @@ WITH RECURSIVE cas_with_chain AS (
 		cc.private_key_id,
 		cc.csr_id,
         cc.status,
+		cc.crl,
         certs.certificate_id,
         certs.issuer_id,
         certs.certificate,
@@ -161,6 +169,7 @@ WITH RECURSIVE cas_with_chain AS (
 )
 	SELECT 
 		cc.certificate_authority_id as &CertificateAuthorityDenormalized.certificate_authority_id,
+		cc.crl as &CertificateAuthorityDenormalized.crl,
 		cc.status as &CertificateAuthorityDenormalized.status,
 		pk.private_key AS &CertificateAuthorityDenormalized.private_key,
 		cc.chain AS &CertificateAuthorityDenormalized.certificate_chain,
@@ -168,8 +177,7 @@ WITH RECURSIVE cas_with_chain AS (
 	FROM cas_with_chain cc
 	LEFT JOIN private_keys pk ON cc.private_key_id = pk.private_key_id
 	LEFT JOIN certificate_requests csrs ON cc.csr_id = csrs.csr_id
-	WHERE cc.certificate_authority_id==$CertificateAuthority.certificate_authority_id 
-			or cc.csr_id==$CertificateAuthority.csr_id 
+	WHERE cc.certificate_authority_id==$CertificateAuthorityDenormalized.certificate_authority_id
 			or csrs.csr==$CertificateAuthorityDenormalized.csr
 			and (issuer_id = 0 OR chain = '')
 	`
@@ -200,7 +208,7 @@ func (db *Database) ListDenormalizedCertificateAuthorities() ([]CertificateAutho
 func (db *Database) GetCertificateAuthority(filter CertificateAuthorityFilter) (*CertificateAuthority, error) {
 	CARow, err := filter.AsCertificateAuthority()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", ErrInvalidFilter, err)
 	}
 	stmt, err := sqlair.Prepare(getCertificateAuthorityStmt, CertificateAuthority{})
 	if err != nil {
@@ -221,17 +229,16 @@ func (db *Database) GetCertificateAuthority(filter CertificateAuthorityFilter) (
 // GetDenormalizedCertificateAuthority gets a certificate authority row from the database
 // but instead of returning ID's that reference other table rows, it embeds the row data directly into the response object.
 func (db *Database) GetDenormalizedCertificateAuthority(filter CertificateAuthorityFilter) (*CertificateAuthorityDenormalized, error) {
-	CADenormalizedRow, DenormalizedCAErr := filter.AsCertificateAuthorityDenormalized()
-	CARow, CAerr := filter.AsCertificateAuthority()
-	if CAerr != nil && DenormalizedCAErr != nil {
-		return nil, fmt.Errorf("%w: certificate authority - only CA ID, CSR ID, or CSR PEM is supported", ErrInvalidFilter)
+	CADenormalizedRow, err := filter.AsCertificateAuthorityDenormalized()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalidFilter, err)
 	}
-	stmt, err := sqlair.Prepare(getDenormalizedCertificateAuthorityStmt, CertificateAuthority{}, CertificateAuthorityDenormalized{})
+	stmt, err := sqlair.Prepare(getDenormalizedCertificateAuthorityStmt, CertificateAuthorityDenormalized{})
 	if err != nil {
 		log.Println(err)
 		return nil, fmt.Errorf("%w: failed to get denormalized certificate authority due to sql compilation error", ErrInternal)
 	}
-	err = db.conn.Query(context.Background(), stmt, CARow, CADenormalizedRow).Get(CADenormalizedRow)
+	err = db.conn.Query(context.Background(), stmt, CADenormalizedRow).Get(CADenormalizedRow)
 	if err != nil {
 		if errors.Is(err, sqlair.ErrNoRows) {
 			return nil, fmt.Errorf("%w: certificate authority not found", ErrNotFound)
@@ -244,7 +251,7 @@ func (db *Database) GetDenormalizedCertificateAuthority(filter CertificateAuthor
 
 // CreateCertificateAuthority creates a new certificate authority in the database from a given CSR, private key, and certificate chain.
 // The certificate chain is optional and can be empty.
-func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, certChainPEM string) (int64, error) {
+func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, crlPEM string, certChainPEM string) (int64, error) {
 	csrID, err := db.CreateCertificateRequest(csrPEM)
 	if err != nil {
 		return 0, err
@@ -259,6 +266,9 @@ func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, ce
 		Status:       CAPending,
 	}
 	if certChainPEM != "" {
+		if crlPEM == "" {
+			return 0, fmt.Errorf("%w: CRL is required when adding a certificate chain to a certificate authority", ErrInvalidInput)
+		}
 		certID, err := db.AddCertificateChainToCertificateRequest(ByCSRID(csrID), certChainPEM)
 		if err != nil {
 			return 0, err
@@ -266,6 +276,7 @@ func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, ce
 		CARow = CertificateAuthority{
 			CSRID:         csrID,
 			CertificateID: certID,
+			CRL:           crlPEM,
 			PrivateKeyID:  pkID,
 			Status:        CAActive,
 		}
@@ -294,23 +305,58 @@ func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, ce
 
 // UpdateCertificateAuthorityCertificate updates the certificate chain associated with a certificate authority.
 func (db *Database) UpdateCertificateAuthorityCertificate(filter CertificateAuthorityFilter, certChainPEM string) error {
-	ca, err := db.GetCertificateAuthority(filter)
+	ca, err := db.GetDenormalizedCertificateAuthority(filter)
 	if err != nil {
 		return err
 	}
-	certID, err := db.AddCertificateChainToCertificateRequest(ByCSRID(ca.CSRID), certChainPEM)
+	certID, err := db.AddCertificateChainToCertificateRequest(ByCSRPEM(ca.CSRPEM), certChainPEM)
 	if err != nil {
 		return err
 	}
-	ca.CertificateID = certID
-	ca.Status = CAActive
+	certChain, err := ParseCertificateChain(certChainPEM)
+	if err != nil {
+		return err
+	}
+	pk, err := ParsePrivateKey(ca.PrivateKeyPEM)
+	if err != nil {
+		return err
+	}
 
+	var newCRL string
+	if ca.CRL != "" {
+		existingCRL, err := ParseCRL(ca.CRL)
+		if err != nil {
+			return err
+		}
+		newCRLBytes, err := x509.CreateRevocationList(rand.Reader, existingCRL, certChain[0], pk)
+		if err != nil {
+			return err
+		}
+		newCRL = string(pem.EncodeToMemory(&pem.Block{Type: "X509 CRL", Bytes: newCRLBytes}))
+	} else {
+		newCRLBytes, err := x509.CreateRevocationList(rand.Reader, &x509.RevocationList{
+			Number:     big.NewInt(time.Now().UnixNano()),
+			ThisUpdate: time.Now(),
+			NextUpdate: time.Now().AddDate(expiryYears, 0, 0),
+		}, certChain[0], pk)
+		if err != nil {
+			return err
+		}
+		newCRL = string(pem.EncodeToMemory(&pem.Block{Type: "X509 CRL", Bytes: newCRLBytes}))
+	}
+
+	newRow := CertificateAuthority{
+		CertificateAuthorityID: ca.CertificateAuthorityID,
+		CertificateID:          certID,
+		CRL:                    newCRL,
+		Status:                 CAActive,
+	}
 	stmt, err := sqlair.Prepare(updateCertificateAuthorityStmt, CertificateAuthority{})
 	if err != nil {
 		log.Println(err)
 		return fmt.Errorf("%w: failed to update certificate authority due to sql compilation error", ErrInternal)
 	}
-	err = db.conn.Query(context.Background(), stmt, ca).Run()
+	err = db.conn.Query(context.Background(), stmt, newRow).Run()
 	if err != nil {
 		log.Println(err)
 		return fmt.Errorf("%w: failed to update certificate authority", ErrInternal)
@@ -325,6 +371,26 @@ func (db *Database) UpdateCertificateAuthorityStatus(filter CertificateAuthority
 		return err
 	}
 	ca.Status = status
+	stmt, err := sqlair.Prepare(updateCertificateAuthorityStmt, CertificateAuthority{})
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("%w: failed to update certificate authority due to sql compilation error", ErrInternal)
+	}
+	err = db.conn.Query(context.Background(), stmt, ca).Run()
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("%w: failed to update certificate authority", ErrInternal)
+	}
+	return nil
+}
+
+// UpdateCertificateAuthorityCRL updates the CRL of a certificate authority.
+func (db *Database) UpdateCertificateAuthorityCRL(filter CertificateAuthorityFilter, crl string) error {
+	ca, err := db.GetCertificateAuthority(filter)
+	if err != nil {
+		return err
+	}
+	ca.CRL = crl
 	stmt, err := sqlair.Prepare(updateCertificateAuthorityStmt, CertificateAuthority{})
 	if err != nil {
 		log.Println(err)
@@ -359,7 +425,7 @@ func (db *Database) DeleteCertificateAuthority(filter CertificateAuthorityFilter
 
 // SignCertificateRequest receives a CSR and a certificate authority.
 // The CSR filter finds the CSR to sign. the CA Filter finds the CA that will issue the certificate.
-func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter CertificateAuthorityFilter) error {
+func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter CertificateAuthorityFilter, externalHostname string) error {
 	csrRow, err := db.GetCertificateRequest(csrFilter)
 	if err != nil {
 		return err
@@ -377,17 +443,13 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 	if caRow.Status != CAActive {
 		return errors.New("CA is not active to sign certificates")
 	}
+
 	block, _ := pem.Decode([]byte(csrRow.CSR))
 	certRequest, err := x509.ParseCertificateRequest(block.Bytes)
 	if err != nil {
 		return err
 	}
-	certChain, err := sanitizeCertificateBundle(caRow.CertificateChain)
-	if err != nil {
-		return err
-	}
-	block, _ = pem.Decode([]byte(certChain[0]))
-	caCertParsed, err := x509.ParseCertificate(block.Bytes)
+	certChain, err := ParseCertificateChain(caRow.CertificateChain)
 	if err != nil {
 		return err
 	}
@@ -423,14 +485,17 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 		NotAfter:     time.Now().AddDate(expiryYears, 0, 0),
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+
+		CRLDistributionPoints: []string{fmt.Sprintf("https://%s/api/v1/certificate_authorities/%d/crl", externalHostname, caRow.CertificateAuthorityID)},
 	}
+
 	if CSRIsForACertificateAuthority {
 		certTemplate.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageCRLSign
 		certTemplate.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
 		certTemplate.BasicConstraintsValid = true
 		certTemplate.IsCA = true
 	}
-	certBytes, err := x509.CreateCertificate(rand.Reader, certTemplate, caCertParsed, certTemplate.PublicKey, caPrivateKey)
+	certBytes, err := x509.CreateCertificate(rand.Reader, certTemplate, certChain[0], certTemplate.PublicKey, caPrivateKey)
 	if err != nil {
 		return err
 	}
@@ -450,6 +515,79 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 			return err
 		}
 	}
+	return err
+}
+
+// RevokeCertificate revokes a certificate previously signed by a Notary CA by places the serial number of the certificate in its CRL.
+func (db *Database) RevokeCertificate(filter CSRFilter) error {
+	oldRow, err := db.GetCertificateRequestAndChain(filter)
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("%w: no certificate request found", ErrNotFound)
+	}
+	if oldRow.CertificateChain == "" {
+		return fmt.Errorf("%w: no certificate to revoke with associated CSR", ErrInvalidInput)
+	}
+	certChain, err := SplitCertificateBundle(oldRow.CertificateChain)
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("%w: couldn't process certificate chain", ErrInternal)
+	}
+	issuerCert, err := db.GetCertificate(ByCertificatePEM(certChain[1]))
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("%w: issuer certificate not found", ErrInternal)
+	}
+	revokedCert, err := db.GetCertificate(ByCertificatePEM(certChain[0]))
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("%w: certificate to be revoked not found", ErrInternal)
+	}
+	ca, err := db.GetCertificateAuthority(ByCertificateAuthorityCertificateID(issuerCert.CertificateID))
+	if !rowFound(err) {
+		return fmt.Errorf("%w: certificates need to be signed by a notary managed certificate authority in order to be revoked", ErrInvalidInput)
+	}
+	if realError(err) {
+		log.Println(err)
+		return fmt.Errorf("%w: couldn't get certificate authority of issuer", ErrInternal)
+	}
+	caWithPK, err := db.GetDenormalizedCertificateAuthority(ByCertificateAuthorityID(ca.CertificateAuthorityID))
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("%w: issuer certificate authority not found", ErrInternal)
+	}
+	newCRL, err := AddCertificateToCRL(oldRow.CertificateChain, caWithPK.PrivateKeyPEM, ca.CRL)
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("%w: couldn't add certificate to certificate authority", ErrInternal)
+	}
+	err = db.DeleteCertificate(ByCertificateID(revokedCert.CertificateID))
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("%w: couldn't delete certificate from notary", ErrInternal)
+	}
+	err = db.UpdateCertificateAuthorityCRL(ByCertificateAuthorityID(ca.CertificateAuthorityID), newCRL)
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("%w: couldn't add new CRL to certificate authority", ErrInternal)
+	}
+	err = db.UpdateCertificateAuthorityStatus(ByCertificateAuthorityID(ca.CertificateAuthorityID), CAPending)
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("%w: couldn't update certificate authority status to pending", ErrInternal)
+	}
+	stmt, err := sqlair.Prepare(updateCertificateRequestStmt, CertificateRequest{})
+	if err != nil {
+		return err
+	}
+	newRow := CertificateRequest{
+		CSR_ID:        oldRow.CSR_ID,
+		CSR:           oldRow.CSR,
+		CertificateID: 0,
+		Status:        "Revoked",
+	}
+
+	err = db.conn.Query(context.Background(), stmt, newRow).Run()
 	return err
 }
 

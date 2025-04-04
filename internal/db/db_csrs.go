@@ -307,31 +307,6 @@ func (db *Database) RejectCertificateRequest(filter CSRFilter) error {
 	return nil
 }
 
-// RevokeCertificate updates the input CSR's row by setting the certificate bundle to "" and sets the row status to "Revoked".
-func (db *Database) RevokeCertificate(filter CSRFilter) error {
-	oldRow, err := db.GetCertificateRequest(filter)
-	if err != nil {
-		return err
-	}
-	stmt, err := sqlair.Prepare(updateCertificateRequestStmt, CertificateRequest{})
-	if err != nil {
-		return err
-	}
-	newRow := CertificateRequest{
-		CSR_ID:        oldRow.CSR_ID,
-		CSR:           oldRow.CSR,
-		CertificateID: 0,
-		Status:        "Revoked",
-	}
-
-	err = db.conn.Query(context.Background(), stmt, newRow).Run()
-	if err != nil {
-		log.Println(err)
-		return fmt.Errorf("%w: failed to revoke certificate request", ErrInternal)
-	}
-	return nil
-}
-
 // DeleteCertificateRequest removes a CSR from the database.
 func (db *Database) DeleteCertificateRequest(filter CSRFilter) error {
 	csrRow, err := db.GetCertificateRequest(filter)

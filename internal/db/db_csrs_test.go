@@ -105,15 +105,12 @@ func TestCSRsEndToEnd(t *testing.T) {
 		t.Fatalf("Certificate chain was not added to CSR")
 	}
 
-	if err = database.RevokeCertificate(db.ByCSRPEM(BananaCSR)); err != nil {
-		t.Fatalf("Couldn't revoke CSR: %s", err)
+	if err = database.RevokeCertificate(db.ByCSRPEM(BananaCSR)); !errors.Is(err, db.ErrInvalidInput) {
+		t.Fatalf("Should have failed to revoke CSR.")
 	}
-	bananaCSR, err = database.GetCertificateRequest(db.ByCSRPEM(BananaCSR))
+	_, err = database.GetCertificateRequest(db.ByCSRPEM(BananaCSR))
 	if err != nil {
 		t.Fatalf("Couldn't get CSR: %s", err)
-	}
-	if bananaCSR.Status != "Revoked" {
-		t.Fatalf("CSR was not revoked")
 	}
 
 	if err = database.RejectCertificateRequest(db.ByCSRPEM(StrawberryCSR)); err != nil {
@@ -219,7 +216,6 @@ func TestRevokeCertificateRequestFails(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected failure revoking nonexistent CSR")
 	}
-
 	appleCSR, err := database.GetCertificateRequest(db.ByCSRPEM(AppleCSR))
 	if err != nil {
 		t.Fatalf("Failed to get CSR: %s", err)
@@ -263,11 +259,11 @@ func TestCASNotShowingUpInCSRsTable(t *testing.T) {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}
 	defer database.Close()
-	_, err = database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACertificate+"\n"+RootCACertificate)
+	_, err = database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
-	_, err = database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, "")
+	_, err = database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, "", "")
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}

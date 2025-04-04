@@ -121,13 +121,39 @@ This path creates a certificate for a certificate request.
 }
 ```
 
-## Reject a Certificate for a Certificate Request
+## Reject a Certificate Request
 
-This path rejects a certificate for a certificate request.
+This path rejects a certificate request. This is different than revoking a certificate, in that 
+this endpoint will reject a CSR that has never had a certificate assigned while revoking requires
+an already generated certificate.
+
+| Method | Path                                       |
+| :----- | :----------------------------------------- |
+| `POST` | `/api/v1/certificate_requests/{id}/reject` |
+
+### Parameters
+
+None
+
+### Sample Response
+
+```json
+{
+    "result": {
+        "message": "success"
+    }
+}
+```
+
+## Revoke a Certificate
+
+This path revokes an existing certificate. This path only works if the certificate request was signed in notary.
+Notary will place the certificate's serial number in the CRL of the issuing CA.
+
 
 | Method | Path                                                   |
 | :----- | :----------------------------------------------------- |
-| `POST` | `/api/v1/certificate_requests/{id}/certificate/reject` |
+| `POST` | `/api/v1/certificate_requests/{id}/certificate/revoke` |
 
 ### Parameters
 

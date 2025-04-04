@@ -55,9 +55,10 @@ func ByPrivateKeyPEM(pem string) PrivateKeyFilter {
 }
 
 type CertificateAuthorityFilter struct {
-	ID     *int64
-	CSRID  *int64
-	CSRPEM *string
+	ID            *int64
+	CSRID         *int64
+	CSRPEM        *string
+	CertificateID *int64
 }
 
 func ByCertificateAuthorityID(id int64) CertificateAuthorityFilter {
@@ -66,6 +67,10 @@ func ByCertificateAuthorityID(id int64) CertificateAuthorityFilter {
 
 func ByCertificateAuthorityCSRID(id int64) CertificateAuthorityFilter {
 	return CertificateAuthorityFilter{CSRID: &id}
+}
+
+func ByCertificateAuthorityCertificateID(id int64) CertificateAuthorityFilter {
+	return CertificateAuthorityFilter{CertificateID: &id}
 }
 
 func ByCertificateAuthorityCSRPEM(pem string) CertificateAuthorityFilter {
@@ -80,8 +85,10 @@ func (filter *CertificateAuthorityFilter) AsCertificateAuthority() (*Certificate
 		CARow = CertificateAuthority{CertificateAuthorityID: *filter.ID}
 	case filter.CSRID != nil:
 		CARow = CertificateAuthority{CSRID: *filter.CSRID}
+	case filter.CertificateID != nil:
+		CARow = CertificateAuthority{CertificateID: *filter.CertificateID}
 	default:
-		return &CARow, fmt.Errorf("empty filter: only CA ID or CSR ID is supported but none was provided")
+		return &CARow, fmt.Errorf("empty filter: only CA ID, CSR ID or Certificate ID is supported but none was provided")
 	}
 	return &CARow, nil
 }

@@ -14,23 +14,33 @@ const (
 	validPK     = `Whatever key content`
 	validConfig = `key_path:  "./key_test.pem"
 cert_path: "./cert_test.pem"
+external_hostname: "example.com"
 db_path: "./notary.db"
 port: 8000`
 	noCertPathConfig = `key_path:  "./key_test.pem"
+external_hostname: "example.com"
 db_path: "./notary.db"
 port: 8000`
 	noKeyPathConfig = `cert_path: "./cert_test.pem"
+external_hostname: "example.com"
+db_path: "./notary.db"
+port: 8000`
+	noExternalHostnameConfig = `key_path:  "./key_test.pem"
+cert_path: "./cert_test.pem"
 db_path: "./notary.db"
 port: 8000`
 	noDBPathConfig = `key_path:  "./key_test.pem"
+external_hostname: "example.com"
 cert_path: "./cert_test.pem"
 port: 8000`
 	wrongCertPathConfig = `key_path:  "./key_test.pem"
 cert_path: "./cert_test_wrong.pem"
+external_hostname: "example.com"
 db_path: "./notary.db"
 port: 8000`
 	wrongKeyPathConfig = `key_path:  "./key_test_wrong.pem"
 cert_path: "./cert_test.pem"
+external_hostname: "example.com"
 db_path: "./notary.db"
 port: 8000`
 	invalidYAMLConfig = `just_an=invalid
@@ -74,19 +84,18 @@ func TestGoodConfigSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error occurred: %s", err)
 	}
-
 	if conf.Cert == nil {
 		t.Fatalf("No certificates were configured for server")
 	}
-
 	if conf.Key == nil {
 		t.Fatalf("No key was configured for server")
 	}
-
+	if conf.ExternalHostname != "example.com" {
+		t.Fatalf("External hostname was not configured correctly")
+	}
 	if conf.DBPath == "" {
 		t.Fatalf("No database path was configured for server")
 	}
-
 	if conf.Port != 8000 {
 		t.Fatalf("Port was not configured correctly")
 	}
@@ -119,5 +128,19 @@ func TestBadConfigFail(t *testing.T) {
 		if !strings.Contains(err.Error(), tc.ExpectedError) {
 			t.Errorf("Expected error not found: %s", err)
 		}
+	}
+}
+
+func TestNoExternalHostname(t *testing.T) {
+	writeConfigErr := os.WriteFile("config.yaml", []byte(noExternalHostnameConfig), 0o644)
+	if writeConfigErr != nil {
+		t.Fatalf("Error writing config file")
+	}
+	conf, err := config.Validate("config.yaml")
+	if err != nil {
+		t.Fatalf("Error occurred: %s", err)
+	}
+	if conf.ExternalHostname != "localhost" {
+		t.Fatalf("External hostname default value wasn't localhost")
 	}
 }

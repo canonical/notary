@@ -83,7 +83,41 @@ None
 }
 ```
 
-## Update a Certificate Authority
+## Get the CRL of a Certificate Authority
+
+This path returns a PEM formatted string of the CRL for the given certificate authority.
+
+| Method | Path                                   |
+| :----- | :------------------------------------- |
+| `GET`  | `/api/v1/certificate_authorities/{id}/crl` |
+
+### Parameters
+
+None
+
+### Sample Response
+
+```json
+{
+    "result": {
+        "crl": "-----BEGIN X509 CRL-----
+        MIIB8zCB3AIBATANBgkqhkiG9w0BAQsFADByMQswCQYDVQQGEwJUUjEOMAwGA1UE
+        CBMFSXptaXIxEjAQBgNVBAcTCU5hcmxpZGVyZTESMBAGA1UEChMJQ2Fub25pY2Fs
+        MREwDwYDVQQLEwhJZGVudGl0eTEYMBYGA1UEAxMPVGVzdGluZyBSb290IENBFw0y
+        NTAzMjUwMDUwNTVaFw0yNjAzMjUwMDUwNTVaoDYwNDAfBgNVHSMEGDAWgBQF3ex7
+        fP5MLxLqm+dYzdPtP0droDARBgNVHRQECgIIGC/lcS7/dH4wDQYJKoZIhvcNAQEL
+        BQADggEBAFLrH+1paVPKYr8cRAEBPtSRxp23YbbbcC40irmmYlHoOEooRAJ8+nw3
+        ZUX4A527Bjr+Pbu/9klXZhCAS4r8fFT3veJQ1mp/kEZOsBG9h0bCN4Jwpqix2f1W
+        6z3AcPiwg636KPaze8pwUcqSfQSwmfzwl3E8vkzD29dy6tXwKTdgaUP7uHrzeHDi
+        rtA9e9+8gbbad1I9lwdd2Q4qgt3mUIjwn5SV9sSEaSApT8i/Z72RHLpGJNl3JpO1
+        0599PMgFeP6VruT8IYhfj7iEY2lqiyWMXoXsgGwhD8PAqKcJ03vavUNrfhkT+Jl9
+        yxat/tt2TxlkcAxv4nrxhR208GXqpE0=
+        -----END X509 CRL-----"
+    }
+}
+```
+
+## Update the status of a Certificate Authority
 
 This path updates the status of a certificate authority.
 
@@ -160,6 +194,29 @@ This path signs any intermediate certificate authority with another active root 
 ### Parameters
 
 - `certificate_authority_id` (string): The ID of the Certificate Authority that will sign this Certificate Authority.
+
+### Sample Response
+
+```json
+{
+    "result": {
+        "message": "success"
+    }
+}
+```
+
+## Revoke a Certificate Authority
+
+This path revokes a certificate authority. It will error if the certificate wasn't signed in notary.
+Revoking a certificate will place the certificate serial number in the CRL of the issuing CA and set its status back to pending.
+
+| Method  | Path                              |
+| :-----  | :-------------------------------- |
+| `POST`  | `/api/v1/certificate_authorities/{id}/revoke` |
+
+### Parameters
+
+None
 
 ### Sample Response
 

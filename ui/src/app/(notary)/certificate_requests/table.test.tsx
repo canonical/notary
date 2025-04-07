@@ -1,13 +1,13 @@
-import { expect, test } from 'vitest'
-import { render, screen } from '@testing-library/react'
-import { CertificateRequestsTable } from './table'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { CSREntry } from '@/types'
+import { expect, test } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { CertificateRequestsTable } from "./table";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { CSREntry } from "@/types";
 
 const rows: CSREntry[] = [
-    {
-        'id': 1,
-        'csr': `-----BEGIN CERTIFICATE REQUEST-----
+  {
+    id: 1,
+    csr: `-----BEGIN CERTIFICATE REQUEST-----
 MIICszCCAZsCAQAwFjEUMBIGA1UEAwwLZXhhbXBsZS5jb20wggEiMA0GCSqGSIb3
 DQEBAQUAA4IBDwAwggEKAoIBAQDC5KgrADpuOUPwSh0YLmpWF66VTcciIGC2HcGn
 oJknL7pm5q9qhfWGIdvKKlIA6cBB32jPd0QcYDsx7+AvzEvBuO7mq7v2Q1sPU4Q+
@@ -24,12 +24,12 @@ Y/uPl4g3jpGqLCKTASWJDGnZLroLICOzYTVs5P3oj+VueSUwYhGK5tBnS2x5FHID
 uMNMgwl0fxGMQZjrlXyCBhXBm1k6PmwcJGJF5LQ31c+5aTTMFU7SyZhlymctB8mS
 y+ErBQsRpcQho6Ok+HTXQQUcx7WNcwI=
 -----END CERTIFICATE REQUEST-----`,
-        'certificate_chain': "",
-        'status': "Outstanding",
-    },
-    {
-        'id': 2,
-        'csr': `-----BEGIN CERTIFICATE REQUEST-----
+    certificate_chain: "",
+    status: "Outstanding",
+  },
+  {
+    id: 2,
+    csr: `-----BEGIN CERTIFICATE REQUEST-----
 MIIDGjCCAgICAQAwajEVMBMGA1UEAwwMZXhlbXBsYXIuY29tMQswCQYDVQQGEwJV
 UzESMBAGA1UECAwJTG91aXNpYW5hMRQwEgYDVQQHDAtOZXcgT3JsZWFuczEaMBgG
 A1UECgwRQ2VydGlmaWNhdGUgVG9vbHMwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw
@@ -48,12 +48,12 @@ tK9qb8EE92MoWboo4m4bcX74y+eUo3xBev6ZZwdScy8OHLhA/MMI8EElpeYt+Hc2
 WsDOAOH6qKQKQg3BO/xmRoohC6GL4CuhP7HYGi7+wziNhNZQa4GtE/k9DyIXVtJy
 yuf2PnfXCKnaIWRJNoEqDCZRVMfA5BFSwTPITqyo
 -----END CERTIFICATE REQUEST-----`,
-        'certificate_chain': "",
-        'status': "Rejected"
-    },
-    {
-        'id': 3,
-        'csr': `-----BEGIN CERTIFICATE REQUEST-----
+    certificate_chain: "",
+    status: "Rejected",
+  },
+  {
+    id: 3,
+    csr: `-----BEGIN CERTIFICATE REQUEST-----
 MIIC5zCCAc8CAQAwRzEWMBQGA1UEAwwNMTAuMTUyLjE4My41MzEtMCsGA1UELQwk
 MzlhY2UxOTUtZGM1YS00MzJiLTgwOTAtYWZlNmFiNGI0OWNmMIIBIjANBgkqhkiG
 9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjM5Wz+HRtDveRzeDkEDM4ornIaefe8d8nmFi
@@ -71,7 +71,7 @@ cAQXk3fvTWuikHiCHqqdSdjDYj/8cyiwCrQWpV245VSbOE0WesWoEnSdFXVUfE1+
 RSKeTRuuJMcdGqBkDnDI22myj0bjt7q8eqBIjTiLQLnAFnQYpcCrhc8dKU9IJlv1
 H9Hay4ZO9LRew3pEtlx2WrExw/gpUcWM8rTI
 -----END CERTIFICATE REQUEST-----`,
-        'certificate_chain': `-----BEGIN CERTIFICATE-----
+    certificate_chain: `-----BEGIN CERTIFICATE-----
 MIIDrDCCApSgAwIBAgIURKr+jf7hj60SyAryIeN++9wDdtkwDQYJKoZIhvcNAQEL
 BQAwOTELMAkGA1UEBhMCVVMxKjAoBgNVBAMMIXNlbGYtc2lnbmVkLWNlcnRpZmlj
 YXRlcy1vcGVyYXRvcjAeFw0yNDAzMjcxMjQ4MDRaFw0yNTAzMjcxMjQ4MDRaMEcx
@@ -93,17 +93,17 @@ gCX3nqYpp70oZIFDrhmYwE5ij5KXlHD4/1IOfNUKCDmQDgGPLI1tVtwQLjeRq7Hg
 XVelpl/LXTQawmJyvDaVT/Q9P+WqoDiMjrqF6Sy7DzNeeccWVqvqX5TVS6Ky56iS
 Mvo/+PAJHkBciR5Xn+Wg2a+7vrZvT6CBoRSOTozlLSM=
 -----END CERTIFICATE-----`,
-        'status': 'Active'
-    },
-]
+    status: "Active",
+  },
+];
 
-const queryClient = new QueryClient()
-test('CertificateRequestsPage', () => {
-    render(
-        <QueryClientProvider client={queryClient}>
-            < CertificateRequestsTable csrs={rows} setAsideOpen={() => {}}/>
-        </QueryClientProvider>
-    )
-    const commonNames = screen.getAllByText('example.com');
-    expect(commonNames.length).toBeGreaterThan(0);
-})
+const queryClient = new QueryClient();
+test("CertificateRequestsPage", () => {
+  render(
+    <QueryClientProvider client={queryClient}>
+      <CertificateRequestsTable csrs={rows} setAsideOpen={() => {}} />
+    </QueryClientProvider>,
+  );
+  const commonNames = screen.getAllByText("example.com");
+  expect(commonNames.length).toBeGreaterThan(0);
+});

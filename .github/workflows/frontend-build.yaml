@@ -11,8 +11,12 @@ jobs:
         working-directory: ui
     steps:
       - uses: actions/checkout@v4
-      - name: Use npm
+      - name: use npm
         uses: actions/setup-node@v4
+
+      - name: check format
+        run: |
+          npx prettier -c src/
 
       - name: Build frontend
         run: |

@@ -119,7 +119,7 @@ func TestMetrics(t *testing.T) {
 	initializeTestDB(t, db)
 	m := metrics.NewMetricsSubsystem(db)
 	csrs, _ := db.ListCertificateRequestWithCertificates()
-	m.GenerateMetrics(csrs)
+	m.GenerateCertificateMetrics(csrs)
 
 	request, _ := http.NewRequest("GET", "/", nil)
 	recorder := httptest.NewRecorder()

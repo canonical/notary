@@ -142,7 +142,7 @@ export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TablePr
         { content: caEntry.id.toString() },
         { content: isSelfSigned ? "Self Signed" : "Intermediate" },
         { content: csrObj.commonName || "N/A" },
-        { content: caEntry.status },
+        { content: caEntry.status + (auth.activeCA === caEntry.id ? " (Selected)" : "") },
         {
           content: certObj?.notAfter || "",
           style: { backgroundColor: getExpiryColor(certObj?.notAfter) },
@@ -211,7 +211,8 @@ export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TablePr
                   </Button>
                   <Button
                     className="p-contextual-menu__link"
-                    onMouseDown={() => console.log("TODO")}>
+                    disabled={caEntry.status != "active"}
+                    onMouseDown={() => auth.setActiveCA(caEntry.id)}>
                     Make CA Active
                   </Button>
                   <Button

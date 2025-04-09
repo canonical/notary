@@ -1,4 +1,4 @@
-import { CSREntry, UserEntry } from "@/types"
+import { CertificateAuthorityEntry, CSREntry, UserEntry } from "@/types"
 import { HTTPStatus } from "@/utils"
 
 export type RequiredCSRParams = {
@@ -6,6 +6,11 @@ export type RequiredCSRParams = {
     authToken: string
     csr?: string
     cert?: string
+}
+
+export type RequiredCAParams = {
+    id: string
+    authToken: string
 }
 
 export async function getStatus() {
@@ -210,3 +215,99 @@ export async function postUser(userForm: { authToken: string, username: string, 
     }
     return respData.result
 }
+
+export async function getCertificateAuthorities(params: { authToken: string }): Promise<CertificateAuthorityEntry[]> {
+    const response = await fetch("/api/v1/certificate_authorities", {
+        headers: { "Authorization": "Bearer " + params.authToken }
+    })
+    const respData = await response.json();
+    if (!response.ok) {
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`)
+    }
+    return respData.result
+}
+
+export async function postCA(params: {
+    authToken: string,
+
+    SelfSigned: boolean,
+    CommonName: string,
+    CountryName: string,
+    StateOrProvinceName: string,
+    LocalityName: string,
+    OrganizationName: string,
+    OrganizationalUnit: string,
+    NotValidAfter: string,
+
+}) {
+    const NotValidAfterDate = params.NotValidAfter !== "" ? new Date(params.NotValidAfter) : null;
+    const reqParams = {
+        "self_signed": params.SelfSigned,
+        "common_name": params.CommonName,
+        "sans_dns": "",
+        "country_name": params.CountryName,
+        "state_or_province_name": params.StateOrProvinceName,
+        "locality_name": params.LocalityName,
+        "organization_name": params.OrganizationName,
+        "organizational_unit_name": params.OrganizationalUnit,
+        "not_valid_after": NotValidAfterDate?.toISOString(),
+    }
+    const response = await fetch("/api/v1/certificate_authorities", {
+        method: 'post',
+        headers: {
+            'Authorization': "Bearer " + params.authToken,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(reqParams)
+    })
+    const respData = await response.json();
+    if (!response.ok) {
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`)
+    }
+    return respData.result
+}
+
+export async function deleteCA(params: RequiredCAParams) {
+    const response = await fetch("/api/v1/certificate_authorities/" + params.id, {
+        method: 'delete',
+        headers: {
+            'Authorization': "Bearer " + params.authToken
+        }
+    })
+    const respData = await response.json();
+    if (!response.ok) {
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`)
+    }
+    return respData.result
+}
+
+export async function revokeCA(params: RequiredCAParams) {
+    const response = await fetch("/api/v1/certificate_authorities/" + params.id + "/certificate/reject", {
+        method: 'post',
+        headers: {
+            'Authorization': 'Bearer ' + params.authToken
+        }
+    })
+    const respData = await response.json();
+    if (!response.ok) {
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`)
+    }
+    return respData.result
+}
+
+export async function makeCALegacy(params: RequiredCAParams) {
+    const response = await fetch("/api/v1/certificate_authorities/" + params.id + "/", {
+        method: 'PUT',
+        headers: {
+            'Authorization': 'Bearer ' + params.authToken,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ "status": "legacy" })
+    })
+    const respData = await response.json();
+    if (!response.ok) {
+        throw new Error(`${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`)
+    }
+    return respData.result
+}
+

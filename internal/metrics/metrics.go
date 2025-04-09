@@ -1,9 +1,9 @@
 package metrics
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -19,6 +19,7 @@ import (
 type PrometheusMetrics struct {
 	http.Handler
 	registry                       *prometheus.Registry
+	cancel                         context.CancelFunc
 	CertificateRequests            prometheus.Gauge
 	OutstandingCertificateRequests prometheus.Gauge
 	Certificates                   prometheus.Gauge
@@ -41,26 +42,50 @@ type PrometheusMetrics struct {
 func NewMetricsSubsystem(db *db.Database) *PrometheusMetrics {
 	metricsBackend := newPrometheusMetrics()
 	metricsBackend.Handler = promhttp.HandlerFor(metricsBackend.registry, promhttp.HandlerOpts{})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	metricsBackend.cancel = cancel
+
+	collectMetrics(db, metricsBackend)
+
 	ticker := time.NewTicker(120 * time.Second)
 	go func() {
-		for ; ; <-ticker.C {
-			csrs, err := db.ListCertificateRequestWithCertificates()
-			if err != nil {
-				log.Println(errors.Join(errors.New("error generating metrics repository: "), err))
-				panic(1)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				collectMetrics(db, metricsBackend)
+			case <-ctx.Done():
+				return
 			}
-			metricsBackend.GenerateCertificateMetrics(csrs)
-
-			// Get denormalized CAs to access certificate data
-			cas, err := db.ListDenormalizedCertificateAuthorities()
-			if err != nil {
-				log.Println(errors.Join(errors.New("error generating metrics repository: "), err))
-				panic(1)
-			}
-			metricsBackend.GenerateCACertificateMetrics(cas)
 		}
 	}()
 	return metricsBackend
+}
+
+// Helper function to collect metrics and handle errors properly
+func collectMetrics(db *db.Database, metrics *PrometheusMetrics) {
+	csrs, err := db.ListCertificateRequestWithCertificates()
+	if err != nil {
+		log.Printf("Error collecting certificate metrics: %v", err)
+		return // Continue operation instead of panicking
+	}
+	metrics.GenerateCertificateMetrics(csrs)
+
+	// Get denormalized CAs to access certificate data
+	cas, err := db.ListDenormalizedCertificateAuthorities()
+	if err != nil {
+		log.Printf("Error collecting CA certificate metrics: %v", err)
+		return
+	}
+	metrics.GenerateCACertificateMetrics(cas)
+}
+
+// Close properly shuts down the metrics goroutine
+func (pm *PrometheusMetrics) Close() {
+	if pm.cancel != nil {
+		pm.cancel()
+	}
 }
 
 // newPrometheusMetrics reads the status of the database, calculates all of the values of the metrics,

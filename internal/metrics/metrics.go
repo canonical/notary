@@ -68,11 +68,10 @@ func collectMetrics(db *db.Database, metrics *PrometheusMetrics) {
 	csrs, err := db.ListCertificateRequestWithCertificates()
 	if err != nil {
 		log.Printf("Error collecting certificate metrics: %v", err)
-		return // Continue operation instead of panicking
+		return
 	}
 	metrics.GenerateCertificateMetrics(csrs)
 
-	// Get denormalized CAs to access certificate data
 	cas, err := db.ListDenormalizedCertificateAuthorities()
 	if err != nil {
 		log.Printf("Error collecting CA certificate metrics: %v", err)
@@ -187,7 +186,6 @@ func (pm *PrometheusMetrics) GenerateCACertificateMetrics(cas []db.CertificateAu
 	var pendingCACertCount float64
 	var legacyCACertCount float64
 
-	// Clear previous remaining days metrics
 	pm.ActiveCARemainingDays.Reset()
 
 	for _, entry := range cas {

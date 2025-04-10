@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -188,13 +187,9 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 	})
 
 	t.Run("2. Create certificate request", func(t *testing.T) {
-		csr1Path := filepath.Join("testdata", "csr1.pem")
-		csr1, err := os.ReadFile(csr1Path)
-		if err != nil {
-			t.Fatalf("cannot read file: %s", err)
-		}
+
 		createCertificateRequestRequest := CreateCertificateRequestParams{
-			CSR: string(csr1),
+			CSR: csr1,
 		}
 		statusCode, createCertResponse, err := createCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
 		if err != nil {
@@ -250,13 +245,8 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 	})
 
 	t.Run("5. Create identical certificate request", func(t *testing.T) {
-		csr1Path := filepath.Join("testdata", "csr1.pem")
-		csr1, err := os.ReadFile(csr1Path)
-		if err != nil {
-			t.Fatalf("cannot read file: %s", err)
-		}
 		createCertificateRequestRequest := CreateCertificateRequestParams{
-			CSR: string(csr1),
+			CSR: csr1,
 		}
 		statusCode, createCertResponse, err := createCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
 		if err != nil {
@@ -287,13 +277,9 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 	})
 
 	t.Run("7. Create another certificate request", func(t *testing.T) {
-		csr2Path := filepath.Join("testdata", "csr2.pem")
-		csr2, err := os.ReadFile(csr2Path)
-		if err != nil {
-			t.Fatalf("cannot read file: %s", err)
-		}
+
 		createCertificateRequestRequest := CreateCertificateRequestParams{
-			CSR: string(csr2),
+			CSR: csr2,
 		}
 		statusCode, createCertResponse, err := createCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
 		if err != nil {
@@ -399,13 +385,8 @@ func TestCertificatesEndToEnd(t *testing.T) {
 	var nonAdminToken string
 	t.Run("prepare user accounts and tokens", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
 	t.Run("1. Create certificate request", func(t *testing.T) {
-		csr1Path := filepath.Join("testdata", "csr2.pem")
-		csr2, err := os.ReadFile(csr1Path)
-		if err != nil {
-			t.Fatalf("cannot read file: %s", err)
-		}
 		createCertificateRequestRequest := CreateCertificateRequestParams{
-			CSR: string(csr2),
+			CSR: csr2,
 		}
 		statusCode, createCertResponse, err := createCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
 		if err != nil {
@@ -420,19 +401,10 @@ func TestCertificatesEndToEnd(t *testing.T) {
 	})
 
 	t.Run("2. Create Certificate", func(t *testing.T) {
-		certPath := filepath.Join("testdata", "csr2_cert.pem")
-		cert, err := os.ReadFile(certPath)
-		if err != nil {
-			t.Fatalf("cannot read file: %s", err)
-		}
-		issuerCertPath := filepath.Join("testdata", "issuer_cert.pem")
-		issuerCert, err := os.ReadFile(issuerCertPath)
-		if err != nil {
-			t.Fatalf("cannot read file: %s", err)
-		}
 		createCertificateRequest := CreateCertificateParams{
-			Certificate: fmt.Sprintf("%s\n%s", cert, issuerCert),
+			Certificate: fmt.Sprintf("%s\n%s", csr2_cert, issuer_cert),
 		}
+		fmt.Println(createCertificateRequest)
 		statusCode, createCertResponse, err := createCertificate(ts.URL, client, adminToken, createCertificateRequest)
 		if err != nil {
 			t.Fatal(err)

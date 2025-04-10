@@ -10,14 +10,17 @@ type AuthContextType = {
     user: User | null
     firstUserCreated: boolean
     setFirstUserCreated: Dispatch<SetStateAction<boolean>>
+    activeCA: number
+    setActiveCA: Dispatch<SetStateAction<number>>
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null, firstUserCreated: false, setFirstUserCreated: () => { } });
+const AuthContext = createContext<AuthContextType>({ user: null, firstUserCreated: false, setFirstUserCreated: () => { }, activeCA: 0, setActiveCA: () => { } });
 
 export const AuthProvider = ({ children }: Readonly<{ children: React.ReactNode }>) => {
     const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
     const [user, setUser] = useState<User | null>(null);
     const [firstUserCreated, setFirstUserCreated] = useState<boolean>(false)
+    const [activeCA, setActiveCA] = useState<number>(0);
     const router = useRouter();
 
     useEffect(() => {
@@ -34,7 +37,7 @@ export const AuthProvider = ({ children }: Readonly<{ children: React.ReactNode 
     }, [cookies.user_token, router]);
 
     return (
-        <AuthContext.Provider value={{ user, firstUserCreated, setFirstUserCreated }}>
+        <AuthContext.Provider value={{ user, firstUserCreated, setFirstUserCreated, activeCA, setActiveCA }}>
             {children}
         </AuthContext.Provider>
     );

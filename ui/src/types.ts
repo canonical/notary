@@ -5,12 +5,22 @@ export type CSREntry = {
     status: "Outstanding" | "Active" | "Rejected" | "Revoked"
 }
 
+export type CertificateAuthorityEntry = {
+    id: number,
+    status: "active" | "expired" | "pending" | "legacy"
+    certificate: string
+    csr: string
+    crl: string
+}
+
 export type User = {
     exp: number
     id: number
     permissions: number
     username: string
     authToken: string
+
+    activeCA: number
 }
 
 export type UserEntry = {

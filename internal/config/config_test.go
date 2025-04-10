@@ -114,20 +114,20 @@ func TestBadConfigFail(t *testing.T) {
 		{"wrong key path", wrongKeyPathConfig, "no such file or directory"},
 		{"invalid yaml", invalidYAMLConfig, "unmarshal errors"},
 	}
-
 	for _, tc := range cases {
-		err := os.WriteFile("config.yaml", []byte(tc.ConfigYAML), 0o644)
-		if err != nil {
-			t.Errorf("Failed writing config file: %v", err)
-		}
-		_, err = config.Validate("config.yaml")
-		if err == nil {
-			t.Errorf("Expected error, got nil")
-		}
-
-		if !strings.Contains(err.Error(), tc.ExpectedError) {
-			t.Errorf("Expected error not found: %s", err)
-		}
+		t.Run(tc.Name, func(t *testing.T) {
+			err := os.WriteFile("config.yaml", []byte(tc.ConfigYAML), 0o644)
+			if err != nil {
+				t.Errorf("Failed writing config file: %v", err)
+			}
+			_, err = config.Validate("config.yaml")
+			if err == nil {
+				t.Errorf("Expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.ExpectedError) {
+				t.Errorf("Expected error not found: %s", err)
+			}
+		})
 	}
 }
 

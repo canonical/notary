@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -1062,12 +1061,7 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		}
 	})
 	t.Run("7. Try signing CSR with unsigned intermediate CA - should fail", func(t *testing.T) {
-		csr1Path := filepath.Join("testdata", "csr1.pem")
-		csr1, err := os.ReadFile(csr1Path)
-		if err != nil {
-			t.Fatalf("cannot read file: %s", err)
-		}
-		createCertificateRequestRequest := CreateCertificateRequestParams{CSR: string(csr1)}
+		createCertificateRequestRequest := CreateCertificateRequestParams{CSR: csr1}
 		statusCode, createCertResponse, err := createCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
 		if err != nil {
 			t.Fatal(err)
@@ -1127,12 +1121,7 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		}
 	})
 	t.Run("10. Create 2nd CSR's", func(t *testing.T) {
-		csr2Path := filepath.Join("testdata", "csr2.pem")
-		csr2, err := os.ReadFile(csr2Path)
-		if err != nil {
-			t.Fatalf("cannot read file: %s", err)
-		}
-		createCertificateRequestRequest := CreateCertificateRequestParams{CSR: string(csr2)}
+		createCertificateRequestRequest := CreateCertificateRequestParams{CSR: csr2}
 		statusCode, createCertResponse, err := createCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
 		if err != nil {
 			t.Fatal(err)
@@ -1272,12 +1261,7 @@ func TestUnsuccessfulRequestsMadeToCACSRs(t *testing.T) {
 	})
 
 	t.Run("3. Create CSR", func(t *testing.T) {
-		csr1Path := filepath.Join("testdata", "csr1.pem")
-		csr1, err := os.ReadFile(csr1Path)
-		if err != nil {
-			t.Fatalf("cannot read file: %s", err)
-		}
-		createCertificateRequestRequest := CreateCertificateRequestParams{CSR: string(csr1)}
+		createCertificateRequestRequest := CreateCertificateRequestParams{CSR: csr1}
 		statusCode, createCSRResponse, err := createCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
 		if err != nil {
 			t.Fatal(err)
@@ -1466,12 +1450,8 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 	})
 
 	t.Run("6. Add 2 CSR's and sign them.", func(t *testing.T) {
-		csr1Path := filepath.Join("testdata", "csr1.pem")
-		csr1, err := os.ReadFile(csr1Path)
-		if err != nil {
-			t.Fatalf("cannot read file: %s", err)
-		}
-		createCertificateRequestRequest := CreateCertificateRequestParams{CSR: string(csr1)}
+
+		createCertificateRequestRequest := CreateCertificateRequestParams{CSR: csr1}
 		statusCode, createCertResponse, err := createCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
 		if err != nil {
 			t.Fatal(err)
@@ -1482,12 +1462,7 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if createCertResponse.Error != "" {
 			t.Fatalf("expected no error, got %s", createCertResponse.Error)
 		}
-		csr2Path := filepath.Join("testdata", "csr2.pem")
-		csr2, err := os.ReadFile(csr2Path)
-		if err != nil {
-			t.Fatalf("cannot read file: %s", err)
-		}
-		createCertificateRequestRequest = CreateCertificateRequestParams{CSR: string(csr2)}
+		createCertificateRequestRequest = CreateCertificateRequestParams{CSR: csr2}
 		statusCode, createCertResponse, err = createCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
 		if err != nil {
 			t.Fatal(err)

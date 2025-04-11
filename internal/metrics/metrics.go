@@ -1,10 +1,12 @@
 package metrics
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
+	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"time"
 
@@ -17,6 +19,7 @@ import (
 type PrometheusMetrics struct {
 	http.Handler
 	registry                       *prometheus.Registry
+	cancel                         context.CancelFunc
 	CertificateRequests            prometheus.Gauge
 	OutstandingCertificateRequests prometheus.Gauge
 	Certificates                   prometheus.Gauge
@@ -25,6 +28,11 @@ type PrometheusMetrics struct {
 	CertificatesExpiringIn30Days   prometheus.Gauge
 	CertificatesExpiringIn90Days   prometheus.Gauge
 	ExpiredCertificates            prometheus.Gauge
+	ActiveCACertificates           prometheus.Gauge
+	ExpiredCACertificates          prometheus.Gauge
+	PendingCACertificates          prometheus.Gauge
+	LegacyCACertificates           prometheus.Gauge
+	ActiveCARemainingDays          prometheus.GaugeVec
 
 	RequestsTotal    prometheus.CounterVec
 	RequestsDuration prometheus.HistogramVec
@@ -34,18 +42,49 @@ type PrometheusMetrics struct {
 func NewMetricsSubsystem(db *db.Database) *PrometheusMetrics {
 	metricsBackend := newPrometheusMetrics()
 	metricsBackend.Handler = promhttp.HandlerFor(metricsBackend.registry, promhttp.HandlerOpts{})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	metricsBackend.cancel = cancel
+
+	collectMetrics(db, metricsBackend)
+
 	ticker := time.NewTicker(120 * time.Second)
 	go func() {
-		for ; ; <-ticker.C {
-			csrs, err := db.ListCertificateRequestWithCertificates()
-			if err != nil {
-				log.Println(errors.Join(errors.New("error generating metrics repository: "), err))
-				panic(1)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				collectMetrics(db, metricsBackend)
+			case <-ctx.Done():
+				return
 			}
-			metricsBackend.GenerateMetrics(csrs)
 		}
 	}()
 	return metricsBackend
+}
+
+// Helper function to collect metrics and handle errors properly
+func collectMetrics(db *db.Database, metrics *PrometheusMetrics) {
+	csrs, err := db.ListCertificateRequestWithCertificates()
+	if err != nil {
+		log.Printf("Error collecting certificate metrics: %v", err)
+		return
+	}
+	metrics.GenerateCertificateMetrics(csrs)
+
+	cas, err := db.ListDenormalizedCertificateAuthorities()
+	if err != nil {
+		log.Printf("Error collecting CA certificate metrics: %v", err)
+		return
+	}
+	metrics.GenerateCACertificateMetrics(cas)
+}
+
+// Close properly shuts down the metrics goroutine
+func (pm *PrometheusMetrics) Close() {
+	if pm.cancel != nil {
+		pm.cancel()
+	}
 }
 
 // newPrometheusMetrics reads the status of the database, calculates all of the values of the metrics,
@@ -62,9 +101,13 @@ func newPrometheusMetrics() *PrometheusMetrics {
 		CertificatesExpiringIn7Days:    certificatesExpiringIn7DaysMetric(),
 		CertificatesExpiringIn30Days:   certificatesExpiringIn30DaysMetric(),
 		CertificatesExpiringIn90Days:   certificatesExpiringIn90DaysMetric(),
-
-		RequestsTotal:    requestsTotalMetric(),
-		RequestsDuration: requestDurationMetric(),
+		ActiveCACertificates:           activeCACertificatesMetric(),
+		RequestsTotal:                  requestsTotalMetric(),
+		RequestsDuration:               requestDurationMetric(),
+		ExpiredCACertificates:          expiredCACertificatesMetric(),
+		PendingCACertificates:          pendingCACertificatesMetric(),
+		LegacyCACertificates:           legacyCACertificatesMetric(),
+		ActiveCARemainingDays:          activeCARemainingDaysMetric(),
 	}
 	m.registry.MustRegister(m.CertificateRequests)
 	m.registry.MustRegister(m.OutstandingCertificateRequests)
@@ -74,6 +117,11 @@ func newPrometheusMetrics() *PrometheusMetrics {
 	m.registry.MustRegister(m.CertificatesExpiringIn7Days)
 	m.registry.MustRegister(m.CertificatesExpiringIn30Days)
 	m.registry.MustRegister(m.CertificatesExpiringIn90Days)
+	m.registry.MustRegister(m.ActiveCACertificates)
+	m.registry.MustRegister(m.ExpiredCACertificates)
+	m.registry.MustRegister(m.PendingCACertificates)
+	m.registry.MustRegister(m.LegacyCACertificates)
+	m.registry.MustRegister(m.ActiveCARemainingDays)
 
 	m.registry.MustRegister(m.RequestsTotal)
 	m.registry.MustRegister(m.RequestsDuration)
@@ -83,9 +131,9 @@ func newPrometheusMetrics() *PrometheusMetrics {
 	return m
 }
 
-// GenerateMetrics receives the live list of csrs to calculate the most recent values for the metrics
+// GenerateCertificateMetrics receives the live list of csrs to calculate the most recent values for the metrics
 // defined for prometheus
-func (pm *PrometheusMetrics) GenerateMetrics(csrs []db.CertificateRequestWithChain) {
+func (pm *PrometheusMetrics) GenerateCertificateMetrics(csrs []db.CertificateRequestWithChain) {
 	var csrCount float64 = float64(len(csrs))
 	var outstandingCSRCount float64
 	var certCount float64
@@ -104,7 +152,7 @@ func (pm *PrometheusMetrics) GenerateMetrics(csrs []db.CertificateRequestWithCha
 		}
 		certCount += 1
 		expiryDate := certificateExpiryDate(entry.CertificateChain)
-		daysRemaining := time.Until(expiryDate).Hours() / 24
+		daysRemaining := math.Floor(time.Until(expiryDate).Hours() / 24)
 		if daysRemaining < 0 {
 			expiredCertCount += 1
 		} else {
@@ -130,6 +178,43 @@ func (pm *PrometheusMetrics) GenerateMetrics(csrs []db.CertificateRequestWithCha
 	pm.CertificatesExpiringIn7Days.Set(expiringIn7DaysCertCount)
 	pm.CertificatesExpiringIn30Days.Set(expiringIn30DaysCertCount)
 	pm.CertificatesExpiringIn90Days.Set(expiringIn90DaysCertCount)
+}
+
+func (pm *PrometheusMetrics) GenerateCACertificateMetrics(cas []db.CertificateAuthorityDenormalized) {
+	var activeCACertCount float64
+	var expiredCACertCount float64
+	var pendingCACertCount float64
+	var legacyCACertCount float64
+
+	pm.ActiveCARemainingDays.Reset()
+
+	for _, entry := range cas {
+		if entry.Status == "active" {
+			activeCACertCount += 1
+
+			if entry.CertificateChain != "" {
+				expiryDate := certificateExpiryDate(entry.CertificateChain)
+				daysRemaining := math.Floor(time.Until(expiryDate).Hours() / 24)
+
+				pm.ActiveCARemainingDays.With(prometheus.Labels{
+					"ca_id": fmt.Sprintf("%d", entry.CertificateAuthorityID),
+				}).Set(daysRemaining)
+			}
+		}
+		if entry.Status == "expired" {
+			expiredCACertCount += 1
+		}
+		if entry.Status == "pending" {
+			pendingCACertCount += 1
+		}
+		if entry.Status == "legacy" {
+			legacyCACertCount += 1
+		}
+	}
+	pm.ActiveCACertificates.Set(activeCACertCount)
+	pm.ExpiredCACertificates.Set(expiredCACertCount)
+	pm.PendingCACertificates.Set(pendingCACertCount)
+	pm.LegacyCACertificates.Set(legacyCACertCount)
 }
 
 func certificateRequestsMetric() prometheus.Gauge {
@@ -194,6 +279,49 @@ func certificatesExpiringIn90DaysMetric() prometheus.Gauge {
 		Help: "Number of certificates expiring in less than 90 days",
 	})
 	return metric
+}
+
+func activeCACertificatesMetric() prometheus.Gauge {
+	metric := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "active_ca_certificates",
+		Help: "Number of active CA certificates",
+	})
+	return metric
+}
+
+func expiredCACertificatesMetric() prometheus.Gauge {
+	metric := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "expired_ca_certificates",
+		Help: "Number of expired CA certificates",
+	})
+	return metric
+}
+
+func pendingCACertificatesMetric() prometheus.Gauge {
+	metric := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "pending_ca_certificates",
+		Help: "Number of pending CA certificates",
+	})
+	return metric
+}
+
+func legacyCACertificatesMetric() prometheus.Gauge {
+	metric := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "legacy_ca_certificates",
+		Help: "Number of legacy CA certificates",
+	})
+	return metric
+}
+
+func activeCARemainingDaysMetric() prometheus.GaugeVec {
+	metric := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "active_ca_certificate_validity_days",
+			Help: "Number of days remaining until active CA certificates expire",
+		},
+		[]string{"ca_id"},
+	)
+	return *metric
 }
 
 func requestsTotalMetric() prometheus.CounterVec {

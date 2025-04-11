@@ -1628,8 +1628,8 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got: %s", err)
 		}
-		if cas.Result[1].Status != "pending" {
-			t.Fatalf("expected revoked intermediate CA to have revoked status")
+		if cas.Result[1].Status != "legacy" {
+			t.Fatalf("expected revoked intermediate CA to have legacy status")
 		}
 		if cas.Result[1].CertificatePEM != "" {
 			t.Fatalf("expected revoked intermediate CA to not have a certificate")

@@ -1583,6 +1583,22 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 				t.Fatalf("expected no certificate, got '%s'", csr.CertificateChain)
 			}
 		}
+		statusCode, cas, err := listCertificateAuthorities(ts.URL, client, adminToken)
+		if err != nil {
+			t.Fatalf("expected no error checking CA status, got: %s", err)
+		}
+		if statusCode != http.StatusOK {
+			t.Fatalf("expected status %d when checking CAs, got %d", http.StatusOK, statusCode)
+		}
+		if len(cas.Result) != 2 {
+			t.Fatalf("expected 2 certificate authorities, got %d", len(cas.Result))
+		}
+		if cas.Result[0].Status != "active" {
+			t.Fatalf("expected root CA to remain active after certificate revocation, got %s", cas.Result[0].Status)
+		}
+		if cas.Result[1].Status != "active" {
+			t.Fatalf("expected intermediate CA to remain active after certificate revocation, got %s", cas.Result[1].Status)
+		}
 	})
 
 	t.Run("9. Get both CA's. Each CA should have 1 certificate in their CRL", func(t *testing.T) {

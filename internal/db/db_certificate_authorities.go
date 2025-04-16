@@ -420,6 +420,16 @@ func (db *Database) DeleteCertificateAuthority(filter CertificateAuthorityFilter
 		log.Println(err)
 		return fmt.Errorf("%w: failed to delete certificate authority", ErrInternal)
 	}
+	err = db.DeleteCertificateRequest(ByCSRID(caRow.CSRID))
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("%w: failed to delete CA's certificate request", ErrInternal)
+	}
+	err = db.DeletePrivateKey(ByPrivateKeyID(caRow.PrivateKeyID))
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("%w: failed to delete CA's private key", ErrInternal)
+	}
 	return nil
 }
 

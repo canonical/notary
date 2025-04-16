@@ -1,6 +1,7 @@
 package db_test
 
 import (
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -252,10 +253,26 @@ func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
 	if ca.CertificateChain == "" {
 		t.Fatalf("Certificate should not have been removed when updating status to Active")
 	}
+	caRow, err := database.GetCertificateAuthority(db.ByCertificateAuthorityID(ca.CertificateAuthorityID))
+	if err != nil {
+		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
+	}
 
 	err = database.DeleteCertificateAuthority(db.ByCertificateAuthorityID(ca.CertificateAuthorityID))
 	if err != nil {
 		t.Fatalf("Couldn't delete certificate authority: %s", err)
+	}
+	_, err = database.GetCertificateAuthority(db.ByCertificateAuthorityID(ca.CertificateAuthorityID))
+	if !errors.Is(err, db.ErrNotFound) {
+		t.Fatalf("Expected CA to not be in the database: %s", err)
+	}
+	_, err = database.GetCertificateRequest(db.ByCSRID(caRow.CSRID))
+	if !errors.Is(err, db.ErrNotFound) {
+		t.Fatalf("Expected CSR to not be in the database: %s", err)
+	}
+	_, err = database.GetPrivateKey(db.ByPrivateKeyID(caRow.PrivateKeyID))
+	if !errors.Is(err, db.ErrNotFound) {
+		t.Fatalf("Expected PrivateKey to not be in the database: %s", err)
 	}
 }
 

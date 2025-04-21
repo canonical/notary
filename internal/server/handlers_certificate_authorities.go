@@ -407,7 +407,6 @@ func DeleteCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 // It returns a 201 Created on success
 func PostCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Println("i live")
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {

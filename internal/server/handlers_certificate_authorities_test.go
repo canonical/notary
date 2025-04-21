@@ -1292,7 +1292,6 @@ func TestUnsuccessfulRequestsMadeToCACSRs(t *testing.T) {
 
 	t.Run("4. Get CSRs - only 1 should appear", func(t *testing.T) {
 		statusCode, listCertsResponse, err := listCertificateRequests(ts.URL, client, adminToken)
-		fmt.Println(listCertsResponse.Result)
 		if err != nil {
 			t.Fatal(err)
 		}

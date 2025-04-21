@@ -462,7 +462,6 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 	}
 	wasSelfSigned := false
 	if csrRow.CSR == caRow.CSRPEM {
-		log.Println("thissa self sign")
 		wasSelfSigned = true
 	}
 	block, _ = pem.Decode([]byte(caRow.PrivateKeyPEM))

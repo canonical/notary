@@ -444,9 +444,6 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 	if err != nil {
 		return err
 	}
-	if csrRow.CertificateID != 0 {
-		return errors.New("CSR already signed. please renew instead")
-	}
 	if caRow.CertificateChain == "" {
 		return errors.New("CA does not have a valid signed certificate to sign certificates")
 	}
@@ -462,6 +459,11 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 	certChain, err := ParseCertificateChain(caRow.CertificateChain)
 	if err != nil {
 		return err
+	}
+	wasSelfSigned := false
+	if csrRow.CSR == caRow.CSRPEM {
+		log.Println("thissa self sign")
+		wasSelfSigned = true
 	}
 	block, _ = pem.Decode([]byte(caRow.PrivateKeyPEM))
 	caPrivateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
@@ -515,9 +517,16 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 		return err
 	}
 	if CSRIsForACertificateAuthority {
-		err := db.UpdateCertificateAuthorityCertificate(ByCertificateAuthorityID(caToBeSigned.CertificateAuthorityID), certPEM.String()+caRow.CertificateChain)
-		if err != nil {
-			return err
+		if wasSelfSigned {
+			err := db.UpdateCertificateAuthorityCertificate(ByCertificateAuthorityID(caToBeSigned.CertificateAuthorityID), certPEM.String()+certPEM.String())
+			if err != nil {
+				return err
+			}
+		} else {
+			err := db.UpdateCertificateAuthorityCertificate(ByCertificateAuthorityID(caToBeSigned.CertificateAuthorityID), certPEM.String()+caRow.CertificateChain)
+			if err != nil {
+				return err
+			}
 		}
 	} else {
 		_, err = db.AddCertificateChainToCertificateRequest(csrFilter, certPEM.String()+caRow.CertificateChain)
@@ -575,10 +584,10 @@ func (db *Database) RevokeCertificate(filter CSRFilter) error {
 		return err
 	}
 
-	// Check if the certificate being revoked belongs to a CA, if so, set its status to legacy
+	// Check if the certificate being revoked belongs to a CA, if so, set its status to pending
 	revokedCA, err := db.GetCertificateAuthority(ByCertificateAuthorityCertificateID(certToRevoke.CertificateID))
 	if rowFound(err) {
-		err = db.UpdateCertificateAuthorityStatus(ByCertificateAuthorityID(revokedCA.CertificateAuthorityID), CALegacy)
+		err = db.UpdateCertificateAuthorityStatus(ByCertificateAuthorityID(revokedCA.CertificateAuthorityID), CAPending)
 		if err != nil {
 			return err
 		}

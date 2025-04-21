@@ -340,7 +340,6 @@ func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid ID")
 			return
 		}
-
 		var params UpdateCertificateAuthorityParams
 		if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format")
@@ -408,6 +407,7 @@ func DeleteCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 // It returns a 201 Created on success
 func PostCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		log.Println("i live")
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
@@ -460,7 +460,6 @@ func SignCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 		}
 		caIDInt, err := strconv.ParseInt(signCertificateAuthorityParams.CertificateAuthorityID, 10, 64)
 		if err != nil {
-			log.Println(err)
 			writeError(w, http.StatusInternalServerError, "Internal Error")
 			return
 		}
@@ -535,7 +534,17 @@ func RevokeCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc 
 			writeError(w, http.StatusBadRequest, "Invalid ID")
 			return
 		}
-		err = env.DB.RevokeCertificate(db.ByCSRID(idNum))
+		ca, err := env.DB.GetCertificateAuthority(db.ByCertificateAuthorityID(idNum))
+		if err != nil {
+			log.Println(err)
+			if errors.Is(err, db.ErrNotFound) {
+				writeError(w, http.StatusNotFound, "Not Found")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		err = env.DB.RevokeCertificate(db.ByCSRID(ca.CSRID))
 		if err != nil {
 			log.Println(err)
 			if errors.Is(err, db.ErrNotFound) {

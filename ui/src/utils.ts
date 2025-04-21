@@ -40,7 +40,14 @@ export const oidToName = (oid: string) => {
         "1.2.840.113549.1.9.14": "Extension Request",
         // OID for basicConstraint
         "2.5.29.19": "Basic Constraint",
-        "2.5.29.17": "Subject Alternative Name"
+        "2.5.29.17": "Subject Alternative Name",
+        //
+        "2.5.29.15": "keyUsage",
+        "2.5.29.37": "extKeyUsage",
+        "2.5.29.14": "subjectKeyIdentifier",
+        "2.5.29.35": "authorityKeyIdentifier",
+        "2.5.29.31": "cRLDistributionPoints",
+
     }
     if (!(oid in map)) {
         throw new Error("oid not recognized: " + oid)
@@ -171,7 +178,7 @@ export const extractCert = (certPemString: string) => {
         type: oidToName(typeAndValue.type),
         value: typeAndValue.value.valueBlock.value
     }));
-    const issuerInfo = cert.subject.typesAndValues.map(typeAndValue => ({
+    const issuerInfo = cert.issuer.typesAndValues.map(typeAndValue => ({
         type: oidToName(typeAndValue.type),
         value: typeAndValue.value.valueBlock.value
     }));

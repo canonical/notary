@@ -275,9 +275,9 @@ func CreateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 		}
 		var newCAID int64
 		if certPEM != "" {
-			newCAID, err = env.DB.CreateCertificateAuthority(csrPEM, privPEM, crlPEM, certPEM+certPEM)
+			newCAID, err = env.DB.CreateCertificateAuthority(strings.TrimSpace(csrPEM), strings.TrimSpace(privPEM), strings.TrimSpace(crlPEM), strings.TrimSpace(certPEM+certPEM))
 		} else {
-			newCAID, err = env.DB.CreateCertificateAuthority(csrPEM, privPEM, "", "")
+			newCAID, err = env.DB.CreateCertificateAuthority(strings.TrimSpace(csrPEM), strings.TrimSpace(privPEM), "", "")
 		}
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Failed to create certificate authority")

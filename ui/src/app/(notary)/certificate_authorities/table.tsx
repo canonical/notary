@@ -159,7 +159,7 @@ export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TablePr
                 hasToggleIcon
                 position="right"
               >
-                {!isSelfSigned && caEntry.status !== "legacy" &&
+                {!isSelfSigned &&
                   <span className="p-contextual-menu__group">
                     <Button
                       className="p-contextual-menu__link"
@@ -178,49 +178,47 @@ export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TablePr
                     </Button>
                   </span>
                 }
-                {caEntry.certificate != "" &&
-                  <span className="p-contextual-menu__group">
+                <span className="p-contextual-menu__group">
+                  <Button
+                    className="p-contextual-menu__link"
+                    disabled={caEntry.status == "pending"}
+                    onMouseDown={() => handleExpand(caEntry.id, 'Cert')}>
+                    {isCertContentVisible ? "Hide Certificate Content" : "Show Certificate Content"}
+                  </Button>
+                  {!isSelfSigned &&
+                    <Button
+                      className="p-contextual-menu__link"
+                      disabled={auth.activeCA == null}
+                      onMouseDown={() => handleSign(caEntry.id)}>
+                      {caEntry.status === "active" ? "Re-sign CSR" : "Sign CSR"}
+                    </Button>
+                  }
+                  {isSelfSigned &&
+                    <Button
+                      className="p-contextual-menu__link"
+                      onMouseDown={() => handleSign(caEntry.id, caEntry.id)}>
+                      Renew Certificate
+                    </Button>
+                  }
+                  {!isSelfSigned &&
+                    <Button
+                      className="p-contextual-menu__link"
+                      onMouseDown={() => {
+                        setCertificateFormOpen(true);
+                        setSelectedCA(caEntry);
+                      }}>
+                      Upload New Certificate
+                    </Button>
+                  }
+                  {!isSelfSigned &&
                     <Button
                       className="p-contextual-menu__link"
                       disabled={caEntry.status == "pending"}
-                      onMouseDown={() => handleExpand(caEntry.id, 'Cert')}>
-                      {isCertContentVisible ? "Hide Certificate Content" : "Show Certificate Content"}
+                      onMouseDown={() => handleRevoke(caEntry.id)}>
+                      Revoke Certificate
                     </Button>
-                    {!isSelfSigned &&
-                      <Button
-                        className="p-contextual-menu__link"
-                        disabled={auth.activeCA == null}
-                        onMouseDown={() => handleSign(caEntry.id)}>
-                        {caEntry.status === "active" ? "Re-sign CSR" : "Sign CSR"}
-                      </Button>
-                    }
-                    {isSelfSigned && caEntry.status === "active" &&
-                      <Button
-                        className="p-contextual-menu__link"
-                        onMouseDown={() => handleSign(caEntry.id, caEntry.id)}>
-                        Renew Certificate
-                      </Button>
-                    }
-                    {!isSelfSigned &&
-                      <Button
-                        className="p-contextual-menu__link"
-                        onMouseDown={() => {
-                          setCertificateFormOpen(true);
-                          setSelectedCA(caEntry);
-                        }}>
-                        Upload New Certificate
-                      </Button>
-                    }
-                    {!isSelfSigned &&
-                      <Button
-                        className="p-contextual-menu__link"
-                        disabled={caEntry.status == "pending"}
-                        onMouseDown={() => handleRevoke(caEntry.id)}>
-                        Revoke Certificate
-                      </Button>
-                    }
-                  </span>
-                }
+                  }
+                </span>
                 <span className="p-contextual-menu__group">
                   {caEntry.status === "active" &&
                     <Button

@@ -2,8 +2,9 @@ package server
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
+
+	"go.uber.org/zap"
 )
 
 type SuccessResponse struct {
@@ -34,15 +35,15 @@ func writeResponse(w http.ResponseWriter, v any, status int) error {
 }
 
 // writeError is a helper function that logs any error and writes it back as an http response
-func writeError(w http.ResponseWriter, status int, message string) {
+func writeError(w http.ResponseWriter, status int, message string, logger *zap.SugaredLogger) {
 	type errorResponse struct {
 		Error string `json:"error"`
 	}
-	log.Println(message)
+	logger.Infoln(message)
 	resp := errorResponse{Error: message}
 	respBytes, err := json.Marshal(&resp)
 	if err != nil {
-		log.Printf("Error marshalling error response: %v", err)
+		logger.Errorln("Error marshalling error response: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -50,6 +51,6 @@ func writeError(w http.ResponseWriter, status int, message string) {
 	w.WriteHeader(status)
 	_, err = w.Write(respBytes)
 	if err != nil {
-		log.Printf("Error writing error response: %v", err)
+		logger.Errorln("Error writing error response: %v", err)
 	}
 }

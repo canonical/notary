@@ -17,6 +17,7 @@ import (
 
 	"github.com/canonical/notary/internal/db"
 	metrics "github.com/canonical/notary/internal/metrics"
+	"go.uber.org/zap"
 )
 
 const (
@@ -163,7 +164,11 @@ func TestPrometheusHandler(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := metrics.NewMetricsSubsystem(db)
+	l, err := zap.NewDevelopment()
+	if err != nil {
+		t.Fatalf("cannot create logger: %s", err)
+	}
+	m := metrics.NewMetricsSubsystem(db, l.Sugar())
 	defer m.Close()
 
 	request, err := http.NewRequest("GET", "/", nil)
@@ -268,7 +273,11 @@ func TestCertificateMetrics(t *testing.T) {
 		t.Fatal(err)
 	}
 	initializeTestDBWithCerts(t, db)
-	m := metrics.NewMetricsSubsystem(db)
+	l, err := zap.NewDevelopment()
+	if err != nil {
+		t.Fatalf("cannot create logger: %s", err)
+	}
+	m := metrics.NewMetricsSubsystem(db, l.Sugar())
 	defer m.Close()
 	csrs, _ := db.ListCertificateRequestWithCertificates()
 	m.GenerateCertificateMetrics(csrs)
@@ -366,7 +375,11 @@ func TestCACertificateMetrics(t *testing.T) {
 		t.Fatal(err)
 	}
 	initializeTestDBWithCaCerts(t, db)
-	m := metrics.NewMetricsSubsystem(db)
+	l, err := zap.NewDevelopment()
+	if err != nil {
+		t.Fatalf("cannot create logger: %s", err)
+	}
+	m := metrics.NewMetricsSubsystem(db, l.Sugar())
 	defer m.Close()
 	cas, err := db.ListDenormalizedCertificateAuthorities()
 	if err != nil {

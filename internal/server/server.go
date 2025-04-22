@@ -10,10 +10,12 @@ import (
 	"time"
 
 	"github.com/canonical/notary/internal/db"
+	"go.uber.org/zap"
 )
 
 type HandlerConfig struct {
 	DB                      *db.Database
+	Logger                  *zap.SugaredLogger
 	ExternalHostname        string
 	JWTSecret               []byte
 	SendPebbleNotifications bool
@@ -54,7 +56,7 @@ func generateJWTSecret() ([]byte, error) {
 }
 
 // New creates an environment and an http server with handlers that Go can start listening to
-func New(port int, cert []byte, key []byte, dbPath string, externalHostname string, pebbleNotificationsEnabled bool) (*http.Server, error) {
+func New(port int, cert []byte, key []byte, dbPath string, externalHostname string, pebbleNotificationsEnabled bool, logger *zap.SugaredLogger) (*http.Server, error) {
 	serverCerts, err := tls.X509KeyPair(cert, key)
 	if err != nil {
 		return nil, err
@@ -73,6 +75,7 @@ func New(port int, cert []byte, key []byte, dbPath string, externalHostname stri
 	env.SendPebbleNotifications = pebbleNotificationsEnabled
 	env.JWTSecret = jwtSecret
 	env.ExternalHostname = externalHostname
+	env.Logger = logger
 	router := NewHandler(env)
 
 	s := &http.Server{

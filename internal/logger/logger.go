@@ -27,6 +27,8 @@ func NewLogger(opts *config.Logging) (*zap.SugaredLogger, error) {
 		return nil, fmt.Errorf("invalid log output: %s", opts.System.Output)
 	}
 
+	zapConfig.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+
 	logger, err := zapConfig.Build()
 	if err != nil {
 		return nil, err

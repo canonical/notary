@@ -29,9 +29,27 @@ type ConfigYAML struct {
 	Logging             LoggingConfigYaml `yaml:"logging"`
 }
 
+type LoggingOutputType string
+
+const (
+	Stdout LoggingOutputType = "stdout"
+	File   LoggingOutputType = "file"
+)
+
+type LoggingLevel string
+
+const (
+	Debug LoggingLevel = "debug"
+	Info  LoggingLevel = "info"
+	Warn  LoggingLevel = "warn"
+	Error LoggingLevel = "error"
+	Fatal LoggingLevel = "fatal"
+	Panic LoggingLevel = "panic"
+)
+
 type SystemLoggingConfig struct {
-	Level  string
-	Output string
+	Level  LoggingLevel
+	Output LoggingOutputType
 	Path   string
 }
 
@@ -159,8 +177,8 @@ func Validate(filePath string) (Config, error) {
 	config.DBPath = c.DBPath
 	config.Port = c.Port
 	config.PebbleNotificationsEnabled = c.PebbleNotifications
-	config.Logging.System.Level = c.Logging.System.Level
-	config.Logging.System.Output = c.Logging.System.Output
+	config.Logging.System.Level = LoggingLevel(c.Logging.System.Level)
+	config.Logging.System.Output = LoggingOutputType(c.Logging.System.Output)
 	config.Logging.System.Path = c.Logging.System.Path
 	return config, nil
 }

@@ -1,23 +1,30 @@
 package logger
 
 import (
+	"fmt"
+
 	"github.com/canonical/notary/internal/config"
 	"go.uber.org/zap"
-)
-
-var (
-	Logger *zap.Logger
+	"go.uber.org/zap/zapcore"
 )
 
 func NewLogger(opts *config.Logging) (*zap.SugaredLogger, error) {
 	zapConfig := zap.NewProductionConfig()
-	zapConfig.Level.SetLevel(zap.DebugLevel)
 
-	if opts.System.Output == "stdout" {
-		zapConfig.OutputPaths = []string{"stdout"}
+	logLevel, err := zapcore.ParseLevel(string(opts.System.Level))
+	if err != nil {
+		return nil, fmt.Errorf("invalid log level: %w", err)
 	}
-	if opts.System.Output == "file" {
+
+	zapConfig.Level.SetLevel(logLevel)
+
+	switch opts.System.Output {
+	case config.Stdout:
+		zapConfig.OutputPaths = []string{"stdout"}
+	case config.File:
 		zapConfig.OutputPaths = []string{opts.System.Path}
+	default:
+		return nil, fmt.Errorf("invalid log output: %s", opts.System.Output)
 	}
 
 	logger, err := zapConfig.Build()
@@ -25,6 +32,5 @@ func NewLogger(opts *config.Logging) (*zap.SugaredLogger, error) {
 		return nil, err
 	}
 
-	Logger = logger
 	return logger.Sugar(), nil
 }

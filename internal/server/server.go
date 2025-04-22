@@ -11,6 +11,7 @@ import (
 
 	"github.com/canonical/notary/internal/db"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type HandlerConfig struct {
@@ -78,9 +79,16 @@ func New(port int, cert []byte, key []byte, dbPath string, externalHostname stri
 	env.Logger = logger
 	router := NewHandler(env)
 
-	s := &http.Server{
-		Addr: fmt.Sprintf(":%d", port),
+	zapLogger := logger.Desugar()
 
+	stdErrLog, err := zap.NewStdLogAt(zapLogger, zapcore.ErrorLevel)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create logger for http server: %w", err)
+	}
+
+	s := &http.Server{
+		Addr:           fmt.Sprintf(":%d", port),
+		ErrorLog:       stdErrLog,
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		Handler:        router,

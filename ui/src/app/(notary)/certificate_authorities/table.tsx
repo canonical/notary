@@ -227,7 +227,7 @@ export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TablePr
                       onMouseDown={() => {
                         auth.setActiveCA(caEntry);
                       }}>
-                      Select CA for Signing
+                      Set as default for signing CSRs
                     </Button>
                   }
                   {caEntry.status === "active" &&
@@ -237,11 +237,6 @@ export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TablePr
                       Make CA Legacy
                     </Button>
                   }
-                  <Button
-                    className="p-contextual-menu__link"
-                    onMouseDown={() => console.log("TODO")}>
-                    Revoke All Signed Certificates
-                  </Button>
                   <Button
                     className="p-contextual-menu__link"
                     onMouseDown={() => handleDelete(caEntry.id)}>

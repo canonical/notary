@@ -12,6 +12,7 @@ lifecycle
 PEM
 RESTful
 sqlite
+stdout
 TLS
 UI
 yaml

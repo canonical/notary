@@ -24,11 +24,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Couldn't validate config file: %s", err)
 	}
-	l, err := logger.NewLogger(&logger.LoggerOpts{
-		System: logger.SystemLoggerOpts{
-			Level: "info",
-		},
-	})
+	l, err := logger.NewLogger(&conf.Logging)
 	if err != nil {
 		l.Fatalf("Couldn't create logger: %s", err)
 	}

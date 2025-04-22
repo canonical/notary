@@ -44,6 +44,7 @@ func NewHandler(config *HandlerConfig) http.Handler {
 	}
 	ctx := middlewareContext{
 		jwtSecret: config.JWTSecret,
+		logger:    config.Logger,
 	}
 	apiMiddlewareStack := createMiddlewareStack(
 		limitRequestSize(MAX_KILOBYTES, config.Logger),

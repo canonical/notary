@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"github.com/canonical/notary/internal/config"
 	"go.uber.org/zap"
 )
 
@@ -8,25 +9,17 @@ var (
 	Logger *zap.Logger
 )
 
-type SystemLoggerOutputOpts struct {
-	Stdout bool
-	File   bool
-}
-
-type SystemLoggerOpts struct {
-	Level  string
-	Output SystemLoggerOutputOpts
-	Path   string
-}
-
-type LoggerOpts struct {
-	System SystemLoggerOpts
-}
-
-func NewLogger(opts *LoggerOpts) (*zap.SugaredLogger, error) {
+func NewLogger(opts *config.Logging) (*zap.SugaredLogger, error) {
 	zapConfig := zap.NewProductionConfig()
 	zapConfig.Level.SetLevel(zap.DebugLevel)
-	// zapConfig.OutputPaths = []string{opts.System.Path}
+
+	if opts.System.Output == "stdout" {
+		zapConfig.OutputPaths = []string{"stdout"}
+	}
+	if opts.System.Output == "file" {
+		zapConfig.OutputPaths = []string{opts.System.Path}
+	}
+
 	logger, err := zapConfig.Build()
 	if err != nil {
 		return nil, err

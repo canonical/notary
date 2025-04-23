@@ -60,7 +60,7 @@ func limitRequestSize(maxKilobytes int64, logger *zap.SugaredLogger) middleware 
 			r.Body = http.MaxBytesReader(w, r.Body, maxKilobytes<<10)
 			body, err := io.ReadAll(r.Body)
 			if err != nil {
-				writeError(w, http.StatusRequestEntityTooLarge, http.StatusText(http.StatusRequestEntityTooLarge), logger)
+				writeError(w, http.StatusRequestEntityTooLarge, http.StatusText(http.StatusRequestEntityTooLarge), err, logger)
 				return
 			}
 
@@ -108,13 +108,13 @@ func adminOnly(jwtSecret []byte, handler func(http.ResponseWriter, *http.Request
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
 		if err != nil {
-			logger.Infof("getting claims from authorization header: %s", err)
-			writeError(w, http.StatusUnauthorized, "Unauthorized", logger)
+			writeError(w, http.StatusUnauthorized, "Unauthorized", err, logger)
 			return
 		}
 
 		if claims.Permissions != AdminPermission {
-			writeError(w, http.StatusForbidden, "forbidden: admin access required", logger)
+			err = errors.New("permissions not admin")
+			writeError(w, http.StatusForbidden, "forbidden: admin access required", err, logger)
 			return
 		}
 
@@ -127,12 +127,13 @@ func adminOrUser(jwtSecret []byte, handler func(http.ResponseWriter, *http.Reque
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
 		if err != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", logger)
+			writeError(w, http.StatusUnauthorized, "Unauthorized", err, logger)
 			return
 		}
 
 		if claims.Permissions != AdminPermission && claims.Permissions != UserPermission {
-			writeError(w, http.StatusForbidden, "forbidden: admin or user access required", logger)
+			err = errors.New("permissions not admin or user")
+			writeError(w, http.StatusForbidden, "forbidden: admin or user access required", err, logger)
 			return
 		}
 
@@ -145,14 +146,14 @@ func adminOrMe(jwtSecret []byte, handler func(http.ResponseWriter, *http.Request
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
 		if err != nil {
-			logger.Infof("getting claims from authorization header: %s", err)
-			writeError(w, http.StatusUnauthorized, "Unauthorized", logger)
+			writeError(w, http.StatusUnauthorized, "Unauthorized", err, logger)
 			return
 		}
 
 		if claims.Permissions != AdminPermission {
 			if r.PathValue("id") != "me" && strconv.FormatInt(claims.ID, 10) != r.PathValue("id") {
-				writeError(w, http.StatusForbidden, "forbidden: admin access required", logger)
+				err = errors.New("permissions not admin and user id is not self")
+				writeError(w, http.StatusForbidden, "forbidden: admin access required", err, logger)
 				return
 			}
 		}
@@ -166,21 +167,20 @@ func adminOrFirstUser(jwtSecret []byte, db *db.Database, handler func(http.Respo
 	return func(w http.ResponseWriter, r *http.Request) {
 		numUsers, err := db.NumUsers()
 		if err != nil {
-			logger.Infof("getting number of users: %s", err)
-			writeError(w, http.StatusInternalServerError, "Internal Error", logger)
+			writeError(w, http.StatusInternalServerError, "Internal Error", err, logger)
 			return
 		}
 
 		if numUsers > 0 {
 			claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
 			if err != nil {
-				logger.Infof("getting claims from authorization header: %s", err)
-				writeError(w, http.StatusUnauthorized, "Unauthorized", logger)
+				writeError(w, http.StatusUnauthorized, "Unauthorized", err, logger)
 				return
 			}
 
 			if claims.Permissions != AdminPermission && numUsers > 0 {
-				writeError(w, http.StatusForbidden, "forbidden: admin access required", logger)
+				err = errors.New("permissions not admin and user is not first user")
+				writeError(w, http.StatusForbidden, "forbidden: admin access required", err, logger)
 				return
 			}
 		}

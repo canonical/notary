@@ -35,11 +35,11 @@ func writeResponse(w http.ResponseWriter, v any, status int) error {
 }
 
 // writeError is a helper function that logs any error and writes it back as an http response
-func writeError(w http.ResponseWriter, status int, message string, logger *zap.SugaredLogger) {
+func writeError(w http.ResponseWriter, status int, message string, err error, logger *zap.SugaredLogger) {
+	logger.Infoln(err.Error())
 	type errorResponse struct {
 		Error string `json:"error"`
 	}
-	logger.Infoln(message)
 	resp := errorResponse{Error: message}
 	respBytes, err := json.Marshal(&resp)
 	if err != nil {

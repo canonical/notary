@@ -16,17 +16,8 @@ func NewLogger(opts *config.Logging) (*zap.SugaredLogger, error) {
 		return nil, fmt.Errorf("invalid log level: %w", err)
 	}
 
+	zapConfig.OutputPaths = []string{opts.System.Output}
 	zapConfig.Level.SetLevel(logLevel)
-
-	switch opts.System.Output {
-	case config.Stdout:
-		zapConfig.OutputPaths = []string{"stdout"}
-	case config.File:
-		zapConfig.OutputPaths = []string{opts.System.Path}
-	default:
-		return nil, fmt.Errorf("invalid log output: %s", opts.System.Output)
-	}
-
 	zapConfig.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 
 	logger, err := zapConfig.Build()

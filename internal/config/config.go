@@ -12,7 +12,6 @@ import (
 type SystemLoggingConfigYaml struct {
 	Level  string `yaml:"level"`
 	Output string `yaml:"output"`
-	Path   string `yaml:"path"`
 }
 
 type LoggingConfigYaml struct {
@@ -29,13 +28,6 @@ type ConfigYAML struct {
 	Logging             LoggingConfigYaml `yaml:"logging"`
 }
 
-type LoggingOutputType string
-
-const (
-	Stdout LoggingOutputType = "stdout"
-	File   LoggingOutputType = "file"
-)
-
 type LoggingLevel string
 
 const (
@@ -49,8 +41,7 @@ const (
 
 type SystemLoggingConfig struct {
 	Level  LoggingLevel
-	Output LoggingOutputType
-	Path   string
+	Output string
 }
 
 type Logging struct {
@@ -140,35 +131,8 @@ func Validate(filePath string) (Config, error) {
 		return Config{}, fmt.Errorf("invalid log level: %s", c.Logging.System.Level)
 	}
 
-	// Output Options are stdout and file.
 	if c.Logging.System.Output == "" {
 		return Config{}, fmt.Errorf("`output` is empty in logging config")
-	}
-	validOutputs := []string{"stdout", "file"}
-	valid = false
-	for _, output := range validOutputs {
-		if c.Logging.System.Output == output {
-			valid = true
-			break
-		}
-	}
-
-	if !valid {
-		return Config{}, fmt.Errorf("invalid output: %s", c.Logging.System.Output)
-	}
-	if c.Logging.System.Output == "file" && c.Logging.System.Path == "" {
-		return Config{}, fmt.Errorf("`path` is empty in logging config")
-	}
-
-	if c.Logging.System.Output == "file" {
-		logFile, err := os.OpenFile(c.Logging.System.Path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
-		if err != nil {
-			return Config{}, err
-		}
-		err = logFile.Close()
-		if err != nil {
-			return Config{}, err
-		}
 	}
 
 	config.Cert = cert
@@ -178,7 +142,6 @@ func Validate(filePath string) (Config, error) {
 	config.Port = c.Port
 	config.PebbleNotificationsEnabled = c.PebbleNotifications
 	config.Logging.System.Level = LoggingLevel(c.Logging.System.Level)
-	config.Logging.System.Output = LoggingOutputType(c.Logging.System.Output)
-	config.Logging.System.Path = c.Logging.System.Path
+	config.Logging.System.Output = c.Logging.System.Output
 	return config, nil
 }

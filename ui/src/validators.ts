@@ -1,7 +1,11 @@
 // This file contains the validation functions for forms in Notary
-// A validator function takes in at least the value to be validated, and returns an error string if the value is invalid, or an empty string if the value is valid
-
-import { V } from "vitest/dist/chunks/reporters.d.CqBhtcTq.js";
+// A validator function takes in at least the value to be validated, and returns a 
+// validationResult object. The validationResult object contains three properties:
+// error, caution, and success. Each of these properties is a string that contains
+// the validation message. The error property is used to indicate that the value is
+// invalid, the caution property is used to indicate that the value is valid but
+// may contain mistakes, and the success property is used to indicate that the value is
+// valid.
 
 export type validationResult = {
     error: string
@@ -11,6 +15,9 @@ export type validationResult = {
 
 export function validateCommonName(value: string): validationResult {
     let vr: validationResult = { error: "", caution: "", success: "" };
+    if (value.length == 0) {
+        return vr
+    }
     if (value.length < 1 || value.length > 64) {
         vr.error = "must be between 1 and 64 characters"
     }
@@ -19,26 +26,35 @@ export function validateCommonName(value: string): validationResult {
 
 export function validateOrganizationName(value: string): validationResult {
     let vr: validationResult = { error: "", caution: "", success: "" };
+    if (value.length == 0) {
+        return vr
+    }
     if (value.length < 1 || value.length > 64) {
-        vr.error = "must be between 1 and 64 characters"
+        vr.caution = "must be between 1 and 64 characters"
     }
     return vr
 }
 
 export function validateOrganizationalUnit(value: string): validationResult {
     let vr: validationResult = { error: "", caution: "", success: "" };
+    if (value.length == 0) {
+        return vr
+    }
     if (value.length < 1 || value.length > 64) {
-        vr.error = "must be between 1 and 64 characters"
+        vr.caution = "must be between 1 and 64 characters"
     }
     return vr
 }
 
 export function validateCountryName(value: string): validationResult {
     let vr: validationResult = { error: "", caution: "", success: "" };
+    if (value.length == 0) {
+        return vr
+    }
     if (value.length !== 2) {
         vr.error = "must be exactly 2 characters"
     }
-    if (!/^[A-Z]{2}$/.test(value)) {
+    if (value !== value.toUpperCase()) {
         vr.error = "must be uppercase letters"
     }
     return vr
@@ -46,6 +62,9 @@ export function validateCountryName(value: string): validationResult {
 
 export function validateStateOrProvinceName(value: string): validationResult {
     let vr: validationResult = { error: "", caution: "", success: "" };
+    if (value.length == 0) {
+        return vr
+    }
     if (value.length < 1 || value.length > 64) {
         vr.error = "must be between 1 and 64 characters"
     }
@@ -54,6 +73,9 @@ export function validateStateOrProvinceName(value: string): validationResult {
 
 export function validateLocalityName(value: string): validationResult {
     let vr: validationResult = { error: "", caution: "", success: "" };
+    if (value.length == 0) {
+        return vr
+    }
     if (value.length < 1 || value.length > 64) {
         vr.error = "must be between 1 and 64 characters"
     }

@@ -79,7 +79,7 @@ func Login(env *HandlerConfig) http.HandlerFunc {
 			hashedPassword = userAccount.HashedPassword
 		}
 		if err := hashing.CompareHashAndPassword(hashedPassword, loginParams.Password); err != nil {
-			writeError(w, http.StatusUnauthorized, "The username or password is incorrect. Try again.", err, env.Logger)
+			writeError(w, http.StatusUnauthorized, "The username or password is incorrect", err, env.Logger)
 			return
 		}
 		jwt, err := generateJWT(userAccount.ID, userAccount.Username, env.JWTSecret, userAccount.Permissions)

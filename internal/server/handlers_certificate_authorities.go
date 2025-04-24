@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/canonical/notary/internal/db"
+	"go.uber.org/zap"
 )
 
 const nextUpdateYears = 1
@@ -479,7 +480,7 @@ func SignCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 		if env.SendPebbleNotifications {
 			err := SendPebbleNotification(CertificateUpdate, idNum)
 			if err != nil {
-				env.Logger.Warnf("pebble notify failed: %s. continuing silently.", err.Error())
+				env.Logger.Warn("pebble notify failed", zap.Error(err))
 			}
 		}
 		successResponse := SuccessResponse{Message: "success"}
@@ -534,7 +535,7 @@ func RevokeCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc 
 		}
 		err = env.DB.RevokeCertificate(db.ByCSRID(idNum))
 		if err != nil {
-			env.Logger.Warnf("could not revoke certificate: %s", err.Error())
+			env.Logger.Warn("could not revoke certificate", zap.Error(err))
 			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found", err, env.Logger)
 				return
@@ -545,7 +546,7 @@ func RevokeCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc 
 		if env.SendPebbleNotifications {
 			err := SendPebbleNotification(CertificateUpdate, idNum)
 			if err != nil {
-				env.Logger.Warnf("pebble notify failed: %s. continuing silently.", err.Error())
+				env.Logger.Warn("pebble notify failed", zap.Error(err))
 			}
 		}
 		successResponse := SuccessResponse{Message: "success"}

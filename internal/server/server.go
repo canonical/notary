@@ -16,7 +16,7 @@ import (
 
 type HandlerConfig struct {
 	DB                      *db.Database
-	Logger                  *zap.SugaredLogger
+	Logger                  *zap.Logger
 	ExternalHostname        string
 	JWTSecret               []byte
 	SendPebbleNotifications bool
@@ -57,7 +57,7 @@ func generateJWTSecret() ([]byte, error) {
 }
 
 // New creates an environment and an http server with handlers that Go can start listening to
-func New(port int, cert []byte, key []byte, dbPath string, externalHostname string, pebbleNotificationsEnabled bool, logger *zap.SugaredLogger) (*http.Server, error) {
+func New(port int, cert []byte, key []byte, dbPath string, externalHostname string, pebbleNotificationsEnabled bool, logger *zap.Logger) (*http.Server, error) {
 	serverCerts, err := tls.X509KeyPair(cert, key)
 	if err != nil {
 		return nil, err
@@ -79,9 +79,7 @@ func New(port int, cert []byte, key []byte, dbPath string, externalHostname stri
 	env.Logger = logger
 	router := NewHandler(env)
 
-	zapLogger := logger.Desugar()
-
-	stdErrLog, err := zap.NewStdLogAt(zapLogger, zapcore.ErrorLevel)
+	stdErrLog, err := zap.NewStdLogAt(logger, zapcore.ErrorLevel)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create logger for http server: %w", err)
 	}

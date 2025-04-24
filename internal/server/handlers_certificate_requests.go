@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/canonical/notary/internal/db"
+	"go.uber.org/zap"
 )
 
 type CreateCertificateRequestParams struct {
@@ -246,7 +247,7 @@ func PostCertificateRequestCertificate(env *HandlerConfig) http.HandlerFunc {
 		if env.SendPebbleNotifications {
 			err := SendPebbleNotification(CertificateUpdate, idNum)
 			if err != nil {
-				env.Logger.Warnf("pebble notify failed: %s", err.Error())
+				env.Logger.Warn("pebble notify failed", zap.Error(err))
 			}
 		}
 		successResponse := CreateSuccessResponse{Message: "success", ID: newCertID}
@@ -290,7 +291,7 @@ func RejectCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 		if env.SendPebbleNotifications {
 			err := SendPebbleNotification(CertificateUpdate, idNum)
 			if err != nil {
-				env.Logger.Warnf("pebble notify failed: %s", err.Error())
+				env.Logger.Warn("pebble notify failed", zap.Error(err))
 			}
 		}
 		successResponse := SuccessResponse{Message: "success"}
@@ -333,7 +334,7 @@ func DeleteCertificate(env *HandlerConfig) http.HandlerFunc {
 		if env.SendPebbleNotifications {
 			err := SendPebbleNotification(CertificateUpdate, idNum)
 			if err != nil {
-				env.Logger.Warnf("pebble notify failed: %s", err.Error())
+				env.Logger.Warn("pebble notify failed", zap.Error(err))
 			}
 		}
 		successResponse := SuccessResponse{Message: "success"}
@@ -377,7 +378,7 @@ func RevokeCertificate(env *HandlerConfig) http.HandlerFunc {
 		if env.SendPebbleNotifications {
 			err := SendPebbleNotification(CertificateUpdate, idNum)
 			if err != nil {
-				env.Logger.Warnf("pebble notify failed: %s", err.Error())
+				env.Logger.Warn("pebble notify failed", zap.Error(err))
 			}
 		}
 		successResponse := SuccessResponse{Message: "success"}
@@ -432,7 +433,7 @@ func SignCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 		if env.SendPebbleNotifications {
 			err := SendPebbleNotification(CertificateUpdate, idNum)
 			if err != nil {
-				env.Logger.Warnf("pebble notify failed: %s", err.Error())
+				env.Logger.Warn("pebble notify failed", zap.Error(err))
 			}
 		}
 		successResponse := SuccessResponse{Message: "success"}

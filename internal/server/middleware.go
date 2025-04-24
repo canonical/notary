@@ -32,7 +32,7 @@ type middleware func(http.Handler) http.Handler
 type middlewareContext struct {
 	responseStatusCode int
 	jwtSecret          []byte
-	logger             *zap.SugaredLogger
+	logger             *zap.Logger
 }
 
 // createMiddlewareStack chains the given middleware functions to wrap the api.
@@ -50,7 +50,7 @@ func createMiddlewareStack(middleware ...middleware) middleware {
 	}
 }
 
-func limitRequestSize(maxKilobytes int64, logger *zap.SugaredLogger) middleware {
+func limitRequestSize(maxKilobytes int64, logger *zap.Logger) middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Body == nil || r.ContentLength == 0 {
@@ -95,7 +95,7 @@ func loggingMiddleware(ctx *middlewareContext) middleware {
 
 			// Suppress logging for static files
 			if !strings.HasPrefix(r.URL.Path, "/_next") {
-				ctx.logger.Infof("Request: %s %s %d %s", r.Method, r.URL.Path, clonedWriter.statusCode, http.StatusText(clonedWriter.statusCode))
+				ctx.logger.Info("Request", zap.String("method", r.Method), zap.String("path", r.URL.Path), zap.Int("status_code", clonedWriter.statusCode), zap.String("status_text", http.StatusText(clonedWriter.statusCode)))
 			}
 
 			ctx.responseStatusCode = clonedWriter.statusCode
@@ -104,7 +104,7 @@ func loggingMiddleware(ctx *middlewareContext) middleware {
 }
 
 // The adminOnly middleware checks if the user has admin permissions before allowing access to the handler.
-func adminOnly(jwtSecret []byte, handler func(http.ResponseWriter, *http.Request), logger *zap.SugaredLogger) func(http.ResponseWriter, *http.Request) {
+func adminOnly(jwtSecret []byte, handler func(http.ResponseWriter, *http.Request), logger *zap.Logger) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
 		if err != nil {
@@ -123,7 +123,7 @@ func adminOnly(jwtSecret []byte, handler func(http.ResponseWriter, *http.Request
 }
 
 // The adminOrUser middleware checks if the user has admin or user permissions before allowing access to the handler.
-func adminOrUser(jwtSecret []byte, handler func(http.ResponseWriter, *http.Request), logger *zap.SugaredLogger) func(http.ResponseWriter, *http.Request) {
+func adminOrUser(jwtSecret []byte, handler func(http.ResponseWriter, *http.Request), logger *zap.Logger) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
 		if err != nil {
@@ -142,7 +142,7 @@ func adminOrUser(jwtSecret []byte, handler func(http.ResponseWriter, *http.Reque
 }
 
 // The adminOrMe middleware checks if the user has admin permissions or if the user is the same user before allowing access to the handler.
-func adminOrMe(jwtSecret []byte, handler func(http.ResponseWriter, *http.Request), logger *zap.SugaredLogger) func(http.ResponseWriter, *http.Request) {
+func adminOrMe(jwtSecret []byte, handler func(http.ResponseWriter, *http.Request), logger *zap.Logger) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
 		if err != nil {
@@ -163,7 +163,7 @@ func adminOrMe(jwtSecret []byte, handler func(http.ResponseWriter, *http.Request
 }
 
 // The adminOrFirstUser middleware checks if the user has admin permissions or if the user is the first user before allowing access to the handler.
-func adminOrFirstUser(jwtSecret []byte, db *db.Database, handler func(http.ResponseWriter, *http.Request), logger *zap.SugaredLogger) func(http.ResponseWriter, *http.Request) {
+func adminOrFirstUser(jwtSecret []byte, db *db.Database, handler func(http.ResponseWriter, *http.Request), logger *zap.Logger) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		numUsers, err := db.NumUsers()
 		if err != nil {

@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func NewLogger(opts *config.Logging) (*zap.SugaredLogger, error) {
+func NewLogger(opts *config.Logging) (*zap.Logger, error) {
 	zapConfig := zap.NewProductionConfig()
 
 	logLevel, err := zapcore.ParseLevel(string(opts.System.Level))
@@ -25,5 +25,5 @@ func NewLogger(opts *config.Logging) (*zap.SugaredLogger, error) {
 		return nil, err
 	}
 
-	return logger.Sugar(), nil
+	return logger, nil
 }

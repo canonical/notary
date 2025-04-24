@@ -39,7 +39,7 @@ type PrometheusMetrics struct {
 }
 
 // NewMetricsSubsystem returns the metrics endpoint HTTP handler and the Prometheus metrics collectors for the server and middleware.
-func NewMetricsSubsystem(db *db.Database, logger *zap.SugaredLogger) *PrometheusMetrics {
+func NewMetricsSubsystem(db *db.Database, logger *zap.Logger) *PrometheusMetrics {
 	metricsBackend := newPrometheusMetrics()
 	metricsBackend.Handler = promhttp.HandlerFor(metricsBackend.registry, promhttp.HandlerOpts{})
 
@@ -48,7 +48,7 @@ func NewMetricsSubsystem(db *db.Database, logger *zap.SugaredLogger) *Prometheus
 
 	err := collectMetrics(db, metricsBackend)
 	if err != nil {
-		logger.Errorf("Error collecting metrics: %v", err)
+		logger.Error("Error collecting metrics", zap.String("err", err.Error()))
 	}
 
 	ticker := time.NewTicker(120 * time.Second)
@@ -59,7 +59,7 @@ func NewMetricsSubsystem(db *db.Database, logger *zap.SugaredLogger) *Prometheus
 			case <-ticker.C:
 				err = collectMetrics(db, metricsBackend)
 				if err != nil {
-					logger.Errorf("Error collecting metrics: %v", err)
+					logger.Error("Error collecting metrics", zap.String("err", err.Error()))
 				}
 			case <-ctx.Done():
 				return

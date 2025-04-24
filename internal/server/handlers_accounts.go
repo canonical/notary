@@ -190,7 +190,6 @@ func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
 		id := r.PathValue("id")
 		idInt, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			env.Logger.Infof("could not parse id %s: %v", id, err)
 			writeError(w, http.StatusBadRequest, "Invalid ID", err, env.Logger)
 			return
 		}
@@ -233,7 +232,6 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 		if id == "me" {
 			claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
 			if err != nil {
-				env.Logger.Infof("could not get claims from header: %v", err)
 				writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.Logger)
 				return
 			}
@@ -246,7 +244,6 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 		} else {
 			idInt, err := strconv.ParseInt(id, 10, 64)
 			if err != nil {
-				env.Logger.Infof("could not parse id %s: %v", id, err)
 				writeError(w, http.StatusBadRequest, "Invalid ID", err, env.Logger)
 				return
 			}

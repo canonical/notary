@@ -168,7 +168,7 @@ func TestPrometheusHandler(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot create logger: %s", err)
 	}
-	m := metrics.NewMetricsSubsystem(db, l.Sugar())
+	m := metrics.NewMetricsSubsystem(db, l)
 	defer m.Close()
 
 	request, err := http.NewRequest("GET", "/", nil)
@@ -277,7 +277,7 @@ func TestCertificateMetrics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot create logger: %s", err)
 	}
-	m := metrics.NewMetricsSubsystem(db, l.Sugar())
+	m := metrics.NewMetricsSubsystem(db, l)
 	defer m.Close()
 	csrs, _ := db.ListCertificateRequestWithCertificates()
 	m.GenerateCertificateMetrics(csrs)
@@ -379,7 +379,7 @@ func TestCACertificateMetrics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot create logger: %s", err)
 	}
-	m := metrics.NewMetricsSubsystem(db, l.Sugar())
+	m := metrics.NewMetricsSubsystem(db, l)
 	defer m.Close()
 	cas, err := db.ListDenormalizedCertificateAuthorities()
 	if err != nil {

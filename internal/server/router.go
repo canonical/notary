@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/canonical/notary/internal/metrics"
+	"go.uber.org/zap"
 )
 
 // NewHandler takes in a config struct, passes it along to any handlers that will need
@@ -40,7 +41,7 @@ func NewHandler(config *HandlerConfig) http.Handler {
 	m := metrics.NewMetricsSubsystem(config.DB, config.Logger)
 	frontendHandler, err := newFrontendFileServer()
 	if err != nil {
-		config.Logger.Fatalf("Failed to create frontend file server: %v", err)
+		config.Logger.Fatal("Failed to create frontend file server", zap.Error(err))
 	}
 	ctx := middlewareContext{
 		jwtSecret: config.JWTSecret,

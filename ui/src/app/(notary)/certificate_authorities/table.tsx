@@ -61,7 +61,7 @@ export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TablePr
       queryKey: "cas",
       closeFn: () => setConfirmationModalData(null),
       buttonConfirmText: "Revoke",
-      warningText: "Revoking a CA Certificate will prevent signing CSR's and issueing a new CRL with this CA. This action cannot be undone.",
+      warningText: "Revoking a CA Certificate will prevent signing CSR's and issuing a new CRL with this CA. This action cannot be undone.",
     });
   };
 

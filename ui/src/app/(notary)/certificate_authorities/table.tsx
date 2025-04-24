@@ -88,7 +88,7 @@ export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TablePr
       queryParams: { id: id.toString(), authToken: auth.user?.authToken || "" },
       closeFn: () => setConfirmationModalData(null),
       queryKey: "cas",
-      warningText: "Deleting a Certificate Authority means this row will be completely removed from the application. This action cannot be undone.",
+      warningText: "Deleting a Certificate Authority means the private key and the subject details of this CA will be removed. Deleting the CA does not revoke this certificate, and does not revoke any certificates this CA has signed. This action cannot be undone.",
       buttonConfirmText: "Delete",
     });
   };

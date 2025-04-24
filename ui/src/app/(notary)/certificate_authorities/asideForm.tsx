@@ -79,7 +79,7 @@ export default function CertificateAuthoritiesAsidePanel({ setAsideOpen }: Aside
               name="ca-type"
               checked={isSelfSigned == true}
               onChange={(e) => setIsSelfSigned(true)}
-              help="This is a self-signed certificate authority."
+              help="A self-signed certificate authority signs itself and acts as the root certificate for all other types of certificates."
             />
             <Input
               label="Intermediate"
@@ -88,7 +88,7 @@ export default function CertificateAuthoritiesAsidePanel({ setAsideOpen }: Aside
               name="ca-type"
               checked={isSelfSigned == false}
               onChange={(e) => setIsSelfSigned(false)}
-              help="This is an intermediate certificate authority"
+              help="An intermediate certificate authority is signed by a root certificate authority and can sign end certificates."
             />
           </div>
         }

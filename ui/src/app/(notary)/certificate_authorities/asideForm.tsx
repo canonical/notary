@@ -88,7 +88,7 @@ export default function CertificateAuthoritiesAsidePanel({ setAsideOpen }: Aside
               name="ca-type"
               checked={isSelfSigned == false}
               onChange={(e) => setIsSelfSigned(false)}
-              help="This is an intermediate certificate"
+              help="This is an intermediate certificate authority"
             />
           </div>
         }

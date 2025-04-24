@@ -460,10 +460,7 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 	if err != nil {
 		return err
 	}
-	wasSelfSigned := false
-	if csrRow.CSR == caRow.CSRPEM {
-		wasSelfSigned = true
-	}
+	wasSelfSigned := csrRow.CSR == caRow.CSRPEM
 	block, _ = pem.Decode([]byte(caRow.PrivateKeyPEM))
 	caPrivateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {

@@ -82,7 +82,7 @@ export default function CertificateAuthoritiesAsidePanel({ setAsideOpen }: Aside
               help="This is a self-signed certificate authority."
             />
             <Input
-              label="Intermediate-Signed"
+              label="Intermediate"
               id="self-signed"
               type="radio"
               name="ca-type"

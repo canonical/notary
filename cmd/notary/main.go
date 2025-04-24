@@ -26,7 +26,7 @@ func main() {
 	}
 	logger, err := l.NewLogger(&conf.Logging)
 	if err != nil {
-		logger.Fatalf("Couldn't create logger: %s", err)
+		log.Fatalf("Couldn't create logger: %s", err)
 	}
 	srv, err := server.New(conf.Port, conf.Cert, conf.Key, conf.DBPath, conf.ExternalHostname, conf.PebbleNotificationsEnabled, logger)
 	if err != nil {

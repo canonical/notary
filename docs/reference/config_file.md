@@ -14,10 +14,8 @@ Start Notary with the `--config` flag to specify the path to the configuration f
 - `logging` (object): Configuration for logging.
   - `system` (object): Configuration for system logging.
     - `level` (string): The level of logging. Options are `debug`, `info`, `warn`, `error`, and `fatal`.
-    - `output` (string): The output destination for logs. Options are `stdout`, and `file`.
-      - `stdout`: Logs will be printed to the console.
-      - `file`: Logs will be written to a file. This option requires the `path` parameter to be specified.
-    - `path` (string, optional): The path to the log file. If not specified, logs will be printed to stdout. This option is only applicable when `output` is set to `file`.
+    - `output` (string): The output destination for logs. Options are `stdout` (printed to the console), and `file` (written to a file). 
+    - `path` (string, optional): The path to the log file. This option is only applicable when `output` is set to `file`.
 
 ## Example
 

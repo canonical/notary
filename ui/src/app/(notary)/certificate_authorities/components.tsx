@@ -1,34 +1,53 @@
-import { Dispatch, SetStateAction, useState, ChangeEvent, useEffect } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { csrMatchesCertificate, splitBundle, validateBundle } from "@/utils"
-import { postCertToCA } from "@/queries"
-import { Button, Input, Textarea, Form, Modal, Icon } from "@canonical/react-components";
-import { useAuth } from "@/hooks/useAuth"
+import {
+  Dispatch,
+  SetStateAction,
+  useState,
+  ChangeEvent,
+  useEffect,
+} from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { csrMatchesCertificate, splitBundle, validateBundle } from "@/utils";
+import { postCertToCA } from "@/queries";
+import {
+  Button,
+  Input,
+  Textarea,
+  Form,
+  Modal,
+  Icon,
+} from "@canonical/react-components";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SubmitCertificateModalProps {
-  id: string
-  csr: string
-  cert: string
-  setFormOpen: Dispatch<SetStateAction<boolean>>
+  id: string;
+  csr: string;
+  cert: string;
+  setFormOpen: Dispatch<SetStateAction<boolean>>;
 }
 
-export function SubmitCertificateModal({ id, csr, cert, setFormOpen }: SubmitCertificateModalProps) {
-  const auth = useAuth()
+export function SubmitCertificateModal({
+  id,
+  csr,
+  cert,
+  setFormOpen,
+}: SubmitCertificateModalProps) {
+  const auth = useAuth();
   const [errorText, setErrorText] = useState<string>("");
-  const [certificatePEMString, setCertificatePEMString] = useState<string>(cert);
+  const [certificatePEMString, setCertificatePEMString] =
+    useState<string>(cert);
   const [validationErrorText, setValidationErrorText] = useState<string>("");
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: postCertToCA,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['cas'] });
+      void queryClient.invalidateQueries({ queryKey: ["cas"] });
       setErrorText("");
       setFormOpen(false);
     },
     onError: (e: Error) => {
       setErrorText(e.message);
-    }
+    },
   });
 
   const handleTextChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
@@ -41,7 +60,9 @@ export function SubmitCertificateModal({ id, csr, cert, setFormOpen }: SubmitCer
       const reader = new FileReader();
       reader.onload = (e: ProgressEvent<FileReader>) => {
         if (e.target?.result) {
-          setCertificatePEMString(typeof e.target.result === "string" ? e.target.result : "");
+          setCertificatePEMString(
+            typeof e.target.result === "string" ? e.target.result : "",
+          );
         }
       };
       reader.readAsText(file);
@@ -62,7 +83,9 @@ export function SubmitCertificateModal({ id, csr, cert, setFormOpen }: SubmitCer
         }
         const validationMessage = await validateBundle(certificatePEMString);
         if (validationMessage !== "") {
-          setValidationErrorText("Bundle validation failed: " + validationMessage);
+          setValidationErrorText(
+            "Bundle validation failed: " + validationMessage,
+          );
           return;
         }
       } catch {
@@ -80,15 +103,19 @@ export function SubmitCertificateModal({ id, csr, cert, setFormOpen }: SubmitCer
       buttonRow={
         <>
           <Button
-            onClick={() => mutation.mutate({ id, authToken: auth.user ? auth.user.authToken : "", certificate_chain: certificatePEMString })}
+            onClick={() =>
+              mutation.mutate({
+                id,
+                authToken: auth.user ? auth.user.authToken : "",
+                certificate_chain: certificatePEMString,
+              })
+            }
             appearance="positive"
             disabled={validationErrorText !== "" || certificatePEMString === ""}
           >
             Submit
           </Button>
-          <Button onMouseDown={() => setFormOpen(false)}>
-            Cancel
-          </Button>
+          <Button onMouseDown={() => setFormOpen(false)}>Cancel</Button>
         </>
       }
     >
@@ -118,10 +145,14 @@ export function SubmitCertificateModal({ id, csr, cert, setFormOpen }: SubmitCer
   );
 }
 
-export function SuccessNotification({ successMessage }: { successMessage: string }) {
+export function SuccessNotification({
+  successMessage,
+}: {
+  successMessage: string;
+}) {
   const style = {
-    display: 'inline'
-  }
+    display: "inline",
+  };
   return (
     <p style={style}>
       <Icon name="success" />

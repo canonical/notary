@@ -1,27 +1,45 @@
 import { useState, Dispatch, SetStateAction } from "react";
 import { CertificateAuthorityEntry, CertificateSigningRequest } from "@/types";
-import { Button, MainTable, Panel, EmptyState, ContextualMenu } from "@canonical/react-components";
-import { deleteCA, makeCALegacy, revokeCA, signCA } from "@/queries"
+import {
+  Button,
+  MainTable,
+  Panel,
+  EmptyState,
+  ContextualMenu,
+} from "@canonical/react-components";
+import { deleteCA, makeCALegacy, revokeCA, signCA } from "@/queries";
 import { extractCSR, extractCert, splitBundle } from "@/utils";
-import { SubmitCertificateModal, SuccessNotification } from "./components"
+import { SubmitCertificateModal, SuccessNotification } from "./components";
 import { useAuth } from "@/hooks/useAuth";
-import { NotaryConfirmationModalData, NotaryConfirmationModal } from "@/components/NotaryConfirmationModal";
-
+import {
+  NotaryConfirmationModalData,
+  NotaryConfirmationModal,
+} from "@/components/NotaryConfirmationModal";
 
 type TableProps = {
   cas: CertificateAuthorityEntry[];
-  setAsideOpen: Dispatch<SetStateAction<boolean>>
+  setAsideOpen: Dispatch<SetStateAction<boolean>>;
 };
 
-export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TableProps) {
+export function CertificateAuthoritiesTable({
+  cas: rows,
+  setAsideOpen,
+}: TableProps) {
   const auth = useAuth();
-  const [certificateFormOpen, setCertificateFormOpen] = useState<boolean>(false);
+  const [certificateFormOpen, setCertificateFormOpen] =
+    useState<boolean>(false);
   // eslint-disable-next-line
-  const [confirmationModalData, setConfirmationModalData] = useState<NotaryConfirmationModalData<any> | null>(null);
-  const [selectedCA, setSelectedCA] = useState<CertificateAuthorityEntry | null>(null);
+  const [confirmationModalData, setConfirmationModalData] =
+    useState<NotaryConfirmationModalData<any> | null>(null);
+  const [selectedCA, setSelectedCA] =
+    useState<CertificateAuthorityEntry | null>(null);
   const [showCACSRContent, setShowCACSRContent] = useState<number | null>(null);
-  const [showCACertificateContent, setShowCACertificateContent] = useState<number | null>(null);
-  const [successNotificationId, setSuccessNotificationId] = useState<number | null>(null);
+  const [showCACertificateContent, setShowCACertificateContent] = useState<
+    number | null
+  >(null);
+  const [successNotificationId, setSuccessNotificationId] = useState<
+    number | null
+  >(null);
 
   const handleCopy = (csr: string, id: number) => {
     void navigator.clipboard.writeText(csr).then(() => {
@@ -30,9 +48,13 @@ export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TablePr
     });
   };
 
-  const handleDownload = (csr: string, id: number, csrObj: CertificateSigningRequest) => {
-    const blob = new Blob([csr], { type: 'text/plain' });
-    const link = document.createElement('a');
+  const handleDownload = (
+    csr: string,
+    id: number,
+    csrObj: CertificateSigningRequest,
+  ) => {
+    const blob = new Blob([csr], { type: "text/plain" });
+    const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = `csr-${csrObj.commonName?.toLowerCase() || id}.pem`;
     link.click();
@@ -42,11 +64,16 @@ export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TablePr
   const handleSign = (id: number, override: number | null = null) => {
     setConfirmationModalData({
       queryFn: signCA,
-      queryParams: { id: id.toString(), authToken: auth.user?.authToken || "", certificate_authority_id: override ? override : auth.activeCA?.id },
+      queryParams: {
+        id: id.toString(),
+        authToken: auth.user?.authToken || "",
+        certificate_authority_id: override ? override : auth.activeCA?.id,
+      },
       queryKey: "cas",
       closeFn: () => setConfirmationModalData(null),
       buttonConfirmText: "Sign",
-      warningText: "Signing a CSR will create a new certificate and replace the old one. This action cannot be undone.",
+      warningText:
+        "Signing a CSR will create a new certificate and replace the old one. This action cannot be undone.",
     });
   };
 
@@ -60,7 +87,8 @@ export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TablePr
       queryKey: "cas",
       closeFn: () => setConfirmationModalData(null),
       buttonConfirmText: "Revoke",
-      warningText: "Revoking a CA Certificate will prevent signing CSR's and issuing a new CRL with this CA. This action cannot be undone.",
+      warningText:
+        "Revoking a CA Certificate will prevent signing CSR's and issuing a new CRL with this CA. This action cannot be undone.",
     });
   };
 
@@ -74,9 +102,10 @@ export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TablePr
       queryKey: "cas",
       closeFn: () => setConfirmationModalData(null),
       buttonConfirmText: "Continue",
-      warningText: "Making a CA Certificate Legacy will prevent signing CSR's with or renewing the CA certificate, but will not revoke any signed certificates. This action cannot be undone.",
+      warningText:
+        "Making a CA Certificate Legacy will prevent signing CSR's with or renewing the CA certificate, but will not revoke any signed certificates. This action cannot be undone.",
     });
-  }
+  };
 
   const handleDelete = (id: number) => {
     if (id === auth.activeCA?.id) {
@@ -87,13 +116,14 @@ export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TablePr
       queryParams: { id: id.toString(), authToken: auth.user?.authToken || "" },
       closeFn: () => setConfirmationModalData(null),
       queryKey: "cas",
-      warningText: "Deleting a Certificate Authority means the private key and the subject details of this CA will be removed. Deleting the CA does not revoke this certificate, and does not revoke any certificates this CA has signed. This action cannot be undone.",
+      warningText:
+        "Deleting a Certificate Authority means the private key and the subject details of this CA will be removed. Deleting the CA does not revoke this certificate, and does not revoke any certificates this CA has signed. This action cannot be undone.",
       buttonConfirmText: "Delete",
     });
   };
 
-  const handleExpand = (id: number, type: 'CSR' | 'Cert') => {
-    if (type === 'CSR') {
+  const handleExpand = (id: number, type: "CSR" | "Cert") => {
+    if (type === "CSR") {
       setShowCACSRContent(id === showCACSRContent ? null : id);
       setShowCACertificateContent(null);
     } else {
@@ -103,7 +133,7 @@ export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TablePr
   };
 
   const getExpiryColor = (notAfter?: string): string => {
-    if (!notAfter) return 'inherit';
+    if (!notAfter) return "inherit";
     const expiryDate = new Date(notAfter);
     const now = new Date();
     const timeDifference = expiryDate.getTime() - now.getTime();
@@ -112,12 +142,18 @@ export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TablePr
     return "rgba(14, 132, 32, 0.35)";
   };
 
-  const getFieldDisplay = (label: string, field: string | undefined, compareField?: string) => {
+  const getFieldDisplay = (
+    label: string,
+    field: string | undefined,
+    compareField?: string,
+  ) => {
     const isMismatched = compareField !== undefined && compareField !== field;
     return field ? (
       <p style={{ marginBottom: "4px" }}>
         <b>{label}:</b>{" "}
-        <span style={{ color: isMismatched ? "rgba(199, 22, 43, 1)" : "inherit" }}>
+        <span
+          style={{ color: isMismatched ? "rgba(199, 22, 43, 1)" : "inherit" }}
+        >
           {field}
         </span>
       </p>
@@ -145,7 +181,11 @@ export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TablePr
         { content: caEntry.id.toString() },
         { content: isSelfSigned ? "Self Signed" : "Intermediate" },
         { content: csrObj.commonName || "N/A" },
-        { content: caEntry.status + (auth.activeCA?.id === caEntry.id ? " (selected)" : "") },
+        {
+          content:
+            caEntry.status +
+            (auth.activeCA?.id === caEntry.id ? " (selected)" : ""),
+        },
         {
           content: certObj?.notAfter || "",
           style: { backgroundColor: getExpiryColor(certObj?.notAfter) },
@@ -153,92 +193,111 @@ export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TablePr
         {
           content: (
             <>
-              {successNotificationId === caEntry.id && <SuccessNotification successMessage="CSR copied to clipboard" />}
-              <ContextualMenu
-                hasToggleIcon
-                position="right"
-              >
-                {!isSelfSigned &&
+              {successNotificationId === caEntry.id && (
+                <SuccessNotification successMessage="CSR copied to clipboard" />
+              )}
+              <ContextualMenu hasToggleIcon position="right">
+                {!isSelfSigned && (
                   <span className="p-contextual-menu__group">
                     <Button
                       className="p-contextual-menu__link"
-                      onMouseDown={() => handleExpand(caEntry.id, 'CSR')}>
-                      {isCSRContentVisible ? "Hide CSR Content" : "Show CSR Content"}
+                      onMouseDown={() => handleExpand(caEntry.id, "CSR")}
+                    >
+                      {isCSRContentVisible
+                        ? "Hide CSR Content"
+                        : "Show CSR Content"}
                     </Button>
                     <Button
                       className="p-contextual-menu__link"
-                      onMouseDown={() => handleCopy(caEntry.csr, caEntry.id)}>
+                      onMouseDown={() => handleCopy(caEntry.csr, caEntry.id)}
+                    >
                       Copy CSR to Clipboard
                     </Button>
                     <Button
                       className="p-contextual-menu__link"
-                      onMouseDown={() => handleDownload(caEntry.csr, caEntry.id, csrObj)}>
+                      onMouseDown={() =>
+                        handleDownload(caEntry.csr, caEntry.id, csrObj)
+                      }
+                    >
                       Download CSR
                     </Button>
                   </span>
-                }
+                )}
                 <span className="p-contextual-menu__group">
                   <Button
                     className="p-contextual-menu__link"
                     disabled={caEntry.status == "pending"}
-                    onMouseDown={() => handleExpand(caEntry.id, 'Cert')}>
-                    {isCertContentVisible ? "Hide Certificate Content" : "Show Certificate Content"}
+                    onMouseDown={() => handleExpand(caEntry.id, "Cert")}
+                  >
+                    {isCertContentVisible
+                      ? "Hide Certificate Content"
+                      : "Show Certificate Content"}
                   </Button>
-                  {!isSelfSigned &&
+                  {!isSelfSigned && (
                     <Button
                       className="p-contextual-menu__link"
                       disabled={auth.activeCA == null}
-                      onMouseDown={() => handleSign(caEntry.id)}>
+                      onMouseDown={() => handleSign(caEntry.id)}
+                    >
                       {caEntry.status === "active" ? "Re-sign CSR" : "Sign CSR"}
                     </Button>
-                  }
-                  {isSelfSigned &&
+                  )}
+                  {isSelfSigned && (
                     <Button
                       className="p-contextual-menu__link"
-                      onMouseDown={() => handleSign(caEntry.id, caEntry.id)}>
+                      onMouseDown={() => handleSign(caEntry.id, caEntry.id)}
+                    >
                       Renew Certificate
                     </Button>
-                  }
-                  {!isSelfSigned &&
+                  )}
+                  {!isSelfSigned && (
                     <Button
                       className="p-contextual-menu__link"
                       onMouseDown={() => {
                         setCertificateFormOpen(true);
                         setSelectedCA(caEntry);
-                      }}>
+                      }}
+                    >
                       Upload New Certificate
                     </Button>
-                  }
-                  {!isSelfSigned &&
+                  )}
+                  {!isSelfSigned && (
                     <Button
                       className="p-contextual-menu__link"
                       disabled={caEntry.status == "pending"}
-                      onMouseDown={() => handleRevoke(caEntry.id)}>
+                      onMouseDown={() => handleRevoke(caEntry.id)}
+                    >
                       Revoke Certificate
                     </Button>
-                  }
+                  )}
                 </span>
                 <span className="p-contextual-menu__group">
-                  {caEntry.status === "active" &&
+                  {caEntry.status === "active" && (
                     <Button
                       className="p-contextual-menu__link"
-                      disabled={caEntry.status != "active" || auth.activeCA?.id === caEntry.id}
+                      disabled={
+                        caEntry.status != "active" ||
+                        auth.activeCA?.id === caEntry.id
+                      }
                       onMouseDown={() => {
                         auth.setActiveCA(caEntry);
-                      }}>
+                      }}
+                    >
                       Set as default for signing CSRs
                     </Button>
-                  }
-                  {caEntry.status === "active" &&
+                  )}
+                  {caEntry.status === "active" && (
                     <Button
                       className="p-contextual-menu__link"
-                      onMouseDown={() => handleMakeLegacy(caEntry.id)}>
+                      onMouseDown={() => handleMakeLegacy(caEntry.id)}
+                    >
                       Make CA Legacy
                     </Button>
-                  }
+                  )}
                   <Button
                     className="p-contextual-menu__link"
-                    onMouseDown={() => handleDelete(caEntry.id)}>
+                    onMouseDown={() => handleDelete(caEntry.id)}
+                  >
                     Delete Certificate Authority
                   </Button>
                 </span>
@@ -251,38 +310,62 @@ export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TablePr
       ],
       expanded: isCSRContentVisible || isCertContentVisible,
       expandedContent: (
-        <div >
+        <div>
           {isCSRContentVisible && (
-            <div >
+            <div>
               <h4>Certificate Request Content</h4>
               {getFieldDisplay("Common Name", csrObj.commonName)}
-              {getFieldDisplay("Subject Alternative Name DNS", csrObj.sansDns?.join(', '))}
-              {getFieldDisplay("Subject Alternative Name IP addresses", csrObj.sansIp?.join(', '))}
+              {getFieldDisplay(
+                "Subject Alternative Name DNS",
+                csrObj.sansDns?.join(", "),
+              )}
+              {getFieldDisplay(
+                "Subject Alternative Name IP addresses",
+                csrObj.sansIp?.join(", "),
+              )}
               {getFieldDisplay("Country", csrObj.country)}
               {getFieldDisplay("State or Province", csrObj.stateOrProvince)}
               {getFieldDisplay("Locality", csrObj.locality)}
               {getFieldDisplay("Organization", csrObj.organization)}
-              {getFieldDisplay("Organizational Unit", csrObj.OrganizationalUnitName)}
+              {getFieldDisplay(
+                "Organizational Unit",
+                csrObj.OrganizationalUnitName,
+              )}
               {getFieldDisplay("Email Address", csrObj.emailAddress)}
-              <p><b>Certificate request for a certificate authority</b>: {csrObj.is_ca ? "Yes" : "No"}</p>
+              <p>
+                <b>Certificate request for a certificate authority</b>:{" "}
+                {csrObj.is_ca ? "Yes" : "No"}
+              </p>
             </div>
           )}
           {isCertContentVisible && certObj && (
-            <div >
+            <div>
               <h4>Certificate Content</h4>
               {getFieldDisplay("Common Name", certObj.commonName)}
-              {getFieldDisplay("Subject Alternative Name DNS", certObj.sansDns?.join(', '))}
-              {getFieldDisplay("Subject Alternative Name IP addresses", certObj.sansIp?.join(', '))}
+              {getFieldDisplay(
+                "Subject Alternative Name DNS",
+                certObj.sansDns?.join(", "),
+              )}
+              {getFieldDisplay(
+                "Subject Alternative Name IP addresses",
+                certObj.sansIp?.join(", "),
+              )}
               {getFieldDisplay("Country", certObj.country)}
               {getFieldDisplay("State or Province", certObj.stateOrProvince)}
               {getFieldDisplay("Locality", certObj.locality)}
               {getFieldDisplay("Organization", certObj.organization)}
-              {getFieldDisplay("Organizational Unit", certObj.OrganizationalUnitName)}
+              {getFieldDisplay(
+                "Organizational Unit",
+                certObj.OrganizationalUnitName,
+              )}
               {getFieldDisplay("Email Address", certObj.emailAddress)}
               {getFieldDisplay("Start of validity", certObj.notBefore)}
               {getFieldDisplay("Expiry Time", certObj.notAfter)}
               {getFieldDisplay("Issuer Common Name", certObj.issuerCommonName)}
-              <p><b>Certificate for a certificate authority</b>: {certObj.is_ca ? "Yes" : "No"}</p>
+              <p>
+                <b>Certificate for a certificate authority</b>:{" "}
+                {certObj.is_ca ? "Yes" : "No"}
+              </p>
             </div>
           )}
         </div>
@@ -294,11 +377,13 @@ export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TablePr
       stickyHeader
       title="Certificate Authorities"
       className="u-fixed-width"
-      controls={rows.length > 0 && (
-        <Button appearance="positive" onClick={() => setAsideOpen(true)}>
-          Add New CA
-        </Button>
-      )}
+      controls={
+        rows.length > 0 && (
+          <Button appearance="positive" onClick={() => setAsideOpen(true)}>
+            Add New CA
+          </Button>
+        )
+      }
     >
       <MainTable
         emptyStateMsg={<CAEmptyState setAsideOpen={setAsideOpen} />}
@@ -327,8 +412,8 @@ export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TablePr
           },
           {
             content: "Actions",
-            className: "u-align--right has-overflow"
-          }
+            className: "u-align--right has-overflow",
+          },
         ]}
         rows={carows}
       />
@@ -347,19 +432,22 @@ export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TablePr
   );
 }
 
-function CAEmptyState({ setAsideOpen }: { setAsideOpen: Dispatch<SetStateAction<boolean>> }) {
+function CAEmptyState({
+  setAsideOpen,
+}: {
+  setAsideOpen: Dispatch<SetStateAction<boolean>>;
+}) {
   return (
-    <EmptyState
-      image={""}
-      title="No Certificate Authorities available yet."
-    >
+    <EmptyState image={""} title="No Certificate Authorities available yet.">
       <p>
-        There are no Certificate Authorities in Notary. Create your first one to start signing certificates!
+        There are no Certificate Authorities in Notary. Create your first one to
+        start signing certificates!
       </p>
       <Button
         appearance="positive"
         aria-label="add-ca-button"
-        onClick={() => setAsideOpen(true)}>
+        onClick={() => setAsideOpen(true)}
+      >
         Add New Certificate Authority
       </Button>
     </EmptyState>

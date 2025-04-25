@@ -7,5 +7,5 @@ export default function NotaryAppStatus() {
         Version {process.env.VERSION}
       </span>
     </AppStatus>
-  )
+  );
 }

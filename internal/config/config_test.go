@@ -16,29 +16,62 @@ const (
 cert_path: "./cert_test.pem"
 external_hostname: "example.com"
 db_path: "./notary.db"
-port: 8000`
+port: 8000
+logging:
+  system:
+    level: "debug"
+    output: "stdout"`
 	noCertPathConfig = `key_path:  "./key_test.pem"
 external_hostname: "example.com"
 db_path: "./notary.db"
-port: 8000`
+port: 8000
+logging:
+  system:
+    level: "debug"
+    output: "stdout"`
 	noKeyPathConfig = `cert_path: "./cert_test.pem"
 external_hostname: "example.com"
 db_path: "./notary.db"
-port: 8000`
+port: 8000
+logging:
+  system:
+    level: "debug"
+    output: "stdout"`
 	noExternalHostnameConfig = `key_path:  "./key_test.pem"
 cert_path: "./cert_test.pem"
 db_path: "./notary.db"
-port: 8000`
+port: 8000
+logging:
+  system:
+    level: "debug"
+    output: "stdout"`
 	noDBPathConfig = `key_path:  "./key_test.pem"
 external_hostname: "example.com"
 cert_path: "./cert_test.pem"
-port: 8000`
+port: 8000
+logging:
+  system:
+    level: "debug"
+    output: "stdout"`
 	wrongCertPathConfig = `key_path:  "./key_test.pem"
 cert_path: "./cert_test_wrong.pem"
 external_hostname: "example.com"
 db_path: "./notary.db"
-port: 8000`
+port: 8000
+logging:
+  system:
+    level: "debug"
+    output: "stdout"`
 	wrongKeyPathConfig = `key_path:  "./key_test_wrong.pem"
+cert_path: "./cert_test.pem"
+external_hostname: "example.com"
+db_path: "./notary.db"
+port: 8000
+logging:
+  system:
+    level: "debug"
+    output: "stdout"`
+	noLoggingConfig = `key_path:  "./key_test.pem"
 cert_path: "./cert_test.pem"
 external_hostname: "example.com"
 db_path: "./notary.db"
@@ -113,6 +146,7 @@ func TestBadConfigFail(t *testing.T) {
 		{"wrong cert path", wrongCertPathConfig, "no such file or directory"},
 		{"wrong key path", wrongKeyPathConfig, "no such file or directory"},
 		{"invalid yaml", invalidYAMLConfig, "unmarshal errors"},
+		{"no logging", noLoggingConfig, "`logging` is empty"},
 	}
 
 	for _, tc := range cases {

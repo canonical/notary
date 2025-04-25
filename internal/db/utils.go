@@ -9,7 +9,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/canonical/sqlair"
@@ -25,7 +24,6 @@ func ListEntities[T any](db *Database, query string) ([]T, error) {
 	var entities []T
 	err = db.conn.Query(context.Background(), stmt).GetAll(&entities)
 	if err != nil && !errors.Is(err, sqlair.ErrNoRows) {
-		log.Println(err)
 		return nil, ErrInternal
 	}
 

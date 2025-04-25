@@ -86,7 +86,7 @@ func CompareHashAndPassword(hashedPassword string, password string) error {
 	if subtle.ConstantTimeCompare(newHash, encoding.key) == 1 {
 		return nil
 	}
-	return fmt.Errorf("password did not match: %v", encoding)
+	return fmt.Errorf("password did not match")
 }
 
 func hashPasswordWithSaltAndParams(password string, salt []byte, params Argon2IDParameters) []byte {

@@ -6,9 +6,12 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/prometheus/client_golang v1.21.1
+	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.36.0
 	gopkg.in/yaml.v3 v3.0.1
 )
+
+require go.uber.org/multierr v1.10.0 // indirect
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect

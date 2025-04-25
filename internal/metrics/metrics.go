@@ -5,7 +5,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"log"
 	"math"
 	"net/http"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.uber.org/zap"
 )
 
 type PrometheusMetrics struct {
@@ -39,14 +39,17 @@ type PrometheusMetrics struct {
 }
 
 // NewMetricsSubsystem returns the metrics endpoint HTTP handler and the Prometheus metrics collectors for the server and middleware.
-func NewMetricsSubsystem(db *db.Database) *PrometheusMetrics {
+func NewMetricsSubsystem(db *db.Database, logger *zap.Logger) *PrometheusMetrics {
 	metricsBackend := newPrometheusMetrics()
 	metricsBackend.Handler = promhttp.HandlerFor(metricsBackend.registry, promhttp.HandlerOpts{})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	metricsBackend.cancel = cancel
 
-	collectMetrics(db, metricsBackend)
+	err := collectMetrics(db, metricsBackend)
+	if err != nil {
+		logger.Error("Error collecting metrics", zap.String("err", err.Error()))
+	}
 
 	ticker := time.NewTicker(120 * time.Second)
 	go func() {
@@ -54,7 +57,10 @@ func NewMetricsSubsystem(db *db.Database) *PrometheusMetrics {
 		for {
 			select {
 			case <-ticker.C:
-				collectMetrics(db, metricsBackend)
+				err = collectMetrics(db, metricsBackend)
+				if err != nil {
+					logger.Error("Error collecting metrics", zap.String("err", err.Error()))
+				}
 			case <-ctx.Done():
 				return
 			}
@@ -64,20 +70,19 @@ func NewMetricsSubsystem(db *db.Database) *PrometheusMetrics {
 }
 
 // Helper function to collect metrics and handle errors properly
-func collectMetrics(db *db.Database, metrics *PrometheusMetrics) {
+func collectMetrics(db *db.Database, metrics *PrometheusMetrics) error {
 	csrs, err := db.ListCertificateRequestWithCertificates()
 	if err != nil {
-		log.Printf("Error collecting certificate metrics: %v", err)
-		return
+		return fmt.Errorf("collecting certificate metrics: %w", err)
 	}
 	metrics.GenerateCertificateMetrics(csrs)
 
 	cas, err := db.ListDenormalizedCertificateAuthorities()
 	if err != nil {
-		log.Printf("Error collecting CA certificate metrics: %v", err)
-		return
+		return fmt.Errorf("collecting CA certificate metrics: %w", err)
 	}
 	metrics.GenerateCACertificateMetrics(cas)
+	return nil
 }
 
 // Close properly shuts down the metrics goroutine

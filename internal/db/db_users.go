@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/canonical/notary/internal/hashing"
 	"github.com/canonical/sqlair"
@@ -62,7 +61,6 @@ func (db *Database) GetUser(filter UserFilter) (*User, error) {
 
 	user, err := GetOneEntity(db, getUserStmt, userRow)
 	if err != nil {
-		log.Println(err)
 		if errors.Is(err, sqlair.ErrNoRows) {
 			return nil, fmt.Errorf("%w: %s", ErrNotFound, "user")
 		}
@@ -78,7 +76,6 @@ func (db *Database) GetUser(filter UserFilter) (*User, error) {
 func (db *Database) CreateUser(username string, password string, permission int) (int64, error) {
 	pw, err := hashing.HashPassword(password)
 	if err != nil {
-		log.Println(err)
 		if errors.Is(err, hashing.ErrInvalidPassword) {
 			return 0, fmt.Errorf("%w: invalid password", ErrInvalidInput)
 		}
@@ -86,7 +83,6 @@ func (db *Database) CreateUser(username string, password string, permission int)
 	}
 	stmt, err := sqlair.Prepare(createUserStmt, User{})
 	if err != nil {
-		log.Println(err)
 		return 0, fmt.Errorf("%w: failed to create user due to sql compilation error", ErrInternal)
 	}
 	row := User{
@@ -96,13 +92,11 @@ func (db *Database) CreateUser(username string, password string, permission int)
 	}
 	err = ValidateUser(row)
 	if err != nil {
-		log.Println(err)
 		return 0, fmt.Errorf("%w: %e", ErrInvalidInput, err)
 	}
 	var outcome sqlair.Outcome
 	err = db.conn.Query(context.Background(), stmt, row).Get(&outcome)
 	if err != nil {
-		log.Println(err)
 		if IsConstraintError(err, "UNIQUE constraint failed") {
 			return 0, fmt.Errorf("%w: username already exists", ErrAlreadyExists)
 		}
@@ -110,7 +104,6 @@ func (db *Database) CreateUser(username string, password string, permission int)
 	}
 	insertedRowID, err := outcome.Result().LastInsertId()
 	if err != nil {
-		log.Println(err)
 		return 0, fmt.Errorf("%w: failed to create user", ErrInternal)
 	}
 	return insertedRowID, nil
@@ -125,7 +118,6 @@ func (db *Database) UpdateUserPassword(filter UserFilter, password string) error
 	}
 	hashedPassword, err := hashing.HashPassword(password)
 	if err != nil {
-		log.Println(err)
 		if errors.Is(err, hashing.ErrInvalidPassword) {
 			return fmt.Errorf("%w: invalid password", ErrInvalidInput)
 		}
@@ -133,13 +125,11 @@ func (db *Database) UpdateUserPassword(filter UserFilter, password string) error
 	}
 	stmt, err := sqlair.Prepare(updateUserStmt, User{})
 	if err != nil {
-		log.Println(err)
 		return fmt.Errorf("%w: failed to update user due to sql compilation error", ErrInternal)
 	}
 	userRow.HashedPassword = hashedPassword
 	err = db.conn.Query(context.Background(), stmt, userRow).Run()
 	if err != nil {
-		log.Println(err)
 		return fmt.Errorf("%w: failed to update user", ErrInternal)
 	}
 	return nil
@@ -153,12 +143,10 @@ func (db *Database) DeleteUser(filter UserFilter) error {
 	}
 	stmt, err := sqlair.Prepare(deleteUserStmt, User{})
 	if err != nil {
-		log.Println(err)
 		return fmt.Errorf("%w: failed to delete user due to sql compilation error", ErrInternal)
 	}
 	err = db.conn.Query(context.Background(), stmt, userRow).Run()
 	if err != nil {
-		log.Println(err)
 		return fmt.Errorf("%w: failed to delete user", ErrInternal)
 	}
 	return nil
@@ -172,13 +160,11 @@ type NumUsers struct {
 func (db *Database) NumUsers() (int, error) {
 	stmt, err := sqlair.Prepare(getNumUsersStmt, NumUsers{})
 	if err != nil {
-		log.Println(err)
 		return 0, fmt.Errorf("%w: failed to get number of users due to sql compilation error", ErrInternal)
 	}
 	result := NumUsers{}
 	err = db.conn.Query(context.Background(), stmt).Get(&result)
 	if err != nil {
-		log.Println(err)
 		return 0, fmt.Errorf("%w: failed to get number of users", ErrInternal)
 	}
 	return result.Count, nil

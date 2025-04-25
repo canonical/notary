@@ -9,7 +9,9 @@ import (
 	"os/signal"
 
 	"github.com/canonical/notary/internal/config"
+	l "github.com/canonical/notary/internal/logger"
 	"github.com/canonical/notary/internal/server"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -23,9 +25,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("Couldn't validate config file: %s", err)
 	}
-	srv, err := server.New(conf.Port, conf.Cert, conf.Key, conf.DBPath, conf.ExternalHostname, conf.PebbleNotificationsEnabled)
+	logger, err := l.NewLogger(&conf.Logging)
 	if err != nil {
-		log.Fatalf("Couldn't create server: %s", err)
+		log.Fatalf("Couldn't create logger: %s", err)
+	}
+	srv, err := server.New(conf.Port, conf.Cert, conf.Key, conf.DBPath, conf.ExternalHostname, conf.PebbleNotificationsEnabled, logger)
+	if err != nil {
+		logger.Fatal("Couldn't create server", zap.Error(err))
 	}
 
 	idleConnsClosed := make(chan struct{})
@@ -33,17 +39,17 @@ func main() {
 		sigint := make(chan os.Signal, 1)
 		signal.Notify(sigint, os.Interrupt)
 		<-sigint
-		log.Println("Interrupt signal received")
+		logger.Info("Interrupt signal received")
 		if err := srv.Shutdown(context.Background()); err != nil {
-			log.Printf("HTTP server Shutdown error: %v", err)
+			logger.Error("HTTP server Shutdown error", zap.Error(err))
 		}
 		close(idleConnsClosed)
 	}()
 
-	log.Printf("Starting server at %s", srv.Addr)
+	logger.Info("Starting server at", zap.String("url", srv.Addr))
 	if err := srv.ListenAndServeTLS("", ""); err != http.ErrServerClosed {
-		log.Fatalf("HTTP server ListenAndServe: %v", err)
+		logger.Fatal("HTTP server ListenAndServe", zap.Error(err))
 	}
-	log.Printf("Shutting down server")
+	logger.Info("Shutting down server")
 	<-idleConnsClosed
 }

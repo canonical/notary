@@ -275,9 +275,9 @@ func CreateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 		}
 		var newCAID int64
 		if certPEM != "" {
-			newCAID, err = env.DB.CreateCertificateAuthority(csrPEM, privPEM, crlPEM, certPEM+certPEM)
+			newCAID, err = env.DB.CreateCertificateAuthority(strings.TrimSpace(csrPEM), strings.TrimSpace(privPEM), strings.TrimSpace(crlPEM), strings.TrimSpace(certPEM+certPEM))
 		} else {
-			newCAID, err = env.DB.CreateCertificateAuthority(csrPEM, privPEM, "", "")
+			newCAID, err = env.DB.CreateCertificateAuthority(strings.TrimSpace(csrPEM), strings.TrimSpace(privPEM), "", "")
 		}
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Failed to create certificate authority", err, env.Logger)
@@ -340,7 +340,6 @@ func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid ID", err, env.Logger)
 			return
 		}
-
 		var params UpdateCertificateAuthorityParams
 		if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format", err, env.Logger)
@@ -533,7 +532,17 @@ func RevokeCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc 
 			writeError(w, http.StatusBadRequest, "Invalid ID", err, env.Logger)
 			return
 		}
-		err = env.DB.RevokeCertificate(db.ByCSRID(idNum))
+		ca, err := env.DB.GetCertificateAuthority(db.ByCertificateAuthorityID(idNum))
+		if err != nil {
+			log.Println(err)
+			if errors.Is(err, db.ErrNotFound) {
+				writeError(w, http.StatusNotFound, "Not Found")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "Internal Error")
+			return
+		}
+		err = env.DB.RevokeCertificate(db.ByCSRID(ca.CSRID))
 		if err != nil {
 			env.Logger.Warn("could not revoke certificate", zap.Error(err))
 			if errors.Is(err, db.ErrNotFound) {

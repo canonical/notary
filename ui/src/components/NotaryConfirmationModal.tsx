@@ -13,8 +13,8 @@ export type NotaryConfirmationModalData<T> = {
   buttonConfirmText: string;
 };
 
-// eslint-disable-next-line
 export function NotaryConfirmationModal(
+  // eslint-disable-next-line
   data: NotaryConfirmationModalData<any>,
 ) {
   const [errorText, setErrorText] = useState<string>("");

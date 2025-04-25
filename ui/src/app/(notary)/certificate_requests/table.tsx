@@ -28,8 +28,8 @@ export function CertificateRequestsTable({
   const auth = useAuth();
   const [certificateFormOpen, setCertificateFormOpen] =
     useState<boolean>(false);
-  // eslint-disable-next-line
   const [confirmationModalData, setConfirmationModalData] =
+    // eslint-disable-next-line
     useState<NotaryConfirmationModalData<any> | null>(null);
   const [selectedCSR, setSelectedCSR] = useState<CSREntry | null>(null);
   const [showCSRContent, setShowCSRContent] = useState<number | null>(null);

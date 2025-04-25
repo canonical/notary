@@ -29,8 +29,8 @@ export default function Users() {
   }
   const query = useQuery<UserEntry[], Error>({
     queryKey: ["users", cookies.user_token],
-    // eslint-disable-next-line
     queryFn: () =>
+      // eslint-disable-next-line
       ListUsers({ authToken: cookies.user_token ? cookies.user_token : "" }),
     retry: retryUnlessUnauthorized,
   });

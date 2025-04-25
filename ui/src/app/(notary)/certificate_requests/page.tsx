@@ -26,9 +26,9 @@ export default function CertificateRequestsPanel() {
 
   const query = useQuery<CSREntry[], Error>({
     queryKey: ["csrs", cookies.user_token],
-    // eslint-disable-next-line
     queryFn: () =>
       getCertificateRequests({
+        // eslint-disable-next-line
         authToken: cookies.user_token ? cookies.user_token : "",
       }),
     retry: retryUnlessUnauthorized,

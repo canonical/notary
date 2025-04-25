@@ -90,6 +90,7 @@ function parseExtensions(extensions: Extensions) {
     if (extensionName === "Subject Alternative Name") {
       // eslint-disable-next-line
       extension.parsedValue.altNames.forEach(
+        // eslint-disable-next-line
         (altName: { type: number; value: any }) => {
           if (altName.type == 2) {
             // eslint-disable-next-line

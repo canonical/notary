@@ -20,14 +20,15 @@ import UsersPageAsidePanel from "./asideForm"
 export default function Users() {
   const router = useRouter()
   const [asideOpen, setAsideOpen] = useState<boolean>(false)
-  const [formData, setFormData] = useState<AsideFormData>({ formTitle: "Add a New User", formData: null })
-  const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
+  const [formData, setFormData] = useState<AsideFormData>({ formTitle: "Add a New User" })
+  const [cookies, , removeCookie] = useCookies(['user_token']);
   if (!cookies.user_token) {
     router.push("/login")
   }
   const query = useQuery<UserEntry[], Error>({
     queryKey: ['users', cookies.user_token],
-    queryFn: () => ListUsers({ authToken: cookies.user_token }),
+    // eslint-disable-next-line
+    queryFn: () => ListUsers({ authToken: cookies.user_token ? cookies.user_token : "" }),
     retry: retryUnlessUnauthorized,
   })
   if (query.status == "pending") { return <Loading /> }

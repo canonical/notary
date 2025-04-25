@@ -1,16 +1,16 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { csrIsValid } from "@/utils";
-import { useCookies } from "react-cookie";
 import { postCSR } from "@/queries";
 import { ChangeEvent, useState, useEffect, Dispatch, SetStateAction } from "react";
 import { Textarea, Button, Input, Panel, Form } from "@canonical/react-components";
+import { useAuth } from "@/hooks/useAuth";
 
 type AsideProps = {
     setAsideOpen: Dispatch<SetStateAction<boolean>>
 };
 
-export default function CertificateRequestsAsidePanel({setAsideOpen}: AsideProps): JSX.Element {
-    const [cookies] = useCookies(['user_token']);
+export default function CertificateRequestsAsidePanel({ setAsideOpen }: AsideProps): JSX.Element {
+    const auth = useAuth()
     const [errorText, setErrorText] = useState<string>("");
     const [CSRPEMString, setCSRPEMString] = useState<string>("");
     const queryClient = useQueryClient();
@@ -20,7 +20,7 @@ export default function CertificateRequestsAsidePanel({setAsideOpen}: AsideProps
         onSuccess: () => {
             setErrorText("");
             setAsideOpen(false);
-            queryClient.invalidateQueries({ queryKey: ['csrs'] });
+            void queryClient.invalidateQueries({ queryKey: ['csrs'] });
         },
         onError: (e: Error) => {
             setErrorText(e.message);
@@ -45,7 +45,7 @@ export default function CertificateRequestsAsidePanel({setAsideOpen}: AsideProps
             const reader = new FileReader();
             reader.onload = (e: ProgressEvent<FileReader>) => {
                 if (e.target?.result) {
-                    setCSRPEMString(e.target.result.toString());
+                    setCSRPEMString(typeof e.target.result === "string" ? e.target.result : "");
                 }
             };
             reader.readAsText(file);
@@ -53,7 +53,7 @@ export default function CertificateRequestsAsidePanel({setAsideOpen}: AsideProps
     };
 
     const handleSubmit = () => {
-        mutation.mutate({ authToken: cookies.user_token, csr: CSRPEMString });
+        mutation.mutate({ authToken: auth.user ? auth.user.authToken : "", csr: CSRPEMString });
     };
 
     return (

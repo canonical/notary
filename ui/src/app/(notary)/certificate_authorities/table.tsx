@@ -1,9 +1,8 @@
-import { useState, Dispatch, SetStateAction, useReducer, useRef } from "react";
-import { CertificateAuthorityEntry } from "@/types";
+import { useState, Dispatch, SetStateAction } from "react";
+import { CertificateAuthorityEntry, CertificateSigningRequest } from "@/types";
 import { Button, MainTable, Panel, EmptyState, ContextualMenu } from "@canonical/react-components";
 import { deleteCA, makeCALegacy, revokeCA, signCA } from "@/queries"
 import { extractCSR, extractCert, splitBundle } from "@/utils";
-import { useQueryClient } from "@tanstack/react-query"
 import { SubmitCertificateModal, SuccessNotification } from "./components"
 import { useAuth } from "@/hooks/useAuth";
 import { NotaryConfirmationModalData, NotaryConfirmationModal } from "@/components/NotaryConfirmationModal";
@@ -16,26 +15,26 @@ type TableProps = {
 
 export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TableProps) {
   const auth = useAuth();
-  const queryClient = useQueryClient();
   const [certificateFormOpen, setCertificateFormOpen] = useState<boolean>(false);
-  const [confirmationModalData, setConfirmationModalData] = useState<NotaryConfirmationModalData | null>(null);
+  // eslint-disable-next-line
+  const [confirmationModalData, setConfirmationModalData] = useState<NotaryConfirmationModalData<any> | null>(null);
   const [selectedCA, setSelectedCA] = useState<CertificateAuthorityEntry | null>(null);
   const [showCACSRContent, setShowCACSRContent] = useState<number | null>(null);
   const [showCACertificateContent, setShowCACertificateContent] = useState<number | null>(null);
   const [successNotificationId, setSuccessNotificationId] = useState<number | null>(null);
 
   const handleCopy = (csr: string, id: number) => {
-    navigator.clipboard.writeText(csr).then(() => {
+    void navigator.clipboard.writeText(csr).then(() => {
       setSuccessNotificationId(id);
       setTimeout(() => setSuccessNotificationId(null), 2500);
     });
   };
 
-  const handleDownload = (csr: string, id: number, csrObj: any) => {
+  const handleDownload = (csr: string, id: number, csrObj: CertificateSigningRequest) => {
     const blob = new Blob([csr], { type: 'text/plain' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `csr-${csrObj.commonName || id}.pem`;
+    link.download = `csr-${csrObj.commonName?.toLowerCase() || id}.pem`;
     link.click();
     URL.revokeObjectURL(link.href);
   };
@@ -113,7 +112,7 @@ export function CertificateAuthoritiesTable({ cas: rows, setAsideOpen }: TablePr
     return "rgba(14, 132, 32, 0.35)";
   };
 
-  const getFieldDisplay = (label: string, field: string | undefined, compareField?: string | undefined) => {
+  const getFieldDisplay = (label: string, field: string | undefined, compareField?: string) => {
     const isMismatched = compareField !== undefined && compareField !== field;
     return field ? (
       <p style={{ marginBottom: "4px" }}>

@@ -1,6 +1,7 @@
 import { CertificationRequest, Certificate, Extensions, CertificateChainValidationEngine } from "pkijs";
 import { fromBER } from "asn1js";
 import * as pvutils from "pvutils";
+import { CertificateSigningRequest } from "./types";
 
 
 export const oidToName = (oid: string) => {
@@ -76,20 +77,24 @@ function parseExtensions(extensions: Extensions) {
         let extensionName: string;
         try {
             extensionName = oidToName(extension.extnID);
-        } catch (error) {
+        } catch {
             console.error(`Unrecognized extension OID: ${extension.extnID}`);
             return;
         }
 
         if (extensionName === "Subject Alternative Name") {
+            // eslint-disable-next-line
             extension.parsedValue.altNames.forEach((altName: { type: number; value: any; }) => {
                 if (altName.type == 2) {
+                    // eslint-disable-next-line
                     sansDns.push(altName.value);
                 } else if (altName.type == 7) {
+                    // eslint-disable-next-line
                     sansIp.push(hexToIp(altName.value.valueBlock.valueHex));
                 }
             });
         } else if (extensionName === "Basic Constraint") {
+            // eslint-disable-next-line
             is_ca = extension.parsedValue.cA;
         }
     });
@@ -114,7 +119,7 @@ function loadCertificate(certPemString: string) {
     return cert
 }
 
-export const extractCSR = (csrPemString: string) => {
+export const extractCSR = (csrPemString: string): CertificateSigningRequest => {
     const csr = loadCertificateRequest(csrPemString);
 
     // Extract subject information from CSR
@@ -161,7 +166,7 @@ export const csrIsValid = (csrPemString: string) => {
     try {
         extractCSR(csrPemString.trim());
         return true;
-    } catch (error) {
+    } catch {
         return false;
     }
 }

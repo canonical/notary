@@ -48,7 +48,7 @@ export function ChangePasswordModal({ id, username, setChangePasswordModalVisibl
     const mutation = useMutation({
         mutationFn: changePassword,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['users'] })
+            void queryClient.invalidateQueries({ queryKey: ['users'] })
             setErrorText("")
         },
         onError: (e: Error) => {
@@ -61,7 +61,7 @@ export function ChangePasswordModal({ id, username, setChangePasswordModalVisibl
     const password1Error = password1 && !passwordIsValid(password1) ? "Password is not valid" : ""
     const password2Error = password2 && !passwordsMatch ? "Passwords do not match" : ""
 
-    const [errorText, setErrorText] = useState<string>("")
+    const [, setErrorText] = useState<string>("")
     const handlePassword1Change = (event: ChangeEvent<HTMLInputElement>) => { setPassword1(event.target.value) }
     const handlePassword2Change = (event: ChangeEvent<HTMLInputElement>) => { setPassword2(event.target.value) }
     return (

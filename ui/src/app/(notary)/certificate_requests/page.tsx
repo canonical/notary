@@ -19,7 +19,7 @@ import NotaryAppStatus from "@/components/NotaryAppStatus"
 export default function CertificateRequestsPanel() {
   const router = useRouter()
   const [asideOpen, setAsideOpen] = useState<boolean>(false)
-  const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
+  const [cookies, , removeCookie] = useCookies(['user_token']);
 
   if (!cookies.user_token) {
     router.push("/login")
@@ -27,7 +27,8 @@ export default function CertificateRequestsPanel() {
 
   const query = useQuery<CSREntry[], Error>({
     queryKey: ['csrs', cookies.user_token],
-    queryFn: () => getCertificateRequests({ authToken: cookies.user_token }),
+    // eslint-disable-next-line
+    queryFn: () => getCertificateRequests({ authToken: cookies.user_token ? cookies.user_token : "" }),
     retry: retryUnlessUnauthorized,
   })
   if (query.status == "pending") { return <Loading /> }

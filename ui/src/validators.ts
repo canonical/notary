@@ -14,7 +14,7 @@ export type validationResult = {
 }
 
 export function validateCommonName(value: string): validationResult {
-    let vr: validationResult = { error: "", caution: "", success: "" };
+    const vr: validationResult = { error: "", caution: "", success: "" };
     if (value.length == 0) {
         return vr
     }
@@ -25,7 +25,7 @@ export function validateCommonName(value: string): validationResult {
 }
 
 export function validateOrganizationName(value: string): validationResult {
-    let vr: validationResult = { error: "", caution: "", success: "" };
+    const vr: validationResult = { error: "", caution: "", success: "" };
     if (value.length == 0) {
         return vr
     }
@@ -36,7 +36,7 @@ export function validateOrganizationName(value: string): validationResult {
 }
 
 export function validateOrganizationalUnit(value: string): validationResult {
-    let vr: validationResult = { error: "", caution: "", success: "" };
+    const vr: validationResult = { error: "", caution: "", success: "" };
     if (value.length == 0) {
         return vr
     }
@@ -47,7 +47,7 @@ export function validateOrganizationalUnit(value: string): validationResult {
 }
 
 export function validateCountryName(value: string): validationResult {
-    let vr: validationResult = { error: "", caution: "", success: "" };
+    const vr: validationResult = { error: "", caution: "", success: "" };
     if (value.length == 0) {
         return vr
     }
@@ -61,7 +61,7 @@ export function validateCountryName(value: string): validationResult {
 }
 
 export function validateStateOrProvinceName(value: string): validationResult {
-    let vr: validationResult = { error: "", caution: "", success: "" };
+    const vr: validationResult = { error: "", caution: "", success: "" };
     if (value.length == 0) {
         return vr
     }
@@ -72,7 +72,7 @@ export function validateStateOrProvinceName(value: string): validationResult {
 }
 
 export function validateLocalityName(value: string): validationResult {
-    let vr: validationResult = { error: "", caution: "", success: "" };
+    const vr: validationResult = { error: "", caution: "", success: "" };
     if (value.length == 0) {
         return vr
     }
@@ -83,7 +83,7 @@ export function validateLocalityName(value: string): validationResult {
 }
 
 export function validateNotAfter(value: string): validationResult {
-    let vr: validationResult = { error: "", caution: "", success: "" };
+    const vr: validationResult = { error: "", caution: "", success: "" };
     const date = new Date(value);
     const now = new Date();
     if (date < now) {

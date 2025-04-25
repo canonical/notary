@@ -1,12 +1,12 @@
 "use client"
 
-import { SetStateAction, Dispatch, useState, useContext } from "react"
+import { SetStateAction, Dispatch, useState } from "react"
 import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
 import { usePathname } from "next/navigation";
 import { AppNavigation } from "@canonical/react-components";
 import { AppNavigationBar } from "@canonical/react-components";
-import { ChangePasswordModal, ChangePasswordModalContext, ChangePasswordModalData } from "@/app/(notary)/users/components";
+import { ChangePasswordModal } from "@/app/(notary)/users/components";
 import { useCookies } from "react-cookie";
 
 type SidebarProps = {
@@ -18,7 +18,7 @@ type SidebarProps = {
 export function SideBar({ sidebarVisible, setSidebarVisible, setChangePasswordModalVisible }: SidebarProps) {
   const auth = useAuth()
   const path = usePathname()
-  const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
+  const [, , removeCookie] = useCookies(['user_token']);
   const [menuOpen, setMenuOpen] = useState<boolean>(false)
 
   return (

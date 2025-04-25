@@ -6,15 +6,14 @@ import { useState, ChangeEvent } from "react"
 import { useCookies } from "react-cookie"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
-import { statusResponse } from "@/types"
 import { Input, PasswordToggle, Button, Form, Notification, LoginPageLayout } from "@canonical/react-components";
 
 
 export default function LoginPage() {
     const router = useRouter()
     const auth = useAuth()
-    const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
-    const statusQuery = useQuery<statusResponse, Error>({
+    const [, setCookie] = useCookies(['user_token']);
+    const statusQuery = useQuery({
         queryKey: ["status"],
         queryFn: () => getStatus()
     })
@@ -25,7 +24,7 @@ export default function LoginPage() {
         mutationFn: login,
         onSuccess: (result) => {
             setErrorText("")
-            setCookie('user_token', result?.token, {
+            setCookie('user_token', result.token, {
                 sameSite: true,
                 secure: true,
                 expires: new Date(new Date().getTime() + 60 * 60 * 1000),

@@ -4,10 +4,11 @@ import { changePassword, postUser } from "@/queries";
 import { ChangeEvent, Dispatch, SetStateAction, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Panel, Button, Input, PasswordToggle, Form } from "@canonical/react-components";
+import { AsideFormData } from "@/types";
 
 type AsideProps = {
   setAsideOpen: Dispatch<SetStateAction<boolean>>
-  formData: any
+  formData: AsideFormData
 };
 
 export default function UsersPageAsidePanel(asideProps: AsideProps) {
@@ -34,7 +35,7 @@ function AddNewUserForm(asideProps: AsideProps) {
   const mutation = useMutation({
     mutationFn: postUser,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
+      void queryClient.invalidateQueries({ queryKey: ['users'] })
       setErrorText("")
       asideProps.setAsideOpen(false)
     },
@@ -49,7 +50,7 @@ function AddNewUserForm(asideProps: AsideProps) {
   const password1Error = password1 && !passwordIsValid(password1) ? "Password is not valid" : ""
   const password2Error = password2 && !passwordsMatch ? "Passwords do not match" : ""
 
-  const [errorText, setErrorText] = useState<string>("")
+  const [, setErrorText] = useState<string>("")
   const handleUsernameChange = (event: ChangeEvent<HTMLInputElement>) => { setUsername(event.target.value) }
   const handlePassword1Change = (event: ChangeEvent<HTMLInputElement>) => { setPassword1(event.target.value) }
   const handlePassword2Change = (event: ChangeEvent<HTMLInputElement>) => { setPassword2(event.target.value) }
@@ -96,7 +97,7 @@ function ChangePasswordForm(asideProps: AsideProps) {
   const mutation = useMutation({
     mutationFn: changePassword,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
+      void queryClient.invalidateQueries({ queryKey: ['users'] })
       setErrorText("")
       asideProps.setAsideOpen(false)
     },
@@ -110,7 +111,7 @@ function ChangePasswordForm(asideProps: AsideProps) {
   const password1Error = password1 && !passwordIsValid(password1) ? "Password is not valid" : ""
   const password2Error = password2 && !passwordsMatch ? "Passwords do not match" : ""
 
-  const [errorText, setErrorText] = useState<string>("")
+  const [, setErrorText] = useState<string>("")
   const handlePassword1Change = (event: ChangeEvent<HTMLInputElement>) => { setPassword1(event.target.value) }
   const handlePassword2Change = (event: ChangeEvent<HTMLInputElement>) => { setPassword2(event.target.value) }
   return (
@@ -120,7 +121,7 @@ function ChangePasswordForm(asideProps: AsideProps) {
           id="InputUsername"
           label="Username"
           type="text"
-          value={asideProps.formData["user"]["username"]}
+          value={asideProps.formData.user?.username}
           disabled={true}
         />
         <PasswordToggle
@@ -141,7 +142,7 @@ function ChangePasswordForm(asideProps: AsideProps) {
         <Button
           appearance="positive"
           disabled={!passwordsMatch || !passwordIsValid(password1)}
-          onClick={(event) => { event.preventDefault(); mutation.mutate({ authToken: (auth.user ? auth.user.authToken : ""), id: asideProps.formData["user"]["id"], password: password1 }) }}
+          onClick={(event) => { event.preventDefault(); mutation.mutate({ authToken: (auth.user ? auth.user.authToken : ""), id: asideProps.formData.user ? asideProps.formData.user.id : "0", password: password1 }) }}
         >
           Submit
         </Button>

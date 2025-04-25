@@ -1,7 +1,6 @@
 "use client"
 
 import { passwordIsValid } from "@/utils"
-import { statusResponse } from "@/types"
 import { getStatus, login, postFirstUser } from "@/queries"
 import { useAuth } from "@/hooks/useAuth"
 import { Input, PasswordToggle, Button, Form, LoginPageLayout } from "@canonical/react-components";
@@ -14,8 +13,8 @@ import { useCookies } from "react-cookie"
 export default function Initialize() {
     const router = useRouter()
     const auth = useAuth()
-    const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
-    const statusQuery = useQuery<statusResponse, Error>({
+    const [, setCookie] = useCookies(['user_token']);
+    const statusQuery = useQuery({
         queryKey: ["status"],
         queryFn: () => getStatus(),
     })
@@ -27,7 +26,7 @@ export default function Initialize() {
         mutationFn: login,
         onSuccess: (result) => {
             setErrorText("")
-            setCookie('user_token', result?.token, {
+            setCookie('user_token', result.token, {
                 sameSite: true,
                 secure: true,
                 expires: new Date(new Date().getTime() + 60 * 60 * 1000),
@@ -56,7 +55,7 @@ export default function Initialize() {
     const password1Error = password1 && !passwordIsValid(password1) ? "Password is not valid" : ""
     const password2Error = password2 && !passwordsMatch ? "Passwords do not match" : ""
 
-    const [errorText, setErrorText] = useState<string>("")
+    const [, setErrorText] = useState<string>("")
     const handleUsernameChange = (event: ChangeEvent<HTMLInputElement>) => { setUsername(event.target.value) }
     const handlePassword1Change = (event: ChangeEvent<HTMLInputElement>) => { setPassword1(event.target.value) }
     const handlePassword2Change = (event: ChangeEvent<HTMLInputElement>) => { setPassword2(event.target.value) }

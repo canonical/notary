@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useCookies } from "react-cookie";
 import { postCA } from "@/queries";
 import { ChangeEvent, useState, Dispatch, SetStateAction } from "react";
 import { Button, Input, Panel, Form, Notification } from "@canonical/react-components";
 import { validationResult, validateCommonName, validateOrganizationName, validateOrganizationalUnit, validateCountryName, validateStateOrProvinceName, validateLocalityName, validateNotAfter } from "@/validators";
+import { useAuth } from "@/hooks/useAuth";
 
 type AsideProps = {
   setAsideOpen: Dispatch<SetStateAction<boolean>>
@@ -11,7 +11,7 @@ type AsideProps = {
 
 export default function CertificateAuthoritiesAsidePanel({ setAsideOpen }: AsideProps): JSX.Element {
   const queryClient = useQueryClient();
-  const [cookies] = useCookies(['user_token']);
+  const auth = useAuth();
 
   const [isSelfSigned, setIsSelfSigned] = useState<boolean | null>(null);
 
@@ -36,7 +36,7 @@ export default function CertificateAuthoritiesAsidePanel({ setAsideOpen }: Aside
     onSuccess: () => {
       setFormError("");
       setAsideOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['cas'] });
+      void queryClient.invalidateQueries({ queryKey: ['cas'] });
     },
     onError: (e: Error) => {
       setFormError(e.message);
@@ -45,7 +45,7 @@ export default function CertificateAuthoritiesAsidePanel({ setAsideOpen }: Aside
 
   const handleSubmit = () => {
     mutation.mutate({
-      authToken: cookies.user_token,
+      authToken: auth.user ? auth.user.authToken : "",
 
       SelfSigned: isSelfSigned ? isSelfSigned : false,
 
@@ -78,7 +78,7 @@ export default function CertificateAuthoritiesAsidePanel({ setAsideOpen }: Aside
               type="radio"
               name="ca-type"
               checked={isSelfSigned == true}
-              onChange={(e) => setIsSelfSigned(true)}
+              onChange={() => setIsSelfSigned(true)}
               help="A self-signed certificate authority signs itself and acts as the root certificate for all other types of certificates."
             />
             <Input
@@ -87,7 +87,7 @@ export default function CertificateAuthoritiesAsidePanel({ setAsideOpen }: Aside
               type="radio"
               name="ca-type"
               checked={isSelfSigned == false}
-              onChange={(e) => setIsSelfSigned(false)}
+              onChange={() => setIsSelfSigned(false)}
               help="An intermediate certificate authority is signed by a root certificate authority and can sign end certificates."
             />
           </div>

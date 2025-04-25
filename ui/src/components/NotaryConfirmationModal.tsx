@@ -4,22 +4,23 @@ import { ConfirmationModal, Notification } from "@canonical/react-components";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-export type NotaryConfirmationModalData = {
-  queryFn: (params: any) => Promise<any>
-  queryParams: any
+export type NotaryConfirmationModalData<T> = {
+  queryFn: (params: T) => Promise<T>
+  queryParams: T
   closeFn: () => void
   queryKey: string
   warningText: string
   buttonConfirmText: string
 }
 
-export function NotaryConfirmationModal(data: NotaryConfirmationModalData) {
+// eslint-disable-next-line
+export function NotaryConfirmationModal(data: NotaryConfirmationModalData<any>) {
   const [errorText, setErrorText] = useState<string>("");
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: data.queryFn,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [data.queryKey] });
+      void queryClient.invalidateQueries({ queryKey: [data.queryKey] });
       setErrorText("");
       data.closeFn();
     },

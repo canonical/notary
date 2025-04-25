@@ -5,6 +5,19 @@ export type CSREntry = {
     status: "Outstanding" | "Active" | "Rejected" | "Revoked"
 }
 
+export type CertificateSigningRequest = {
+    commonName?: string
+    stateOrProvince?: string
+    OrganizationalUnitName?: string
+    organization?: string
+    emailAddress?: string
+    country?: string
+    locality?: string
+    sansDns: string[]
+    sansIp: string[]
+    is_ca: boolean
+}
+
 export type CertificateAuthorityEntry = {
     id: number,
     status: "active" | "expired" | "pending" | "legacy"
@@ -28,12 +41,12 @@ export type UserEntry = {
     username: string
 }
 
-export type statusResponse = {
-    initialized: boolean
-    version: string
-}
+
 
 export type AsideFormData = {
     formTitle: string
-    formData: any
+    user?: {
+        id: string
+        username: string
+    }
 }

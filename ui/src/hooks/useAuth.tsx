@@ -17,7 +17,7 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType>({ user: null, firstUserCreated: false, setFirstUserCreated: () => { }, activeCA: null, setActiveCA: () => { } });
 
 export const AuthProvider = ({ children }: Readonly<{ children: React.ReactNode }>) => {
-    const [cookies, setCookie, removeCookie] = useCookies(['user_token']);
+    const [cookies,] = useCookies(['user_token']);
     const [user, setUser] = useState<User | null>(null);
     const [firstUserCreated, setFirstUserCreated] = useState<boolean>(false)
     const [activeCAState, setActiveCAState] = useState<CertificateAuthorityEntry | null>(null);
@@ -29,13 +29,13 @@ export const AuthProvider = ({ children }: Readonly<{ children: React.ReactNode 
     }, [])
 
     useEffect(() => {
-        let storedActiveCA = localStorage.getItem("activeCA")
-        setActiveCAState(storedActiveCA ? JSON.parse(storedActiveCA) : null)
+        const storedActiveCA = localStorage.getItem("activeCA")
+        setActiveCAState(storedActiveCA ? JSON.parse(storedActiveCA) as CertificateAuthorityEntry : null)
 
-        const token = cookies.user_token;
+        const token = cookies.user_token as string;
         if (token) {
-            let userObject = jwtDecode(cookies.user_token) as User
-            userObject.authToken = cookies.user_token
+            const userObject = jwtDecode<User>(token)
+            userObject.authToken = token
             setUser(userObject);
             setFirstUserCreated(true)
         } else {

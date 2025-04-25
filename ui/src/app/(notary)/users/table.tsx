@@ -40,7 +40,7 @@ export function UsersTable({ users, setAsideOpen, setFormData }: TableProps) {
             title="Users"
             className="u-fixed-width"
             controls={users.length > 0 &&
-                <Button appearance="positive" onClick={() => { setFormData({ formTitle: "Add a New User", formData: null }); setAsideOpen(true) }}>Create New User</Button>
+                <Button appearance="positive" onClick={() => { setFormData({ formTitle: "Add a New User" }); setAsideOpen(true) }}>Create New User</Button>
             }
         >
             <div >

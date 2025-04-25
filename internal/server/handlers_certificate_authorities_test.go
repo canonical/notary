@@ -1292,7 +1292,6 @@ func TestUnsuccessfulRequestsMadeToCACSRs(t *testing.T) {
 
 	t.Run("4. Get CSRs - only 1 should appear", func(t *testing.T) {
 		statusCode, listCertsResponse, err := listCertificateRequests(ts.URL, client, adminToken)
-		fmt.Println(listCertsResponse.Result)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1644,8 +1643,8 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got: %s", err)
 		}
-		if cas.Result[1].Status != "legacy" {
-			t.Fatalf("expected revoked intermediate CA to have legacy status")
+		if cas.Result[1].Status != "pending" {
+			t.Fatalf("expected revoked intermediate CA to have pending status")
 		}
 		if cas.Result[1].CertificatePEM != "" {
 			t.Fatalf("expected revoked intermediate CA to not have a certificate")

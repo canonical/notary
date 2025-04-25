@@ -46,6 +46,16 @@ export function SideBar({ sidebarVisible, setSidebarVisible, setChangePasswordMo
                   </li>
                   {auth.user?.permissions == 1 &&
                     <li className="p-side-navigation__item">
+                      <a className="p-side-navigation__link" href="/certificate_authorities" aria-current={path.startsWith("/certificate_authorities") ? "page" : "false"} style={{ cursor: "pointer" }}>
+                        <i className="p-icon--copy-to-clipboard is-light p-side-navigation__icon"></i>
+                        <span className="p-side-navigation__label">
+                          <span className="p-side-navigation__label">Certificate Authorities</span>
+                        </span>
+                      </a>
+                    </li>
+                  }
+                  {auth.user?.permissions == 1 &&
+                    <li className="p-side-navigation__item">
                       <a className="p-side-navigation__link" href="/users" aria-current={path.startsWith("/users") ? "page" : "false"} style={{ cursor: "pointer" }}>
                         <i className="p-icon--user is-light p-side-navigation__icon"></i>
                         <span className="p-side-navigation__label">

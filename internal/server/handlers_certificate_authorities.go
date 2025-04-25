@@ -534,12 +534,12 @@ func RevokeCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc 
 		}
 		ca, err := env.DB.GetCertificateAuthority(db.ByCertificateAuthorityID(idNum))
 		if err != nil {
-			log.Println(err)
+			env.Logger.Info("could not get certificate authority", zap.Error(err))
 			if errors.Is(err, db.ErrNotFound) {
-				writeError(w, http.StatusNotFound, "Not Found")
+				writeError(w, http.StatusNotFound, "Not Found", err, env.Logger)
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error")
+			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
 			return
 		}
 		err = env.DB.RevokeCertificate(db.ByCSRID(ca.CSRID))

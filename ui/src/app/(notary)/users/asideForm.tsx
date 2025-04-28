@@ -3,11 +3,18 @@ import { passwordIsValid } from "@/utils";
 import { changePassword, postUser } from "@/queries";
 import { ChangeEvent, Dispatch, SetStateAction, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { Panel, Button, Input, PasswordToggle, Form } from "@canonical/react-components";
+import {
+  Panel,
+  Button,
+  Input,
+  PasswordToggle,
+  Form,
+} from "@canonical/react-components";
+import { AsideFormData } from "@/types";
 
 type AsideProps = {
-  setAsideOpen: Dispatch<SetStateAction<boolean>>
-  formData: any
+  setAsideOpen: Dispatch<SetStateAction<boolean>>;
+  formData: AsideFormData;
 };
 
 export default function UsersPageAsidePanel(asideProps: AsideProps) {
@@ -15,44 +22,54 @@ export default function UsersPageAsidePanel(asideProps: AsideProps) {
     <Panel
       title={asideProps.formData.formTitle}
       controls={
-        <Button
-          onClick={() => asideProps.setAsideOpen(false)}
-          hasIcon>
+        <Button onClick={() => asideProps.setAsideOpen(false)} hasIcon>
           <i className="p-icon--close" />
         </Button>
-      }>
-      {asideProps.formData.formTitle == "Add a New User" && <AddNewUserForm {...asideProps} />}
-      {asideProps.formData.formTitle == "Change User Password" && <ChangePasswordForm {...asideProps} />}
+      }
+    >
+      {asideProps.formData.formTitle == "Add a New User" && (
+        <AddNewUserForm {...asideProps} />
+      )}
+      {asideProps.formData.formTitle == "Change User Password" && (
+        <ChangePasswordForm {...asideProps} />
+      )}
     </Panel>
-  )
+  );
 }
 
-
 function AddNewUserForm(asideProps: AsideProps) {
-  const auth = useAuth()
-  const queryClient = useQueryClient()
+  const auth = useAuth();
+  const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: postUser,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-      setErrorText("")
-      asideProps.setAsideOpen(false)
+      void queryClient.invalidateQueries({ queryKey: ["users"] });
+      setErrorText("");
+      asideProps.setAsideOpen(false);
     },
     onError: (e: Error) => {
-      setErrorText(e.message)
-    }
-  })
-  const [username, setUsername] = useState<string>("")
-  const [password1, setPassword1] = useState<string>("")
-  const [password2, setPassword2] = useState<string>("")
-  const passwordsMatch = password1 === password2
-  const password1Error = password1 && !passwordIsValid(password1) ? "Password is not valid" : ""
-  const password2Error = password2 && !passwordsMatch ? "Passwords do not match" : ""
+      setErrorText(e.message);
+    },
+  });
+  const [username, setUsername] = useState<string>("");
+  const [password1, setPassword1] = useState<string>("");
+  const [password2, setPassword2] = useState<string>("");
+  const passwordsMatch = password1 === password2;
+  const password1Error =
+    password1 && !passwordIsValid(password1) ? "Password is not valid" : "";
+  const password2Error =
+    password2 && !passwordsMatch ? "Passwords do not match" : "";
 
-  const [errorText, setErrorText] = useState<string>("")
-  const handleUsernameChange = (event: ChangeEvent<HTMLInputElement>) => { setUsername(event.target.value) }
-  const handlePassword1Change = (event: ChangeEvent<HTMLInputElement>) => { setPassword1(event.target.value) }
-  const handlePassword2Change = (event: ChangeEvent<HTMLInputElement>) => { setPassword2(event.target.value) }
+  const [, setErrorText] = useState<string>("");
+  const handleUsernameChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setUsername(event.target.value);
+  };
+  const handlePassword1Change = (event: ChangeEvent<HTMLInputElement>) => {
+    setPassword1(event.target.value);
+  };
+  const handlePassword2Change = (event: ChangeEvent<HTMLInputElement>) => {
+    setPassword2(event.target.value);
+  };
   return (
     <Form>
       <div className="p-form__group row">
@@ -81,38 +98,51 @@ function AddNewUserForm(asideProps: AsideProps) {
         <Button
           appearance="positive"
           disabled={!passwordsMatch || !passwordIsValid(password1)}
-          onClick={(event) => { event.preventDefault(); mutation.mutate({ authToken: (auth.user ? auth.user.authToken : ""), username: username, password: password1 }) }}
+          onClick={(event) => {
+            event.preventDefault();
+            mutation.mutate({
+              authToken: auth.user ? auth.user.authToken : "",
+              username: username,
+              password: password1,
+            });
+          }}
         >
           Submit
         </Button>
       </div>
     </Form>
-  )
+  );
 }
 
 function ChangePasswordForm(asideProps: AsideProps) {
-  const auth = useAuth()
-  const queryClient = useQueryClient()
+  const auth = useAuth();
+  const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: changePassword,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-      setErrorText("")
-      asideProps.setAsideOpen(false)
+      void queryClient.invalidateQueries({ queryKey: ["users"] });
+      setErrorText("");
+      asideProps.setAsideOpen(false);
     },
     onError: (e: Error) => {
-      setErrorText(e.message)
-    }
-  })
-  const [password1, setPassword1] = useState<string>("")
-  const [password2, setPassword2] = useState<string>("")
-  const passwordsMatch = password1 === password2
-  const password1Error = password1 && !passwordIsValid(password1) ? "Password is not valid" : ""
-  const password2Error = password2 && !passwordsMatch ? "Passwords do not match" : ""
+      setErrorText(e.message);
+    },
+  });
+  const [password1, setPassword1] = useState<string>("");
+  const [password2, setPassword2] = useState<string>("");
+  const passwordsMatch = password1 === password2;
+  const password1Error =
+    password1 && !passwordIsValid(password1) ? "Password is not valid" : "";
+  const password2Error =
+    password2 && !passwordsMatch ? "Passwords do not match" : "";
 
-  const [errorText, setErrorText] = useState<string>("")
-  const handlePassword1Change = (event: ChangeEvent<HTMLInputElement>) => { setPassword1(event.target.value) }
-  const handlePassword2Change = (event: ChangeEvent<HTMLInputElement>) => { setPassword2(event.target.value) }
+  const [, setErrorText] = useState<string>("");
+  const handlePassword1Change = (event: ChangeEvent<HTMLInputElement>) => {
+    setPassword1(event.target.value);
+  };
+  const handlePassword2Change = (event: ChangeEvent<HTMLInputElement>) => {
+    setPassword2(event.target.value);
+  };
   return (
     <Form>
       <div className="p-form__group row">
@@ -120,7 +150,7 @@ function ChangePasswordForm(asideProps: AsideProps) {
           id="InputUsername"
           label="Username"
           type="text"
-          value={asideProps.formData["user"]["username"]}
+          value={asideProps.formData.user?.username}
           disabled={true}
         />
         <PasswordToggle
@@ -141,11 +171,18 @@ function ChangePasswordForm(asideProps: AsideProps) {
         <Button
           appearance="positive"
           disabled={!passwordsMatch || !passwordIsValid(password1)}
-          onClick={(event) => { event.preventDefault(); mutation.mutate({ authToken: (auth.user ? auth.user.authToken : ""), id: asideProps.formData["user"]["id"], password: password1 }) }}
+          onClick={(event) => {
+            event.preventDefault();
+            mutation.mutate({
+              authToken: auth.user ? auth.user.authToken : "",
+              id: asideProps.formData.user ? asideProps.formData.user.id : "0",
+              password: password1,
+            });
+          }}
         >
           Submit
         </Button>
       </div>
     </Form>
-  )
+  );
 }

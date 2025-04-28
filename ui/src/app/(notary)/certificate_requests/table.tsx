@@ -1,38 +1,59 @@
 import { useState, Dispatch, SetStateAction } from "react";
-import { CSREntry } from "@/types";
-import { Button, MainTable, Panel, EmptyState, ContextualMenu } from "@canonical/react-components";
-import { deleteCSR, rejectCSR, revokeCertificate, signCSR } from "@/queries"
+import { CertificateSigningRequest, CSREntry } from "@/types";
+import {
+  Button,
+  MainTable,
+  Panel,
+  EmptyState,
+  ContextualMenu,
+} from "@canonical/react-components";
+import { deleteCSR, rejectCSR, revokeCertificate, signCSR } from "@/queries";
 import { extractCSR, extractCert, splitBundle } from "@/utils";
-import { SubmitCertificateModal, SuccessNotification } from "./components"
-import { NotaryConfirmationModal, NotaryConfirmationModalData } from "@/components/NotaryConfirmationModal";
+import { SubmitCertificateModal, SuccessNotification } from "./components";
+import {
+  NotaryConfirmationModal,
+  NotaryConfirmationModalData,
+} from "@/components/NotaryConfirmationModal";
 import { useAuth } from "@/hooks/useAuth";
 
 type TableProps = {
   csrs: CSREntry[];
-  setAsideOpen: Dispatch<SetStateAction<boolean>>
+  setAsideOpen: Dispatch<SetStateAction<boolean>>;
 };
 
-export function CertificateRequestsTable({ csrs: rows, setAsideOpen }: TableProps) {
-  const auth = useAuth()
-  const [certificateFormOpen, setCertificateFormOpen] = useState<boolean>(false);
-  const [confirmationModalData, setConfirmationModalData] = useState<NotaryConfirmationModalData | null>(null);
+export function CertificateRequestsTable({
+  csrs: rows,
+  setAsideOpen,
+}: TableProps) {
+  const auth = useAuth();
+  const [certificateFormOpen, setCertificateFormOpen] =
+    useState<boolean>(false);
+  const [confirmationModalData, setConfirmationModalData] =
+    // eslint-disable-next-line
+    useState<NotaryConfirmationModalData<any> | null>(null);
   const [selectedCSR, setSelectedCSR] = useState<CSREntry | null>(null);
   const [showCSRContent, setShowCSRContent] = useState<number | null>(null);
   const [showCertContent, setShowCertContent] = useState<number | null>(null);
-  const [successNotificationId, setSuccessNotificationId] = useState<number | null>(null);
+  const [successNotificationId, setSuccessNotificationId] = useState<
+    number | null
+  >(null);
 
   const handleCopy = (csr: string, id: number) => {
-    navigator.clipboard.writeText(csr).then(() => {
+    void navigator.clipboard.writeText(csr).then(() => {
       setSuccessNotificationId(id);
       setTimeout(() => setSuccessNotificationId(null), 2500);
     });
   };
 
-  const handleDownload = (csr: string, id: number, csrObj: any) => {
-    const blob = new Blob([csr], { type: 'text/plain' });
-    const link = document.createElement('a');
+  const handleDownload = (
+    csr: string,
+    id: number,
+    csrObj: CertificateSigningRequest,
+  ) => {
+    const blob = new Blob([csr], { type: "text/plain" });
+    const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `csr-${csrObj.commonName || id}.pem`;
+    link.download = `csr-${csrObj.commonName?.toLowerCase() || id}.pem`;
     link.click();
     URL.revokeObjectURL(link.href);
   };
@@ -46,21 +67,26 @@ export function CertificateRequestsTable({ csrs: rows, setAsideOpen }: TableProp
     const certObj = clientCertificate ? extractCert(clientCertificate) : null;
     setConfirmationModalData({
       queryFn: signCSR,
-      queryParams: { id: id.toString(), authToken: auth.user?.authToken, certificate_authority_id: auth.activeCA.id },
+      queryParams: {
+        id: id.toString(),
+        authToken: auth.user?.authToken,
+        certificate_authority_id: auth.activeCA.id,
+      },
       closeFn: () => setConfirmationModalData(null),
-      queryKey: 'csrs',
+      queryKey: "csrs",
       warningText: `Signing a Certificate Request means the CSR will be signed and a certificate will be generated. This CSR will be signed by "${certObj?.commonName}". This action cannot be undone.`,
-      buttonConfirmText: "Sign"
-    })
-  }
+      buttonConfirmText: "Sign",
+    });
+  };
 
   const handleReject = (id: number) => {
     setConfirmationModalData({
       queryFn: rejectCSR,
       queryParams: { id: id.toString(), authToken: auth.user?.authToken },
       closeFn: () => setConfirmationModalData(null),
-      queryKey: 'csrs',
-      warningText: "Rejecting a Certificate Request means the CSR will remain in this application, but its status will be moved to rejected and the associated certificate will be deleted if there is any. This action cannot be undone.",
+      queryKey: "csrs",
+      warningText:
+        "Rejecting a Certificate Request means the CSR will remain in this application, but its status will be moved to rejected and the associated certificate will be deleted if there is any. This action cannot be undone.",
       buttonConfirmText: "Reject",
     });
   };
@@ -70,8 +96,9 @@ export function CertificateRequestsTable({ csrs: rows, setAsideOpen }: TableProp
       queryFn: deleteCSR,
       queryParams: { id: id.toString(), authToken: auth.user?.authToken },
       closeFn: () => setConfirmationModalData(null),
-      queryKey: 'csrs',
-      warningText: "Deleting a Certificate Request means this row will be completely removed from the application. This action cannot be undone.",
+      queryKey: "csrs",
+      warningText:
+        "Deleting a Certificate Request means this row will be completely removed from the application. This action cannot be undone.",
       buttonConfirmText: "Delete",
     });
   };
@@ -81,14 +108,15 @@ export function CertificateRequestsTable({ csrs: rows, setAsideOpen }: TableProp
       queryFn: revokeCertificate,
       queryParams: { id: id.toString(), authToken: auth.user?.authToken },
       closeFn: () => setConfirmationModalData(null),
-      queryKey: 'csrs',
-      warningText: "Revoking a Certificate will delete it from the table. This action cannot be undone.",
+      queryKey: "csrs",
+      warningText:
+        "Revoking a Certificate will delete it from the table. This action cannot be undone.",
       buttonConfirmText: "Revoke",
     });
   };
 
-  const handleExpand = (id: number, type: 'CSR' | 'Cert') => {
-    if (type === 'CSR') {
+  const handleExpand = (id: number, type: "CSR" | "Cert") => {
+    if (type === "CSR") {
       setShowCSRContent(id === showCSRContent ? null : id);
       setShowCertContent(null);
     } else {
@@ -98,7 +126,7 @@ export function CertificateRequestsTable({ csrs: rows, setAsideOpen }: TableProp
   };
 
   const getExpiryColor = (notAfter?: string): string => {
-    if (!notAfter) return 'inherit';
+    if (!notAfter) return "inherit";
     const expiryDate = new Date(notAfter);
     const now = new Date();
     const timeDifference = expiryDate.getTime() - now.getTime();
@@ -107,12 +135,18 @@ export function CertificateRequestsTable({ csrs: rows, setAsideOpen }: TableProp
     return "rgba(14, 132, 32, 0.35)";
   };
 
-  const getFieldDisplay = (label: string, field: string | undefined, compareField?: string | undefined) => {
+  const getFieldDisplay = (
+    label: string,
+    field: string | undefined,
+    compareField?: string,
+  ) => {
     const isMismatched = compareField !== undefined && compareField !== field;
     return field ? (
       <p style={{ marginBottom: "4px" }}>
         <b>{label}:</b>{" "}
-        <span style={{ color: isMismatched ? "rgba(199, 22, 43, 1)" : "inherit" }}>
+        <span
+          style={{ color: isMismatched ? "rgba(199, 22, 43, 1)" : "inherit" }}
+        >
           {field}
         </span>
       </p>
@@ -146,25 +180,29 @@ export function CertificateRequestsTable({ csrs: rows, setAsideOpen }: TableProp
         {
           content: (
             <>
-              {successNotificationId === id && <SuccessNotification successMessage="CSR copied to clipboard" />}
-              <ContextualMenu
-                hasToggleIcon
-                position="right"
-              >
+              {successNotificationId === id && (
+                <SuccessNotification successMessage="CSR copied to clipboard" />
+              )}
+              <ContextualMenu hasToggleIcon position="right">
                 <span className="p-contextual-menu__group">
                   <Button
                     className="p-contextual-menu__link"
-                    onMouseDown={() => handleExpand(id, 'CSR')}>
-                    {isCSRContentVisible ? "Hide CSR Content" : "Show CSR Content"}
+                    onMouseDown={() => handleExpand(id, "CSR")}
+                  >
+                    {isCSRContentVisible
+                      ? "Hide CSR Content"
+                      : "Show CSR Content"}
                   </Button>
                   <Button
                     className="p-contextual-menu__link"
-                    onMouseDown={() => handleCopy(csr, id)}>
+                    onMouseDown={() => handleCopy(csr, id)}
+                  >
                     Copy CSR to Clipboard
                   </Button>
                   <Button
                     className="p-contextual-menu__link"
-                    onMouseDown={() => handleDownload(csr, id, csrObj)}>
+                    onMouseDown={() => handleDownload(csr, id, csrObj)}
+                  >
                     Download CSR
                   </Button>
                 </span>
@@ -172,13 +210,17 @@ export function CertificateRequestsTable({ csrs: rows, setAsideOpen }: TableProp
                   <Button
                     className="p-contextual-menu__link"
                     disabled={csr_status != "Active"}
-                    onMouseDown={() => handleExpand(id, 'Cert')}>
-                    {isCertContentVisible ? "Hide Certificate Content" : "Show Certificate Content"}
+                    onMouseDown={() => handleExpand(id, "Cert")}
+                  >
+                    {isCertContentVisible
+                      ? "Hide Certificate Content"
+                      : "Show Certificate Content"}
                   </Button>
                   <Button
                     className="p-contextual-menu__link"
                     disabled={!auth.activeCA}
-                    onMouseDown={() => handleSign(id)}>
+                    onMouseDown={() => handleSign(id)}
+                  >
                     Sign CSR
                   </Button>
                   <Button
@@ -186,13 +228,15 @@ export function CertificateRequestsTable({ csrs: rows, setAsideOpen }: TableProp
                     onMouseDown={() => {
                       setCertificateFormOpen(true);
                       setSelectedCSR(csrEntry);
-                    }}>
+                    }}
+                  >
                     Upload New Certificate
                   </Button>
                   <Button
                     className="p-contextual-menu__link"
                     disabled={csr_status != "Active"}
-                    onMouseDown={() => handleRevoke(id)}>
+                    onMouseDown={() => handleRevoke(id)}
+                  >
                     Revoke Certificate
                   </Button>
                 </span>
@@ -200,12 +244,14 @@ export function CertificateRequestsTable({ csrs: rows, setAsideOpen }: TableProp
                   <Button
                     className="p-contextual-menu__link"
                     disabled={csr_status == "Rejected"}
-                    onMouseDown={() => handleReject(id)}>
+                    onMouseDown={() => handleReject(id)}
+                  >
                     Reject Certificate Request
                   </Button>
                   <Button
                     className="p-contextual-menu__link"
-                    onMouseDown={() => handleDelete(id)}>
+                    onMouseDown={() => handleDelete(id)}
+                  >
                     Delete Certificate Request
                   </Button>
                 </span>
@@ -218,38 +264,62 @@ export function CertificateRequestsTable({ csrs: rows, setAsideOpen }: TableProp
       ],
       expanded: isCSRContentVisible || isCertContentVisible,
       expandedContent: (
-        <div >
+        <div>
           {isCSRContentVisible && (
-            <div >
+            <div>
               <h4>Certificate Request Content</h4>
               {getFieldDisplay("Common Name", csrObj.commonName)}
-              {getFieldDisplay("Subject Alternative Name DNS", csrObj.sansDns?.join(', '))}
-              {getFieldDisplay("Subject Alternative Name IP addresses", csrObj.sansIp?.join(', '))}
+              {getFieldDisplay(
+                "Subject Alternative Name DNS",
+                csrObj.sansDns?.join(", "),
+              )}
+              {getFieldDisplay(
+                "Subject Alternative Name IP addresses",
+                csrObj.sansIp?.join(", "),
+              )}
               {getFieldDisplay("Country", csrObj.country)}
               {getFieldDisplay("State or Province", csrObj.stateOrProvince)}
               {getFieldDisplay("Locality", csrObj.locality)}
               {getFieldDisplay("Organization", csrObj.organization)}
-              {getFieldDisplay("Organizational Unit", csrObj.OrganizationalUnitName)}
+              {getFieldDisplay(
+                "Organizational Unit",
+                csrObj.OrganizationalUnitName,
+              )}
               {getFieldDisplay("Email Address", csrObj.emailAddress)}
-              <p><b>Certificate request for a certificate authority</b>: {csrObj.is_ca ? "Yes" : "No"}</p>
+              <p>
+                <b>Certificate request for a certificate authority</b>:{" "}
+                {csrObj.is_ca ? "Yes" : "No"}
+              </p>
             </div>
           )}
           {isCertContentVisible && certObj && (
-            <div >
+            <div>
               <h4>Certificate Content</h4>
               {getFieldDisplay("Common Name", certObj.commonName)}
-              {getFieldDisplay("Subject Alternative Name DNS", certObj.sansDns?.join(', '))}
-              {getFieldDisplay("Subject Alternative Name IP addresses", certObj.sansIp?.join(', '))}
+              {getFieldDisplay(
+                "Subject Alternative Name DNS",
+                certObj.sansDns?.join(", "),
+              )}
+              {getFieldDisplay(
+                "Subject Alternative Name IP addresses",
+                certObj.sansIp?.join(", "),
+              )}
               {getFieldDisplay("Country", certObj.country)}
               {getFieldDisplay("State or Province", certObj.stateOrProvince)}
               {getFieldDisplay("Locality", certObj.locality)}
               {getFieldDisplay("Organization", certObj.organization)}
-              {getFieldDisplay("Organizational Unit", certObj.OrganizationalUnitName)}
+              {getFieldDisplay(
+                "Organizational Unit",
+                certObj.OrganizationalUnitName,
+              )}
               {getFieldDisplay("Email Address", certObj.emailAddress)}
               {getFieldDisplay("Start of validity", certObj.notBefore)}
               {getFieldDisplay("Expiry Time", certObj.notAfter)}
               {getFieldDisplay("Issuer Common Name", certObj.issuerCommonName)}
-              <p><b>Certificate for a certificate authority</b>: {certObj.is_ca ? "Yes" : "No"}</p>
+              <p>
+                <b>Certificate for a certificate authority</b>:{" "}
+                {certObj.is_ca ? "Yes" : "No"}
+              </p>
             </div>
           )}
         </div>
@@ -261,11 +331,13 @@ export function CertificateRequestsTable({ csrs: rows, setAsideOpen }: TableProp
       stickyHeader
       title="Certificate Requests"
       className="u-fixed-width"
-      controls={rows.length > 0 && (
-        <Button appearance="positive" onClick={() => setAsideOpen(true)}>
-          Add New Certificate Request
-        </Button>
-      )}
+      controls={
+        rows.length > 0 && (
+          <Button appearance="positive" onClick={() => setAsideOpen(true)}>
+            Add New Certificate Request
+          </Button>
+        )
+      }
     >
       <MainTable
         emptyStateMsg={<CSREmptyState setAsideOpen={setAsideOpen} />}
@@ -290,12 +362,14 @@ export function CertificateRequestsTable({ csrs: rows, setAsideOpen }: TableProp
           },
           {
             content: "Actions",
-            className: "u-align--right has-overflow"
-          }
+            className: "u-align--right has-overflow",
+          },
         ]}
         rows={csrrows}
       />
-      {confirmationModalData && <NotaryConfirmationModal {...confirmationModalData} />}
+      {confirmationModalData && (
+        <NotaryConfirmationModal {...confirmationModalData} />
+      )}
       {certificateFormOpen && selectedCSR && (
         <SubmitCertificateModal
           id={selectedCSR.id.toString()}
@@ -308,19 +382,22 @@ export function CertificateRequestsTable({ csrs: rows, setAsideOpen }: TableProp
   );
 }
 
-function CSREmptyState({ setAsideOpen }: { setAsideOpen: Dispatch<SetStateAction<boolean>> }) {
+function CSREmptyState({
+  setAsideOpen,
+}: {
+  setAsideOpen: Dispatch<SetStateAction<boolean>>;
+}) {
   return (
-    <EmptyState
-      image={""}
-      title="No CSRs available yet."
-    >
+    <EmptyState image={""} title="No CSRs available yet.">
       <p>
-        There are no Certificate Requests in Notary. Request your first certificate!
+        There are no Certificate Requests in Notary. Request your first
+        certificate!
       </p>
       <Button
         appearance="positive"
         aria-label="add-csr-button"
-        onClick={() => setAsideOpen(true)}>
+        onClick={() => setAsideOpen(true)}
+      >
         Add New CSR
       </Button>
     </EmptyState>

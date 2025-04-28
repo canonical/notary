@@ -1,9 +1,9 @@
-"use client"
-import '@/globals.scss'
+"use client";
+import "@/globals.scss";
 import { AuthProvider } from "@/hooks/useAuth";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient();
 export default function RootLayout({
   children,
 }: Readonly<{

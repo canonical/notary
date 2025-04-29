@@ -3,7 +3,7 @@ name: TiCS Static Analysis
 on:
   schedule:
     - cron: "0 3 * * 0" # Every Sunday at 3 am
-  workflow_dispatch:
+  workflow_call:
 
 jobs:
   analyze:

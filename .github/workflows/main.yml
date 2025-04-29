@@ -9,7 +9,6 @@ on:
       - main
 
 jobs: 
-
   frontend-unit-test:
     uses: ./.github/workflows/frontend-unittest.yaml
   frontend-build:

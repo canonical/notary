@@ -7,9 +7,28 @@ on:
 
 jobs:
   analyze:
-    uses: canonical/identity-credentials-workflows/.github/workflows/tics-tox.yaml@v0
-    with:
-      project: notary
-      dir: .
-    secrets:
-      TICSAUTHTOKEN: ${{ secrets.TICSAUTHTOKEN }}
+    runs-on: [self-hosted, linux, amd64, tiobe, jammy]
+
+    steps:
+
+      - name: generate coverage
+        run: |
+          go install github.com/t-yuki/gocover-cobertura@latest
+          go test -v ./... -coverprofile=coverage.out
+          gocover-cobertura < coverage.out > coverage.xml
+      
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name: move results to necessary folder for TICS
+        run: |
+          mkdir cover
+          mv coverage.xml cover/coverage.xml
+
+      - name: Run TICS analysis with github-action
+        uses: tiobe/tics-github-action@88cb795a736d2ca885753bec6ed2c8b03e3f892f # v3
+        with:
+          mode: qserver
+          project: notary
+          branchdir: ${{ github.workspace }}
+          viewerUrl: https://canonical.tiobe.com/tiobeweb/TICS/api/cfg?name=default
+          ticsAuthToken: ${{ secrets.TICSAUTHTOKEN }}
+          installTics: true

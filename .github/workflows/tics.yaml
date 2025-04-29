@@ -3,7 +3,6 @@ name: TiCS Static Analysis
 on:
   schedule:
     - cron: "0 3 * * 0" # Every Sunday at 3 am
-  workflow_call:
 
 
 jobs:
@@ -26,7 +25,7 @@ jobs:
       - name: Run TICS analysis with github-action
         uses: tiobe/tics-github-action@88cb795a736d2ca885753bec6ed2c8b03e3f892f # v3
         with:
-          mode: diagnostic
+          mode: qserver
           project: notary
           branchdir: ${{ github.workspace }}
           viewerUrl: https://canonical.tiobe.com/tiobeweb/TICS/api/cfg?name=default

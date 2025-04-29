@@ -26,7 +26,7 @@ jobs:
       - name: Run TICS analysis with github-action
         uses: tiobe/tics-github-action@88cb795a736d2ca885753bec6ed2c8b03e3f892f # v3
         with:
-          mode: diagnostics
+          mode: diagnostic
           project: notary
           branchdir: ${{ github.workspace }}
           viewerUrl: https://canonical.tiobe.com/tiobeweb/TICS/api/cfg?name=default

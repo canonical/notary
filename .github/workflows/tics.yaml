@@ -1,0 +1,33 @@
+name: TiCS Static Analysis
+
+on:
+  schedule:
+    - cron: "0 3 * * 0" # Every Sunday at 3 am
+
+
+jobs:
+  analyze:
+    runs-on: [self-hosted, linux, amd64, tiobe, jammy]
+    steps: 
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+      - name: generate coverage
+        run: |
+          go install github.com/t-yuki/gocover-cobertura@latest
+          go test -v ./... -coverprofile=coverage.out
+          gocover-cobertura < coverage.out > coverage.xml
+      - name: move results to necessary folder for TICS
+        run: |
+          mkdir .cover
+          mv coverage.xml .cover/coverage.xml
+      - name: Run TICS analysis with github-action
+        uses: tiobe/tics-github-action@88cb795a736d2ca885753bec6ed2c8b03e3f892f # v3
+        with:
+          mode: qserver
+          project: notary
+          branchdir: ${{ github.workspace }}
+          viewerUrl: https://canonical.tiobe.com/tiobeweb/TICS/api/cfg?name=default
+          ticsAuthToken: ${{ secrets.TICSAUTHTOKEN }}
+          installTics: true

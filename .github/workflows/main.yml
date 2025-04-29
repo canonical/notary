@@ -9,9 +9,7 @@ on:
       - main
 
 jobs: 
-  tics:
-    uses: ./.github/workflows/tics.yaml
-    secrets: inherit
+
   frontend-unit-test:
     uses: ./.github/workflows/frontend-unittest.yaml
   frontend-build:

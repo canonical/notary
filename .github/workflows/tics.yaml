@@ -17,7 +17,7 @@ jobs:
       - name: generate coverage
         run: |
           go install github.com/t-yuki/gocover-cobertura@latest
-          go install honnef.co/go/tools/cmd/staticcheck@v0.4.7
+          go install honnef.co/go/tools/cmd/staticcheck@v0.6.1
           go test -v ./... -coverprofile=coverage.out
           gocover-cobertura < coverage.out > coverage.xml
       - name: move results to necessary folder for TICS

@@ -1,0 +1,15 @@
+name: TiCS Static Analysis
+
+on:
+  schedule:
+    - cron: "0 3 * * 0" # Every Sunday at 3 am
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    uses: canonical/identity-credentials-workflows/.github/workflows/tics-tox.yaml@v0
+    with:
+      project: notary
+      dir: .
+    secrets:
+      TICSAUTHTOKEN: ${{ secrets.TICSAUTHTOKEN }}

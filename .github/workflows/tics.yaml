@@ -3,6 +3,7 @@ name: TiCS Static Analysis
 on:
   schedule:
     - cron: "0 3 * * 0" # Every Sunday at 3 am
+  workflow_dispatch:
 
 
 jobs:
@@ -16,6 +17,7 @@ jobs:
       - name: generate coverage
         run: |
           go install github.com/t-yuki/gocover-cobertura@latest
+          go install honnef.co/go/tools/cmd/staticcheck@v0.6.1
           go test -v ./... -coverprofile=coverage.out
           gocover-cobertura < coverage.out > coverage.xml
       - name: move results to necessary folder for TICS

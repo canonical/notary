@@ -35,7 +35,7 @@ git@github.com:canonical/notary.git
 Install the npm dependencies:
 
 ```bash
-npm install --prefix ui 
+npm install --prefix ui
 ```
 
 Build the frontend:
@@ -64,8 +64,22 @@ Create a `notary.yaml` file with the following content:
 key_path:  "key.pem"
 cert_path: "cert.pem"
 db_path: "notary.db"
+external_hostname: "localhost"
 port: 3000
 pebble_notifications: false
+
+# Logging configuration
+logging:
+  system:
+    level: "info"
+    output: "console" # can be "console" or a file path
+
+# Tracing configuration for OpenTelemetry
+tracing:
+  enabled: true
+  service_name: "notary" # Default service name
+  tempo_url: "tempo:4317" # Tempo endpoint for sending traces
+  sampling_rate: "100%" # Can be percentage (e.g., "10%") or decimal (e.g., "0.1")
 ```
 
 Run Notary:

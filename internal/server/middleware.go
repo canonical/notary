@@ -14,6 +14,9 @@ import (
 	"github.com/canonical/notary/internal/metrics"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -33,6 +36,7 @@ type middlewareContext struct {
 	responseStatusCode int
 	jwtSecret          []byte
 	logger             *zap.Logger
+	tracer             trace.Tracer
 }
 
 // createMiddlewareStack chains the given middleware functions to wrap the api.
@@ -99,6 +103,57 @@ func loggingMiddleware(ctx *middlewareContext) middleware {
 			}
 
 			ctx.responseStatusCode = clonedWriter.statusCode
+		})
+	}
+}
+
+// tracingMiddleware adds OpenTelemetry span creation and propagation to each request
+func tracingMiddleware(ctx *middlewareContext) middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Skip tracing for static files and metrics endpoint
+			if strings.HasPrefix(r.URL.Path, "/_next") || r.URL.Path == "/metrics" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Only trace if a tracer is configured
+			if ctx.tracer == nil {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			spanName := fmt.Sprintf("%s %s", r.Method, r.URL.Path)
+			spanCtx, span := ctx.tracer.Start(
+				r.Context(),
+				spanName,
+				trace.WithAttributes(
+					attribute.String("http.method", r.Method),
+					attribute.String("http.url", r.URL.String()),
+					attribute.String("http.host", r.Host),
+					attribute.String("http.user_agent", r.UserAgent()),
+				),
+			)
+			defer span.End()
+
+			// Create a response writer that records status code
+			clonedWriter := newResponseWriter(w)
+
+			// Update request with context containing span
+			r = r.WithContext(spanCtx)
+
+			// Call the next handler
+			next.ServeHTTP(clonedWriter, r)
+
+			// Add response attributes to span
+			span.SetAttributes(
+				attribute.Int("http.status_code", clonedWriter.statusCode),
+			)
+
+			// Mark span as error if status code is 4xx or 5xx
+			if clonedWriter.statusCode >= 400 {
+				span.SetStatus(codes.Error, http.StatusText(clonedWriter.statusCode))
+			}
 		})
 	}
 }

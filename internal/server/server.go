@@ -10,6 +10,9 @@ import (
 	"time"
 
 	"github.com/canonical/notary/internal/db"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -20,6 +23,7 @@ type HandlerConfig struct {
 	ExternalHostname        string
 	JWTSecret               []byte
 	SendPebbleNotifications bool
+	Tracer                  trace.Tracer
 }
 
 type NotificationKey int
@@ -57,7 +61,7 @@ func generateJWTSecret() ([]byte, error) {
 }
 
 // New creates an environment and an http server with handlers that Go can start listening to
-func New(port int, cert []byte, key []byte, dbPath string, externalHostname string, pebbleNotificationsEnabled bool, logger *zap.Logger) (*http.Server, error) {
+func New(port int, cert []byte, key []byte, dbPath string, externalHostname string, pebbleNotificationsEnabled bool, logger *zap.Logger, tracingEnabled bool) (*http.Server, error) {
 	serverCerts, err := tls.X509KeyPair(cert, key)
 	if err != nil {
 		return nil, err
@@ -77,6 +81,12 @@ func New(port int, cert []byte, key []byte, dbPath string, externalHostname stri
 	env.JWTSecret = jwtSecret
 	env.ExternalHostname = externalHostname
 	env.Logger = logger
+
+	// Set up tracer if tracing is enabled
+	if tracingEnabled {
+		env.Tracer = otel.Tracer("github.com/canonical/notary/server")
+	}
+
 	router := NewHandler(env)
 
 	stdErrLog, err := zap.NewStdLogAt(logger, zapcore.ErrorLevel)
@@ -84,12 +94,26 @@ func New(port int, cert []byte, key []byte, dbPath string, externalHostname stri
 		return nil, fmt.Errorf("failed to create logger for http server: %w", err)
 	}
 
+	var handler http.Handler = router
+
+	// Wrap with OpenTelemetry HTTP instrumentation if tracing is enabled
+	if tracingEnabled {
+		handler = otelhttp.NewHandler(
+			router,
+			"http_server",
+			otelhttp.WithMessageEvents(otelhttp.ReadEvents, otelhttp.WriteEvents),
+			otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
+				return fmt.Sprintf("%s %s", r.Method, r.URL.Path)
+			}),
+		)
+	}
+
 	s := &http.Server{
 		Addr:           fmt.Sprintf(":%d", port),
 		ErrorLog:       stdErrLog,
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
-		Handler:        router,
+		Handler:        handler,
 		MaxHeaderBytes: 1 << 20,
 		TLSConfig: &tls.Config{
 			MinVersion:   tls.VersionTLS12,

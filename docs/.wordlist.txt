@@ -19,4 +19,4 @@ yaml
 CRL
 Grafana
 OpenTelemetry
-URL
+url

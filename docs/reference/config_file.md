@@ -1,6 +1,6 @@
 # Configuration File
 
-Notary is configured using a YAML file. 
+Notary is configured using a YAML file.
 
 Start Notary with the `--config` flag to specify the path to the configuration file.
 
@@ -15,6 +15,13 @@ Start Notary with the `--config` flag to specify the path to the configuration f
   - `system` (object): Configuration for system logging.
     - `level` (string): The level of logging. Options are `debug`, `info`, `warn`, `error`, and `fatal`.
     - `output` (string): The output destination for logs. Options are `stdout`, `stderr`, or a file path.
+- `tracing` (object): Configuration for tracing.
+  - `enabled` (boolean): Whether tracing is enabled or not.
+  - `service_name` (string): The name that will identify your service in the tracing system
+  - `endpoint` (string): The URL of your OpenTelemetry collector endpoint
+  - `sampling_rate` (string): The percentage of traces to sample. Can be specified as a percentage (50%)
+  or a decimal value between 0.0 and 1.0 (0.0, 0.5, 1.0).
+
 
 ## Example
 
@@ -29,4 +36,9 @@ logging:
     level: "debug"
     output: "file"
     path: "notary.log"
+tracing:
+  enabled: true
+  service_name: "notary"
+  endpoint: "127.0.0.1:4317"
+  sampling_rate: "100%"
 ```

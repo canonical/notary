@@ -24,47 +24,62 @@ config-files: $(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE) $(ARTIFACT_FOLDER)/$(NOTA
 rock: $(ARTIFACT_FOLDER)/$(ROCK_ARTIFACT_NAME)
 	@echo "Built notary rock"
 
-.PHONY: deploy
 deploy: $(ARTIFACT_FOLDER)/$(ROCK_ARTIFACT_NAME)
+	@# Start notary container if it's not available
 	@if [ "$$(lxc list 2> /dev/null | grep notary > /dev/null; echo $$?)" = 1 ]; then \
 		echo "creating new notary VM instance in LXD"; \
 		lxc launch ubuntu:24.04 --vm notary; \
+		\
+		echo "waiting for the VM to start"; \
+		while [ "$$(lxc exec notary -- echo "hello" &> /dev/null; echo $$?)" = 0 ]; do sleep 2; done ;\
+	    sleep 10; \
+		\
+		echo "installing docker and rockcraft"; \
+		lxc exec notary -- snap install docker; \
+	    lxc exec notary -- snap install rockcraft --classic ;\
+		\
+		echo "pushing config files"; \
+		lxc file push $(ARTIFACT_FOLDER)/$(ROCK_ARTIFACT_NAME) notary/root/$(ROCK_ARTIFACT_NAME); \
+		lxc file push $(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE) notary/root/$(NOTARY_CONFIG_FILE); \
+		lxc file push $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) notary/root/$(NOTARY_TLS_CERT); \
+		lxc file push $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY) notary/root/$(NOTARY_TLS_KEY); \
 	fi
-	@echo "waiting for the VM to start"
-	@while [ "$$(lxc exec notary -- echo "hello" &> /dev/null; echo $$?)" = 0 ]; do sleep 2; done
-	sleep 10
-	lxc exec notary -- snap install docker --classic
-	lxc exec notary -- snap install rockcraft --classic
+
+	@# Deploy Jaeger if it hasn't been deployed yet
 	@if [ "$$(lxc exec notary -- docker ps 2> /dev/null | grep jaeger > /dev/null; echo $$?)" = 1 ]; then \
-		echo "creating and running jaeger in Docker"; \
-		lxc exec notary -- docker run --rm --name jaeger \
+	    echo "creating and running jaeger in Docker"; \
+		# The forwarded ports are, in order: \
+        # HTTP, /api/v3/*, OTLP-based JSON over HTTP (GUI) \
+        # gRPC, ExportTraceServiceRequest, OTLP Protobuf \
+		# HTTP, /v1/traces, OTLP Protobuf or OTLP JSON \
+		# HTTP, /sampling, sampling.proto_via Protobuf-to-JSON mapping_ \
+		# HTTP, /api/v2/spans, Zipkin v2 JSON or Protobuf \
+		lxc exec notary -- docker run -d --name jaeger \
 			--network host \
-  			-p 16686:16686 \ # HTTP, /api/v3/*, OTLP-based JSON over HTTP
-		    -p 4317:4317   \ # gRPC, ExportTraceServiceRequest, OTLP Protobuf
-		    -p 4318:4318   \ # HTTP, /v1/traces, OTLP Protobuf or OTLP JSON
-		    -p 5778:5778   \ # HTTP, /sampling, sampling.proto_via Protobuf-to-JSON mapping_
-		    -p 9411:9411   \ # HTTP, /api/v2/spans, Zipkin v2 JSON or Protobuf
+            -p 16686:16686 \
+		    -p 4317:4317   \
+		    -p 4318:4318   \
+		    -p 5778:5778   \
+		    -p 9411:9411   \
 		    jaegertracing/jaeger:2.6.0; \
 		sleep 10; \
 	fi
 
-	lxc file push $(ARTIFACT_FOLDER)/$(ROCK_ARTIFACT_NAME) notary/root/$(ROCK_ARTIFACT_NAME)
-	lxc file push $(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE) notary/root/config/$(NOTARY_CONFIG_FILE)
-	lxc file push $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) notary/root/config/$(NOTARY_TLS_CERT)
-	lxc file push $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY) notary/root/config/$(NOTARY_TLS_KEY)
-	@if [ "$$(lxc exec notary -- docker ps 2> /dev/null | grep notary > /dev/null; echo $$?)" = 0 ]; then \
+	@# Remove the old notary if it was still there
+	@if [ "$$(lxc exec notary -- docker ps -a 2> /dev/null | grep notary > /dev/null; echo $$?)" = 0 ]; then \
 		echo "removing old notary container"; \
 		lxc exec notary -- docker stop notary; \
 		lxc exec notary -- docker rm notary; \
 	fi
 
-	lxc exec notary -- rockcraft.skopeo --insecure-policy copy oci-archive:notary.rock docker-daemon:notary:latest
-	# lxc exec notary -- docker run -d \
-	# 	--name notary \
-	# 	-v /root:/config/webuicfg.yaml \
-	# 	--network host \
-	# 	notary:latest --verbose
-	# @echo "You can access notary at $$(lxc info nms | grep enp5s0 -A 15 | grep inet: | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'):2111"
+	lxc exec notary -- rockcraft.skopeo --insecure-policy copy oci-archive:$(ROCK_ARTIFACT_NAME) docker-daemon:notary:latest
+	lxc exec notary -- docker run -d \
+		--name notary \
+		-v /root:/config \
+		--network host \
+		-p 2111:2111 \
+		notary:latest --args notary -config /config/config.yaml;
+	@echo "You can access notary at $$(lxc info notary | grep enp5s0 -A 15 | grep inet: | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'):2111"
 
 # hotswap: artifacts/webconsole examples/config/webuicfg.yaml
 # 	@echo "make: replacing nms binary with new binary"
@@ -85,21 +100,21 @@ clean-vm:
 	-lxc delete notary
 
 $(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE):
-	@echo 'key_path: "key.pem"'         >> $@;\
-     echo 'cert_path: "cert.pem"'       >> $@;\
-     echo 'db_path: "notary.db"'        >> $@;\
-     echo 'port: 2111'                  >> $@;\
-	 echo 'pebble_notifications: true'  >> $@;\
-	 echo 'logging:'                    >> $@;\
-	 echo '  system:'                   >> $@;\
-	 echo '    level: "debug"'          >> $@;\
-	 echo '    output: "file"'          >> $@;\
-	 echo '    path: "notary.log"'      >> $@;\
-	 echo 'tracing:'                    >> $@;\
-	 echo '  enabled: true'             >> $@;\
-	 echo '  service_name: "notary"'    >> $@;\
-	 echo '  endpoint: "127.0.0.1:4317"'>> $@;\
-	 echo '  sampling_rate: "100%"'     >> $@
+	@echo 'key_path: "/config/key.pem"'    >> $@;\
+     echo 'cert_path: "/config/cert.pem"'  >> $@;\
+     echo 'db_path: "/config/notary.db"'   >> $@;\
+     echo 'port: 2111'                     >> $@;\
+	 echo 'pebble_notifications: true'     >> $@;\
+	 echo 'logging:'                       >> $@;\
+	 echo '  system:'                      >> $@;\
+	 echo '    level: "debug"'             >> $@;\
+	 echo '    output: "file"'             >> $@;\
+	 echo '    path: "/config/notary.log"' >> $@;\
+	 echo 'tracing:'                       >> $@;\
+	 echo '  enabled: true'                >> $@;\
+	 echo '  service_name: "notary"'       >> $@;\
+	 echo '  endpoint: "127.0.0.1:4317"'   >> $@;\
+	 echo '  sampling_rate: "100%"'        >> $@
 
 $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY):
 	openssl req -newkey rsa:2048 -nodes -keyout $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY) -x509 -days 1 -out $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) -subj "/CN=example.com"

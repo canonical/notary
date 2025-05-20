@@ -17,3 +17,6 @@ TLS
 UI
 yaml
 CRL
+Grafana
+OpenTelemetry
+URL

@@ -17,29 +17,9 @@ type User struct {
 	Permissions    int    `db:"permissions"`
 }
 
-const queryCreateUsersTable = `
-	CREATE TABLE IF NOT EXISTS users (
- 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-		username TEXT NOT NULL UNIQUE 
-			CHECK (trim(username) != ''),
-		hashed_password TEXT NOT NULL 
-			CHECK (trim(hashed_password) != ''),
-		permissions INTEGER CHECK (permissions IN (0,1))
-)`
-
-const (
-	listUsersStmt   = "SELECT &User.* from users"
-	getUserStmt     = "SELECT &User.* from users WHERE id==$User.id or username==$User.username"
-	createUserStmt  = "INSERT INTO users (username, hashed_password, permissions) VALUES ($User.username, $User.hashed_password, $User.permissions)"
-	updateUserStmt  = "UPDATE users SET hashed_password=$User.hashed_password WHERE id==$User.id or username==$User.username"
-	deleteUserStmt  = "DELETE FROM users WHERE id==$User.id"
-	getNumUsersStmt = "SELECT COUNT(*) AS &NumUsers.count FROM users"
-)
-
 // ListUsers returns all of the users and their fields available in the database.
 func (db *Database) ListUsers() ([]User, error) {
-	users, err := ListEntities[User](db, listUsersStmt)
+	users, err := ListEntities[User](db, db.stmts.ListUsers)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to list users", err)
 	}
@@ -59,7 +39,7 @@ func (db *Database) GetUser(filter UserFilter) (*User, error) {
 		return nil, fmt.Errorf("%w: user - both ID and Username are nil", ErrInvalidFilter)
 	}
 
-	user, err := GetOneEntity(db, getUserStmt, userRow)
+	user, err := GetOneEntity(db, db.stmts.GetUser, userRow)
 	if err != nil {
 		if errors.Is(err, sqlair.ErrNoRows) {
 			return nil, fmt.Errorf("%w: %s", ErrNotFound, "user")
@@ -81,10 +61,6 @@ func (db *Database) CreateUser(username string, password string, permission int)
 		}
 		return 0, fmt.Errorf("%w: failed to create user", ErrInternal)
 	}
-	stmt, err := sqlair.Prepare(createUserStmt, User{})
-	if err != nil {
-		return 0, fmt.Errorf("%w: failed to create user due to sql compilation error", ErrInternal)
-	}
 	row := User{
 		Username:       username,
 		HashedPassword: pw,
@@ -95,7 +71,7 @@ func (db *Database) CreateUser(username string, password string, permission int)
 		return 0, fmt.Errorf("%w: %e", ErrInvalidInput, err)
 	}
 	var outcome sqlair.Outcome
-	err = db.conn.Query(context.Background(), stmt, row).Get(&outcome)
+	err = db.conn.Query(context.Background(), db.stmts.CreateUser, row).Get(&outcome)
 	if err != nil {
 		if IsConstraintError(err, "UNIQUE constraint failed") {
 			return 0, fmt.Errorf("%w: username already exists", ErrAlreadyExists)
@@ -123,12 +99,8 @@ func (db *Database) UpdateUserPassword(filter UserFilter, password string) error
 		}
 		return fmt.Errorf("%w: failed to hash password", ErrInternal)
 	}
-	stmt, err := sqlair.Prepare(updateUserStmt, User{})
-	if err != nil {
-		return fmt.Errorf("%w: failed to update user due to sql compilation error", ErrInternal)
-	}
 	userRow.HashedPassword = hashedPassword
-	err = db.conn.Query(context.Background(), stmt, userRow).Run()
+	err = db.conn.Query(context.Background(), db.stmts.UpdateUser, userRow).Run()
 	if err != nil {
 		return fmt.Errorf("%w: failed to update user", ErrInternal)
 	}
@@ -141,11 +113,7 @@ func (db *Database) DeleteUser(filter UserFilter) error {
 	if err != nil {
 		return err
 	}
-	stmt, err := sqlair.Prepare(deleteUserStmt, User{})
-	if err != nil {
-		return fmt.Errorf("%w: failed to delete user due to sql compilation error", ErrInternal)
-	}
-	err = db.conn.Query(context.Background(), stmt, userRow).Run()
+	err = db.conn.Query(context.Background(), db.stmts.DeleteUser, userRow).Run()
 	if err != nil {
 		return fmt.Errorf("%w: failed to delete user", ErrInternal)
 	}
@@ -158,12 +126,8 @@ type NumUsers struct {
 
 // NumUsers returns the number of users in the database.
 func (db *Database) NumUsers() (int, error) {
-	stmt, err := sqlair.Prepare(getNumUsersStmt, NumUsers{})
-	if err != nil {
-		return 0, fmt.Errorf("%w: failed to get number of users due to sql compilation error", ErrInternal)
-	}
 	result := NumUsers{}
-	err = db.conn.Query(context.Background(), stmt).Get(&result)
+	err := db.conn.Query(context.Background(), db.stmts.GetNumUsers).Get(&result)
 	if err != nil {
 		return 0, fmt.Errorf("%w: failed to get number of users", ErrInternal)
 	}

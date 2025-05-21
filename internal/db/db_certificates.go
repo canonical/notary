@@ -16,42 +16,9 @@ type Certificate struct {
 	CertificatePEM string `db:"certificate"`
 }
 
-const queryCreateCertificatesTable = `
-	CREATE TABLE IF NOT EXISTS certificates (
-	    certificate_id INTEGER PRIMARY KEY AUTOINCREMENT,
-		issuer_id INTEGER,
-
-		certificate TEXT NOT NULL UNIQUE
-)`
-
-const (
-	createCertificateStmt   = "INSERT INTO certificates (certificate, issuer_id) VALUES ($Certificate.certificate, $Certificate.issuer_id)"
-	addCertificateToCSRStmt = "UPDATE certificates SET certificate_id=$Certificate.certificate_id, status=$CertificateRequest.status WHERE id==$CertificateRequest.id or csr==$CertificateRequest.csr"
-	getCertificateStmt      = "SELECT &Certificate.* FROM certificates WHERE certificate_id==$Certificate.certificate_id or certificate==$Certificate.certificate"
-	updateCertificateStmt   = "UPDATE certificates SET issuer_id=$Certificate.issuer_id WHERE certificate_id==$Certificate.certificate_id or certificate==$Certificate.certificate"
-	listCertificatesStmt    = "SELECT &Certificate.* FROM certificates"
-	deleteCertificateStmt   = "DELETE FROM certificates WHERE certificate_id=$Certificate.certificate_id or certificate=$Certificate.certificate"
-
-	getCertificateChainStmt = `WITH RECURSIVE cert_chain AS (
-    -- Initial query: Start search from the end certificate
-    SELECT certificate_id, certificate, issuer_id
-    FROM certificates
-    WHERE certificate_id = $Certificate.certificate_id or certificate = $Certificate.certificate
-    
-    UNION ALL
-    
-    -- Recursive Query: Move up the chain until issuer_id is 0 (root)
-    SELECT certs.certificate_id, certs.certificate, certs.issuer_id
-    FROM certificates certs
-    JOIN cert_chain
-      ON certs.certificate_id = cert_chain.issuer_id
-)
-SELECT &Certificate.* FROM cert_chain;`
-)
-
 // ListCertificateRequests gets every CertificateRequest entry in the table.
 func (db *Database) ListCertificates() ([]Certificate, error) {
-	certs, err := ListEntities[Certificate](db, listCertificatesStmt)
+	certs, err := ListEntities[Certificate](db, db.stmts.ListCertificates)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to list certificates", err)
 	}
@@ -71,7 +38,7 @@ func (db *Database) GetCertificate(filter CertificateFilter) (*Certificate, erro
 		return nil, fmt.Errorf("%w: certificate - both ID and PEM are nil", ErrInvalidFilter)
 	}
 
-	cert, err := GetOneEntity[Certificate](db, getCertificateStmt, certRow)
+	cert, err := GetOneEntity[Certificate](db, db.stmts.GetCertificate, certRow)
 	if err != nil {
 		if errors.Is(err, sqlair.ErrNoRows) {
 			return nil, fmt.Errorf("%w: %s", ErrNotFound, "certificate")
@@ -106,12 +73,8 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 			CertificatePEM: certBundle[0],
 		}
 		// Create the certificate
-		stmt, err := sqlair.Prepare(createCertificateStmt, Certificate{})
-		if err != nil {
-			return 0, fmt.Errorf("%w: failed to create certificate due to sql compilation error", ErrInternal)
-		}
 		var outcome sqlair.Outcome
-		err = db.conn.Query(context.Background(), stmt, certRow).Get(&outcome)
+		err = db.conn.Query(context.Background(), db.stmts.CreateCertificate, certRow).Get(&outcome)
 		if err != nil {
 			if IsConstraintError(err, "UNIQUE constraint failed") {
 				return 0, fmt.Errorf("%w: certificate already exists", ErrAlreadyExists)
@@ -130,19 +93,11 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 				IssuerID:       parentID,
 				CertificatePEM: v,
 			}
-			stmt, err := sqlair.Prepare(getCertificateStmt, Certificate{})
-			if err != nil {
-				return 0, fmt.Errorf("%w: failed to get certificate due to sql compilation error", ErrInternal)
-			}
-			err = db.conn.Query(context.Background(), stmt, certRow).Get(&certRow)
+			err = db.conn.Query(context.Background(), db.stmts.GetCertificate, certRow).Get(&certRow)
 			childID := certRow.CertificateID
 			if err == sqlair.ErrNoRows {
-				stmt, err = sqlair.Prepare(createCertificateStmt, Certificate{})
-				if err != nil {
-					return 0, fmt.Errorf("%w: failed to create certificate due to sql compilation error", ErrInternal)
-				}
 				var outcome sqlair.Outcome
-				err = db.conn.Query(context.Background(), stmt, certRow).Get(&outcome)
+				err = db.conn.Query(context.Background(), db.stmts.CreateCertificate, certRow).Get(&outcome)
 				if err != nil {
 					if IsConstraintError(err, "UNIQUE constraint failed") {
 						return 0, fmt.Errorf("%w: certificate already exists", ErrAlreadyExists)
@@ -159,16 +114,12 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 			parentID = childID
 		}
 	}
-	stmt, err := sqlair.Prepare(updateCertificateRequestStmt, CertificateRequest{})
-	if err != nil {
-		return 0, fmt.Errorf("%w: failed to add certificate chain to certificate request due to sql compilation error", ErrInternal)
-	}
 	newRow := CertificateRequest{
 		CSR:           csr.CSR,
 		CertificateID: parentID,
 		Status:        "Active",
 	}
-	err = db.conn.Query(context.Background(), stmt, newRow).Run()
+	err = db.conn.Query(context.Background(), db.stmts.UpdateCertificateRequest, newRow).Run()
 	if err != nil {
 		return 0, fmt.Errorf("%w: failed to add certificate chain to certificate request", ErrInternal)
 	}
@@ -181,11 +132,7 @@ func (db *Database) DeleteCertificate(filter CertificateFilter) error {
 	if err != nil {
 		return err
 	}
-	stmt, err := sqlair.Prepare(deleteCertificateStmt, Certificate{})
-	if err != nil {
-		return fmt.Errorf("%w: failed to delete certificate due to sql compilation error", ErrInternal)
-	}
-	err = db.conn.Query(context.Background(), stmt, certRow).Run()
+	err = db.conn.Query(context.Background(), db.stmts.DeleteCertificate, certRow).Run()
 	if err != nil {
 		return fmt.Errorf("%w: failed to delete certificate", ErrInternal)
 	}
@@ -205,12 +152,8 @@ func (db *Database) GetCertificateChain(filter CertificateFilter) ([]Certificate
 		return nil, fmt.Errorf("%w: certificate - both ID and PEM are nil", ErrInvalidFilter)
 	}
 
-	stmt, err := sqlair.Prepare(getCertificateChainStmt, Certificate{})
-	if err != nil {
-		return nil, fmt.Errorf("%w: failed to get certificate chain due to sql compilation error", ErrInternal)
-	}
 	var certChain []Certificate
-	err = db.conn.Query(context.Background(), stmt, certRow).GetAll(&certChain)
+	err := db.conn.Query(context.Background(), db.stmts.GetCertificateChain, certRow).GetAll(&certChain)
 	if err != nil {
 		if errors.Is(err, sqlair.ErrNoRows) {
 			return nil, fmt.Errorf("%w: certificate chain not found", ErrNotFound)

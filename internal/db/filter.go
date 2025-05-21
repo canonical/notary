@@ -92,6 +92,7 @@ func (filter *CertificateAuthorityFilter) AsCertificateAuthority() (*Certificate
 	}
 	return &CARow, nil
 }
+
 func (filter *CertificateAuthorityFilter) AsCertificateAuthorityDenormalized() (*CertificateAuthorityDenormalized, error) {
 	var CADenormalizedRow CertificateAuthorityDenormalized
 

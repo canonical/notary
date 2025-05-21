@@ -7,10 +7,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/canonical/notary/internal/config"
 	l "github.com/canonical/notary/internal/logger"
 	"github.com/canonical/notary/internal/server"
+	"github.com/canonical/notary/internal/trace"
 	"go.uber.org/zap"
 )
 
@@ -29,7 +31,21 @@ func main() {
 	if err != nil {
 		log.Fatalf("Couldn't create logger: %s", err)
 	}
-	srv, err := server.New(conf.Port, conf.Cert, conf.Key, conf.DBPath, conf.ExternalHostname, conf.PebbleNotificationsEnabled, logger)
+
+	// Set up tracing if enabled
+	tracerShutdown, err := trace.SetupTracing(context.Background(), &conf.Tracing, logger)
+	if err != nil {
+		logger.Fatal("Couldn't set up tracing", zap.Error(err))
+	}
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := tracerShutdown(shutdownCtx); err != nil {
+			logger.Error("Failed to shutdown tracer provider", zap.Error(err))
+		}
+	}()
+
+	srv, err := server.New(conf.Port, conf.Cert, conf.Key, conf.DBPath, conf.ExternalHostname, conf.PebbleNotificationsEnabled, logger, conf.Tracing.Enabled)
 	if err != nil {
 		logger.Fatal("Couldn't create server", zap.Error(err))
 	}

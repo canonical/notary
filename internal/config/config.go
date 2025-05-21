@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 
 	"gopkg.in/yaml.v3"
 )
@@ -18,6 +19,13 @@ type LoggingConfigYaml struct {
 	System SystemLoggingConfigYaml `yaml:"system"`
 }
 
+type TracingConfigYaml struct {
+	Enabled      bool   `yaml:"enabled"`
+	ServiceName  string `yaml:"service_name"`
+	TempoURL     string `yaml:"endpoint"`
+	SamplingRate string `yaml:"sampling_rate"`
+}
+
 type ConfigYAML struct {
 	KeyPath             string            `yaml:"key_path"`
 	CertPath            string            `yaml:"cert_path"`
@@ -26,6 +34,7 @@ type ConfigYAML struct {
 	Port                int               `yaml:"port"`
 	PebbleNotifications bool              `yaml:"pebble_notifications"`
 	Logging             LoggingConfigYaml `yaml:"logging"`
+	Tracing             TracingConfigYaml `yaml:"tracing"`
 }
 
 type LoggingLevel string
@@ -48,6 +57,13 @@ type Logging struct {
 	System SystemLoggingConfig
 }
 
+type Tracing struct {
+	Enabled      bool
+	ServiceName  string
+	TempoURL     string
+	SamplingRate float64
+}
+
 type Config struct {
 	Key                        []byte
 	Cert                       []byte
@@ -56,9 +72,44 @@ type Config struct {
 	Port                       int
 	PebbleNotificationsEnabled bool
 	Logging                    Logging
+	Tracing                    Tracing
 }
 
 // Validate opens and processes the given yaml file, and catches errors in the process
+// parseSamplingRate converts a string sampling rate (percentage or decimal) to a float64
+func parseSamplingRate(rate string) (float64, error) {
+	// Try to parse as a float first
+	samplingRate, err := strconv.ParseFloat(rate, 64)
+	if err == nil {
+		// Check if the value is between 0 and 1 inclusive
+		if samplingRate < 0 || samplingRate > 1 {
+			return 0, fmt.Errorf("sampling rate must be between 0 and 1, got %f", samplingRate)
+		}
+		return samplingRate, nil
+	}
+
+	// If parsing as float failed, check if it's a percentage string
+	if len(rate) > 1 && rate[len(rate)-1] == '%' {
+		// Remove % and parse as float
+		percentage, err := strconv.ParseFloat(rate[:len(rate)-1], 64)
+		if err != nil {
+			return 0, fmt.Errorf("invalid sampling rate format: %s", rate)
+		}
+
+		// Convert percentage to decimal
+		samplingRate = percentage / 100.0
+
+		// Check if the value is between 0 and 1 inclusive
+		if samplingRate < 0 || samplingRate > 1 {
+			return 0, fmt.Errorf("sampling rate percentage must be between 0%% and 100%%, got %s", rate)
+		}
+
+		return samplingRate, nil
+	}
+
+	return 0, fmt.Errorf("invalid sampling rate format: %s", rate)
+}
+
 func Validate(filePath string) (Config, error) {
 	config := Config{}
 	configYaml, err := os.ReadFile(filePath) // #nosec: G304
@@ -135,6 +186,21 @@ func Validate(filePath string) (Config, error) {
 		return Config{}, fmt.Errorf("`output` is empty in logging config")
 	}
 
+	// Set tracing defaults if not provided
+	if c.Tracing.ServiceName == "" {
+		c.Tracing.ServiceName = "notary"
+	}
+
+	// Default sampling rate to 1.0 (100%) if not specified
+	samplingRate := 1.0
+	if c.Tracing.SamplingRate != "" {
+		var err error
+		samplingRate, err = parseSamplingRate(c.Tracing.SamplingRate)
+		if err != nil {
+			return Config{}, err
+		}
+	}
+
 	config.Cert = cert
 	config.Key = key
 	config.ExternalHostname = c.ExternalHostname
@@ -143,5 +209,9 @@ func Validate(filePath string) (Config, error) {
 	config.PebbleNotificationsEnabled = c.PebbleNotifications
 	config.Logging.System.Level = LoggingLevel(c.Logging.System.Level)
 	config.Logging.System.Output = c.Logging.System.Output
+	config.Tracing.Enabled = c.Tracing.Enabled
+	config.Tracing.ServiceName = c.Tracing.ServiceName
+	config.Tracing.TempoURL = c.Tracing.TempoURL
+	config.Tracing.SamplingRate = samplingRate
 	return config, nil
 }

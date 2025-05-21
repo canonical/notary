@@ -9,14 +9,6 @@ import (
 	"github.com/canonical/sqlair"
 )
 
-type User struct {
-	ID int64 `db:"id"`
-
-	Username       string `db:"username"`
-	HashedPassword string `db:"hashed_password"`
-	Permissions    int    `db:"permissions"`
-}
-
 // ListUsers returns all of the users and their fields available in the database.
 func (db *Database) ListUsers() ([]User, error) {
 	users, err := ListEntities[User](db, db.stmts.ListUsers)

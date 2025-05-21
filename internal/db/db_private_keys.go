@@ -8,12 +8,6 @@ import (
 	"github.com/canonical/sqlair"
 )
 
-type PrivateKey struct {
-	PrivateKeyID int64 `db:"private_key_id"`
-
-	PrivateKeyPEM string `db:"private_key"`
-}
-
 // ListPrivateKeys gets every PrivateKey entry in the table.
 func (db *Database) ListPrivateKeys() ([]PrivateKey, error) {
 	privateKeys, err := ListEntities[PrivateKey](db, db.stmts.ListPrivateKeys)

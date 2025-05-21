@@ -8,22 +8,6 @@ import (
 	"github.com/canonical/sqlair"
 )
 
-type CertificateRequest struct {
-	CSR_ID int64 `db:"csr_id"`
-
-	CSR           string `db:"csr"`
-	Status        string `db:"status"`
-	CertificateID int64  `db:"certificate_id"`
-}
-
-type CertificateRequestWithChain struct {
-	CSR_ID int64 `db:"csr_id"`
-
-	CSR              string `db:"csr"`
-	Status           string `db:"status"`
-	CertificateChain string `db:"certificate_chain"`
-}
-
 // ListCertificateRequests gets every CertificateRequest entry in the table.
 func (db *Database) ListCertificateRequests() ([]CertificateRequest, error) {
 	csrs, err := ListEntities[CertificateRequest](db, db.stmts.ListCertificateRequests)

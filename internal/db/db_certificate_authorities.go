@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/x509"
-	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -14,61 +13,6 @@ import (
 
 	"github.com/canonical/sqlair"
 )
-
-const expiryYears = 1
-
-type CAStatus string
-
-func (ca CAStatus) String() string {
-	return string(ca)
-}
-
-func (ca CAStatus) MarshalJSON() ([]byte, error) {
-	return json.Marshal(ca.String())
-}
-
-const (
-	CAActive  CAStatus = "active"
-	CAExpired CAStatus = "expired"
-	CAPending CAStatus = "pending"
-	CALegacy  CAStatus = "legacy"
-)
-
-func NewStatusFromString(s string) (CAStatus, error) {
-	statuses := map[CAStatus]struct{}{
-		CAActive:  {},
-		CAExpired: {},
-		CAPending: {},
-		CALegacy:  {},
-	}
-
-	status := CAStatus(s)
-	_, ok := statuses[status]
-	if !ok {
-		return "", fmt.Errorf("invalid status: status must be one of %s, %s, %s, %s", CAActive, CAExpired, CAPending, CALegacy)
-	}
-	return status, nil
-}
-
-type CertificateAuthority struct {
-	CertificateAuthorityID int64 `db:"certificate_authority_id"`
-
-	CRL    string   `db:"crl"`
-	Status CAStatus `db:"status"`
-
-	PrivateKeyID  int64 `db:"private_key_id"`
-	CertificateID int64 `db:"certificate_id"`
-	CSRID         int64 `db:"csr_id"`
-}
-
-type CertificateAuthorityDenormalized struct {
-	CertificateAuthorityID int64    `db:"certificate_authority_id"`
-	CRL                    string   `db:"crl"`
-	Status                 CAStatus `db:"status"`
-	PrivateKeyPEM          string   `db:"private_key"`
-	CertificateChain       string   `db:"certificate_chain"`
-	CSRPEM                 string   `db:"csr"`
-}
 
 // ListCertificateAuthorities gets every Certificate Authority entry in the table.
 func (db *Database) ListCertificateAuthorities() ([]CertificateAuthority, error) {
@@ -203,7 +147,7 @@ func (db *Database) UpdateCertificateAuthorityCertificate(filter CertificateAuth
 		newCRLBytes, err := x509.CreateRevocationList(rand.Reader, &x509.RevocationList{
 			Number:     big.NewInt(time.Now().UnixNano()),
 			ThisUpdate: time.Now(),
-			NextUpdate: time.Now().AddDate(expiryYears, 0, 0),
+			NextUpdate: time.Now().AddDate(CAMaxExpiryYears, 0, 0),
 		}, certChain[0], pk)
 		if err != nil {
 			return err
@@ -330,7 +274,7 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 		// Add standard certificate fields
 		SerialNumber: big.NewInt(time.Now().UnixNano()),
 		NotBefore:    time.Now(),
-		NotAfter:     time.Now().AddDate(expiryYears, 0, 0),
+		NotAfter:     time.Now().AddDate(CAMaxExpiryYears, 0, 0),
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 

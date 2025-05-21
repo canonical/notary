@@ -9,13 +9,6 @@ import (
 	"github.com/canonical/sqlair"
 )
 
-type Certificate struct {
-	CertificateID int64 `db:"certificate_id"`
-	IssuerID      int64 `db:"issuer_id"` // if the issuer id == certificate_id, then this is a self-signed certificate
-
-	CertificatePEM string `db:"certificate"`
-}
-
 // ListCertificateRequests gets every CertificateRequest entry in the table.
 func (db *Database) ListCertificates() ([]Certificate, error) {
 	certs, err := ListEntities[Certificate](db, db.stmts.ListCertificates)

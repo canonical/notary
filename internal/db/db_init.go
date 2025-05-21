@@ -35,6 +35,9 @@ func NewDatabase(databasePath string) (*Database, error) {
 	if err != nil {
 		return nil, err
 	}
+	if _, err := sqlConnection.Exec("PRAGMA foreign_keys = ON;"); err != nil {
+		return nil, err
+	}
 	if _, err := sqlConnection.Exec(queryCreateCertificateRequestsTable); err != nil {
 		return nil, err
 	}

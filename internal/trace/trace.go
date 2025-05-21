@@ -27,12 +27,12 @@ func SetupTracing(ctx context.Context, cfg *config.Tracing, logger *zap.Logger) 
 	}
 
 	if cfg.TempoURL == "" {
-		return nil, fmt.Errorf("tracing is enabled but tempo_url is not configured")
+		return nil, fmt.Errorf("tracing is enabled but endpoint is not configured")
 	}
 
 	logger.Info("Setting up tracing",
 		zap.String("service_name", cfg.ServiceName),
-		zap.String("tempo_url", cfg.TempoURL),
+		zap.String("endpoint", cfg.TempoURL),
 		zap.Float64("sampling_rate", cfg.SamplingRate))
 
 	// Create OTLP exporter
@@ -40,7 +40,7 @@ func SetupTracing(ctx context.Context, cfg *config.Tracing, logger *zap.Logger) 
 		otlptracegrpc.WithEndpoint(cfg.TempoURL),
 		otlptracegrpc.WithInsecure(), // For simplicity, consider adding TLS for production
 	)
-	
+
 	exporter, err := otlptrace.New(ctx, client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create trace exporter: %w", err)
@@ -60,7 +60,7 @@ func SetupTracing(ctx context.Context, cfg *config.Tracing, logger *zap.Logger) 
 	// Configure trace provider with sampling rate
 	tp := sdktrace.NewTracerProvider(
 		sdktrace.WithSampler(sdktrace.TraceIDRatioBased(cfg.SamplingRate)),
-		sdktrace.WithBatcher(exporter, 
+		sdktrace.WithBatcher(exporter,
 			sdktrace.WithBatchTimeout(5*time.Second),
 			sdktrace.WithMaxExportBatchSize(512),
 		),

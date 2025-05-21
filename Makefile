@@ -9,7 +9,6 @@ NOTARY_TLS_CERT := cert.pem
 NOTARY_TLS_KEY := key.pem
 ROCK_ARTIFACT_NAME := notary.rock
 
-
 $(shell mkdir -p $(ARTIFACT_FOLDER))
 
 .PHONY: notary
@@ -24,25 +23,34 @@ config-files: $(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE) $(ARTIFACT_FOLDER)/$(NOTA
 rock: $(ARTIFACT_FOLDER)/$(ROCK_ARTIFACT_NAME)
 	@echo "Built notary rock"
 
+.PHONY: hotswap
+hotswap:
+	@echo "make: replacing notary binary with new binary"
+	lxc file push artifacts/notary notary/root/
+	lxc exec notary -- docker cp ./notary notary:/bin/notary
+	lxc exec notary -- docker exec notary pebble restart notary
+
 deploy: $(ARTIFACT_FOLDER)/$(ROCK_ARTIFACT_NAME)
 	@# Start notary container if it's not available
 	@if [ "$$(lxc list 2> /dev/null | grep notary > /dev/null; echo $$?)" = 1 ]; then \
-		echo "creating new notary VM instance in LXD"; \
+		echo "Creating new notary VM instance in LXD"; \
 		lxc launch ubuntu:24.04 --vm notary; \
 		\
-		echo "waiting for the VM to start"; \
-		while [ "$$(lxc exec notary -- echo "hello" &> /dev/null; echo $$?)" = 0 ]; do sleep 2; done ;\
-	    sleep 10; \
+		echo "Waiting for the VM to start"; \
+		while [ "$$(lxc exec notary -- echo "VM ready" &> /dev/null; echo $$?)" = 0 ]; do sleep 2; done ;\
 		\
-		echo "installing docker and rockcraft"; \
-		lxc exec notary -- snap install docker; \
-	    lxc exec notary -- snap install rockcraft --classic ;\
-		\
-		echo "pushing config files"; \
+		echo "Pushing config files"; \
 		lxc file push $(ARTIFACT_FOLDER)/$(ROCK_ARTIFACT_NAME) notary/root/$(ROCK_ARTIFACT_NAME); \
 		lxc file push $(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE) notary/root/$(NOTARY_CONFIG_FILE); \
 		lxc file push $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) notary/root/$(NOTARY_TLS_CERT); \
 		lxc file push $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY) notary/root/$(NOTARY_TLS_KEY); \
+		\
+		echo "Waiting for snap to be available"; \
+		while [ "$$(lxc exec notary -- snap info docker &> /dev/null ; echo $$?)" = 0 ]; do sleep 2; done ;\
+		\
+		echo "Installing docker and rockcraft"; \
+		lxc exec notary -- snap install docker; \
+	    lxc exec notary -- snap install rockcraft --classic; \
 	fi
 
 	@# Deploy Jaeger if it hasn't been deployed yet
@@ -81,12 +89,6 @@ deploy: $(ARTIFACT_FOLDER)/$(ROCK_ARTIFACT_NAME)
 		notary:latest --args notary -config /config/config.yaml;
 	@echo "You can access notary at $$(lxc info notary | grep enp5s0 -A 15 | grep inet: | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'):2111"
 
-# hotswap: artifacts/webconsole examples/config/webuicfg.yaml
-# 	@echo "make: replacing nms binary with new binary"
-# 	lxc file push artifacts/notary notary/root/
-# 	lxc exec notary -- docker cp ./notary nms:/bin/notary
-# 	lxc exec notary -- docker exec notary pebble restart notary
-
 logs:
 	lxc exec notary -- docker logs notary --tail 20
 
@@ -108,8 +110,7 @@ $(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE):
 	 echo 'logging:'                       >> $@;\
 	 echo '  system:'                      >> $@;\
 	 echo '    level: "debug"'             >> $@;\
-	 echo '    output: "file"'             >> $@;\
-	 echo '    path: "/config/notary.log"' >> $@;\
+	 echo '    output: "stdout"'           >> $@;\
 	 echo 'tracing:'                       >> $@;\
 	 echo '  enabled: true'                >> $@;\
 	 echo '  service_name: "notary"'       >> $@;\

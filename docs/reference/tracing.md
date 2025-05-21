@@ -10,7 +10,7 @@ To enable tracing in Notary, add the following configuration to your YAML config
 tracing:
   enabled: true
   service_name: "notary"  # Optional, defaults to "notary"
-  tempo_url: "tempo:4317" # Required if enabled, the OpenTelemetry gRPC endpoint
+  endpoint: "tempo:4317" # Required if enabled, the OpenTelemetry gRPC endpoint
   sampling_rate: "100%"   # Optional, defaults to 100% (1.0)
 ```
 
@@ -18,7 +18,7 @@ tracing:
 
 - **enabled**: Set to `true` to enable tracing, `false` to disable it
 - **service_name**: The name that will identify your service in the tracing system
-- **tempo_url**: The URL of your Tempo (or other OpenTelemetry collector) endpoint
+- **endpoint**: The URL of your Tempo (or other OpenTelemetry collector) endpoint
 - **sampling_rate**: The percentage of traces to sample. Can be specified as:
   - A percentage (e.g., "10%", "50%", "100%")
   - A decimal value between 0.0 and 1.0 (e.g., "0.1", "0.5", "1.0")
@@ -67,7 +67,7 @@ Notary's tracing implementation tracks HTTP requests through the system, includi
 If traces are not appearing in your visualization tool:
 
 1. Verify that tracing is enabled in your configuration
-2. Check that the `tempo_url` is correct and accessible from your Notary instance
+2. Check that the `endpoint` is correct and accessible from your Notary instance
 3. Examine the Notary logs for any errors related to tracing
 4. Ensure that your sampling rate is high enough to capture traces (set to "100%" for testing)
 

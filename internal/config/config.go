@@ -22,7 +22,7 @@ type LoggingConfigYaml struct {
 type TracingConfigYaml struct {
 	Enabled      bool   `yaml:"enabled"`
 	ServiceName  string `yaml:"service_name"`
-	TempoURL     string `yaml:"tempo_url"`
+	TempoURL     string `yaml:"endpoint"`
 	SamplingRate string `yaml:"sampling_rate"`
 }
 
@@ -87,7 +87,7 @@ func parseSamplingRate(rate string) (float64, error) {
 		}
 		return samplingRate, nil
 	}
-	
+
 	// If parsing as float failed, check if it's a percentage string
 	if len(rate) > 1 && rate[len(rate)-1] == '%' {
 		// Remove % and parse as float
@@ -95,18 +95,18 @@ func parseSamplingRate(rate string) (float64, error) {
 		if err != nil {
 			return 0, fmt.Errorf("invalid sampling rate format: %s", rate)
 		}
-		
+
 		// Convert percentage to decimal
 		samplingRate = percentage / 100.0
-		
+
 		// Check if the value is between 0 and 1 inclusive
 		if samplingRate < 0 || samplingRate > 1 {
 			return 0, fmt.Errorf("sampling rate percentage must be between 0%% and 100%%, got %s", rate)
 		}
-		
+
 		return samplingRate, nil
 	}
-	
+
 	return 0, fmt.Errorf("invalid sampling rate format: %s", rate)
 }
 

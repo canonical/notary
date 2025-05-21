@@ -78,7 +78,7 @@ logging:
 tracing:
   enabled: true
   service_name: "notary" # Default service name
-  tempo_url: "tempo:4317" # Tempo endpoint for sending traces
+  endpoint: "tempo:4317" # Tempo endpoint for sending traces
   sampling_rate: "100%" # Can be percentage (e.g., "10%") or decimal (e.g., "0.1")
 ```
 

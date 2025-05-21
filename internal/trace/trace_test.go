@@ -37,7 +37,7 @@ func TestSetupTracingEnabledButMissingTempoURL(t *testing.T) {
 
 	_, err := SetupTracing(context.Background(), cfg, logger)
 	if err == nil {
-		t.Fatal("Expected error when tracing is enabled but tempo_url is missing")
+		t.Fatal("Expected error when tracing is enabled but endpoint is missing")
 	}
 }
 

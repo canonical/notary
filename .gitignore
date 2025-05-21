@@ -1,5 +1,6 @@
 *.db
 *config.yaml
+artifacts/**
 
 .DS_Store
 

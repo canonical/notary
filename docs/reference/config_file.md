@@ -27,6 +27,5 @@ pebble_notifications: true
 logging:
   system:
     level: "debug"
-    output: "file"
-    path: "notary.log"
+    output: "var/lib/notary/logs/notary.log"
 ```

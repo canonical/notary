@@ -46,18 +46,12 @@ func (db *Database) ListCertificateRequestWithCertificatesWithoutCAS() ([]Certif
 
 // GetCertificateRequestByID gets a CSR row from the repository from a given ID.
 func (db *Database) GetCertificateRequest(filter CSRFilter) (*CertificateRequest, error) {
-	var csrRow CertificateRequest
-
-	switch {
-	case filter.ID != nil:
-		csrRow = CertificateRequest{CSR_ID: *filter.ID}
-	case filter.PEM != nil:
-		csrRow = CertificateRequest{CSR: *filter.PEM}
-	default:
-		return nil, fmt.Errorf("%w: certificate request - both ID and PEM are nil", ErrInvalidFilter)
+	csrRow, err := filter.AsCertificateRequest()
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to get certificate request", err)
 	}
 
-	csr, err := GetOneEntity[CertificateRequest](db, db.stmts.GetCertificateRequest, csrRow)
+	csr, err := GetOneEntity[CertificateRequest](db, db.stmts.GetCertificateRequest, *csrRow)
 	if err != nil {
 		if errors.Is(err, sqlair.ErrNoRows) {
 			return nil, fmt.Errorf("%w: %s", ErrNotFound, "certificate request")
@@ -69,25 +63,19 @@ func (db *Database) GetCertificateRequest(filter CSRFilter) (*CertificateRequest
 
 // GetCertificateRequestAndChain gets a CSR row from the repository from a given ID.
 func (db *Database) GetCertificateRequestAndChain(filter CSRFilter) (*CertificateRequestWithChain, error) {
-	var csrRow CertificateRequestWithChain
-
-	switch {
-	case filter.ID != nil:
-		csrRow = CertificateRequestWithChain{CSR_ID: *filter.ID}
-	case filter.PEM != nil:
-		csrRow = CertificateRequestWithChain{CSR: *filter.PEM}
-	default:
-		return nil, fmt.Errorf("%w: certificate request - both ID and PEM are nil", ErrInvalidFilter)
+	csrRow, err := filter.AsCertificateRequestWithChain()
+	if err != nil {
+		return nil, err
 	}
 
-	err := db.conn.Query(context.Background(), db.stmts.GetCertificateRequestWithChain, csrRow).Get(&csrRow)
+	err = db.conn.Query(context.Background(), db.stmts.GetCertificateRequestWithChain, *csrRow).Get(csrRow)
 	if err != nil {
 		if errors.Is(err, sqlair.ErrNoRows) {
 			return nil, fmt.Errorf("%w: certificate request not found", ErrNotFound)
 		}
 		return nil, fmt.Errorf("%w: failed to get certificate request", ErrInternal)
 	}
-	return &csrRow, nil
+	return csrRow, nil
 }
 
 // CreateCertificateRequest creates a new CSR entry in the repository. The string must be a valid CSR and unique.

@@ -20,18 +20,12 @@ func (db *Database) ListUsers() ([]User, error) {
 
 // GetUser retrieves the name, password and the permission level of a user.
 func (db *Database) GetUser(filter UserFilter) (*User, error) {
-	var userRow User
-
-	switch {
-	case filter.ID != nil:
-		userRow = User{ID: *filter.ID}
-	case filter.Username != nil:
-		userRow = User{Username: *filter.Username}
-	default:
-		return nil, fmt.Errorf("%w: user - both ID and Username are nil", ErrInvalidFilter)
+	userRow, err := filter.AsUser()
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to get user", err)
 	}
 
-	user, err := GetOneEntity(db, db.stmts.GetUser, userRow)
+	user, err := GetOneEntity(db, db.stmts.GetUser, *userRow)
 	if err != nil {
 		if errors.Is(err, sqlair.ErrNoRows) {
 			return nil, fmt.Errorf("%w: %s", ErrNotFound, "user")

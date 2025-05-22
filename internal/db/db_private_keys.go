@@ -19,18 +19,12 @@ func (db *Database) ListPrivateKeys() ([]PrivateKey, error) {
 
 // GetPrivateKey gets a private key row from the repository from a given ID or PEM.
 func (db *Database) GetPrivateKey(filter PrivateKeyFilter) (*PrivateKey, error) {
-	var pkRow PrivateKey
-
-	switch {
-	case filter.ID != nil:
-		pkRow = PrivateKey{PrivateKeyID: *filter.ID}
-	case filter.PEM != nil:
-		pkRow = PrivateKey{PrivateKeyPEM: *filter.PEM}
-	default:
-		return nil, fmt.Errorf("%w: private key - both ID and PEM are nil", ErrInvalidFilter)
+	pkRow, err := filter.AsPrivateKey()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrInvalidFilter, err.Error())
 	}
 
-	pk, err := GetOneEntity[PrivateKey](db, db.stmts.GetPrivateKey, pkRow)
+	pk, err := GetOneEntity[PrivateKey](db, db.stmts.GetPrivateKey, *pkRow)
 	if err != nil {
 		if errors.Is(err, sqlair.ErrNoRows) {
 			return nil, fmt.Errorf("%w: %s", ErrNotFound, "private key")

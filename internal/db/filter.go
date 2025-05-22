@@ -15,6 +15,20 @@ func ByCertificatePEM(pem string) CertificateFilter {
 	return CertificateFilter{PEM: &pem}
 }
 
+func (filter *CertificateFilter) AsCertificate() (*Certificate, error) {
+	var certRow Certificate
+
+	switch {
+	case filter.ID != nil:
+		certRow = Certificate{CertificateID: *filter.ID}
+	case filter.PEM != nil:
+		certRow = Certificate{CertificatePEM: *filter.PEM}
+	default:
+		return &certRow, fmt.Errorf("empty filter: only certificate ID or PEM is supported but none was provided")
+	}
+	return &certRow, nil
+}
+
 type CSRFilter struct {
 	ID  *int64
 	PEM *string
@@ -26,6 +40,34 @@ func ByCSRID(id int64) CSRFilter {
 
 func ByCSRPEM(pem string) CSRFilter {
 	return CSRFilter{PEM: &pem}
+}
+
+func (filter *CSRFilter) AsCertificateRequest() (*CertificateRequest, error) {
+	var csrRow CertificateRequest
+
+	switch {
+	case filter.ID != nil:
+		csrRow = CertificateRequest{CSR_ID: *filter.ID}
+	case filter.PEM != nil:
+		csrRow = CertificateRequest{CSR: *filter.PEM}
+	default:
+		return &csrRow, fmt.Errorf("empty filter: only CSR ID or PEM is supported but none was provided")
+	}
+	return &csrRow, nil
+}
+
+func (filter *CSRFilter) AsCertificateRequestWithChain() (*CertificateRequestWithChain, error) {
+	var csrRow CertificateRequestWithChain
+
+	switch {
+	case filter.ID != nil:
+		csrRow = CertificateRequestWithChain{CSR_ID: *filter.ID}
+	case filter.PEM != nil:
+		csrRow = CertificateRequestWithChain{CSR: *filter.PEM}
+	default:
+		return &csrRow, fmt.Errorf("empty filter: only CSR ID or PEM is supported but none was provided")
+	}
+	return &csrRow, nil
 }
 
 type UserFilter struct {
@@ -41,6 +83,20 @@ func ByUsername(username string) UserFilter {
 	return UserFilter{Username: &username}
 }
 
+func (filter *UserFilter) AsUser() (*User, error) {
+	var userRow User
+
+	switch {
+	case filter.ID != nil:
+		userRow = User{ID: *filter.ID}
+	case filter.Username != nil:
+		userRow = User{Username: *filter.Username}
+	default:
+		return &userRow, fmt.Errorf("empty filter: only user ID or username is supported but none was provided")
+	}
+	return &userRow, nil
+}
+
 type PrivateKeyFilter struct {
 	ID  *int64
 	PEM *string
@@ -52,6 +108,20 @@ func ByPrivateKeyID(id int64) PrivateKeyFilter {
 
 func ByPrivateKeyPEM(pem string) PrivateKeyFilter {
 	return PrivateKeyFilter{PEM: &pem}
+}
+
+func (filter *PrivateKeyFilter) AsPrivateKey() (*PrivateKey, error) {
+	var pkRow PrivateKey
+
+	switch {
+	case filter.ID != nil:
+		pkRow = PrivateKey{PrivateKeyID: *filter.ID}
+	case filter.PEM != nil:
+		pkRow = PrivateKey{PrivateKeyPEM: *filter.PEM}
+	default:
+		return &pkRow, fmt.Errorf("empty filter: only private key ID or PEM is supported but none was provided")
+	}
+	return &pkRow, nil
 }
 
 type CertificateAuthorityFilter struct {

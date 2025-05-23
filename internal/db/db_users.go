@@ -10,25 +10,13 @@ import (
 
 // ListUsers returns all of the users and their fields available in the database.
 func (db *Database) ListUsers() ([]User, error) {
-	users, err := ListEntities[User](db, db.stmts.ListUsers)
-	if err != nil {
-		return nil, err
-	}
-	return users, nil
+	return ListEntities[User](db, db.stmts.ListUsers)
 }
 
 // GetUser retrieves the name, password and the permission level of a user.
 func (db *Database) GetUser(filter UserFilter) (*User, error) {
-	userRow, err := filter.AsUser()
-	if err != nil {
-		return nil, err
-	}
-
-	user, err := GetOneEntity(db, db.stmts.GetUser, *userRow)
-	if err != nil {
-		return nil, err
-	}
-	return user, nil
+	userRow := filter.AsUser()
+	return GetOneEntity(db, db.stmts.GetUser, *userRow)
 }
 
 // CreateUser creates a new user from a given username, password and permission level.
@@ -62,10 +50,7 @@ func (db *Database) CreateUser(username string, password string, permission int)
 // UpdateUser updates the password of the given user.
 // Just like with CreateUser, this function handles hashing and salting the password before storage.
 func (db *Database) UpdateUserPassword(filter UserFilter, password string) error {
-	userRow, err := filter.AsUser()
-	if err != nil {
-		return err
-	}
+	userRow := filter.AsUser()
 	hashedPassword, err := hashing.HashPassword(password)
 	if err != nil {
 		if errors.Is(err, hashing.ErrInvalidPassword) {
@@ -74,24 +59,13 @@ func (db *Database) UpdateUserPassword(filter UserFilter, password string) error
 		return fmt.Errorf("%w: failed to hash password", ErrInternal)
 	}
 	userRow.HashedPassword = hashedPassword
-	err = UpdateEntity(db, db.stmts.UpdateUser, userRow)
-	if err != nil {
-		return err
-	}
-	return nil
+	return UpdateEntity(db, db.stmts.UpdateUser, userRow)
 }
 
 // DeleteUserByID removes a user from the table.
 func (db *Database) DeleteUser(filter UserFilter) error {
-	userRow, err := filter.AsUser()
-	if err != nil {
-		return err
-	}
-	err = DeleteEntity(db, db.stmts.DeleteUser, userRow)
-	if err != nil {
-		return err
-	}
-	return nil
+	userRow := filter.AsUser()
+	return DeleteEntity(db, db.stmts.DeleteUser, userRow)
 }
 
 // NumUsers returns the number of users in the database.

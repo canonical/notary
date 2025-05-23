@@ -22,19 +22,13 @@ func (db *Database) ListCertificateRequestWithCertificatesWithoutCAS() ([]Certif
 
 // GetCertificateRequestByID gets a CSR row from the repository from a given ID.
 func (db *Database) GetCertificateRequest(filter CSRFilter) (*CertificateRequest, error) {
-	csrRow, err := filter.AsCertificateRequest()
-	if err != nil {
-		return nil, err
-	}
+	csrRow := filter.AsCertificateRequest()
 	return GetOneEntity(db, db.stmts.GetCertificateRequest, *csrRow)
 }
 
 // GetCertificateRequestAndChain gets a CSR row from the repository from a given ID.
 func (db *Database) GetCertificateRequestAndChain(filter CSRFilter) (*CertificateRequestWithChain, error) {
-	csrRow, err := filter.AsCertificateRequestWithChain()
-	if err != nil {
-		return nil, err
-	}
+	csrRow := filter.AsCertificateRequestWithChain()
 	return GetOneEntity(db, db.stmts.GetCertificateRequestWithChain, *csrRow)
 }
 
@@ -51,10 +45,8 @@ func (db *Database) CreateCertificateRequest(csr string) (int64, error) {
 
 // RejectCertificateRequest updates input CSR's row by unassigning the certificate ID and moving the row status to "Rejected".
 func (db *Database) RejectCertificateRequest(filter CSRFilter) error {
-	row, err := filter.AsCertificateRequest()
-	if err != nil {
-		return err
-	}
+	row := filter.AsCertificateRequest()
+
 	row.CertificateID = 0
 	row.Status = "Rejected"
 
@@ -63,10 +55,6 @@ func (db *Database) RejectCertificateRequest(filter CSRFilter) error {
 
 // DeleteCertificateRequest removes a CSR from the database.
 func (db *Database) DeleteCertificateRequest(filter CSRFilter) error {
-	csrRow, err := filter.AsCertificateRequest()
-	if err != nil {
-		return err
-	}
-
+	csrRow := filter.AsCertificateRequest()
 	return DeleteEntity(db, db.stmts.DeleteCertificateRequest, csrRow)
 }

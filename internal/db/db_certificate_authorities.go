@@ -13,48 +13,26 @@ import (
 
 // ListCertificateAuthorities gets every Certificate Authority entry in the table.
 func (db *Database) ListCertificateAuthorities() ([]CertificateAuthority, error) {
-	cas, err := ListEntities[CertificateAuthority](db, db.stmts.ListCertificateAuthorities)
-	if err != nil {
-		return nil, err
-	}
-	return cas, nil
+	return ListEntities[CertificateAuthority](db, db.stmts.ListCertificateAuthorities)
 }
 
 // ListDenormalizedCertificateAuthorities gets every CertificateAuthority entry in the table
 // but instead of returning ID's that reference other table rows, it embeds the row data directly into the response object.
 func (db *Database) ListDenormalizedCertificateAuthorities() ([]CertificateAuthorityDenormalized, error) {
-	cas, err := ListEntities[CertificateAuthorityDenormalized](db, db.stmts.ListDenormalizedCertificateAuthorities)
-	if err != nil {
-		return nil, err
-	}
-	return cas, nil
+	return ListEntities[CertificateAuthorityDenormalized](db, db.stmts.ListDenormalizedCertificateAuthorities)
 }
 
 // GetCertificateAuthority gets a certificate authority row from the database.
 func (db *Database) GetCertificateAuthority(filter CertificateAuthorityFilter) (*CertificateAuthority, error) {
-	caRow, err := filter.AsCertificateAuthority()
-	if err != nil {
-		return nil, err
-	}
-	ca, err := GetOneEntity[CertificateAuthority](db, db.stmts.GetCertificateAuthority, *caRow)
-	if err != nil {
-		return nil, err
-	}
-	return ca, nil
+	caRow := filter.AsCertificateAuthority()
+	return GetOneEntity[CertificateAuthority](db, db.stmts.GetCertificateAuthority, *caRow)
 }
 
 // GetDenormalizedCertificateAuthority gets a certificate authority row from the database
 // but instead of returning ID's that reference other table rows, it embeds the row data directly into the response object.
 func (db *Database) GetDenormalizedCertificateAuthority(filter CertificateAuthorityFilter) (*CertificateAuthorityDenormalized, error) {
-	CADenormalizedRow, err := filter.AsCertificateAuthorityDenormalized()
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrInvalidFilter, err)
-	}
-	ca, err := GetOneEntity[CertificateAuthorityDenormalized](db, db.stmts.GetDenormalizedCertificateAuthority, *CADenormalizedRow)
-	if err != nil {
-		return nil, err
-	}
-	return ca, nil
+	CADenormalizedRow := filter.AsCertificateAuthorityDenormalized()
+	return GetOneEntity[CertificateAuthorityDenormalized](db, db.stmts.GetDenormalizedCertificateAuthority, *CADenormalizedRow)
 }
 
 // CreateCertificateAuthority creates a new certificate authority in the database from a given CSR, private key, and certificate chain.
@@ -144,11 +122,8 @@ func (db *Database) UpdateCertificateAuthorityCertificate(filter CertificateAuth
 		CRL:                    newCRL,
 		Status:                 CAActive,
 	}
-	err = UpdateEntity(db, db.stmts.UpdateCertificateAuthority, newRow)
-	if err != nil {
-		return err
-	}
-	return nil
+	return UpdateEntity(db, db.stmts.UpdateCertificateAuthority, newRow)
+
 }
 
 // UpdateCertificateAuthorityStatus updates the status of a certificate authority.
@@ -158,11 +133,7 @@ func (db *Database) UpdateCertificateAuthorityStatus(filter CertificateAuthority
 		return err
 	}
 	ca.Status = status
-	err = UpdateEntity(db, db.stmts.UpdateCertificateAuthority, ca)
-	if err != nil {
-		return err
-	}
-	return nil
+	return UpdateEntity(db, db.stmts.UpdateCertificateAuthority, ca)
 }
 
 // UpdateCertificateAuthorityCRL updates the CRL of a certificate authority.
@@ -172,11 +143,7 @@ func (db *Database) UpdateCertificateAuthorityCRL(filter CertificateAuthorityFil
 		return err
 	}
 	ca.CRL = crl
-	err = UpdateEntity(db, db.stmts.UpdateCertificateAuthority, ca)
-	if err != nil {
-		return err
-	}
-	return nil
+	return UpdateEntity(db, db.stmts.UpdateCertificateAuthority, ca)
 }
 
 // DeleteCertificateAuthority removes a certificate authority from the database.
@@ -193,11 +160,7 @@ func (db *Database) DeleteCertificateAuthority(filter CertificateAuthorityFilter
 	if err != nil {
 		return err
 	}
-	err = db.DeletePrivateKey(ByPrivateKeyID(caRow.PrivateKeyID))
-	if err != nil {
-		return err
-	}
-	return nil
+	return db.DeletePrivateKey(ByPrivateKeyID(caRow.PrivateKeyID))
 }
 
 // SignCertificateRequest receives a CSR and a certificate authority.

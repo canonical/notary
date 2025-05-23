@@ -20,29 +20,14 @@ func (db *Database) ListCertificates() ([]Certificate, error) {
 
 // GetCertificateByID gets a certificate row from the repository from a given ID.
 func (db *Database) GetCertificate(filter CertificateFilter) (*Certificate, error) {
-	certRow, err := filter.AsCertificate()
-	if err != nil {
-		return nil, err
-	}
-
-	cert, err := GetOneEntity[Certificate](db, db.stmts.GetCertificate, *certRow)
-	if err != nil {
-		return nil, err
-	}
-	return cert, nil
+	certRow := filter.AsCertificate()
+	return GetOneEntity[Certificate](db, db.stmts.GetCertificate, *certRow)
 }
 
 // DeleteCertificate removes a certificate from the database.
 func (db *Database) DeleteCertificate(filter CertificateFilter) error {
-	certRow, err := filter.AsCertificate()
-	if err != nil {
-		return err
-	}
-	err = DeleteEntity(db, db.stmts.DeleteCertificate, certRow)
-	if err != nil {
-		return err
-	}
-	return nil
+	certRow := filter.AsCertificate()
+	return DeleteEntity(db, db.stmts.DeleteCertificate, certRow)
 }
 
 // AddCertificateChainToCertificateRequestByCSR adds a new certificate chain to a row for a given CSR string.
@@ -116,13 +101,10 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 
 // GetCertificateChainByID gets a certificate chain row from the repository from a given ID.
 func (db *Database) GetCertificateChain(filter CertificateFilter) ([]Certificate, error) {
-	certRow, err := filter.AsCertificate()
-	if err != nil {
-		return nil, err
-	}
+	certRow := filter.AsCertificate()
 	var certChain []Certificate
 	// TODO: use ListEntities here instead, and convert all generic functions to variadic
-	err = db.conn.Query(context.Background(), db.stmts.GetCertificateChain, *certRow).GetAll(&certChain)
+	err := db.conn.Query(context.Background(), db.stmts.GetCertificateChain, *certRow).GetAll(&certChain)
 	if err != nil {
 		if errors.Is(err, sqlair.ErrNoRows) {
 			return nil, fmt.Errorf("%w: certificate chain not found", ErrNotFound)

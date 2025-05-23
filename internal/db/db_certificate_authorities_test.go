@@ -239,20 +239,6 @@ func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
 		t.Fatalf("Certificate should not have been removed when updating status to legacy")
 	}
 
-	err = database.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), db.CALegacy)
-	if err != nil {
-		t.Fatalf("Couldn't update certificate authority status: %s", err)
-	}
-	ca, err = database.GetDenormalizedCertificateAuthority(db.ByCertificateAuthorityID(ca.CertificateAuthorityID))
-	if err != nil {
-		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
-	}
-	if ca.Status != db.CALegacy {
-		t.Fatalf("Certificate authority status is not legacy")
-	}
-	if ca.CertificateChain == "" {
-		t.Fatalf("Certificate should not have been removed when updating status to Active")
-	}
 	caRow, err := database.GetCertificateAuthority(db.ByCertificateAuthorityID(ca.CertificateAuthorityID))
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
@@ -457,7 +443,7 @@ func TestCertificateAuthorityFails(t *testing.T) {
 		t.Fatalf("Should have failed to update certificate authority")
 	}
 
-	err = database.DeleteCertificateAuthority(db.ByCertificateAuthorityCSRPEM("nope"))
+	err = database.DeleteCertificateAuthority(db.ByCertificateAuthorityCSRID(19))
 	if err == nil {
 		t.Fatalf("Should have failed to delete certificate authority")
 	}

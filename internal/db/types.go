@@ -117,3 +117,7 @@ type User struct {
 	HashedPassword string `db:"hashed_password"`
 	Permissions    int    `db:"permissions"`
 }
+
+type NumUsers struct {
+	Count int `db:"count"`
+}

@@ -2,7 +2,10 @@
 package db
 
 import (
+	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 
 	"github.com/canonical/sqlair"
 	_ "github.com/mattn/go-sqlite3"
@@ -58,4 +61,76 @@ func NewDatabase(databasePath string) (*Database, error) {
 	db.conn = sqlair.NewDB(sqlConnection)
 
 	return db, nil
+}
+
+// ListEntities retrieves all entities of a given type from the database.
+func ListEntities[T any](db *Database, stmt *sqlair.Statement) ([]T, error) {
+	var entities []T
+	err := db.conn.Query(context.Background(), stmt).GetAll(&entities)
+	if err != nil && !errors.Is(err, sqlair.ErrNoRows) {
+		return nil, fmt.Errorf("failed to list %s: %w", getTypeName[T](), ErrInternal)
+	}
+	return entities, nil
+}
+
+// GetOneEntity retrieves a single entity of a given type from the database.
+func GetOneEntity[T any](db *Database, stmt *sqlair.Statement, params T) (*T, error) {
+	var result T
+	err := db.conn.Query(context.Background(), stmt, params).Get(&result)
+	if err != nil {
+		if errors.Is(err, sqlair.ErrNoRows) {
+			return nil, fmt.Errorf("failed to get %s: %w", getTypeName[T](), ErrNotFound)
+		}
+		return nil, fmt.Errorf("failed to get %s: %w", getTypeName[T](), ErrInternal)
+	}
+
+	return &result, nil
+}
+
+func CreateEntity[T any](db *Database, stmt *sqlair.Statement, new_entity T) (int64, error) {
+	var outcome sqlair.Outcome
+	err := db.conn.Query(context.Background(), stmt, new_entity).Get(&outcome)
+	if err != nil {
+		if IsConstraintError(err, "UNIQUE constraint failed") {
+			return 0, fmt.Errorf("failed to create %s: %w", getTypeName[T](), ErrAlreadyExists)
+		}
+		return 0, fmt.Errorf("failed to create %s: %w", getTypeName[T](), ErrInternal)
+	}
+	insertedRowID, err := outcome.Result().LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("failed to create %s: %w", getTypeName[T](), ErrInternal)
+	}
+	return insertedRowID, nil
+}
+
+func UpdateEntity[T any](db *Database, stmt *sqlair.Statement, updated_entity T) error {
+	var outcome sqlair.Outcome
+	err := db.conn.Query(context.Background(), stmt, updated_entity).Get(&outcome)
+	if err != nil {
+		return fmt.Errorf("failed to update %s: %w", getTypeName[T](), ErrInternal)
+	}
+	affectedRows, err := outcome.Result().RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to update %s: %w", getTypeName[T](), ErrInternal)
+	}
+	if affectedRows == 0 {
+		return fmt.Errorf("failed to update %s: %w", getTypeName[T](), ErrNotFound)
+	}
+	return nil
+}
+
+func DeleteEntity[T any](db *Database, stmt *sqlair.Statement, entity_to_delete T) error {
+	var outcome sqlair.Outcome
+	err := db.conn.Query(context.Background(), stmt, entity_to_delete).Get(&outcome)
+	if err != nil {
+		return fmt.Errorf("failed to delete %s: %w", getTypeName[T](), ErrInternal)
+	}
+	affectedRows, err := outcome.Result().RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to delete %s: %w", getTypeName[T](), ErrInternal)
+	}
+	if affectedRows == 0 {
+		return fmt.Errorf("failed to delete %s: %w", getTypeName[T](), ErrNotFound)
+	}
+	return nil
 }

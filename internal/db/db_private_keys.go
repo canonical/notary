@@ -1,18 +1,10 @@
 package db
 
-import (
-	"context"
-	"errors"
-	"fmt"
-
-	"github.com/canonical/sqlair"
-)
-
 // ListPrivateKeys gets every PrivateKey entry in the table.
 func (db *Database) ListPrivateKeys() ([]PrivateKey, error) {
 	privateKeys, err := ListEntities[PrivateKey](db, db.stmts.ListPrivateKeys)
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to list private keys", err)
+		return nil, err
 	}
 	return privateKeys, nil
 }
@@ -21,15 +13,12 @@ func (db *Database) ListPrivateKeys() ([]PrivateKey, error) {
 func (db *Database) GetPrivateKey(filter PrivateKeyFilter) (*PrivateKey, error) {
 	pkRow, err := filter.AsPrivateKey()
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrInvalidFilter, err.Error())
+		return nil, err
 	}
 
-	pk, err := GetOneEntity[PrivateKey](db, db.stmts.GetPrivateKey, *pkRow)
+	pk, err := GetOneEntity(db, db.stmts.GetPrivateKey, *pkRow)
 	if err != nil {
-		if errors.Is(err, sqlair.ErrNoRows) {
-			return nil, fmt.Errorf("%w: %s", ErrNotFound, "private key")
-		}
-		return nil, fmt.Errorf("%w: failed to get private key", err)
+		return nil, err
 	}
 	return pk, nil
 }
@@ -37,22 +26,16 @@ func (db *Database) GetPrivateKey(filter PrivateKeyFilter) (*PrivateKey, error) 
 // CreatePrivateKey creates a new private key entry in the repository. The string must be a valid private key and unique.
 func (db *Database) CreatePrivateKey(pk string) (int64, error) {
 	if err := ValidatePrivateKey(pk); err != nil {
-		return 0, errors.New("Invalid private key: " + err.Error())
+		return 0, err
 	}
+
 	row := PrivateKey{
 		PrivateKeyPEM: pk,
 	}
-	var outcome sqlair.Outcome
-	err := db.conn.Query(context.Background(), db.stmts.CreatePrivateKey, row).Get(&outcome)
+
+	insertedRowID, err := CreateEntity(db, db.stmts.CreatePrivateKey, row)
 	if err != nil {
-		if IsConstraintError(err, "UNIQUE constraint failed") {
-			return 0, fmt.Errorf("%w: private key already exists", ErrAlreadyExists)
-		}
-		return 0, fmt.Errorf("%w: failed to create private key", ErrInternal)
-	}
-	insertedRowID, err := outcome.Result().LastInsertId()
-	if err != nil {
-		return 0, fmt.Errorf("%w: failed to create private key", ErrInternal)
+		return 0, err
 	}
 	return insertedRowID, nil
 }
@@ -64,9 +47,9 @@ func (db *Database) DeletePrivateKey(filter PrivateKeyFilter) error {
 		return err
 	}
 
-	err = db.conn.Query(context.Background(), db.stmts.DeletePrivateKey, pkRow).Run()
+	err = DeleteEntity(db, db.stmts.DeletePrivateKey, pkRow)
 	if err != nil {
-		return fmt.Errorf("%w: failed to delete private key", ErrInternal)
+		return err
 	}
 	return nil
 }

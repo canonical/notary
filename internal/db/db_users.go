@@ -6,14 +6,13 @@ import (
 	"fmt"
 
 	"github.com/canonical/notary/internal/hashing"
-	"github.com/canonical/sqlair"
 )
 
 // ListUsers returns all of the users and their fields available in the database.
 func (db *Database) ListUsers() ([]User, error) {
 	users, err := ListEntities[User](db, db.stmts.ListUsers)
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to list users", err)
+		return nil, err
 	}
 	return users, nil
 }
@@ -22,17 +21,13 @@ func (db *Database) ListUsers() ([]User, error) {
 func (db *Database) GetUser(filter UserFilter) (*User, error) {
 	userRow, err := filter.AsUser()
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to get user", err)
+		return nil, err
 	}
 
 	user, err := GetOneEntity(db, db.stmts.GetUser, *userRow)
 	if err != nil {
-		if errors.Is(err, sqlair.ErrNoRows) {
-			return nil, fmt.Errorf("%w: %s", ErrNotFound, "user")
-		}
-		return nil, fmt.Errorf("%w: failed to get user", err)
+		return nil, err
 	}
-
 	return user, nil
 }
 
@@ -40,33 +35,26 @@ func (db *Database) GetUser(filter UserFilter) (*User, error) {
 // The permission level 1 represents an admin, and a 0 represents a regular user.
 // The password passed in should be in plaintext. This function handles hashing and salting the password before storing it in the database.
 func (db *Database) CreateUser(username string, password string, permission int) (int64, error) {
+	err := ValidateUser(username, permission)
+	if err != nil {
+		return 0, err
+	}
 	pw, err := hashing.HashPassword(password)
 	if err != nil {
 		if errors.Is(err, hashing.ErrInvalidPassword) {
-			return 0, fmt.Errorf("%w: invalid password", ErrInvalidInput)
+			return 0, fmt.Errorf("%w: invalid password", ErrInvalidUser)
 		}
 		return 0, fmt.Errorf("%w: failed to create user", ErrInternal)
 	}
+
 	row := User{
 		Username:       username,
 		HashedPassword: pw,
 		Permissions:    permission,
 	}
-	err = ValidateUser(row)
+	insertedRowID, err := CreateEntity(db, db.stmts.CreateUser, row)
 	if err != nil {
-		return 0, fmt.Errorf("%w: %e", ErrInvalidInput, err)
-	}
-	var outcome sqlair.Outcome
-	err = db.conn.Query(context.Background(), db.stmts.CreateUser, row).Get(&outcome)
-	if err != nil {
-		if IsConstraintError(err, "UNIQUE constraint failed") {
-			return 0, fmt.Errorf("%w: username already exists", ErrAlreadyExists)
-		}
-		return 0, fmt.Errorf("%w: failed to create user", ErrInternal)
-	}
-	insertedRowID, err := outcome.Result().LastInsertId()
-	if err != nil {
-		return 0, fmt.Errorf("%w: failed to create user", ErrInternal)
+		return 0, err
 	}
 	return insertedRowID, nil
 }
@@ -74,7 +62,7 @@ func (db *Database) CreateUser(username string, password string, permission int)
 // UpdateUser updates the password of the given user.
 // Just like with CreateUser, this function handles hashing and salting the password before storage.
 func (db *Database) UpdateUserPassword(filter UserFilter, password string) error {
-	userRow, err := db.GetUser(filter)
+	userRow, err := filter.AsUser()
 	if err != nil {
 		return err
 	}
@@ -86,33 +74,30 @@ func (db *Database) UpdateUserPassword(filter UserFilter, password string) error
 		return fmt.Errorf("%w: failed to hash password", ErrInternal)
 	}
 	userRow.HashedPassword = hashedPassword
-	err = db.conn.Query(context.Background(), db.stmts.UpdateUser, userRow).Run()
+	err = UpdateEntity(db, db.stmts.UpdateUser, userRow)
 	if err != nil {
-		return fmt.Errorf("%w: failed to update user", ErrInternal)
+		return err
 	}
 	return nil
 }
 
 // DeleteUserByID removes a user from the table.
 func (db *Database) DeleteUser(filter UserFilter) error {
-	userRow, err := db.GetUser(filter)
+	userRow, err := filter.AsUser()
 	if err != nil {
 		return err
 	}
-	err = db.conn.Query(context.Background(), db.stmts.DeleteUser, userRow).Run()
+	err = DeleteEntity(db, db.stmts.DeleteUser, userRow)
 	if err != nil {
-		return fmt.Errorf("%w: failed to delete user", ErrInternal)
+		return err
 	}
 	return nil
-}
-
-type NumUsers struct {
-	Count int `db:"count"`
 }
 
 // NumUsers returns the number of users in the database.
 func (db *Database) NumUsers() (int, error) {
 	result := NumUsers{}
+	// TODO: also requires variadic getentity
 	err := db.conn.Query(context.Background(), db.stmts.GetNumUsers).Get(&result)
 	if err != nil {
 		return 0, fmt.Errorf("%w: failed to get number of users", ErrInternal)

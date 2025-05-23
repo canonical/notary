@@ -70,121 +70,9 @@ type CertificateAuthorityDenormalized struct {
 	CSRPEM                 string   `db:"csr"`
 }
 
-const queryCreateCertificateAuthoritiesTable = `
-	CREATE TABLE IF NOT EXISTS certificate_authorities (
-	    certificate_authority_id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-		crl TEXT,
-		status TEXT DEFAULT 'Pending', 
-
-		private_key_id INTEGER,
-		certificate_id INTEGER,
-		csr_id INTEGER NOT NULL UNIQUE,
-
-		CHECK (status IN ('active', 'expired', 'pending', 'legacy')),
-		CHECK (NOT (certificate_id == NULL AND status == 'active' )),
-		CHECK (NOT (certificate_id != NULL AND status == 'pending'))
-        CHECK (NOT (certificate_id != NULL AND status == 'expired'))
-)`
-
-const (
-	createCertificateAuthorityStmt = "INSERT INTO certificate_authorities (crl, status, private_key_id, csr_id, certificate_id) VALUES ($CertificateAuthority.crl, $CertificateAuthority.status, $CertificateAuthority.private_key_id, $CertificateAuthority.csr_id, $CertificateAuthority.certificate_id)"
-	getCertificateAuthorityStmt    = "SELECT &CertificateAuthority.* FROM certificate_authorities WHERE certificate_authority_id==$CertificateAuthority.certificate_authority_id or csr_id==$CertificateAuthority.csr_id or certificate_id==$CertificateAuthority.certificate_id"
-	listCertificateAuthoritiesStmt = "SELECT &CertificateAuthority.* FROM certificate_authorities"
-	updateCertificateAuthorityStmt = "UPDATE certificate_authorities SET crl=$CertificateAuthority.crl, status=$CertificateAuthority.status, certificate_id=$CertificateAuthority.certificate_id WHERE certificate_authority_id==$CertificateAuthority.certificate_authority_id or csr_id==$CertificateAuthority.csr_id"
-	deleteCertificateAuthorityStmt = "DELETE FROM certificate_authorities WHERE certificate_authority_id=$CertificateAuthority.certificate_authority_id or csr_id=$CertificateAuthority.csr_id"
-
-	listDenormalizedCertificateAuthoritiesStmt = `
-WITH RECURSIVE cas_with_chain AS (    
-    SELECT 
-        cas.certificate_authority_id,
-        cas.private_key_id,
-		cas.csr_id,
-        cas.status,
-        cas.crl,
-        certs.certificate_id,
-        certs.issuer_id,
-        certs.certificate,
-        COALESCE(certs.certificate, '') AS chain
-    FROM certificate_authorities cas
-    LEFT JOIN certificates certs ON cas.certificate_id = certs.certificate_id
-
-    UNION ALL
-
-    SELECT 
-        cc.certificate_authority_id,
-		cc.private_key_id,
-		cc.csr_id,
-        cc.status,
-		cc.crl,
-        certs.certificate_id,
-        certs.issuer_id,
-        certs.certificate,
-        cc.chain || CHAR(10) || certs.certificate AS chain
-    FROM cas_with_chain cc
-    JOIN certificates certs ON certs.certificate_id = cc.issuer_id
-)
-	SELECT 
-		cc.certificate_authority_id as &CertificateAuthorityDenormalized.certificate_authority_id,
-		cc.crl as &CertificateAuthorityDenormalized.crl,
-		cc.status as &CertificateAuthorityDenormalized.status,
-		pk.private_key AS &CertificateAuthorityDenormalized.private_key,
-		cc.chain AS &CertificateAuthorityDenormalized.certificate_chain,
-		csrs.csr AS &CertificateAuthorityDenormalized.csr
-	FROM cas_with_chain cc
-	LEFT JOIN private_keys pk ON cc.private_key_id = pk.private_key_id
-	LEFT JOIN certificate_requests csrs ON cc.csr_id = csrs.csr_id
-	WHERE cc.chain = '' OR cc.issuer_id = 0
-`
-	getDenormalizedCertificateAuthorityStmt = `
-WITH RECURSIVE cas_with_chain AS (    
-    SELECT 
-        cas.certificate_authority_id,
-        cas.private_key_id,
-		cas.csr_id,
-        cas.status,
-        cas.crl,
-        certs.certificate_id,
-        certs.issuer_id,
-        certs.certificate,
-        COALESCE(certs.certificate, '') AS chain
-    FROM certificate_authorities cas
-    LEFT JOIN certificates certs ON cas.certificate_id = certs.certificate_id
-
-    UNION ALL
-
-    SELECT 
-        cc.certificate_authority_id,
-		cc.private_key_id,
-		cc.csr_id,
-        cc.status,
-		cc.crl,
-        certs.certificate_id,
-        certs.issuer_id,
-        certs.certificate,
-        cc.chain || CHAR(10) || certs.certificate AS chain
-    FROM cas_with_chain cc
-    JOIN certificates certs ON certs.certificate_id = cc.issuer_id
-)
-	SELECT 
-		cc.certificate_authority_id as &CertificateAuthorityDenormalized.certificate_authority_id,
-		cc.crl as &CertificateAuthorityDenormalized.crl,
-		cc.status as &CertificateAuthorityDenormalized.status,
-		pk.private_key AS &CertificateAuthorityDenormalized.private_key,
-		cc.chain AS &CertificateAuthorityDenormalized.certificate_chain,
-		csrs.csr AS &CertificateAuthorityDenormalized.csr
-	FROM cas_with_chain cc
-	LEFT JOIN private_keys pk ON cc.private_key_id = pk.private_key_id
-	LEFT JOIN certificate_requests csrs ON cc.csr_id = csrs.csr_id
-	WHERE cc.certificate_authority_id==$CertificateAuthorityDenormalized.certificate_authority_id
-			or csrs.csr==$CertificateAuthorityDenormalized.csr
-			and (issuer_id = 0 OR chain = '')
-	`
-)
-
 // ListCertificateAuthorities gets every Certificate Authority entry in the table.
 func (db *Database) ListCertificateAuthorities() ([]CertificateAuthority, error) {
-	cas, err := ListEntities[CertificateAuthority](db, listCertificateAuthoritiesStmt)
+	cas, err := ListEntities[CertificateAuthority](db, db.stmts.ListCertificateAuthorities)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to list certificate authorities", err)
 	}
@@ -194,7 +82,7 @@ func (db *Database) ListCertificateAuthorities() ([]CertificateAuthority, error)
 // ListDenormalizedCertificateAuthorities gets every CertificateAuthority entry in the table
 // but instead of returning ID's that reference other table rows, it embeds the row data directly into the response object.
 func (db *Database) ListDenormalizedCertificateAuthorities() ([]CertificateAuthorityDenormalized, error) {
-	cas, err := ListEntities[CertificateAuthorityDenormalized](db, listDenormalizedCertificateAuthoritiesStmt)
+	cas, err := ListEntities[CertificateAuthorityDenormalized](db, db.stmts.ListDenormalizedCertificateAuthorities)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to list denormalized certificate authorities", err)
 	}
@@ -207,11 +95,7 @@ func (db *Database) GetCertificateAuthority(filter CertificateAuthorityFilter) (
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrInvalidFilter, err)
 	}
-	stmt, err := sqlair.Prepare(getCertificateAuthorityStmt, CertificateAuthority{})
-	if err != nil {
-		return nil, fmt.Errorf("%w: failed to get certificate authority due to sql compilation error", ErrInternal)
-	}
-	err = db.conn.Query(context.Background(), stmt, CARow).Get(CARow)
+	err = db.conn.Query(context.Background(), db.stmts.GetCertificateAuthority, CARow).Get(CARow)
 	if err != nil {
 		if errors.Is(err, sqlair.ErrNoRows) {
 			return nil, fmt.Errorf("%w: %s", ErrNotFound, "certificate authority")
@@ -228,11 +112,7 @@ func (db *Database) GetDenormalizedCertificateAuthority(filter CertificateAuthor
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrInvalidFilter, err)
 	}
-	stmt, err := sqlair.Prepare(getDenormalizedCertificateAuthorityStmt, CertificateAuthorityDenormalized{})
-	if err != nil {
-		return nil, fmt.Errorf("%w: failed to get denormalized certificate authority due to sql compilation error", ErrInternal)
-	}
-	err = db.conn.Query(context.Background(), stmt, CADenormalizedRow).Get(CADenormalizedRow)
+	err = db.conn.Query(context.Background(), db.stmts.GetDenormalizedCertificateAuthority, CADenormalizedRow).Get(CADenormalizedRow)
 	if err != nil {
 		if errors.Is(err, sqlair.ErrNoRows) {
 			return nil, fmt.Errorf("%w: certificate authority not found", ErrNotFound)
@@ -274,12 +154,8 @@ func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, cr
 			Status:        CAActive,
 		}
 	}
-	stmt, err := sqlair.Prepare(createCertificateAuthorityStmt, CertificateAuthority{})
-	if err != nil {
-		return 0, fmt.Errorf("%w: failed to create certificate authority due to sql compilation error", ErrInternal)
-	}
 	var outcome sqlair.Outcome
-	err = db.conn.Query(context.Background(), stmt, CARow).Get(&outcome)
+	err = db.conn.Query(context.Background(), db.stmts.CreateCertificateAuthority, CARow).Get(&outcome)
 	if err != nil {
 		if IsConstraintError(err, "UNIQUE constraint failed") {
 			return 0, fmt.Errorf("%w: certificate authority already exists", ErrAlreadyExists)
@@ -341,11 +217,7 @@ func (db *Database) UpdateCertificateAuthorityCertificate(filter CertificateAuth
 		CRL:                    newCRL,
 		Status:                 CAActive,
 	}
-	stmt, err := sqlair.Prepare(updateCertificateAuthorityStmt, CertificateAuthority{})
-	if err != nil {
-		return fmt.Errorf("%w: failed to update certificate authority due to sql compilation error", ErrInternal)
-	}
-	err = db.conn.Query(context.Background(), stmt, newRow).Run()
+	err = db.conn.Query(context.Background(), db.stmts.UpdateCertificateAuthority, newRow).Run()
 	if err != nil {
 		return fmt.Errorf("%w: failed to update certificate authority", ErrInternal)
 	}
@@ -359,11 +231,7 @@ func (db *Database) UpdateCertificateAuthorityStatus(filter CertificateAuthority
 		return err
 	}
 	ca.Status = status
-	stmt, err := sqlair.Prepare(updateCertificateAuthorityStmt, CertificateAuthority{})
-	if err != nil {
-		return fmt.Errorf("%w: failed to update certificate authority due to sql compilation error", ErrInternal)
-	}
-	err = db.conn.Query(context.Background(), stmt, ca).Run()
+	err = db.conn.Query(context.Background(), db.stmts.UpdateCertificateAuthority, ca).Run()
 	if err != nil {
 		return fmt.Errorf("%w: failed to update certificate authority", ErrInternal)
 	}
@@ -377,11 +245,7 @@ func (db *Database) UpdateCertificateAuthorityCRL(filter CertificateAuthorityFil
 		return err
 	}
 	ca.CRL = crl
-	stmt, err := sqlair.Prepare(updateCertificateAuthorityStmt, CertificateAuthority{})
-	if err != nil {
-		return fmt.Errorf("%w: failed to update certificate authority due to sql compilation error", ErrInternal)
-	}
-	err = db.conn.Query(context.Background(), stmt, ca).Run()
+	err = db.conn.Query(context.Background(), db.stmts.UpdateCertificateAuthority, ca).Run()
 	if err != nil {
 		return fmt.Errorf("%w: failed to update certificate authority", ErrInternal)
 	}
@@ -394,11 +258,7 @@ func (db *Database) DeleteCertificateAuthority(filter CertificateAuthorityFilter
 	if err != nil {
 		return err
 	}
-	stmt, err := sqlair.Prepare(deleteCertificateAuthorityStmt, CertificateAuthority{})
-	if err != nil {
-		return fmt.Errorf("%w: failed to delete certificate authority due to sql compilation error", ErrInternal)
-	}
-	err = db.conn.Query(context.Background(), stmt, caRow).Run()
+	err = db.conn.Query(context.Background(), db.stmts.DeleteCertificateAuthority, caRow).Run()
 	if err != nil {
 		return fmt.Errorf("%w: failed to delete certificate authority", ErrInternal)
 	}
@@ -569,10 +429,6 @@ func (db *Database) RevokeCertificate(filter CSRFilter) error {
 		return err
 	}
 
-	stmt, err := sqlair.Prepare(updateCertificateRequestStmt, CertificateRequest{})
-	if err != nil {
-		return err
-	}
 	newRow := CertificateRequest{
 		CSR_ID:        oldRow.CSR_ID,
 		CSR:           oldRow.CSR,
@@ -580,7 +436,7 @@ func (db *Database) RevokeCertificate(filter CSRFilter) error {
 		Status:        "Revoked",
 	}
 
-	err = db.conn.Query(context.Background(), stmt, newRow).Run()
+	err = db.conn.Query(context.Background(), db.stmts.UpdateCertificateRequest, newRow).Run()
 	return err
 }
 

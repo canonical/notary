@@ -10,7 +10,8 @@ import (
 
 // Database is the object used to communicate with the established repository.
 type Database struct {
-	conn *sqlair.DB
+	conn  *sqlair.DB
+	stmts *Statements
 }
 
 // Close closes the connection to the repository cleanly.
@@ -21,6 +22,7 @@ func (db *Database) Close() error {
 	if err := db.conn.PlainDB().Close(); err != nil {
 		return err
 	}
+	db.stmts = nil
 	return nil
 }
 
@@ -49,6 +51,8 @@ func NewDatabase(databasePath string) (*Database, error) {
 		return nil, err
 	}
 	db := new(Database)
+	db.stmts = PrepareStatements(db.conn)
 	db.conn = sqlair.NewDB(sqlConnection)
+
 	return db, nil
 }

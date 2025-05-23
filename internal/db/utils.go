@@ -2,41 +2,13 @@ package db
 
 import (
 	"bytes"
-	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
+	"reflect"
 	"time"
-
-	"github.com/canonical/sqlair"
 )
-
-// ListEntities retrieves all entities of a given type from the database.
-func ListEntities[T any](db *Database, stmt *sqlair.Statement) ([]T, error) {
-	var entities []T
-	err := db.conn.Query(context.Background(), stmt).GetAll(&entities)
-	if err != nil && !errors.Is(err, sqlair.ErrNoRows) {
-		return nil, ErrInternal
-	}
-
-	return entities, nil
-}
-
-// GetOneEntity retrieves a single entity of a given type from the database.
-func GetOneEntity[T any](db *Database, stmt *sqlair.Statement, params T) (*T, error) {
-	var result T
-	err := db.conn.Query(context.Background(), stmt, params).Get(&result)
-	if err != nil {
-		if errors.Is(err, sqlair.ErrNoRows) {
-			return nil, ErrNotFound
-		}
-		return nil, ErrInternal
-	}
-
-	return &result, nil
-}
 
 // ParseCertificateChain receives a PEM string chain and returns an x.509.Certificate list.
 func ParseCertificateChain(pemChain string) ([]*x509.Certificate, error) {
@@ -123,4 +95,13 @@ func AddCertificateToCRL(certChainPEM string, caPKPEM string, crlPEM string) (st
 		return "", err
 	}
 	return string(pem.EncodeToMemory(&pem.Block{Type: "X509 CRL", Bytes: crlBytes})), nil
+}
+
+func isSelfSigned(certBundle []string) bool {
+	return len(certBundle) == 2 && certBundle[0] == certBundle[1]
+}
+
+func getTypeName[T any]() string {
+	var t T
+	return reflect.TypeOf(t).Name()
 }

@@ -1,6 +1,7 @@
 package db_test
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -252,17 +253,17 @@ func TestCSRValidationSuccess(t *testing.T) {
 
 func TestCSRValidationFail(t *testing.T) {
 	wrongString := "this is a real csr!!!"
-	wrongStringErr := "PEM Certificate Request string not found or malformed"
+	wrongStringErr := errors.New("PEM Certificate Request string not found or malformed")
 	ValidCSRWithoutWhitespace := strings.ReplaceAll(AppleCSR, "\n", "")
-	ValidCSRWithoutWhitespaceErr := "PEM Certificate Request string not found or malformed"
+	ValidCSRWithoutWhitespaceErr := errors.New("PEM Certificate Request string not found or malformed")
 	wrongPemType := strings.ReplaceAll(AppleCSR, "CERTIFICATE REQUEST", "SOME RANDOM PEM TYPE")
-	wrongPemTypeErr := "given PEM string not a certificate request"
+	wrongPemTypeErr := errors.New("given PEM string not a certificate request")
 	InvalidCSR := strings.ReplaceAll(AppleCSR, "s", "p")
-	InvalidCSRErr := "asn1: syntax error: data truncated"
+	InvalidCSRErr := errors.New("asn1: syntax error: data truncated")
 
 	cases := []struct {
 		input       string
-		expectedErr string
+		expectedErr error
 	}{
 		{
 			input:       wrongString,
@@ -289,7 +290,7 @@ func TestCSRValidationFail(t *testing.T) {
 				t.Errorf("No error received. Expected: %s", c.expectedErr)
 				return
 			}
-			if err.Error() != c.expectedErr {
+			if errors.Is(err, c.expectedErr) {
 				t.Errorf("Expected error not found:\nReceived: %s\nExpected: %s", err, c.expectedErr)
 			}
 		})
@@ -313,21 +314,21 @@ func TestCertValidationSuccess(t *testing.T) {
 
 func TestCertValidationFail(t *testing.T) {
 	wrongCertString := "this is a real cert!!!"
-	wrongCertStringErr := "less than 2 certificate PEM strings were found"
+	wrongCertStringErr := errors.New("less than 2 certificate PEM strings were found")
 	wrongPemType := strings.ReplaceAll(BananaCert, "CERTIFICATE", "SOME RANDOM PEM TYPE")
-	wrongPemTypeErr := "a given PEM string was not a certificate"
+	wrongPemTypeErr := errors.New("a given PEM string was not a certificate")
 	InvalidCert := strings.ReplaceAll(BananaCert, "M", "i")
-	InvalidCertErr := "x509: malformed certificate"
+	InvalidCertErr := errors.New("x509: malformed certificate")
 	singleCert := BananaCert
-	singleCertErr := "less than 2 certificate PEM strings were found"
+	singleCertErr := errors.New("less than 2 certificate PEM strings were found")
 	issuerCertSubjectDoesNotMatch := fmt.Sprintf("%s\n%s", BananaCert, WrongSubjectIssuerCert)
-	issuerCertSubjectDoesNotMatchErr := "invalid certificate chain: certificate 0, certificate 1: subjects do not match"
+	issuerCertSubjectDoesNotMatchErr := errors.New("invalid certificate chain: certificate 0, certificate 1: subjects do not match")
 	issuerCertNotCA := fmt.Sprintf("%s\n%s", BananaCert, UnusedCert)
-	issuerCertNotCaErr := "invalid certificate chain: certificate 1 is not a certificate authority"
+	issuerCertNotCaErr := errors.New("invalid certificate chain: certificate 1 is not a certificate authority")
 
 	cases := []struct {
 		inputCert   string
-		expectedErr string
+		expectedErr error
 	}{
 		{
 			inputCert:   wrongCertString,
@@ -362,7 +363,7 @@ func TestCertValidationFail(t *testing.T) {
 				t.Errorf("No error received. Expected: %s", c.expectedErr)
 				return
 			}
-			if !strings.HasPrefix(err.Error(), c.expectedErr) {
+			if errors.Is(err, c.expectedErr) {
 				t.Errorf("Expected error not found:\nReceived: %s\n Expected: %s", err, c.expectedErr)
 			}
 		})

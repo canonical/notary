@@ -304,7 +304,7 @@ func GetCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 
-		ca, err := env.DB.GetDenormalizedCertificateAuthority(db.ByCertificateAuthorityID(idNum))
+		ca, err := env.DB.GetDenormalizedCertificateAuthority(db.ByCertificateAuthorityDenormalizedID(idNum))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found", err, env.Logger)
@@ -424,7 +424,7 @@ func PostCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 
-		err = env.DB.UpdateCertificateAuthorityCertificate(db.ByCertificateAuthorityID(idNum), UploadCertificateToCertificateAuthorityParams.CertificateChain)
+		err = env.DB.UpdateCertificateAuthorityCertificate(db.ByCertificateAuthorityDenormalizedID(idNum), UploadCertificateToCertificateAuthorityParams.CertificateChain)
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found", err, env.Logger)
@@ -467,7 +467,7 @@ func SignCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
 			return
 		}
-		err = env.DB.SignCertificateRequest(db.ByCSRID(caToBeSigned.CSRID), db.ByCertificateAuthorityID(caIDInt), env.ExternalHostname)
+		err = env.DB.SignCertificateRequest(db.ByCSRID(caToBeSigned.CSRID), db.ByCertificateAuthorityDenormalizedID(caIDInt), env.ExternalHostname)
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found", err, env.Logger)
@@ -502,7 +502,7 @@ func GetCertificateAuthorityCRL(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 
-		ca, err := env.DB.GetDenormalizedCertificateAuthority(db.ByCertificateAuthorityID(idNum))
+		ca, err := env.DB.GetDenormalizedCertificateAuthority(db.ByCertificateAuthorityDenormalizedID(idNum))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found", err, env.Logger)

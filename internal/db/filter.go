@@ -51,7 +51,7 @@ func (filter *CSRFilter) AsCertificateRequest() *CertificateRequest {
 	case filter.PEM != nil:
 		csrRow = CertificateRequest{CSR: *filter.PEM}
 	default:
-		panic(fmt.Errorf("%w: empty filter: only CSR ID or PEM is supported but none was provided", ErrInvalidFilter))
+		panic(fmt.Errorf("%w: only CSR ID or PEM is supported but none was provided", ErrInvalidFilter))
 	}
 	return &csrRow
 }
@@ -65,7 +65,7 @@ func (filter *CSRFilter) AsCertificateRequestWithChain() *CertificateRequestWith
 	case filter.PEM != nil:
 		csrRow = CertificateRequestWithChain{CSR: *filter.PEM}
 	default:
-		panic(fmt.Errorf("%w: empty filter: only CSR ID or PEM is supported but none was provided", ErrInvalidFilter))
+		panic(fmt.Errorf("%w: only CSR ID or PEM is supported but none was provided", ErrInvalidFilter))
 	}
 	return &csrRow
 }
@@ -92,7 +92,7 @@ func (filter *UserFilter) AsUser() *User {
 	case filter.Username != nil:
 		userRow = User{Username: *filter.Username}
 	default:
-		panic(fmt.Errorf("%w: empty filter: only user ID or username is supported but none was provided", ErrInvalidFilter))
+		panic(fmt.Errorf("%w: only user ID or username is supported but none was provided", ErrInvalidFilter))
 	}
 	return &userRow
 }
@@ -119,15 +119,15 @@ func (filter *PrivateKeyFilter) AsPrivateKey() *PrivateKey {
 	case filter.PEM != nil:
 		pkRow = PrivateKey{PrivateKeyPEM: *filter.PEM}
 	default:
-		panic(fmt.Errorf("%w: empty filter: only private key ID or PEM is supported but none was provided", ErrInvalidFilter))
+		panic(fmt.Errorf("%w: only private key ID or PEM is supported but none was provided", ErrInvalidFilter))
 	}
 	return &pkRow
 }
 
 type CertificateAuthorityFilter struct {
-	ID            *int64
-	CSRID         *int64
-	CSRPEM        *string
+	ID    *int64
+	CSRID *int64
+	// CSRPEM        *string
 	CertificateID *int64
 }
 
@@ -143,10 +143,6 @@ func ByCertificateAuthorityCertificateID(id int64) CertificateAuthorityFilter {
 	return CertificateAuthorityFilter{CertificateID: &id}
 }
 
-func ByCertificateAuthorityCSRPEM(pem string) CertificateAuthorityFilter {
-	return CertificateAuthorityFilter{CSRPEM: &pem}
-}
-
 func (filter *CertificateAuthorityFilter) AsCertificateAuthority() *CertificateAuthority {
 	var CARow CertificateAuthority
 
@@ -158,12 +154,25 @@ func (filter *CertificateAuthorityFilter) AsCertificateAuthority() *CertificateA
 	case filter.CertificateID != nil:
 		CARow = CertificateAuthority{CertificateID: *filter.CertificateID}
 	default:
-		panic(fmt.Errorf("%w: empty filter: only CA ID, CSR ID or Certificate ID is supported but none was provided", ErrInvalidFilter))
+		panic(fmt.Errorf("%w: only CA ID, CSR ID or Certificate ID is supported but none was provided", ErrInvalidFilter))
 	}
 	return &CARow
 }
 
-func (filter *CertificateAuthorityFilter) AsCertificateAuthorityDenormalized() *CertificateAuthorityDenormalized {
+type CertificateAuthorityDenormalizedFilter struct {
+	ID     *int64
+	CSRPEM *string
+}
+
+func ByCertificateAuthorityDenormalizedCSRPEM(pem string) CertificateAuthorityDenormalizedFilter {
+	return CertificateAuthorityDenormalizedFilter{CSRPEM: &pem}
+}
+
+func ByCertificateAuthorityDenormalizedID(id int64) CertificateAuthorityDenormalizedFilter {
+	return CertificateAuthorityDenormalizedFilter{ID: &id}
+}
+
+func (filter *CertificateAuthorityDenormalizedFilter) AsCertificateAuthorityDenormalized() *CertificateAuthorityDenormalized {
 	var CADenormalizedRow CertificateAuthorityDenormalized
 
 	switch {
@@ -172,7 +181,7 @@ func (filter *CertificateAuthorityFilter) AsCertificateAuthorityDenormalized() *
 	case filter.CSRPEM != nil:
 		CADenormalizedRow = CertificateAuthorityDenormalized{CSRPEM: *filter.CSRPEM}
 	default:
-		panic(fmt.Errorf("%w: empty filter: only CA ID or CSR PEM is supported but none was provided", ErrInvalidFilter))
+		panic(fmt.Errorf("%w: only CA ID or CSR PEM is supported but none was provided", ErrInvalidFilter))
 	}
 	return &CADenormalizedRow
 }

@@ -53,11 +53,12 @@ const (
 		CREATE TABLE IF NOT EXISTS users (
 	 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-			username TEXT NOT NULL UNIQUE
+			username TEXT NOT NULL UNIQUE,
+			hashed_password TEXT NOT NULL,
+			permissions INTEGER CHECK (permissions IN (0,1)),
+
 			CHECK (trim(username) != ''),
-			hashed_password TEXT NOT NULL
-			CHECK (trim(hashed_password) != ''),
-			permissions INTEGER CHECK (permissions IN (0,1))
+			CHECK (trim(hashed_password) != '')
 	)`
 )
 

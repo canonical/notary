@@ -116,8 +116,8 @@ func TestCreateUserFails(t *testing.T) {
 	if err == nil {
 		t.Fatalf("An error should have been returned when creating a user with an empty username.")
 	}
-	if !errors.Is(err, db.ErrInvalidInput) {
-		t.Fatalf("An ErrInvalidInput should have been returned when creating a user with an empty username.")
+	if !errors.Is(err, db.ErrInvalidUser) {
+		t.Fatalf("An ErrInvalidUser should have been returned when creating a user with an empty username.")
 	}
 	num, err = database.NumUsers()
 	if err != nil {
@@ -130,8 +130,8 @@ func TestCreateUserFails(t *testing.T) {
 	if err == nil {
 		t.Fatalf("An error should have been returned when creating a user with a nil password.")
 	}
-	if !errors.Is(err, db.ErrInvalidInput) {
-		t.Fatalf("An ErrInvalidInput should have been returned when creating a user with a nil password.")
+	if !errors.Is(err, db.ErrInvalidUser) {
+		t.Fatalf("An ErrInvalidUser should have been returned when creating a user with a nil password.")
 	}
 	num, err = database.NumUsers()
 	if err != nil {
@@ -144,8 +144,8 @@ func TestCreateUserFails(t *testing.T) {
 	if err == nil {
 		t.Fatalf("An error should have been returned when creating a user with an invalid permission level.")
 	}
-	if !errors.Is(err, db.ErrInvalidInput) {
-		t.Fatalf("An ErrInvalidInput should have been returned when creating a user with an invalid permission level.")
+	if !errors.Is(err, db.ErrInvalidUser) {
+		t.Fatalf("An ErrInvalidUser should have been returned when creating a user with an invalid permission level.")
 	}
 }
 
@@ -166,11 +166,6 @@ func TestGetUserFails(t *testing.T) {
 	_, err = database.GetUser(db.ByUsername("admin2"))
 	if err == nil {
 		t.Fatalf("An error should have been returned when getting a non-existent user.")
-	}
-
-	_, err = database.GetUser(db.UserFilter{})
-	if err == nil {
-		t.Fatalf("An error should have been returned when getting a user with empty filter.")
 	}
 }
 

@@ -59,6 +59,11 @@ const (
 			CHECK (trim(hashed_password) != ''),
 			permissions INTEGER CHECK (permissions IN (0,1))
 	)`
+	queryCreateEncryptionKeysTable = `
+		CREATE TABLE IF NOT EXISTS encryption_keys (
+		    encryption_key_id INTEGER PRIMARY KEY AUTOINCREMENT,
+			encryption_key TEXT NOT NULL UNIQUE
+	)`
 )
 
 const (
@@ -321,6 +326,13 @@ WITH RECURSIVE cas_with_chain AS (
 	updateUserStmt  = "UPDATE users SET hashed_password=$User.hashed_password WHERE id==$User.id or username==$User.username"
 	deleteUserStmt  = "DELETE FROM users WHERE id==$User.id"
 	getNumUsersStmt = "SELECT COUNT(*) AS &NumUsers.count FROM users"
+
+	// // // // // // // // // //
+	// Encryption Key SQL Strings //
+	// // // // // // // // // //
+	createEncryptionKeyStmt = "INSERT INTO encryption_keys (encryption_key) VALUES ($AES256GCMEncryptionKey.encryption_key)"
+	getEncryptionKeyStmt    = "SELECT &AES256GCMEncryptionKey.* FROM encryption_keys"
+	deleteEncryptionKeyStmt = "DELETE FROM encryption_keys WHERE encryption_key_id==$AES256GCMEncryptionKey.encryption_key_id"
 )
 
 // Statements contains all prepared SQL statements used by the database
@@ -365,6 +377,11 @@ type Statements struct {
 	ListUsers   *sqlair.Statement
 	DeleteUser  *sqlair.Statement
 	GetNumUsers *sqlair.Statement
+
+	// Encryption Key statements
+	CreateEncryptionKey *sqlair.Statement
+	GetEncryptionKey    *sqlair.Statement
+	DeleteEncryptionKey *sqlair.Statement
 }
 
 // PrepareStatements prepares all SQL statements used by the database.
@@ -413,6 +430,11 @@ func PrepareStatements(db *sqlair.DB) *Statements {
 	stmts.ListUsers = sqlair.MustPrepare(listUsersStmt, User{})
 	stmts.DeleteUser = sqlair.MustPrepare(deleteUserStmt, User{})
 	stmts.GetNumUsers = sqlair.MustPrepare(getNumUsersStmt, NumUsers{})
+
+	// Encryption Key statements
+	stmts.CreateEncryptionKey = sqlair.MustPrepare(createEncryptionKeyStmt, AES256GCMEncryptionKey{})
+	stmts.GetEncryptionKey = sqlair.MustPrepare(getEncryptionKeyStmt, AES256GCMEncryptionKey{})
+	stmts.DeleteEncryptionKey = sqlair.MustPrepare(deleteEncryptionKeyStmt, AES256GCMEncryptionKey{})
 
 	return stmts
 }

@@ -43,6 +43,11 @@ func (db *Database) GetPrivateKey(filter PrivateKeyFilter) (*PrivateKey, error) 
 		}
 		return nil, fmt.Errorf("%w: failed to get private key", err)
 	}
+	decryptedPK, err := Decrypt(pk.PrivateKeyPEM, db.EncryptionKey)
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to decrypt private key", err)
+	}
+	pk.PrivateKeyPEM = decryptedPK
 	return pk, nil
 }
 
@@ -51,11 +56,12 @@ func (db *Database) CreatePrivateKey(pk string) (int64, error) {
 	if err := ValidatePrivateKey(pk); err != nil {
 		return 0, errors.New("Invalid private key: " + err.Error())
 	}
+	encryptedPK, err := Encrypt(pk, db.EncryptionKey)
 	row := PrivateKey{
-		PrivateKeyPEM: pk,
+		PrivateKeyPEM: encryptedPK,
 	}
 	var outcome sqlair.Outcome
-	err := db.conn.Query(context.Background(), db.stmts.CreatePrivateKey, row).Get(&outcome)
+	err = db.conn.Query(context.Background(), db.stmts.CreatePrivateKey, row).Get(&outcome)
 	if err != nil {
 		if IsConstraintError(err, "UNIQUE constraint failed") {
 			return 0, fmt.Errorf("%w: private key already exists", ErrAlreadyExists)

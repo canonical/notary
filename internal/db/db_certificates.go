@@ -1,12 +1,9 @@
 package db
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"slices"
-
-	"github.com/canonical/sqlair"
 )
 
 // ListCertificateRequests gets every CertificateRequest entry in the table.
@@ -67,22 +64,18 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 				IssuerID:       parentID,
 				CertificatePEM: v,
 			}
-			// TODO: use GetEntity here instead
-			err = db.conn.Query(context.Background(), db.stmts.GetCertificate, certRow).Get(&certRow)
-			childID := certRow.CertificateID
-			if err == sqlair.ErrNoRows {
-				var outcome sqlair.Outcome
-				// TODO: use CreateEntity here instead
-				err = db.conn.Query(context.Background(), db.stmts.CreateCertificate, certRow).Get(&outcome)
+			cert, err := GetOneEntity[Certificate](db, db.stmts.GetCertificate, certRow)
+			var childID int64
+			if errors.Is(err, ErrNotFound) {
+				id, err := CreateEntity(db, db.stmts.CreateCertificate, certRow)
+				childID = id
 				if err != nil {
-					return 0, HandleDBCreateQueryError(err, "certificate")
-				}
-				childID, err = outcome.Result().LastInsertId()
-				if err != nil {
-					return 0, fmt.Errorf("%w: failed to create certificate", ErrInternal)
+					return 0, fmt.Errorf("%w: %w: failed to create certificate", ErrInternal, err)
 				}
 			} else if err != nil {
-				return 0, fmt.Errorf("%w: failed to get certificate", ErrInternal)
+				return 0, fmt.Errorf("%w: %w: failed to get certificate", ErrInternal, err)
+			} else {
+				childID = cert.CertificateID
 			}
 			parentID = childID
 		}
@@ -102,14 +95,12 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 // GetCertificateChainByID gets a certificate chain row from the repository from a given ID.
 func (db *Database) GetCertificateChain(filter CertificateFilter) ([]Certificate, error) {
 	certRow := filter.AsCertificate()
-	var certChain []Certificate
-	// TODO: use ListEntities here instead, and convert all generic functions to variadic
-	err := db.conn.Query(context.Background(), db.stmts.GetCertificateChain, *certRow).GetAll(&certChain)
+	certChain, err := ListEntities[Certificate](db, db.stmts.GetCertificateChain, *certRow)
 	if err != nil {
-		if errors.Is(err, sqlair.ErrNoRows) {
-			return nil, fmt.Errorf("%w: certificate chain not found", ErrNotFound)
-		}
-		return nil, fmt.Errorf("%w: failed to get certificate chain", ErrInternal)
+		return nil, err
+	}
+	if len(certChain) == 0 {
+		return nil, fmt.Errorf("%w: certificate chain not found", ErrNotFound)
 	}
 	return certChain, nil
 }

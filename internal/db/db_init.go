@@ -64,9 +64,9 @@ func NewDatabase(databasePath string) (*Database, error) {
 }
 
 // ListEntities retrieves all entities of a given type from the database.
-func ListEntities[T any](db *Database, stmt *sqlair.Statement) ([]T, error) {
+func ListEntities[T any](db *Database, stmt *sqlair.Statement, inputArgs ...any) ([]T, error) {
 	var entities []T
-	err := db.conn.Query(context.Background(), stmt).GetAll(&entities)
+	err := db.conn.Query(context.Background(), stmt, inputArgs...).GetAll(&entities)
 	if err != nil && !errors.Is(err, sqlair.ErrNoRows) {
 		return nil, fmt.Errorf("failed to list %s: %w", getTypeName[T](), ErrInternal)
 	}
@@ -74,9 +74,9 @@ func ListEntities[T any](db *Database, stmt *sqlair.Statement) ([]T, error) {
 }
 
 // GetOneEntity retrieves a single entity of a given type from the database.
-func GetOneEntity[T any](db *Database, stmt *sqlair.Statement, params T) (*T, error) {
+func GetOneEntity[T any](db *Database, stmt *sqlair.Statement, inputArgs ...any) (*T, error) {
 	var result T
-	err := db.conn.Query(context.Background(), stmt, params).Get(&result)
+	err := db.conn.Query(context.Background(), stmt, inputArgs...).Get(&result)
 	if err != nil {
 		if errors.Is(err, sqlair.ErrNoRows) {
 			return nil, fmt.Errorf("failed to get %s: %w", getTypeName[T](), ErrNotFound)

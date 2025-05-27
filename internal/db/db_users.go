@@ -16,7 +16,7 @@ func (db *Database) ListUsers() ([]User, error) {
 // GetUser retrieves the name, password and the permission level of a user.
 func (db *Database) GetUser(filter UserFilter) (*User, error) {
 	userRow := filter.AsUser()
-	return GetOneEntity(db, db.stmts.GetUser, *userRow)
+	return GetOneEntity[User](db, db.stmts.GetUser, *userRow)
 }
 
 // CreateUser creates a new user from a given username, password and permission level.
@@ -71,7 +71,6 @@ func (db *Database) DeleteUser(filter UserFilter) error {
 // NumUsers returns the number of users in the database.
 func (db *Database) NumUsers() (int, error) {
 	result := NumUsers{}
-	// TODO: also requires variadic getentity
 	err := db.conn.Query(context.Background(), db.stmts.GetNumUsers).Get(&result)
 	if err != nil {
 		return 0, fmt.Errorf("%w: failed to get number of users", ErrInternal)

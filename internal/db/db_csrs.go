@@ -23,13 +23,13 @@ func (db *Database) ListCertificateRequestWithCertificatesWithoutCAS() ([]Certif
 // GetCertificateRequestByID gets a CSR row from the repository from a given ID.
 func (db *Database) GetCertificateRequest(filter CSRFilter) (*CertificateRequest, error) {
 	csrRow := filter.AsCertificateRequest()
-	return GetOneEntity(db, db.stmts.GetCertificateRequest, *csrRow)
+	return GetOneEntity[CertificateRequest](db, db.stmts.GetCertificateRequest, *csrRow)
 }
 
 // GetCertificateRequestAndChain gets a CSR row from the repository from a given ID.
 func (db *Database) GetCertificateRequestAndChain(filter CSRFilter) (*CertificateRequestWithChain, error) {
 	csrRow := filter.AsCertificateRequestWithChain()
-	return GetOneEntity(db, db.stmts.GetCertificateRequestWithChain, *csrRow)
+	return GetOneEntity[CertificateRequestWithChain](db, db.stmts.GetCertificateRequestWithChain, *csrRow)
 }
 
 // CreateCertificateRequest creates a new CSR entry in the repository. The string must be a valid CSR and unique.

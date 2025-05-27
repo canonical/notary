@@ -12,7 +12,7 @@ func (db *Database) ListPrivateKeys() ([]PrivateKey, error) {
 // GetPrivateKey gets a private key row from the repository from a given ID or PEM.
 func (db *Database) GetPrivateKey(filter PrivateKeyFilter) (*PrivateKey, error) {
 	pkRow := filter.AsPrivateKey()
-	return GetOneEntity(db, db.stmts.GetPrivateKey, *pkRow)
+	return GetOneEntity[PrivateKey](db, db.stmts.GetPrivateKey, *pkRow)
 }
 
 // CreatePrivateKey creates a new private key entry in the repository. The string must be a valid private key and unique.

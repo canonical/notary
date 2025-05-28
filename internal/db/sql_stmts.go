@@ -64,6 +64,11 @@ const (
 		    encryption_key_id INTEGER PRIMARY KEY AUTOINCREMENT,
 			encryption_key TEXT NOT NULL UNIQUE
 	)`
+	queryCreateJWTSecretTable = `
+		CREATE TABLE IF NOT EXISTS jwt_secret (
+			id INTEGER PRIMARY KEY CHECK (id = 1), -- Ensures only one row
+			encrypted_secret TEXT NOT NULL
+	)`
 )
 
 const (
@@ -333,6 +338,12 @@ WITH RECURSIVE cas_with_chain AS (
 	createEncryptionKeyStmt = "INSERT INTO encryption_keys (encryption_key) VALUES ($AES256GCMEncryptionKey.encryption_key)"
 	getEncryptionKeyStmt    = "SELECT &AES256GCMEncryptionKey.* FROM encryption_keys"
 	deleteEncryptionKeyStmt = "DELETE FROM encryption_keys WHERE encryption_key_id==$AES256GCMEncryptionKey.encryption_key_id"
+
+	// // // // // // // // // //
+	// JWT Secret SQL Strings //
+	// // // // // // // // // //
+	storeJWTSecretStmt = "INSERT OR REPLACE INTO jwt_secret (id, encrypted_secret) VALUES ($JWTSecret.id, $JWTSecret.encrypted_secret)"
+	getJWTSecretStmt   = "SELECT &JWTSecret.* FROM jwt_secret WHERE id=$JWTSecret.id"
 )
 
 // Statements contains all prepared SQL statements used by the database
@@ -382,6 +393,10 @@ type Statements struct {
 	CreateEncryptionKey *sqlair.Statement
 	GetEncryptionKey    *sqlair.Statement
 	DeleteEncryptionKey *sqlair.Statement
+
+	// JWT Secret statements
+	StoreJWTSecret *sqlair.Statement
+	GetJWTSecret   *sqlair.Statement
 }
 
 // PrepareStatements prepares all SQL statements used by the database.
@@ -435,6 +450,10 @@ func PrepareStatements(db *sqlair.DB) *Statements {
 	stmts.CreateEncryptionKey = sqlair.MustPrepare(createEncryptionKeyStmt, AES256GCMEncryptionKey{})
 	stmts.GetEncryptionKey = sqlair.MustPrepare(getEncryptionKeyStmt, AES256GCMEncryptionKey{})
 	stmts.DeleteEncryptionKey = sqlair.MustPrepare(deleteEncryptionKeyStmt, AES256GCMEncryptionKey{})
+
+	// JWT Secret statements
+	stmts.StoreJWTSecret = sqlair.MustPrepare(storeJWTSecretStmt, JWTSecret{})
+	stmts.GetJWTSecret = sqlair.MustPrepare(getJWTSecretStmt, JWTSecret{})
 
 	return stmts
 }

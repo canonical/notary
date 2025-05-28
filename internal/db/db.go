@@ -55,6 +55,9 @@ func NewDatabase(databasePath string) (*Database, error) {
 	if _, err := sqlConnection.Exec(queryCreateEncryptionKeysTable); err != nil {
 		return nil, err
 	}
+	if _, err := sqlConnection.Exec(queryCreateJWTSecretTable); err != nil {
+		return nil, err
+	}
 	db := new(Database)
 	db.stmts = PrepareStatements(db.conn)
 	db.conn = sqlair.NewDB(sqlConnection)

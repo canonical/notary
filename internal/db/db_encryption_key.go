@@ -1,3 +1,4 @@
+// TODO yazan, we could simplify this following the JWT secret example
 package db
 
 import (

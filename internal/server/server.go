@@ -69,7 +69,6 @@ func New(port int, cert []byte, key []byte, dbPath string, externalHostname stri
 		return nil, err
 	}
 
-	// Try to get existing JWT secret from database
 	jwtSecret, err := database.GetJWTSecret()
 	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
@@ -78,7 +77,7 @@ func New(port int, cert []byte, key []byte, dbPath string, externalHostname stri
 			if err != nil {
 				return nil, err
 			}
-			if err := database.StoreJWTSecret(jwtSecret); err != nil {
+			if err := database.CreateJWTSecret(jwtSecret); err != nil {
 				return nil, fmt.Errorf("failed to store JWT secret: %w", err)
 			}
 		} else {

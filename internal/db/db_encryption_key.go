@@ -1,9 +1,9 @@
-// TODO yazan, we could simplify this following the JWT secret example
 package db
 
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 
 	"github.com/canonical/sqlair"
@@ -14,48 +14,60 @@ type AES256GCMEncryptionKey struct {
 	EncryptionKey   string `db:"encryption_key"`
 }
 
+// GetEncryptionKey retrieves the only encryption key from the database.
 func (db *Database) GetEncryptionKey() ([]byte, error) {
-	encryptionKey, err := ListEntities[AES256GCMEncryptionKey](db, db.stmts.GetEncryptionKey)
+	encryptionKeyRow := AES256GCMEncryptionKey{
+		EncryptionKeyID: 1,
+	}
+	encryptionKey, err := GetOneEntity[AES256GCMEncryptionKey](db, db.stmts.GetEncryptionKey, encryptionKeyRow)
 	if err != nil {
-		return nil, err
-	}
-	if len(encryptionKey) == 0 {
-		return nil, fmt.Errorf("%w: no encryption key found", ErrNotFound)
-	}
-	if len(encryptionKey) > 1 {
-		return nil, fmt.Errorf("%w: multiple encryption keys found", ErrInternal)
+		if errors.Is(err, sqlair.ErrNoRows) {
+			return nil, fmt.Errorf("%w: no encryption key found", ErrNotFound)
+		}
+		return nil, fmt.Errorf("failed to get encryption key: %w", err)
 	}
 
-	decodedKey, err := base64.StdEncoding.DecodeString(encryptionKey[0].EncryptionKey)
+	decodedKey, err := base64.StdEncoding.DecodeString(encryptionKey.EncryptionKey)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: failed to decode encryption key", ErrInternal)
 	}
 	return decodedKey, nil
 }
 
+// CreateEncryptionKey creates a new encryption key in the database, there can only be one encryption key.
 func (db *Database) CreateEncryptionKey(encryptionKey []byte) error {
 	key := AES256GCMEncryptionKey{
-		EncryptionKey: base64.StdEncoding.EncodeToString(encryptionKey),
+		EncryptionKey:   base64.StdEncoding.EncodeToString(encryptionKey),
+		EncryptionKeyID: 1,
+	}
+	currentKey, err := db.GetEncryptionKey()
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		return fmt.Errorf("%w: failed to check if encryption key already exists", ErrInternal)
+	}
+	if currentKey != nil {
+		return fmt.Errorf("%w: Encryption key already exists", ErrAlreadyExists)
 	}
 	var outcome sqlair.Outcome
-	err := db.conn.Query(context.Background(), db.stmts.CreateEncryptionKey, key).Get(&outcome)
+	err = db.conn.Query(context.Background(), db.stmts.CreateEncryptionKey, key).Get(&outcome)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: failed to create encryption key", ErrInternal)
 	}
 	_, err = outcome.Result().LastInsertId()
 	if err != nil {
+		return fmt.Errorf("%w: failed to create encryption key", ErrInternal)
 	}
 	return nil
 }
 
+// DeleteEncryptionKey deletes the only encryption key from the database.
 func (db *Database) DeleteEncryptionKey() error {
-	encryptionKey, err := db.GetEncryptionKey()
+	_, err := db.GetEncryptionKey()
 	if err != nil {
 		return err
 	}
-	err = db.conn.Query(context.Background(), db.stmts.DeleteEncryptionKey, encryptionKey).Get(&encryptionKey)
+	err = db.conn.Query(context.Background(), db.stmts.DeleteEncryptionKey, AES256GCMEncryptionKey{EncryptionKeyID: 1}).Run()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to delete encryption key: %w", ErrInternal)
 	}
 	return nil
 }

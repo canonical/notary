@@ -4,6 +4,7 @@ package db
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/canonical/sqlair"
 	_ "github.com/mattn/go-sqlite3"
@@ -66,14 +67,14 @@ func NewDatabase(databasePath string) (*Database, error) {
 		if errors.Is(err, ErrNotFound) {
 			encryptionKey, err := GenerateAES256GCMEncryptionKey()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to generate encryption key: %w", err)
 			}
 			err = db.CreateEncryptionKey(encryptionKey)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to store encryption key: %w", err)
 			}
 			db.EncryptionKey = encryptionKey
-			return nil, err
+			return db, nil
 		}
 		return nil, err
 	}

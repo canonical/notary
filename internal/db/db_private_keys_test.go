@@ -1,7 +1,6 @@
 package db_test
 
 import (
-	"errors"
 	"path/filepath"
 	"testing"
 
@@ -39,15 +38,7 @@ func TestPrivateKeysEndToEnd(t *testing.T) {
 	if len(pks) != 1 {
 		t.Fatalf("Number of private keys is not 1")
 	}
-
 	pk, err := database.GetPrivateKey(db.ByPrivateKeyID(1))
-	if err != nil {
-		t.Fatalf("Couldn't get private key: %s", err)
-	}
-	if pk.PrivateKeyPEM != RootCAPrivateKey {
-		t.Fatalf("Private key is not correct")
-	}
-	pk, err = database.GetPrivateKey(db.ByPrivateKeyPEM(RootCAPrivateKey))
 	if err != nil {
 		t.Fatalf("Couldn't get private key: %s", err)
 	}
@@ -93,25 +84,5 @@ func TestPrivateKeyFails(t *testing.T) {
 	_, err = database.GetPrivateKey(db.ByPrivateKeyID(10))
 	if err == nil {
 		t.Fatalf("Should have failed to get private key")
-	}
-	_, err = database.GetPrivateKey(db.ByPrivateKeyPEM(""))
-	if err == nil {
-		t.Fatalf("Should have failed to get private key")
-	}
-	_, err = database.GetPrivateKey(db.ByPrivateKeyPEM("nope"))
-	if err == nil {
-		t.Fatalf("Should have failed to get private key")
-	}
-	_, err = database.GetPrivateKey(db.ByPrivateKeyPEM(RootCAPrivateKey))
-	if err == nil {
-		t.Fatalf("Should have failed to get private key")
-	}
-
-	err = database.DeletePrivateKey(db.ByPrivateKeyPEM(RootCAPrivateKey))
-	if err == nil {
-		t.Fatalf("Should have failed to delete nonexistent private key")
-	}
-	if !errors.Is(err, db.ErrNotFound) {
-		t.Fatalf("Expected a not found error when deleting a nonexistent private key, got %s", err)
 	}
 }

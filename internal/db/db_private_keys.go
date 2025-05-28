@@ -20,6 +20,13 @@ func (db *Database) ListPrivateKeys() ([]PrivateKey, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to list private keys", err)
 	}
+	for i := range privateKeys {
+		decryptedPK, err := Decrypt(privateKeys[i].PrivateKeyPEM, db.EncryptionKey)
+		if err != nil {
+			return nil, fmt.Errorf("%w: failed to decrypt private key", err)
+		}
+		privateKeys[i].PrivateKeyPEM = decryptedPK
+	}
 	return privateKeys, nil
 }
 
@@ -30,12 +37,9 @@ func (db *Database) GetPrivateKey(filter PrivateKeyFilter) (*PrivateKey, error) 
 	switch {
 	case filter.ID != nil:
 		pkRow = PrivateKey{PrivateKeyID: *filter.ID}
-	case filter.PEM != nil:
-		pkRow = PrivateKey{PrivateKeyPEM: *filter.PEM}
 	default:
 		return nil, fmt.Errorf("%w: private key - both ID and PEM are nil", ErrInvalidFilter)
 	}
-
 	pk, err := GetOneEntity[PrivateKey](db, db.stmts.GetPrivateKey, pkRow)
 	if err != nil {
 		if errors.Is(err, sqlair.ErrNoRows) {

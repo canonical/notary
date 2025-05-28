@@ -335,15 +335,16 @@ WITH RECURSIVE cas_with_chain AS (
 	// // // // // // // // // //
 	// Encryption Key SQL Strings //
 	// // // // // // // // // //
-	createEncryptionKeyStmt = "INSERT INTO encryption_keys (encryption_key) VALUES ($AES256GCMEncryptionKey.encryption_key)"
-	getEncryptionKeyStmt    = "SELECT &AES256GCMEncryptionKey.* FROM encryption_keys"
-	deleteEncryptionKeyStmt = "DELETE FROM encryption_keys WHERE encryption_key_id==$AES256GCMEncryptionKey.encryption_key_id"
+	createEncryptionKeyStmt = "INSERT OR REPLACE INTO encryption_keys (encryption_key_id, encryption_key) VALUES ($AES256GCMEncryptionKey.encryption_key_id, $AES256GCMEncryptionKey.encryption_key)"
+	getEncryptionKeyStmt    = "SELECT &AES256GCMEncryptionKey.* FROM encryption_keys WHERE encryption_key_id=$AES256GCMEncryptionKey.encryption_key_id"
+	deleteEncryptionKeyStmt = "DELETE FROM encryption_keys WHERE encryption_key_id=$AES256GCMEncryptionKey.encryption_key_id"
 
 	// // // // // // // // // //
 	// JWT Secret SQL Strings //
 	// // // // // // // // // //
-	storeJWTSecretStmt = "INSERT OR REPLACE INTO jwt_secret (id, encrypted_secret) VALUES ($JWTSecret.id, $JWTSecret.encrypted_secret)"
-	getJWTSecretStmt   = "SELECT &JWTSecret.* FROM jwt_secret WHERE id=$JWTSecret.id"
+	createJWTSecretStmt = "INSERT OR REPLACE INTO jwt_secret (id, encrypted_secret) VALUES ($JWTSecret.id, $JWTSecret.encrypted_secret)"
+	getJWTSecretStmt    = "SELECT &JWTSecret.* FROM jwt_secret WHERE id=$JWTSecret.id"
+	deleteJWTSecretStmt = "DELETE FROM jwt_secret WHERE id=$JWTSecret.id"
 )
 
 // Statements contains all prepared SQL statements used by the database
@@ -395,8 +396,9 @@ type Statements struct {
 	DeleteEncryptionKey *sqlair.Statement
 
 	// JWT Secret statements
-	StoreJWTSecret *sqlair.Statement
-	GetJWTSecret   *sqlair.Statement
+	CreateJWTSecret *sqlair.Statement
+	GetJWTSecret    *sqlair.Statement
+	DeleteJWTSecret *sqlair.Statement
 }
 
 // PrepareStatements prepares all SQL statements used by the database.
@@ -452,8 +454,9 @@ func PrepareStatements(db *sqlair.DB) *Statements {
 	stmts.DeleteEncryptionKey = sqlair.MustPrepare(deleteEncryptionKeyStmt, AES256GCMEncryptionKey{})
 
 	// JWT Secret statements
-	stmts.StoreJWTSecret = sqlair.MustPrepare(storeJWTSecretStmt, JWTSecret{})
+	stmts.CreateJWTSecret = sqlair.MustPrepare(createJWTSecretStmt, JWTSecret{})
 	stmts.GetJWTSecret = sqlair.MustPrepare(getJWTSecretStmt, JWTSecret{})
+	stmts.DeleteJWTSecret = sqlair.MustPrepare(deleteJWTSecretStmt, JWTSecret{})
 
 	return stmts
 }

@@ -86,6 +86,15 @@ func (db *Database) ListDenormalizedCertificateAuthorities() ([]CertificateAutho
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to list denormalized certificate authorities", err)
 	}
+	for i := range cas {
+		if cas[i].PrivateKeyPEM != "" {
+			decryptedPK, err := Decrypt(cas[i].PrivateKeyPEM, db.EncryptionKey)
+			if err != nil {
+				return nil, fmt.Errorf("%w: failed to decrypt private key", err)
+			}
+			cas[i].PrivateKeyPEM = decryptedPK
+		}
+	}
 	return cas, nil
 }
 
@@ -118,6 +127,13 @@ func (db *Database) GetDenormalizedCertificateAuthority(filter CertificateAuthor
 			return nil, fmt.Errorf("%w: certificate authority not found", ErrNotFound)
 		}
 		return nil, fmt.Errorf("%w: failed to get denormalized certificate authority", ErrInternal)
+	}
+	if CADenormalizedRow.PrivateKeyPEM != "" {
+		decryptedPK, err := Decrypt(CADenormalizedRow.PrivateKeyPEM, db.EncryptionKey)
+		if err != nil {
+			return nil, fmt.Errorf("%w: failed to decrypt private key", err)
+		}
+		CADenormalizedRow.PrivateKeyPEM = decryptedPK
 	}
 	return CADenormalizedRow, nil
 }

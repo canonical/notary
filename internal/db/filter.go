@@ -42,16 +42,11 @@ func ByUsername(username string) UserFilter {
 }
 
 type PrivateKeyFilter struct {
-	ID  *int64
-	PEM *string
+	ID *int64
 }
 
 func ByPrivateKeyID(id int64) PrivateKeyFilter {
 	return PrivateKeyFilter{ID: &id}
-}
-
-func ByPrivateKeyPEM(pem string) PrivateKeyFilter {
-	return PrivateKeyFilter{PEM: &pem}
 }
 
 type CertificateAuthorityFilter struct {

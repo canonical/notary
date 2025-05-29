@@ -421,7 +421,7 @@ func SignCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
 			return
 		}
-		err = env.DB.SignCertificateRequest(db.ByCSRID(idNum), db.ByCertificateAuthorityID(caIDInt), env.ExternalHostname)
+		err = env.DB.SignCertificateRequest(db.ByCSRID(idNum), db.ByCertificateAuthorityDenormalizedID(caIDInt), env.ExternalHostname)
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found", err, env.Logger)

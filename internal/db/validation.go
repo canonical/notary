@@ -15,14 +15,14 @@ import (
 func ValidateCertificateRequest(csr string) error {
 	block, _ := pem.Decode([]byte(csr))
 	if block == nil {
-		return errors.New("PEM Certificate Request string not found or malformed")
+		return fmt.Errorf("%w: PEM Certificate Request string not found or malformed", ErrInvalidCertificateRequest)
 	}
 	if block.Type != "CERTIFICATE REQUEST" {
-		return errors.New("given PEM string not a certificate request")
+		return fmt.Errorf("%w: given PEM string not a certificate request", ErrInvalidCertificateRequest)
 	}
 	_, err := x509.ParseCertificateRequest(block.Bytes)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: %w", ErrInvalidCertificateRequest, err)
 	}
 	return nil
 }
@@ -46,18 +46,18 @@ func ValidateCertificate(cert string) error {
 			break
 		}
 		if certBlock.Type != "CERTIFICATE" {
-			return errors.New("a given PEM string was not a certificate")
+			return fmt.Errorf("%w: a given PEM string was not a certificate", ErrInvalidCertificate)
 		}
 		certificate, err := x509.ParseCertificate(certBlock.Bytes)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w: %w", ErrInvalidCertificate, err)
 		}
 		certificates = append(certificates, certificate)
 		certData = rest
 	}
 
 	if len(certificates) < 2 {
-		return errors.New("less than 2 certificate PEM strings were found")
+		return fmt.Errorf("%w: less than 2 certificate PEM strings were found", ErrInvalidCertificate)
 	}
 
 	for i, firstCert := range certificates[:len(certificates)-1] {
@@ -69,7 +69,7 @@ func ValidateCertificate(cert string) error {
 			return fmt.Errorf("invalid certificate chain: certificate %d, certificate %d: subjects do not match", i, i+1)
 		}
 		if err := firstCert.CheckSignatureFrom(secondCert); err != nil {
-			return fmt.Errorf("invalid certificate chain: certificate %d, certificate %d: keys do not match: %s", i, i+1, err.Error())
+			return fmt.Errorf("invalid certificate chain: certificate %d, certificate %d: keys do not match: %w", i, i+1, err)
 		}
 	}
 	return nil
@@ -100,11 +100,11 @@ func CertificateMatchesCSR(cert string, csr string) error {
 func ValidatePrivateKey(pk string) error {
 	block, _ := pem.Decode([]byte(pk))
 	if block == nil {
-		return errors.New("failed to decode PEM block")
+		return fmt.Errorf("%w: failed to decode PEM block", ErrInvalidPrivateKey)
 	}
 
 	if block.Type != "RSA PRIVATE KEY" && block.Type != "PRIVATE KEY" {
-		return fmt.Errorf("invalid PEM block type: %s", block.Type)
+		return fmt.Errorf("%w: invalid PEM block type: %s", ErrInvalidPrivateKey, block.Type)
 	}
 
 	var err error
@@ -114,20 +114,17 @@ func ValidatePrivateKey(pk string) error {
 		_, err = x509.ParsePKCS8PrivateKey(block.Bytes)
 	}
 	if err != nil {
-		return fmt.Errorf("failed to parse private key: %v", err)
+		return fmt.Errorf("%w: failed to parse private key: %v", ErrInvalidPrivateKey, err)
 	}
 	return nil
 }
 
-func ValidateUser(user User) error {
-	if user.Username == "" {
-		return fmt.Errorf("invalid username or password")
+func ValidateUser(username string, permissions int) error {
+	if username == "" {
+		return fmt.Errorf("%w: invalid username or password", ErrInvalidUser)
 	}
-	if user.HashedPassword == "" {
-		return fmt.Errorf("invalid username or password")
-	}
-	if user.Permissions != 0 && user.Permissions != 1 {
-		return fmt.Errorf("invalid permissions")
+	if permissions != 0 && permissions != 1 {
+		return fmt.Errorf("%w: invalid permissions", ErrInvalidUser)
 	}
 	return nil
 }

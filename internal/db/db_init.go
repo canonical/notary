@@ -13,8 +13,9 @@ import (
 
 // Database is the object used to communicate with the established repository.
 type Database struct {
-	conn  *sqlair.DB
-	stmts *Statements
+	conn          *sqlair.DB
+	stmts         *Statements
+	EncryptionKey []byte
 }
 
 // Close closes the connection to the repository cleanly.

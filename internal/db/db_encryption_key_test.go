@@ -34,7 +34,7 @@ func TestEncryptionKeyEndToEnd(t *testing.T) {
 		t.Fatalf("Couldn't delete encryption key: %s", err)
 	}
 
-	encryptionKey, err = database.GetEncryptionKey()
+	_, err = database.GetEncryptionKey()
 	if !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("Expected a not found error, got %s", err)
 	}
@@ -44,8 +44,8 @@ func TestEncryptionKeyEndToEnd(t *testing.T) {
 		t.Fatalf("Couldn't create encryption key: %s", err)
 	}
 
-	encryptionKey, err = database.GetEncryptionKey()
-	if err != nil {
+	// Get and verify the newly created encryption key
+	if encryptionKey, err = database.GetEncryptionKey(); err != nil {
 		t.Fatalf("Couldn't get encryption key: %s", err)
 	}
 	if string(encryptionKey) != "test1" {

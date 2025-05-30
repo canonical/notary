@@ -4,6 +4,7 @@ package server
 import (
 	"crypto/rand"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net/http"
 	"os/exec"
@@ -48,6 +49,7 @@ func SendPebbleNotification(key NotificationKey, request_id int64) error {
 	return nil
 }
 
+// This secret should be generated once and stored in the database, encrypted.
 func generateJWTSecret() ([]byte, error) {
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {
@@ -62,17 +64,29 @@ func New(port int, cert []byte, key []byte, dbPath string, externalHostname stri
 	if err != nil {
 		return nil, err
 	}
-	db, err := db.NewDatabase(dbPath)
+	database, err := db.NewDatabase(dbPath)
 	if err != nil {
 		return nil, err
 	}
 
-	jwtSecret, err := generateJWTSecret()
+	jwtSecret, err := database.GetJWTSecret()
 	if err != nil {
-		return nil, err
+		if errors.Is(err, db.ErrNotFound) {
+			// Generate new JWT secret if none exists
+			jwtSecret, err = generateJWTSecret()
+			if err != nil {
+				return nil, err
+			}
+			if err := database.CreateJWTSecret(jwtSecret); err != nil {
+				return nil, fmt.Errorf("failed to store JWT secret: %w", err)
+			}
+		} else {
+			return nil, fmt.Errorf("failed to get JWT secret: %w", err)
+		}
 	}
+
 	env := &HandlerConfig{}
-	env.DB = db
+	env.DB = database
 	env.SendPebbleNotifications = pebbleNotificationsEnabled
 	env.JWTSecret = jwtSecret
 	env.ExternalHostname = externalHostname

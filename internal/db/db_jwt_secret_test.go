@@ -1,11 +1,13 @@
 package db_test
 
 import (
+	"database/sql"
 	"errors"
 	"path/filepath"
 	"testing"
 
 	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/encryption"
 )
 
 func TestJWTSecretEndToEnd(t *testing.T) {
@@ -57,5 +59,56 @@ func TestJWTSecretEndToEnd(t *testing.T) {
 	}
 	if string(jwtSecret) != "test2" {
 		t.Fatalf("JWT secret is not 'test2'")
+	}
+}
+
+func TestJWTSecretEncryption(t *testing.T) {
+	tempDir := t.TempDir()
+	databasePath := filepath.Join(tempDir, "db.sqlite3")
+	database, err := db.NewDatabase(databasePath)
+	if err != nil {
+		t.Fatalf("Couldn't complete NewDatabase: %s", err)
+	}
+	defer database.Close()
+
+	originalSecret := []byte("super-secret-jwt-key")
+	err = database.CreateJWTSecret(originalSecret)
+	if err != nil {
+		t.Fatalf("Couldn't create JWT secret: %s", err)
+	}
+
+	jwtSecret := db.JWTSecret{ID: 1}
+	sqlConnection, err := sql.Open("sqlite3", databasePath)
+	if err != nil {
+		t.Fatalf("Couldn't open database: %s", err)
+	}
+	defer sqlConnection.Close()
+
+	row := sqlConnection.QueryRow("SELECT * FROM jwt_secret WHERE id = ?", jwtSecret.ID)
+	err = row.Scan(&jwtSecret.ID, &jwtSecret.EncryptedSecret)
+	if err != nil {
+		t.Fatalf("Couldn't query raw secret: %s", err)
+	}
+
+	if jwtSecret.EncryptedSecret == string(originalSecret) {
+		t.Fatal("JWT secret is stored in plaintext!")
+	}
+
+	decryptedSecret, err := database.GetJWTSecret()
+	if err != nil {
+		t.Fatalf("Couldn't get JWT secret: %s", err)
+	}
+	if string(decryptedSecret) != string(originalSecret) {
+		t.Fatalf("Decrypted secret doesn't match original. Got %q, want %q",
+			string(decryptedSecret), string(originalSecret))
+	}
+
+	decryptedManually, err := encryption.Decrypt(jwtSecret.EncryptedSecret, database.EncryptionKey)
+	if err != nil {
+		t.Fatalf("Couldn't manually decrypt secret: %s", err)
+	}
+	if decryptedManually != string(originalSecret) {
+		t.Fatalf("Manually decrypted secret doesn't match original. Got %q, want %q",
+			decryptedManually, string(originalSecret))
 	}
 }

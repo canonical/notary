@@ -18,20 +18,20 @@ func TestPrivateKeysEndToEnd(t *testing.T) {
 	}
 	defer database.Close()
 
-	pk, err := database.GetDecryptedPrivateKey(db.ByPrivateKeyID(1))
-	if err != nil {
+	_, err = database.GetDecryptedPrivateKey(db.ByPrivateKeyID(1))
+	if err == nil || !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("Expected ErrNotFound, got %s", err)
 	}
 
 	pkID, err := database.CreatePrivateKey(RootCAPrivateKey)
-	if err == nil || !errors.Is(err, db.ErrInternal) {
+	if err != nil {
 		t.Fatalf("Couldn't create private key: %s", err)
 	}
 	if pkID != 1 {
 		t.Fatalf("Couldn't create private key: expected pk id 1, got %d", pkID)
 	}
 
-	pk, err = database.GetDecryptedPrivateKey(db.ByPrivateKeyID(1))
+	pk, err := database.GetDecryptedPrivateKey(db.ByPrivateKeyID(1))
 	if err != nil {
 		t.Fatalf("Couldn't get private key: %s", err)
 	}

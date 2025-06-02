@@ -6,22 +6,6 @@ import (
 	"github.com/canonical/notary/internal/encryption"
 )
 
-// ListPrivateKeys gets every PrivateKey entry in the table.
-func (db *Database) ListPrivateKeys() ([]PrivateKey, error) {
-	privateKeys, err := ListEntities[PrivateKey](db, db.stmts.ListPrivateKeys)
-	if err != nil {
-		return nil, err
-	}
-	for i := range privateKeys {
-		decryptedPK, err := encryption.Decrypt(privateKeys[i].PrivateKeyPEM, db.EncryptionKey)
-		if err != nil {
-			return nil, fmt.Errorf("%w: failed to decrypt private key", err)
-		}
-		privateKeys[i].PrivateKeyPEM = decryptedPK
-	}
-	return privateKeys, nil
-}
-
 // GetDecryptedPrivateKey gets a private key row from the repository from a given ID or PEM.
 func (db *Database) GetDecryptedPrivateKey(filter PrivateKeyFilter) (*PrivateKey, error) {
 	pkRow := filter.AsPrivateKey()

@@ -2,6 +2,7 @@ package db_test
 
 import (
 	"database/sql"
+	"errors"
 	"path/filepath"
 	"testing"
 
@@ -17,30 +18,20 @@ func TestPrivateKeysEndToEnd(t *testing.T) {
 	}
 	defer database.Close()
 
-	pks, err := database.ListPrivateKeys()
+	pk, err := database.GetDecryptedPrivateKey(db.ByPrivateKeyID(1))
 	if err != nil {
-		t.Fatalf("Couldn't list private keys: %s", err)
-	}
-	if len(pks) != 0 {
-		t.Fatalf("Number of private keys is not 1")
+		t.Fatalf("Expected ErrNotFound, got %s", err)
 	}
 
 	pkID, err := database.CreatePrivateKey(RootCAPrivateKey)
-	if err != nil {
+	if err == nil || !errors.Is(err, db.ErrInternal) {
 		t.Fatalf("Couldn't create private key: %s", err)
 	}
 	if pkID != 1 {
 		t.Fatalf("Couldn't create private key: expected pk id 1, got %d", pkID)
 	}
 
-	pks, err = database.ListPrivateKeys()
-	if err != nil {
-		t.Fatalf("Couldn't list private keys: %s", err)
-	}
-	if len(pks) != 1 {
-		t.Fatalf("Number of private keys is not 1")
-	}
-	pk, err := database.GetDecryptedPrivateKey(db.ByPrivateKeyID(1))
+	pk, err = database.GetDecryptedPrivateKey(db.ByPrivateKeyID(1))
 	if err != nil {
 		t.Fatalf("Couldn't get private key: %s", err)
 	}
@@ -53,12 +44,12 @@ func TestPrivateKeysEndToEnd(t *testing.T) {
 		t.Fatalf("Couldn't delete private key: %s", err)
 	}
 
-	pks, err = database.ListPrivateKeys()
-	if err != nil {
-		t.Fatalf("Couldn't list private keys: %s", err)
+	pk, err = database.GetDecryptedPrivateKey(db.ByPrivateKeyID(1))
+	if err == nil || !errors.Is(err, db.ErrNotFound) {
+		t.Fatalf("Expected ErrNotFound, got %s", err)
 	}
-	if len(pks) != 0 {
-		t.Fatalf("Number of private keys is not 0")
+	if pk != nil {
+		t.Fatalf("Private key is not nil")
 	}
 }
 

@@ -315,7 +315,6 @@ WITH RECURSIVE cas_with_chain AS (
 	// // // // // // // // // //
 	// Private Key SQL Strings //
 	// // // // // // // // // //
-	listPrivateKeysStmt  = "SELECT &PrivateKey.* FROM private_keys"
 	getPrivateKeyStmt    = "SELECT &PrivateKey.* FROM private_keys WHERE private_key_id==$PrivateKey.private_key_id or private_key==$PrivateKey.private_key"
 	createPrivateKeyStmt = "INSERT INTO private_keys (private_key) VALUES ($PrivateKey.private_key)"
 	deletePrivateKeyStmt = "DELETE FROM private_keys WHERE private_key_id==$PrivateKey.private_key_id or private_key==$PrivateKey.private_key"
@@ -377,7 +376,6 @@ type Statements struct {
 	// Private Key statements
 	CreatePrivateKey *sqlair.Statement
 	GetPrivateKey    *sqlair.Statement
-	ListPrivateKeys  *sqlair.Statement
 	DeletePrivateKey *sqlair.Statement
 
 	// User statements
@@ -435,7 +433,6 @@ func PrepareStatements(db *sqlair.DB) *Statements {
 	// Private Key statements
 	stmts.CreatePrivateKey = sqlair.MustPrepare(createPrivateKeyStmt, PrivateKey{})
 	stmts.GetPrivateKey = sqlair.MustPrepare(getPrivateKeyStmt, PrivateKey{})
-	stmts.ListPrivateKeys = sqlair.MustPrepare(listPrivateKeysStmt, PrivateKey{})
 	stmts.DeletePrivateKey = sqlair.MustPrepare(deletePrivateKeyStmt, PrivateKey{})
 
 	// User statements

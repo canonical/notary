@@ -1,4 +1,4 @@
-package db
+package encryption
 
 import (
 	"crypto/aes"

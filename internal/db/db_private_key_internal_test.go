@@ -4,6 +4,8 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
+
+	"github.com/canonical/notary/internal/encryption"
 )
 
 var PK = `-----BEGIN RSA PRIVATE KEY-----
@@ -59,7 +61,7 @@ func TestPrivateKeyEncryption(t *testing.T) {
 		t.Fatal("Private key is stored in plaintext!")
 	}
 
-	decryptedPK, err := database.GetPrivateKey(ByPrivateKeyID(pkID))
+	decryptedPK, err := database.GetDecryptedPrivateKey(ByPrivateKeyID(pkID))
 	if err != nil {
 		t.Fatalf("Couldn't get private key: %s", err)
 	}
@@ -68,7 +70,7 @@ func TestPrivateKeyEncryption(t *testing.T) {
 			decryptedPK.PrivateKeyPEM, PK)
 	}
 
-	decryptedManually, err := Decrypt(pk.PrivateKeyPEM, database.EncryptionKey)
+	decryptedManually, err := encryption.Decrypt(pk.PrivateKeyPEM, database.EncryptionKey)
 	if err != nil {
 		t.Fatalf("Couldn't manually decrypt secret: %s", err)
 	}

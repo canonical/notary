@@ -19,20 +19,7 @@ func (db *Database) ListCertificateAuthorities() ([]CertificateAuthority, error)
 // ListDenormalizedCertificateAuthorities gets every CertificateAuthority entry in the table
 // but instead of returning ID's that reference other table rows, it embeds the row data directly into the response object.
 func (db *Database) ListDenormalizedCertificateAuthorities() ([]CertificateAuthorityDenormalized, error) {
-	cas, err := ListEntities[CertificateAuthorityDenormalized](db, db.stmts.ListDenormalizedCertificateAuthorities)
-	if err != nil {
-		return nil, fmt.Errorf("%w: failed to list denormalized certificate authorities", err)
-	}
-	for i := range cas {
-		if cas[i].PrivateKeyPEM != "" {
-			decryptedPK, err := Decrypt(cas[i].PrivateKeyPEM, db.EncryptionKey)
-			if err != nil {
-				return nil, fmt.Errorf("%w: failed to decrypt private key", ErrInternal)
-			}
-			cas[i].PrivateKeyPEM = decryptedPK
-		}
-	}
-	return cas, nil
+	return ListEntities[CertificateAuthorityDenormalized](db, db.stmts.ListDenormalizedCertificateAuthorities)
 }
 
 // GetCertificateAuthority gets a certificate authority row from the database.
@@ -45,18 +32,7 @@ func (db *Database) GetCertificateAuthority(filter CertificateAuthorityFilter) (
 // but instead of returning ID's that reference other table rows, it embeds the row data directly into the response object.
 func (db *Database) GetDenormalizedCertificateAuthority(filter CertificateAuthorityDenormalizedFilter) (*CertificateAuthorityDenormalized, error) {
 	CARow := filter.AsCertificateAuthorityDenormalized()
-	CA, err := GetOneEntity[CertificateAuthorityDenormalized](db, db.stmts.GetDenormalizedCertificateAuthority, *CARow)
-	if err != nil {
-		return nil, err
-	}
-	if CA.PrivateKeyPEM != "" {
-		decryptedPK, err := Decrypt(CA.PrivateKeyPEM, db.EncryptionKey)
-		if err != nil {
-			return nil, fmt.Errorf("%w: failed to decrypt private key", ErrInternal)
-		}
-		CA.PrivateKeyPEM = decryptedPK
-	}
-	return CA, nil
+	return GetOneEntity[CertificateAuthorityDenormalized](db, db.stmts.GetDenormalizedCertificateAuthority, *CARow)
 }
 
 // CreateCertificateAuthority creates a new certificate authority in the database from a given CSR, private key, and certificate chain.
@@ -112,7 +88,11 @@ func (db *Database) UpdateCertificateAuthorityCertificate(filter CertificateAuth
 	if err != nil {
 		return err
 	}
-	pk, err := ParsePrivateKey(ca.PrivateKeyPEM)
+	pkObject, err := db.GetDecryptedPrivateKey(ByPrivateKeyID(ca.PrivateKeyID))
+	if err != nil {
+		return err
+	}
+	pk, err := ParsePrivateKey(pkObject.PrivateKeyPEM)
 	if err != nil {
 		return err
 	}
@@ -214,7 +194,11 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 		return err
 	}
 	wasSelfSigned := csrRow.CSR == caRow.CSRPEM
-	block, _ = pem.Decode([]byte(caRow.PrivateKeyPEM))
+	privateKeyObject, err := db.GetDecryptedPrivateKey(ByPrivateKeyID(caRow.PrivateKeyID))
+	if err != nil {
+		return err
+	}
+	block, _ = pem.Decode([]byte(privateKeyObject.PrivateKeyPEM))
 	caPrivateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
 		return err
@@ -318,7 +302,11 @@ func (db *Database) RevokeCertificate(filter CSRFilter) error {
 	if err != nil {
 		return err
 	}
-	newCRL, err := AddCertificateToCRL(oldRow.CertificateChain, caWithPK.PrivateKeyPEM, ca.CRL)
+	pk, err := db.GetDecryptedPrivateKey(ByPrivateKeyID(caWithPK.PrivateKeyID))
+	if err != nil {
+		return err
+	}
+	newCRL, err := AddCertificateToCRL(oldRow.CertificateChain, pk.PrivateKeyPEM, ca.CRL)
 	if err != nil {
 		return fmt.Errorf("%w: couldn't add certificate to certificate authority", ErrInternal)
 	}

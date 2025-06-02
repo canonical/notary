@@ -4,7 +4,6 @@ package server
 import (
 	"crypto/rand"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"net/http"
 	"os/exec"
@@ -69,20 +68,9 @@ func New(port int, cert []byte, key []byte, dbPath string, externalHostname stri
 		return nil, err
 	}
 
-	jwtSecret, err := database.GetJWTSecret()
+	jwtSecret, err := setUpJWTSecret(database)
 	if err != nil {
-		if errors.Is(err, db.ErrNotFound) {
-			// Generate new JWT secret if none exists
-			jwtSecret, err = generateJWTSecret()
-			if err != nil {
-				return nil, err
-			}
-			if err := database.CreateJWTSecret(jwtSecret); err != nil {
-				return nil, fmt.Errorf("failed to store JWT secret: %w", err)
-			}
-		} else {
-			return nil, fmt.Errorf("failed to get JWT secret: %w", err)
-		}
+		return nil, err
 	}
 
 	env := &HandlerConfig{}

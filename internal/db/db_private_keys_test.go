@@ -38,7 +38,7 @@ func TestPrivateKeysEndToEnd(t *testing.T) {
 	if len(pks) != 1 {
 		t.Fatalf("Number of private keys is not 1")
 	}
-	pk, err := database.GetPrivateKey(db.ByPrivateKeyID(1))
+	pk, err := database.GetDecryptedPrivateKey(db.ByPrivateKeyID(1))
 	if err != nil {
 		t.Fatalf("Couldn't get private key: %s", err)
 	}
@@ -77,11 +77,11 @@ func TestPrivateKeyFails(t *testing.T) {
 		t.Fatalf("Should have failed to create private key")
 	}
 
-	_, err = database.GetPrivateKey(db.ByPrivateKeyID(0))
+	_, err = database.GetDecryptedPrivateKey(db.ByPrivateKeyID(0))
 	if err == nil {
 		t.Fatalf("Should have failed to get private key")
 	}
-	_, err = database.GetPrivateKey(db.ByPrivateKeyID(10))
+	_, err = database.GetDecryptedPrivateKey(db.ByPrivateKeyID(10))
 	if err == nil {
 		t.Fatalf("Should have failed to get private key")
 	}

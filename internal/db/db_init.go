@@ -66,24 +66,11 @@ func NewDatabase(databasePath string) (*Database, error) {
 	db := new(Database)
 	db.stmts = PrepareStatements(db.conn)
 	db.conn = sqlair.NewDB(sqlConnection)
-	encryptionKeyFromDb, err := db.GetEncryptionKey()
+
+	db.EncryptionKey, err = setUpEncryptionKey(db)
 	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			encryptionKey, err := GenerateAES256GCMEncryptionKey()
-			if err != nil {
-				return nil, fmt.Errorf("failed to generate encryption key: %w", err)
-			}
-			err = db.CreateEncryptionKey(encryptionKey)
-			if err != nil {
-				return nil, fmt.Errorf("failed to store encryption key: %w", err)
-			}
-			db.EncryptionKey = encryptionKey
-			return db, nil
-		}
 		return nil, err
 	}
-
-	db.EncryptionKey = encryptionKeyFromDb
 
 	return db, nil
 }

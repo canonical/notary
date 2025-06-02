@@ -4,6 +4,8 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
+
+	"github.com/canonical/notary/internal/encryption"
 )
 
 // TestJWTSecretEncryption verifies that the JWT secret is properly encrypted in the database
@@ -40,7 +42,7 @@ func TestJWTSecretEncryption(t *testing.T) {
 			string(decryptedSecret), string(originalSecret))
 	}
 
-	decryptedManually, err := Decrypt(jwtSecret.EncryptedSecret, database.EncryptionKey)
+	decryptedManually, err := encryption.Decrypt(jwtSecret.EncryptedSecret, database.EncryptionKey)
 	if err != nil {
 		t.Fatalf("Couldn't manually decrypt secret: %s", err)
 	}

@@ -1,25 +1,25 @@
-package db_test
+package encryption_test
 
 import (
 	"testing"
 
-	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/encryption"
 )
 
 func TestEncryptDecryptEndToEnd(t *testing.T) {
 	// Generate a random 32-byte key
-	key, err := db.GenerateAES256GCMEncryptionKey()
+	key, err := encryption.GenerateAES256GCMEncryptionKey()
 	if err != nil {
 		t.Fatalf("Failed to generate key: %v", err)
 	}
 
 	plaintext := "Hello, world!"
-	encrypted, err := db.Encrypt(plaintext, key)
+	encrypted, err := encryption.Encrypt(plaintext, key)
 	if err != nil {
 		t.Fatalf("Failed to encrypt: %v", err)
 	}
 
-	decrypted, err := db.Decrypt(encrypted, key)
+	decrypted, err := encryption.Decrypt(encrypted, key)
 	if err != nil {
 		t.Fatalf("Failed to decrypt: %v", err)
 	}
@@ -27,15 +27,15 @@ func TestEncryptDecryptEndToEnd(t *testing.T) {
 	if decrypted != plaintext {
 		t.Fatalf("Decrypted text does not match original text")
 	}
-	_, err = db.Encrypt(plaintext, []byte("Invalid key"))
+	_, err = encryption.Encrypt(plaintext, []byte("Invalid key"))
 	if err == nil {
 		t.Fatalf("Expected an error when encrypting with an invalid key, got nil")
 	}
-	_, err = db.Decrypt(encrypted, []byte("Invalid key"))
+	_, err = encryption.Decrypt(encrypted, []byte("Invalid key"))
 	if err == nil {
 		t.Fatalf("Expected an error when decrypting with an invalid key, got nil")
 	}
-	encrypted2, err := db.Encrypt(plaintext, key)
+	encrypted2, err := encryption.Encrypt(plaintext, key)
 	if err != nil {
 		t.Fatalf("Failed to encrypt: %v", err)
 	}

@@ -263,14 +263,12 @@ WITH RECURSIVE cas_with_chain AS (
 		cc.certificate_authority_id as &CertificateAuthorityDenormalized.certificate_authority_id,
 		cc.crl as &CertificateAuthorityDenormalized.crl,
 		cc.status as &CertificateAuthorityDenormalized.status,
-		pk.private_key AS &CertificateAuthorityDenormalized.private_key,
+		cc.private_key_id AS &CertificateAuthorityDenormalized.private_key_id,
 		cc.chain AS &CertificateAuthorityDenormalized.certificate_chain,
 		csrs.csr AS &CertificateAuthorityDenormalized.csr
 	FROM cas_with_chain cc
-	LEFT JOIN private_keys pk ON cc.private_key_id = pk.private_key_id
 	LEFT JOIN certificate_requests csrs ON cc.csr_id = csrs.csr_id
-	WHERE cc.chain = '' OR cc.issuer_id = 0
-`
+	WHERE cc.chain = '' OR cc.issuer_id = 0`
 	getDenormalizedCertificateAuthorityStmt = `
 WITH RECURSIVE cas_with_chain AS (
     SELECT
@@ -305,11 +303,10 @@ WITH RECURSIVE cas_with_chain AS (
 		cc.certificate_authority_id as &CertificateAuthorityDenormalized.certificate_authority_id,
 		cc.crl as &CertificateAuthorityDenormalized.crl,
 		cc.status as &CertificateAuthorityDenormalized.status,
-		pk.private_key AS &CertificateAuthorityDenormalized.private_key,
+		cc.private_key_id AS &CertificateAuthorityDenormalized.private_key_id,
 		cc.chain AS &CertificateAuthorityDenormalized.certificate_chain,
 		csrs.csr AS &CertificateAuthorityDenormalized.csr
 	FROM cas_with_chain cc
-	LEFT JOIN private_keys pk ON cc.private_key_id = pk.private_key_id
 	LEFT JOIN certificate_requests csrs ON cc.csr_id = csrs.csr_id
 	WHERE cc.certificate_authority_id==$CertificateAuthorityDenormalized.certificate_authority_id
 			or csrs.csr==$CertificateAuthorityDenormalized.csr
@@ -336,14 +333,14 @@ WITH RECURSIVE cas_with_chain AS (
 	// // // // // // // // // //
 	// Encryption Key SQL Strings //
 	// // // // // // // // // //
-	createEncryptionKeyStmt = "INSERT OR REPLACE INTO encryption_keys (encryption_key_id, encryption_key) VALUES ($AES256GCMEncryptionKey.encryption_key_id, $AES256GCMEncryptionKey.encryption_key)"
+	createEncryptionKeyStmt = "INSERT INTO encryption_keys (encryption_key_id, encryption_key) VALUES ($AES256GCMEncryptionKey.encryption_key_id, $AES256GCMEncryptionKey.encryption_key)"
 	getEncryptionKeyStmt    = "SELECT &AES256GCMEncryptionKey.* FROM encryption_keys WHERE encryption_key_id=$AES256GCMEncryptionKey.encryption_key_id"
 	deleteEncryptionKeyStmt = "DELETE FROM encryption_keys WHERE encryption_key_id=$AES256GCMEncryptionKey.encryption_key_id"
 
 	// // // // // // // // // //
 	// JWT Secret SQL Strings //
 	// // // // // // // // // //
-	createJWTSecretStmt = "INSERT OR REPLACE INTO jwt_secret (id, encrypted_secret) VALUES ($JWTSecret.id, $JWTSecret.encrypted_secret)"
+	createJWTSecretStmt = "INSERT INTO jwt_secret (id, encrypted_secret) VALUES ($JWTSecret.id, $JWTSecret.encrypted_secret)"
 	getJWTSecretStmt    = "SELECT &JWTSecret.* FROM jwt_secret WHERE id=$JWTSecret.id"
 	deleteJWTSecretStmt = "DELETE FROM jwt_secret WHERE id=$JWTSecret.id"
 )

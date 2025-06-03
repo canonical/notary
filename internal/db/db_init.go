@@ -13,8 +13,9 @@ import (
 
 // Database is the object used to communicate with the established repository.
 type Database struct {
-	conn  *sqlair.DB
-	stmts *Statements
+	conn          *sqlair.DB
+	stmts         *Statements
+	EncryptionKey []byte
 }
 
 // Close closes the connection to the repository cleanly.
@@ -56,9 +57,33 @@ func NewDatabase(databasePath string) (*Database, error) {
 	if _, err := sqlConnection.Exec(queryCreateCertificateAuthoritiesTable); err != nil {
 		return nil, err
 	}
+	if _, err := sqlConnection.Exec(queryCreateEncryptionKeysTable); err != nil {
+		return nil, err
+	}
+	if _, err := sqlConnection.Exec(queryCreateJWTSecretTable); err != nil {
+		return nil, err
+	}
 	db := new(Database)
 	db.stmts = PrepareStatements(db.conn)
 	db.conn = sqlair.NewDB(sqlConnection)
+	encryptionKeyFromDb, err := db.GetEncryptionKey()
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			encryptionKey, err := GenerateAES256GCMEncryptionKey()
+			if err != nil {
+				return nil, fmt.Errorf("failed to generate encryption key: %w", err)
+			}
+			err = db.CreateEncryptionKey(encryptionKey)
+			if err != nil {
+				return nil, fmt.Errorf("failed to store encryption key: %w", err)
+			}
+			db.EncryptionKey = encryptionKey
+			return db, nil
+		}
+		return nil, err
+	}
+
+	db.EncryptionKey = encryptionKeyFromDb
 
 	return db, nil
 }

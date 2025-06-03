@@ -19,7 +19,20 @@ func (db *Database) ListCertificateAuthorities() ([]CertificateAuthority, error)
 // ListDenormalizedCertificateAuthorities gets every CertificateAuthority entry in the table
 // but instead of returning ID's that reference other table rows, it embeds the row data directly into the response object.
 func (db *Database) ListDenormalizedCertificateAuthorities() ([]CertificateAuthorityDenormalized, error) {
-	return ListEntities[CertificateAuthorityDenormalized](db, db.stmts.ListDenormalizedCertificateAuthorities)
+	cas, err := ListEntities[CertificateAuthorityDenormalized](db, db.stmts.ListDenormalizedCertificateAuthorities)
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to list denormalized certificate authorities", err)
+	}
+	for i := range cas {
+		if cas[i].PrivateKeyPEM != "" {
+			decryptedPK, err := Decrypt(cas[i].PrivateKeyPEM, db.EncryptionKey)
+			if err != nil {
+				return nil, fmt.Errorf("%w: failed to decrypt private key", ErrInternal)
+			}
+			cas[i].PrivateKeyPEM = decryptedPK
+		}
+	}
+	return cas, nil
 }
 
 // GetCertificateAuthority gets a certificate authority row from the database.
@@ -32,7 +45,18 @@ func (db *Database) GetCertificateAuthority(filter CertificateAuthorityFilter) (
 // but instead of returning ID's that reference other table rows, it embeds the row data directly into the response object.
 func (db *Database) GetDenormalizedCertificateAuthority(filter CertificateAuthorityDenormalizedFilter) (*CertificateAuthorityDenormalized, error) {
 	CARow := filter.AsCertificateAuthorityDenormalized()
-	return GetOneEntity[CertificateAuthorityDenormalized](db, db.stmts.GetDenormalizedCertificateAuthority, *CARow)
+	CA, err := GetOneEntity[CertificateAuthorityDenormalized](db, db.stmts.GetDenormalizedCertificateAuthority, *CARow)
+	if err != nil {
+		return nil, err
+	}
+	if CA.PrivateKeyPEM != "" {
+		decryptedPK, err := Decrypt(CA.PrivateKeyPEM, db.EncryptionKey)
+		if err != nil {
+			return nil, fmt.Errorf("%w: failed to decrypt private key", ErrInternal)
+		}
+		CA.PrivateKeyPEM = decryptedPK
+	}
+	return CA, nil
 }
 
 // CreateCertificateAuthority creates a new certificate authority in the database from a given CSR, private key, and certificate chain.

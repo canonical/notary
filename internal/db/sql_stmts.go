@@ -60,6 +60,16 @@ const (
 			CHECK (trim(username) != ''),
 			CHECK (trim(hashed_password) != '')
 	)`
+	queryCreateEncryptionKeysTable = `
+		CREATE TABLE IF NOT EXISTS encryption_keys (
+		    encryption_key_id INTEGER PRIMARY KEY AUTOINCREMENT,
+			encryption_key TEXT NOT NULL UNIQUE
+	)`
+	queryCreateJWTSecretTable = `
+		CREATE TABLE IF NOT EXISTS jwt_secret (
+			id INTEGER PRIMARY KEY CHECK (id = 1), -- Ensures only one row
+			encrypted_secret TEXT NOT NULL
+	)`
 )
 
 const (
@@ -322,6 +332,20 @@ WITH RECURSIVE cas_with_chain AS (
 	updateUserStmt  = "UPDATE users SET hashed_password=$User.hashed_password WHERE id==$User.id or username==$User.username"
 	deleteUserStmt  = "DELETE FROM users WHERE id==$User.id"
 	getNumUsersStmt = "SELECT COUNT(*) AS &NumUsers.count FROM users"
+
+	// // // // // // // // // //
+	// Encryption Key SQL Strings //
+	// // // // // // // // // //
+	createEncryptionKeyStmt = "INSERT OR REPLACE INTO encryption_keys (encryption_key_id, encryption_key) VALUES ($AES256GCMEncryptionKey.encryption_key_id, $AES256GCMEncryptionKey.encryption_key)"
+	getEncryptionKeyStmt    = "SELECT &AES256GCMEncryptionKey.* FROM encryption_keys WHERE encryption_key_id=$AES256GCMEncryptionKey.encryption_key_id"
+	deleteEncryptionKeyStmt = "DELETE FROM encryption_keys WHERE encryption_key_id=$AES256GCMEncryptionKey.encryption_key_id"
+
+	// // // // // // // // // //
+	// JWT Secret SQL Strings //
+	// // // // // // // // // //
+	createJWTSecretStmt = "INSERT OR REPLACE INTO jwt_secret (id, encrypted_secret) VALUES ($JWTSecret.id, $JWTSecret.encrypted_secret)"
+	getJWTSecretStmt    = "SELECT &JWTSecret.* FROM jwt_secret WHERE id=$JWTSecret.id"
+	deleteJWTSecretStmt = "DELETE FROM jwt_secret WHERE id=$JWTSecret.id"
 )
 
 // Statements contains all prepared SQL statements used by the database
@@ -366,6 +390,16 @@ type Statements struct {
 	ListUsers   *sqlair.Statement
 	DeleteUser  *sqlair.Statement
 	GetNumUsers *sqlair.Statement
+
+	// Encryption Key statements
+	CreateEncryptionKey *sqlair.Statement
+	GetEncryptionKey    *sqlair.Statement
+	DeleteEncryptionKey *sqlair.Statement
+
+	// JWT Secret statements
+	CreateJWTSecret *sqlair.Statement
+	GetJWTSecret    *sqlair.Statement
+	DeleteJWTSecret *sqlair.Statement
 }
 
 // PrepareStatements prepares all SQL statements used by the database.
@@ -414,6 +448,16 @@ func PrepareStatements(db *sqlair.DB) *Statements {
 	stmts.ListUsers = sqlair.MustPrepare(listUsersStmt, User{})
 	stmts.DeleteUser = sqlair.MustPrepare(deleteUserStmt, User{})
 	stmts.GetNumUsers = sqlair.MustPrepare(getNumUsersStmt, NumUsers{})
+
+	// Encryption Key statements
+	stmts.CreateEncryptionKey = sqlair.MustPrepare(createEncryptionKeyStmt, AES256GCMEncryptionKey{})
+	stmts.GetEncryptionKey = sqlair.MustPrepare(getEncryptionKeyStmt, AES256GCMEncryptionKey{})
+	stmts.DeleteEncryptionKey = sqlair.MustPrepare(deleteEncryptionKeyStmt, AES256GCMEncryptionKey{})
+
+	// JWT Secret statements
+	stmts.CreateJWTSecret = sqlair.MustPrepare(createJWTSecretStmt, JWTSecret{})
+	stmts.GetJWTSecret = sqlair.MustPrepare(getJWTSecretStmt, JWTSecret{})
+	stmts.DeleteJWTSecret = sqlair.MustPrepare(deleteJWTSecretStmt, JWTSecret{})
 
 	return stmts
 }

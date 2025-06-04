@@ -63,7 +63,7 @@ type CertificateAuthorityDenormalized struct {
 	CertificateAuthorityID int64    `db:"certificate_authority_id"`
 	CRL                    string   `db:"crl"`
 	Status                 CAStatus `db:"status"`
-	PrivateKeyPEM          string   `db:"private_key"`
+	PrivateKeyID           int64    `db:"private_key_id"`
 	CertificateChain       string   `db:"certificate_chain"`
 	CSRPEM                 string   `db:"csr"`
 }

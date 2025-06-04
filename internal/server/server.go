@@ -48,6 +48,7 @@ func SendPebbleNotification(key NotificationKey, request_id int64) error {
 	return nil
 }
 
+// This secret should be generated once and stored in the database, encrypted.
 func generateJWTSecret() ([]byte, error) {
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {
@@ -62,17 +63,18 @@ func New(port int, cert []byte, key []byte, dbPath string, externalHostname stri
 	if err != nil {
 		return nil, err
 	}
-	db, err := db.NewDatabase(dbPath)
+	database, err := db.NewDatabase(dbPath)
 	if err != nil {
 		return nil, err
 	}
 
-	jwtSecret, err := generateJWTSecret()
+	jwtSecret, err := setUpJWTSecret(database)
 	if err != nil {
 		return nil, err
 	}
+
 	env := &HandlerConfig{}
-	env.DB = db
+	env.DB = database
 	env.SendPebbleNotifications = pebbleNotificationsEnabled
 	env.JWTSecret = jwtSecret
 	env.ExternalHostname = externalHostname

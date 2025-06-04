@@ -1,11 +1,13 @@
 package db_test
 
 import (
+	"database/sql"
 	"errors"
 	"path/filepath"
 	"testing"
 
 	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/encryption"
 )
 
 func TestPrivateKeysEndToEnd(t *testing.T) {
@@ -16,12 +18,9 @@ func TestPrivateKeysEndToEnd(t *testing.T) {
 	}
 	defer database.Close()
 
-	pks, err := database.ListPrivateKeys()
-	if err != nil {
-		t.Fatalf("Couldn't list private keys: %s", err)
-	}
-	if len(pks) != 0 {
-		t.Fatalf("Number of private keys is not 1")
+	_, err = database.GetDecryptedPrivateKey(db.ByPrivateKeyID(1))
+	if err == nil || !errors.Is(err, db.ErrNotFound) {
+		t.Fatalf("Expected ErrNotFound, got %s", err)
 	}
 
 	pkID, err := database.CreatePrivateKey(RootCAPrivateKey)
@@ -32,22 +31,7 @@ func TestPrivateKeysEndToEnd(t *testing.T) {
 		t.Fatalf("Couldn't create private key: expected pk id 1, got %d", pkID)
 	}
 
-	pks, err = database.ListPrivateKeys()
-	if err != nil {
-		t.Fatalf("Couldn't list private keys: %s", err)
-	}
-	if len(pks) != 1 {
-		t.Fatalf("Number of private keys is not 1")
-	}
-
-	pk, err := database.GetPrivateKey(db.ByPrivateKeyID(1))
-	if err != nil {
-		t.Fatalf("Couldn't get private key: %s", err)
-	}
-	if pk.PrivateKeyPEM != RootCAPrivateKey {
-		t.Fatalf("Private key is not correct")
-	}
-	pk, err = database.GetPrivateKey(db.ByPrivateKeyPEM(RootCAPrivateKey))
+	pk, err := database.GetDecryptedPrivateKey(db.ByPrivateKeyID(1))
 	if err != nil {
 		t.Fatalf("Couldn't get private key: %s", err)
 	}
@@ -60,12 +44,12 @@ func TestPrivateKeysEndToEnd(t *testing.T) {
 		t.Fatalf("Couldn't delete private key: %s", err)
 	}
 
-	pks, err = database.ListPrivateKeys()
-	if err != nil {
-		t.Fatalf("Couldn't list private keys: %s", err)
+	pk, err = database.GetDecryptedPrivateKey(db.ByPrivateKeyID(1))
+	if err == nil || !errors.Is(err, db.ErrNotFound) {
+		t.Fatalf("Expected ErrNotFound, got %s", err)
 	}
-	if len(pks) != 0 {
-		t.Fatalf("Number of private keys is not 0")
+	if pk != nil {
+		t.Fatalf("Private key is not nil")
 	}
 }
 
@@ -86,32 +70,61 @@ func TestPrivateKeyFails(t *testing.T) {
 		t.Fatalf("Should have failed to create private key")
 	}
 
-	_, err = database.GetPrivateKey(db.ByPrivateKeyID(0))
+	_, err = database.GetDecryptedPrivateKey(db.ByPrivateKeyID(0))
 	if err == nil {
 		t.Fatalf("Should have failed to get private key")
 	}
-	_, err = database.GetPrivateKey(db.ByPrivateKeyID(10))
+	_, err = database.GetDecryptedPrivateKey(db.ByPrivateKeyID(10))
 	if err == nil {
 		t.Fatalf("Should have failed to get private key")
 	}
-	_, err = database.GetPrivateKey(db.ByPrivateKeyPEM(""))
-	if err == nil {
-		t.Fatalf("Should have failed to get private key")
+}
+
+func TestPrivateKeyEncryption(t *testing.T) {
+	tempDir := t.TempDir()
+	databasePath := filepath.Join(tempDir, "db.sqlite3")
+	database, err := db.NewDatabase(databasePath)
+	if err != nil {
+		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}
-	_, err = database.GetPrivateKey(db.ByPrivateKeyPEM("nope"))
-	if err == nil {
-		t.Fatalf("Should have failed to get private key")
-	}
-	_, err = database.GetPrivateKey(db.ByPrivateKeyPEM(RootCAPrivateKey))
-	if err == nil {
-		t.Fatalf("Should have failed to get private key")
+	defer database.Close()
+
+	pkID, err := database.CreatePrivateKey(RootCAPrivateKey)
+	if err != nil {
+		t.Fatalf("Couldn't create private key: %s", err)
 	}
 
-	err = database.DeletePrivateKey(db.ByPrivateKeyPEM(RootCAPrivateKey))
-	if err == nil {
-		t.Fatalf("Should have failed to delete nonexistent private key")
+	pk := db.PrivateKey{PrivateKeyID: pkID}
+	sqlConnection, err := sql.Open("sqlite3", databasePath)
+	if err != nil {
+		t.Fatalf("Couldn't open database: %s", err)
 	}
-	if !errors.Is(err, db.ErrNotFound) {
-		t.Fatalf("Expected a not found error when deleting a nonexistent private key, got %s", err)
+	defer sqlConnection.Close()
+	row := sqlConnection.QueryRow("SELECT * FROM private_keys WHERE private_key_id = ?", pk.PrivateKeyID)
+	err = row.Scan(&pk.PrivateKeyID, &pk.PrivateKeyPEM)
+	if err != nil {
+		t.Fatalf("Couldn't query raw secret: %s", err)
+	}
+
+	if pk.PrivateKeyPEM == RootCAPrivateKey {
+		t.Fatal("Private key is stored in plaintext!")
+	}
+
+	decryptedPK, err := database.GetDecryptedPrivateKey(db.ByPrivateKeyID(pkID))
+	if err != nil {
+		t.Fatalf("Couldn't get private key: %s", err)
+	}
+	if decryptedPK.PrivateKeyPEM != RootCAPrivateKey {
+		t.Fatalf("Decrypted secret doesn't match original. Got %q, want %q",
+			decryptedPK.PrivateKeyPEM, RootCAPrivateKey)
+	}
+
+	decryptedManually, err := encryption.Decrypt(pk.PrivateKeyPEM, database.EncryptionKey)
+	if err != nil {
+		t.Fatalf("Couldn't manually decrypt secret: %s", err)
+	}
+	if decryptedManually != RootCAPrivateKey {
+		t.Fatalf("Manually decrypted secret doesn't match original. Got %q, want %q",
+			decryptedManually, RootCAPrivateKey)
 	}
 }

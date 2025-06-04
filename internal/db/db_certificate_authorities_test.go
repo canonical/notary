@@ -81,7 +81,7 @@ func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
 	if !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("Expected CSR to not be in the database: %s", err)
 	}
-	_, err = database.GetPrivateKey(db.ByPrivateKeyID(caRow.PrivateKeyID))
+	_, err = database.GetDecryptedPrivateKey(db.ByPrivateKeyID(caRow.PrivateKeyID))
 	if !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("Expected PrivateKey to not be in the database: %s", err)
 	}

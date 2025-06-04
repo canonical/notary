@@ -98,16 +98,11 @@ func (filter *UserFilter) AsUser() *User {
 }
 
 type PrivateKeyFilter struct {
-	ID  *int64
-	PEM *string
+	ID *int64
 }
 
 func ByPrivateKeyID(id int64) PrivateKeyFilter {
 	return PrivateKeyFilter{ID: &id}
-}
-
-func ByPrivateKeyPEM(pem string) PrivateKeyFilter {
-	return PrivateKeyFilter{PEM: &pem}
 }
 
 func (filter *PrivateKeyFilter) AsPrivateKey() *PrivateKey {
@@ -116,8 +111,6 @@ func (filter *PrivateKeyFilter) AsPrivateKey() *PrivateKey {
 	switch {
 	case filter.ID != nil:
 		pkRow = PrivateKey{PrivateKeyID: *filter.ID}
-	case filter.PEM != nil:
-		pkRow = PrivateKey{PrivateKeyPEM: *filter.PEM}
 	default:
 		panic(fmt.Errorf("%w: only private key ID or PEM is supported but none was provided", ErrInvalidFilter))
 	}

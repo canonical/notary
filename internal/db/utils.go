@@ -6,8 +6,12 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
+	"fmt"
 	"reflect"
 	"time"
+
+	"github.com/canonical/notary/internal/encryption"
 )
 
 // ParseCertificateChain receives a PEM string chain and returns an x.509.Certificate list.
@@ -104,4 +108,23 @@ func isSelfSigned(certBundle []string) bool {
 func getTypeName[T any]() string {
 	var t T
 	return reflect.TypeOf(t).Name()
+}
+
+func setUpEncryptionKey(database *Database) ([]byte, error) {
+	encryptionKeyFromDb, err := database.GetEncryptionKey()
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			encryptionKey, err := encryption.GenerateAES256GCMEncryptionKey()
+			if err != nil {
+				return nil, fmt.Errorf("failed to generate encryption key: %w", err)
+			}
+			err = database.CreateEncryptionKey(encryptionKey)
+			if err != nil {
+				return nil, fmt.Errorf("failed to store encryption key: %w", err)
+			}
+			return encryptionKey, nil
+		}
+		return nil, err
+	}
+	return encryptionKeyFromDb, nil
 }

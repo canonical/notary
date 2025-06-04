@@ -13,8 +13,9 @@ import (
 
 // Database is the object used to communicate with the established repository.
 type Database struct {
-	conn  *sqlair.DB
-	stmts *Statements
+	conn          *sqlair.DB
+	stmts         *Statements
+	EncryptionKey []byte
 }
 
 // Close closes the connection to the repository cleanly.
@@ -56,9 +57,20 @@ func NewDatabase(databasePath string) (*Database, error) {
 	if _, err := sqlConnection.Exec(queryCreateCertificateAuthoritiesTable); err != nil {
 		return nil, err
 	}
+	if _, err := sqlConnection.Exec(queryCreateEncryptionKeysTable); err != nil {
+		return nil, err
+	}
+	if _, err := sqlConnection.Exec(queryCreateJWTSecretTable); err != nil {
+		return nil, err
+	}
 	db := new(Database)
 	db.stmts = PrepareStatements(db.conn)
 	db.conn = sqlair.NewDB(sqlConnection)
+
+	db.EncryptionKey, err = setUpEncryptionKey(db)
+	if err != nil {
+		return nil, err
+	}
 
 	return db, nil
 }

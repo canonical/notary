@@ -6,9 +6,41 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/canonical/notary/internal/backend"
 	"gopkg.in/yaml.v3"
 )
 
+type BackendType string
+
+const (
+	Vault  BackendType = "vault"
+	PKCS11 BackendType = "pkcs11"
+	None   BackendType = "none"
+)
+
+// VaultBackendConfig extends BackendConfig for Vault-specific fields.
+type VaultBackendConfigYaml struct {
+	Endpoint     string `yaml:"endpoint"`
+	Mount        string `yaml:"mount"`
+	KeyName      string `yaml:"key_name"`
+	RoleID       string `yaml:"role_id"`
+	RoleSecretID string `yaml:"role_secret_id"`
+	Token        string `yaml:"token"`
+}
+
+// PKCS11BackendConfig extends BackendConfig for PKCS11-specific fields.
+type PKCS11BackendConfigYaml struct {
+	Endpoint string `yaml:"endpoint"`
+	Slot     string `yaml:"slot"`
+	PIN      string `yaml:"pin"`
+}
+
+type NoneBackendConfigYaml struct {
+}
+
+type EncryptionBackendConfigYaml struct {
+	EncryptionBackend map[string]any `yaml:"encryption_backend"`
+}
 type SystemLoggingConfigYaml struct {
 	Level  string `yaml:"level"`
 	Output string `yaml:"output"`
@@ -19,13 +51,14 @@ type LoggingConfigYaml struct {
 }
 
 type ConfigYAML struct {
-	KeyPath             string            `yaml:"key_path"`
-	CertPath            string            `yaml:"cert_path"`
-	ExternalHostname    string            `yaml:"external_hostname"`
-	DBPath              string            `yaml:"db_path"`
-	Port                int               `yaml:"port"`
-	PebbleNotifications bool              `yaml:"pebble_notifications"`
-	Logging             LoggingConfigYaml `yaml:"logging"`
+	KeyPath             string                      `yaml:"key_path"`
+	CertPath            string                      `yaml:"cert_path"`
+	ExternalHostname    string                      `yaml:"external_hostname"`
+	DBPath              string                      `yaml:"db_path"`
+	Port                int                         `yaml:"port"`
+	PebbleNotifications bool                        `yaml:"pebble_notifications"`
+	Logging             LoggingConfigYaml           `yaml:"logging"`
+	EncryptionBackend   EncryptionBackendConfigYaml `yaml:"encryption_backend"`
 }
 
 type LoggingLevel string
@@ -56,6 +89,7 @@ type Config struct {
 	Port                       int
 	PebbleNotificationsEnabled bool
 	Logging                    Logging
+	EncryptionBackend          backend.EncryptionBackend
 }
 
 // Validate opens and processes the given yaml file, and catches errors in the process
@@ -143,5 +177,56 @@ func Validate(filePath string) (Config, error) {
 	config.PebbleNotificationsEnabled = c.PebbleNotifications
 	config.Logging.System.Level = LoggingLevel(c.Logging.System.Level)
 	config.Logging.System.Output = c.Logging.System.Output
+
+	config.EncryptionBackend, err = createEncryptionBackend(c.EncryptionBackend)
+	if err != nil {
+		return Config{}, fmt.Errorf("failed to create encryption backend: %w", err)
+	}
 	return config, nil
+}
+
+// createEncryptionBackend creates a SecretBackend based on the type specified
+// in the config YAML.
+func createEncryptionBackend(backendConfigYaml EncryptionBackendConfigYaml) (backend.EncryptionBackend, error) {
+	// TODO: Should config depend on the backend package? If we're just passing back the config,
+	// why are we converting the YAML to another struct?
+	// We could just return the YAML and convert it later as necessary.
+	backendType := BackendType(backendConfigYaml.EncryptionBackend["type"].(string))
+	temp, err := yaml.Marshal(&backendConfigYaml.EncryptionBackend)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal vault config: %w", err)
+	}
+
+	switch backendType {
+	case Vault:
+		vaultConfig := VaultBackendConfigYaml{} // something that implements SecretBAckend
+		if err := yaml.Unmarshal(temp, &vaultConfig); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal vault config: %w", err)
+		}
+
+		if vaultConfig.Token != "" {
+			return backend.NewVaultTokenBackend(vaultConfig.Endpoint, vaultConfig.Mount, vaultConfig.KeyName, vaultConfig.Token)
+		} else if vaultConfig.RoleID != "" && vaultConfig.RoleSecretID != "" {
+			return backend.NewVaultRoleBackend(vaultConfig.Endpoint, vaultConfig.Mount, vaultConfig.KeyName, vaultConfig.RoleID, vaultConfig.RoleSecretID)
+		} else {
+			return nil, fmt.Errorf("vault backend requires either a token or role_id and role_secret_id")
+		}
+
+	case PKCS11:
+		pkcs11Config := PKCS11BackendConfigYaml{}
+		if err := yaml.Unmarshal(temp, &pkcs11Config); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal pkcs11 config: %w", err)
+		}
+		return backend.PKCS11{
+			Endpoint: pkcs11Config.Endpoint,
+			Slot:     pkcs11Config.Slot,
+			PIN:      pkcs11Config.PIN,
+		}, nil
+
+	case None:
+		return backend.None{}, nil
+	default:
+		return backend.None{}, fmt.Errorf("unknown backend type: %s", backendType)
+	}
+
 }

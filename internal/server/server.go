@@ -16,6 +16,10 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+const (
+	ReconcileLoopInterval = 1 * time.Hour
+)
+
 type HandlerConfig struct {
 	DB                      *db.Database
 	Logger                  *zap.Logger
@@ -85,7 +89,7 @@ func New(port int, cert []byte, key []byte, dbPath string, externalHostname stri
 
 	// Start periodic CA reconciliation in background
 	go func() {
-		ticker := time.NewTicker(24 * time.Hour)
+		ticker := time.NewTicker(ReconcileLoopInterval)
 		defer ticker.Stop()
 
 		for {

@@ -87,6 +87,7 @@ type CertificateRequest struct {
 	CSR           string `db:"csr"`
 	Status        string `db:"status"`
 	CertificateID int64  `db:"certificate_id"`
+	UserID        int64  `db:"user_id"`
 }
 
 // CertificateRequestWithChain contains the same information as the CertificateRequest object,
@@ -98,6 +99,7 @@ type CertificateRequestWithChain struct {
 	CSR              string `db:"csr"`
 	Status           string `db:"status"`
 	CertificateChain string `db:"certificate_chain"`
+	UserID           int64  `db:"user_id"`
 }
 
 // PrivateKey contains the PEM encoded string of a private key. This object is only used in relation

@@ -241,7 +241,7 @@ func generateCertPair(daysRemaining int) (string, string, string) {
 func initializeTestDBWithCerts(t *testing.T, database *db.Database) {
 	for _, v := range []int{5, 10, 32} {
 		csr, cert, ca := generateCertPair(v)
-		csrID, err := database.CreateCertificateRequest(csr)
+		csrID, err := database.CreateCertificateRequest(csr, 0)
 		if err != nil {
 			t.Fatalf("couldn't create test csr: %s", err)
 		}
@@ -254,12 +254,12 @@ func initializeTestDBWithCerts(t *testing.T, database *db.Database) {
 
 func initializeTestDBWithCaCerts(t *testing.T, database *db.Database) {
 	// create an active ca
-	_, err := database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate)
+	_, err := database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate, 0)
 	if err != nil {
 		t.Fatalf("couldn't create self signed ca: %s", err)
 	}
 	// create a pending ca
-	_, err = database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, "", "")
+	_, err = database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, "", "", 0)
 	if err != nil {
 		t.Fatalf("couldn't create pending ca: %s", err)
 	}

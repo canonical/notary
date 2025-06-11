@@ -25,7 +25,7 @@ func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
 		t.Fatalf("CA found when no CA's should be available")
 	}
 
-	caID, err := database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate)
+	caID, err := database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate, 0)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
@@ -103,7 +103,7 @@ func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {
 		t.Fatalf("CA found when no CA's should be available")
 	}
 
-	caID, err := database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, "", "")
+	caID, err := database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, "", "", 0)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
@@ -183,39 +183,39 @@ func TestCertificateAuthorityFails(t *testing.T) {
 	}
 	defer database.Close()
 
-	_, err = database.CreateCertificateAuthority("", "", "", "")
+	_, err = database.CreateCertificateAuthority("", "", "", "", 0)
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
-	_, err = database.CreateCertificateAuthority(RootCACSR, "", "", "")
+	_, err = database.CreateCertificateAuthority(RootCACSR, "", "", "", 0)
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
-	_, err = database.CreateCertificateAuthority(RootCACSR, "nope", "", "")
+	_, err = database.CreateCertificateAuthority(RootCACSR, "nope", "", "", 0)
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
-	_, err = database.CreateCertificateAuthority("nope", RootCAPrivateKey, RootCACRL, "")
+	_, err = database.CreateCertificateAuthority("nope", RootCAPrivateKey, RootCACRL, "", 0)
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
-	_, err = database.CreateCertificateAuthority("", RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate)
+	_, err = database.CreateCertificateAuthority("", RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate, 0)
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
-	_, err = database.CreateCertificateAuthority(RootCACSR, "", RootCACRL, RootCACertificate+"\n"+RootCACertificate)
+	_, err = database.CreateCertificateAuthority(RootCACSR, "", RootCACRL, RootCACertificate+"\n"+RootCACertificate, 0)
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
-	_, err = database.CreateCertificateAuthority("nope", RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate)
+	_, err = database.CreateCertificateAuthority("nope", RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate, 0)
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
-	_, err = database.CreateCertificateAuthority(RootCACSR, "nope", RootCACRL, RootCACertificate+"\n"+RootCACertificate)
+	_, err = database.CreateCertificateAuthority(RootCACSR, "nope", RootCACRL, RootCACertificate+"\n"+RootCACertificate, 0)
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
-	_, err = database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, "", RootCACertificate+"\n"+RootCACertificate)
+	_, err = database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, "", RootCACertificate+"\n"+RootCACertificate, 0)
 	if err == nil {
 		t.Fatalf("Should have failed to create certificate authority")
 	}
@@ -282,7 +282,7 @@ func TestSelfSignedCertificateList(t *testing.T) {
 	}
 	defer database.Close()
 
-	caID, err := database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate)
+	caID, err := database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate, 0)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
@@ -317,11 +317,11 @@ func TestSigningCSRsFromSelfSignedCertificate(t *testing.T) {
 	}
 	defer database.Close()
 
-	caID, err := database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate)
+	caID, err := database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate, 0)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
-	csrID, err := database.CreateCertificateRequest(AppleCSR)
+	csrID, err := database.CreateCertificateRequest(AppleCSR, 0)
 	if err != nil {
 		t.Fatalf("Couldn't create CSR: %s", err)
 	}
@@ -348,7 +348,7 @@ func TestSigningCSRsFromIntermediateCertificate(t *testing.T) {
 	}
 	defer database.Close()
 
-	caID, err := database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, IntermediateCACRL, IntermediateCACertificate+"\n"+RootCACertificate)
+	caID, err := database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, IntermediateCACRL, IntermediateCACertificate+"\n"+RootCACertificate, 0)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
@@ -356,7 +356,7 @@ func TestSigningCSRsFromIntermediateCertificate(t *testing.T) {
 		t.Fatalf("Error creating certificate authority: expected CA id to be 1 but it was %d", caID)
 	}
 
-	csrID, err := database.CreateCertificateRequest(AppleCSR)
+	csrID, err := database.CreateCertificateRequest(AppleCSR, 0)
 	if err != nil {
 		t.Fatalf("Couldn't create CSR: %s", err)
 	}
@@ -386,7 +386,7 @@ func TestSigningCSRFromUnsignedIntermediateCertificate(t *testing.T) {
 	}
 	defer database.Close()
 
-	caID, err := database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, "", "")
+	caID, err := database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, "", "", 0)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
@@ -394,7 +394,7 @@ func TestSigningCSRFromUnsignedIntermediateCertificate(t *testing.T) {
 		t.Fatalf("Error creating certificate authority: expected CA id to be 1 but it was %d", caID)
 	}
 
-	csrID, err := database.CreateCertificateRequest(AppleCSR)
+	csrID, err := database.CreateCertificateRequest(AppleCSR, 0)
 	if err != nil {
 		t.Fatalf("Couldn't create CSR: %s", err)
 	}
@@ -421,12 +421,12 @@ func TestSigningIntermediateCAByRootCA(t *testing.T) {
 	}
 	defer database.Close()
 
-	rootCAID, err := database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate)
+	rootCAID, err := database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate, 0)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
 
-	intermediateCAID, err := database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, "", "")
+	intermediateCAID, err := database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, "", "", 0)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
@@ -447,7 +447,7 @@ func TestSigningIntermediateCAByRootCA(t *testing.T) {
 		t.Fatalf("Expected intermediate ca certificate chain to be 2 certificates long.")
 	}
 
-	csrID, err := database.CreateCertificateRequest(AppleCSR)
+	csrID, err := database.CreateCertificateRequest(AppleCSR, 0)
 	if err != nil {
 		t.Fatalf("Couldn't create CSR: %s", err)
 	}
@@ -463,7 +463,7 @@ func TestSigningIntermediateCAByRootCA(t *testing.T) {
 		t.Fatalf("Expected end certificate chain to be 3 certificates long.")
 	}
 
-	csrID, err = database.CreateCertificateRequest(StrawberryCSR)
+	csrID, err = database.CreateCertificateRequest(StrawberryCSR, 0)
 	if err != nil {
 		t.Fatalf("Couldn't create CSR: %s", err)
 	}
@@ -489,7 +489,7 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 	defer database.Close()
 
 	// The root CA has a valid CRL with no entries.
-	rootCAID, err := database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate)
+	rootCAID, err := database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate, 0)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
@@ -506,7 +506,7 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 	}
 
 	// The intermediate CA has no CRL.
-	intermediateCAID, err := database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, "", "")
+	intermediateCAID, err := database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, "", "", 0)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
@@ -547,7 +547,7 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 	}
 
 	// The signed CSR has a CRLDistributionPoint extension that points to the Intermediate CA's CRL with the correct hostname.
-	csrID, err := database.CreateCertificateRequest(AppleCSR)
+	csrID, err := database.CreateCertificateRequest(AppleCSR, 0)
 	if err != nil {
 		t.Fatalf("Couldn't create CSR: %s", err)
 	}
@@ -589,7 +589,7 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 	}
 
 	// The signed certificate has a CRLDistributionPoint extension that points to the root CA's CRL with the correct hostname.
-	csrID, err = database.CreateCertificateRequest(StrawberryCSR)
+	csrID, err = database.CreateCertificateRequest(StrawberryCSR, 0)
 	if err != nil {
 		t.Fatalf("Couldn't create CSR: %s", err)
 	}

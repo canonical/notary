@@ -17,21 +17,21 @@ func TestCSRsEndToEnd(t *testing.T) {
 	}
 	defer database.Close()
 
-	csrID, err := database.CreateCertificateRequest(AppleCSR)
+	csrID, err := database.CreateCertificateRequest(AppleCSR, 0)
 	if err != nil {
 		t.Fatalf("Couldn't create CSR: %s", err)
 	}
 	if csrID != 1 {
 		t.Fatalf("Couldn't complete Create: expected user id 1, but got %d", csrID)
 	}
-	csrID, err = database.CreateCertificateRequest(BananaCSR)
+	csrID, err = database.CreateCertificateRequest(BananaCSR, 0)
 	if err != nil {
 		t.Fatalf("Couldn't create CSR: %s", err)
 	}
 	if csrID != 2 {
 		t.Fatalf("Couldn't complete Create: expected user id 2, but got %d", csrID)
 	}
-	csrID, err = database.CreateCertificateRequest(StrawberryCSR)
+	csrID, err = database.CreateCertificateRequest(StrawberryCSR, 0)
 	if err != nil {
 		t.Fatalf("Couldn't create CSR: %s", err)
 	}
@@ -130,15 +130,15 @@ func TestCreateCertificateRequestFails(t *testing.T) {
 	defer db.Close()
 
 	InvalidCSR := strings.ReplaceAll(AppleCSR, "M", "i")
-	if _, err := db.CreateCertificateRequest(InvalidCSR); err == nil {
+	if _, err := db.CreateCertificateRequest(InvalidCSR, 0); err == nil {
 		t.Fatalf("Expected error due to invalid CSR")
 	}
 
-	_, err := db.CreateCertificateRequest(AppleCSR)
+	_, err := db.CreateCertificateRequest(AppleCSR, 0)
 	if err != nil {
 		t.Fatalf("Failed to create CSR: %s", err)
 	}
-	if _, err := db.CreateCertificateRequest(AppleCSR); err == nil {
+	if _, err := db.CreateCertificateRequest(AppleCSR, 0); err == nil {
 		t.Fatalf("Expected error due to duplicate CSR")
 	}
 }
@@ -147,7 +147,7 @@ func TestGetCertificateRequestFails(t *testing.T) {
 	database, _ := db.NewDatabase(":memory:")
 	defer database.Close()
 
-	_, err := database.CreateCertificateRequest(AppleCSR)
+	_, err := database.CreateCertificateRequest(AppleCSR, 0)
 	if err != nil {
 		t.Fatalf("Failed to create CSR: %s", err)
 	}
@@ -173,7 +173,7 @@ func TestGetCertificateRequestFails(t *testing.T) {
 func TestDeleteCertificateRequest(t *testing.T) {
 	database, _ := db.NewDatabase(":memory:")
 	defer database.Close()
-	_, err := database.CreateCertificateRequest(AppleCSR)
+	_, err := database.CreateCertificateRequest(AppleCSR, 0)
 	if err != nil {
 		t.Fatalf("Failed to create CSR: %s", err)
 	}
@@ -204,7 +204,7 @@ func TestRevokeCertificateRequestFails(t *testing.T) {
 	database, _ := db.NewDatabase(":memory:")
 	defer database.Close()
 
-	_, err := database.CreateCertificateRequest(AppleCSR)
+	_, err := database.CreateCertificateRequest(AppleCSR, 0)
 	if err != nil {
 		t.Fatalf("Failed to create CSR: %s", err)
 	}
@@ -229,7 +229,7 @@ func TestRejectCertificateRequestFails(t *testing.T) {
 	database, _ := db.NewDatabase(":memory:")
 	defer database.Close()
 
-	_, err := database.CreateCertificateRequest(AppleCSR)
+	_, err := database.CreateCertificateRequest(AppleCSR, 0)
 	if err != nil {
 		t.Fatalf("Failed to create CSR: %s", err)
 	}
@@ -259,15 +259,15 @@ func TestCASNotShowingUpInCSRsTable(t *testing.T) {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}
 	defer database.Close()
-	_, err = database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate)
+	_, err = database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate, 0)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
-	_, err = database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, "", "")
+	_, err = database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, "", "", 0)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
-	_, err = database.CreateCertificateRequest(AppleCSR)
+	_, err = database.CreateCertificateRequest(AppleCSR, 0)
 	if err != nil {
 		t.Fatalf("Failed to create CSR: %s", err)
 	}

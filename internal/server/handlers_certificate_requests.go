@@ -64,6 +64,7 @@ type CertificateRequest struct {
 	CSR              string `json:"csr"`
 	CertificateChain string `json:"certificate_chain"`
 	Status           string `json:"status"`
+	UserID           int64  `json:"user_id"`
 }
 
 // ListCertificateRequests returns all of the Certificate Requests
@@ -81,6 +82,7 @@ func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 				CSR:              csr.CSR,
 				Status:           csr.Status,
 				CertificateChain: csr.CertificateChain,
+				UserID:           csr.UserID,
 			}
 		}
 		err = writeResponse(w, certificateRequestsResponse, http.StatusOK)
@@ -104,7 +106,14 @@ func CreateCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.Logger)
 			return
 		}
-		newCSRID, err := env.DB.CreateCertificateRequest(createCertificateRequestParams.CSR)
+
+		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
+		if headerErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.Logger)
+			return
+		}
+
+		newCSRID, err := env.DB.CreateCertificateRequest(createCertificateRequestParams.CSR, claims.ID)
 		if err != nil {
 			if errors.Is(err, db.ErrAlreadyExists) {
 				writeError(w, http.StatusBadRequest, "given csr already recorded", err, env.Logger)
@@ -159,6 +168,7 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			CSR:              csr.CSR,
 			CertificateChain: csr.CertificateChain,
 			Status:           csr.Status,
+			UserID:           csr.UserID,
 		}
 		err = writeResponse(w, certificateRequestResponse, http.StatusOK)
 		if err != nil {

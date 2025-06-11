@@ -307,6 +307,6 @@ func generateCACertificate(notAfter time.Time) (csrPEM string, keyPEM string, cr
 
 func encodePEM(blockType string, derBytes []byte) string {
 	var b strings.Builder
-	pem.Encode(&b, &pem.Block{Type: blockType, Bytes: derBytes})
+	_ = pem.Encode(&b, &pem.Block{Type: blockType, Bytes: derBytes})
 	return b.String()
 }

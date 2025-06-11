@@ -201,7 +201,7 @@ export function CertificateAuthoritiesTable({
                   <span className="p-contextual-menu__group">
                     <Button
                       className="p-contextual-menu__link"
-                      onMouseDown={() => handleExpand(caEntry.id, "CSR")}
+                      onClick={() => handleExpand(caEntry.id, "CSR")}
                     >
                       {isCSRContentVisible
                         ? "Hide CSR Content"
@@ -209,13 +209,13 @@ export function CertificateAuthoritiesTable({
                     </Button>
                     <Button
                       className="p-contextual-menu__link"
-                      onMouseDown={() => handleCopy(caEntry.csr, caEntry.id)}
+                      onClick={() => handleCopy(caEntry.csr, caEntry.id)}
                     >
                       Copy CSR to Clipboard
                     </Button>
                     <Button
                       className="p-contextual-menu__link"
-                      onMouseDown={() =>
+                      onClick={() =>
                         handleDownload(caEntry.csr, caEntry.id, csrObj)
                       }
                     >
@@ -227,7 +227,7 @@ export function CertificateAuthoritiesTable({
                   <Button
                     className="p-contextual-menu__link"
                     disabled={caEntry.status == "pending"}
-                    onMouseDown={() => handleExpand(caEntry.id, "Cert")}
+                    onClick={() => handleExpand(caEntry.id, "Cert")}
                   >
                     {isCertContentVisible
                       ? "Hide Certificate Content"
@@ -237,7 +237,7 @@ export function CertificateAuthoritiesTable({
                     <Button
                       className="p-contextual-menu__link"
                       disabled={auth.activeCA == null}
-                      onMouseDown={() => handleSign(caEntry.id)}
+                      onClick={() => handleSign(caEntry.id)}
                     >
                       {caEntry.status === "active" ? "Re-sign CSR" : "Sign CSR"}
                     </Button>
@@ -245,7 +245,7 @@ export function CertificateAuthoritiesTable({
                   {isSelfSigned && (
                     <Button
                       className="p-contextual-menu__link"
-                      onMouseDown={() => handleSign(caEntry.id, caEntry.id)}
+                      onClick={() => handleSign(caEntry.id, caEntry.id)}
                     >
                       Renew Certificate
                     </Button>
@@ -253,7 +253,7 @@ export function CertificateAuthoritiesTable({
                   {!isSelfSigned && (
                     <Button
                       className="p-contextual-menu__link"
-                      onMouseDown={() => {
+                      onClick={() => {
                         setCertificateFormOpen(true);
                         setSelectedCA(caEntry);
                       }}
@@ -265,7 +265,7 @@ export function CertificateAuthoritiesTable({
                     <Button
                       className="p-contextual-menu__link"
                       disabled={caEntry.status == "pending"}
-                      onMouseDown={() => handleRevoke(caEntry.id)}
+                      onClick={() => handleRevoke(caEntry.id)}
                     >
                       Revoke Certificate
                     </Button>
@@ -279,7 +279,7 @@ export function CertificateAuthoritiesTable({
                         caEntry.status != "active" ||
                         auth.activeCA?.id === caEntry.id
                       }
-                      onMouseDown={() => {
+                      onClick={() => {
                         auth.setActiveCA(caEntry);
                       }}
                     >
@@ -289,14 +289,14 @@ export function CertificateAuthoritiesTable({
                   {caEntry.status === "active" && (
                     <Button
                       className="p-contextual-menu__link"
-                      onMouseDown={() => handleMakeLegacy(caEntry.id)}
+                      onClick={() => handleMakeLegacy(caEntry.id)}
                     >
                       Make CA Legacy
                     </Button>
                   )}
                   <Button
                     className="p-contextual-menu__link"
-                    onMouseDown={() => handleDelete(caEntry.id)}
+                    onClick={() => handleDelete(caEntry.id)}
                   >
                     Delete Certificate Authority
                   </Button>

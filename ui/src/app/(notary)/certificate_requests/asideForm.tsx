@@ -107,6 +107,7 @@ export default function CertificateRequestsAsidePanel({
         </div>
         <div className="p-form__group row">
           <Button
+            type="button"
             appearance="positive"
             name="submit"
             disabled={!csrIsValid(CSRPEMString)}

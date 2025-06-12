@@ -184,6 +184,11 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 		return errors.New("CA is not active to sign certificates")
 	}
 
+	expiryDate := certificateExpiryDate(caRow.CertificateChain)
+	if expiryDate.Before(time.Now()) {
+		return errors.New("CA certificate is expired")
+	}
+
 	block, _ := pem.Decode([]byte(csrRow.CSR))
 	certRequest, err := x509.ParseCertificateRequest(block.Bytes)
 	if err != nil {
@@ -339,4 +344,10 @@ func (db *Database) RevokeCertificate(filter CSRFilter) error {
 
 	err = UpdateEntity(db, db.stmts.UpdateCertificateRequest, newRow)
 	return err
+}
+
+func certificateExpiryDate(certString string) time.Time {
+	certBlock, _ := pem.Decode([]byte(certString))
+	cert, _ := x509.ParseCertificate(certBlock.Bytes)
+	return cert.NotAfter
 }

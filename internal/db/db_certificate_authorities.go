@@ -49,7 +49,7 @@ func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, cr
 	CARow := CertificateAuthority{
 		CSRID:        csrID,
 		PrivateKeyID: pkID,
-		Active:       0,
+		Active:       boolToInt(false),
 	}
 	if certChainPEM != "" {
 		if crlPEM == "" {
@@ -64,7 +64,7 @@ func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, cr
 			CertificateID: certID,
 			CRL:           crlPEM,
 			PrivateKeyID:  pkID,
-			Active:        1,
+			Active:        boolToInt(true),
 		}
 	}
 	insertedRowID, err := CreateEntity(db, db.stmts.CreateCertificateAuthority, CARow)
@@ -124,7 +124,7 @@ func (db *Database) UpdateCertificateAuthorityCertificate(filter CertificateAuth
 		CertificateAuthorityID: ca.CertificateAuthorityID,
 		CertificateID:          certID,
 		CRL:                    newCRL,
-		Active:                 1,
+		Active:                 boolToInt(true),
 	}
 	return UpdateEntity(db, db.stmts.UpdateCertificateAuthority, newRow)
 }

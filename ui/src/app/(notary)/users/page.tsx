@@ -42,7 +42,9 @@ export default function Users() {
       removeCookie("user_token");
     }
     if (query.error.message.includes("403")) {
-      return <Error msg="403 Forbidden: You do not have access to this page." />;
+      return (
+        <Error msg="403 Forbidden: You do not have access to this page." />
+      );
     }
     return <Error msg={query.error.message} />;
   }

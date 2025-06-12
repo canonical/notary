@@ -59,18 +59,13 @@ func generateJWTSecret() ([]byte, error) {
 }
 
 // New creates an environment and an http server with handlers that Go can start listening to
-func New(port int, cert []byte, key []byte, dbPath string, externalHostname string, pebbleNotificationsEnabled bool, logger *zap.Logger) (*http.Server, error) {
+func New(port int, cert []byte, key []byte, dbPath string, externalHostname string, pebbleNotificationsEnabled bool, logger *zap.Logger, encryptionBackend encryption_backend.EncryptionBackend) (*http.Server, error) {
 	serverCerts, err := tls.X509KeyPair(cert, key)
 	if err != nil {
 		return nil, err
 	}
-	// Add path to yubihsm_pkcs11.dylib here
-	backend := encryption_backend.NewHSMBackend(
-		"",
-		"0001password",
-		0x1234,
-	)
-	database, err := db.NewDatabase(dbPath, backend)
+
+	database, err := db.NewDatabase(dbPath, encryptionBackend)
 	if err != nil {
 		return nil, err
 	}

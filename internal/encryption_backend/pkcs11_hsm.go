@@ -4,17 +4,9 @@ import (
 	"crypto/rand"
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/miekg/pkcs11"
 )
-
-// EncryptionBackend defines the interface for encryption operations.
-// Implementations should handle the encryption and decryption of sensitive data.
-type EncryptionBackend interface {
-	Encrypt(plaintext []byte) ([]byte, error)
-	Decrypt(ciphertext []byte) ([]byte, error)
-}
 
 // HSMBackend implements EncryptionBackend using a Hardware Security Module.
 // It uses pointer receivers to maintain connection state and avoid copying
@@ -134,8 +126,7 @@ func (h *HSMBackend) connectToHSM() (*pkcs11.Ctx, pkcs11.SessionHandle, pkcs11.O
 		return nil, 0, 0, fmt.Errorf("failed to load PKCS#11 library at %s", h.libPath)
 	}
 	fmt.Printf("Creating new HSM backend with library: %s\n", h.libPath)
-	// Add path to yubihsm_pkcs11.conf here
-	os.Setenv("YUBIHSM_PKCS11_CONF", "")
+
 	if err := p.Initialize(); err != nil {
 		return nil, 0, 0, fmt.Errorf("initialize HSM: %w", err)
 	}

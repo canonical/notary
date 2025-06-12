@@ -150,7 +150,7 @@ export function SideBar({
                               <span className="p-contextual-menu__group">
                                 <button
                                   className="p-contextual-menu__link"
-                                  onMouseDown={() =>
+                                  onClick={() =>
                                     setChangePasswordModalVisible(true)
                                   }
                                 >
@@ -158,7 +158,7 @@ export function SideBar({
                                 </button>
                                 <button
                                   className="p-contextual-menu__link"
-                                  onMouseDown={() => removeCookie("user_token")}
+                                  onClick={() => removeCookie("user_token")}
                                 >
                                   Log Out
                                 </button>

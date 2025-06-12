@@ -115,7 +115,7 @@ export function SubmitCertificateModal({
           >
             Submit
           </Button>
-          <Button onMouseDown={() => setFormOpen(false)}>Cancel</Button>
+          <Button onClick={() => setFormOpen(false)}>Cancel</Button>
         </>
       }
     >

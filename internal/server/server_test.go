@@ -2,22 +2,12 @@ package server_test
 
 import (
 	"bytes"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/json"
-	"encoding/pem"
-	"fmt"
-	"math/big"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
-	"time"
 
-	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/server"
 	"go.uber.org/zap"
 )
@@ -176,137 +166,4 @@ func generateRandomString(kilobytes int) string {
 		buf.WriteString("abcdefghijklmnopqrstuvwxyz")
 	}
 	return buf.String()
-}
-
-func TestReconcileCAStatus(t *testing.T) {
-	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
-	if err != nil {
-		t.Fatalf("Couldn't complete NewDatabase: %s", err)
-	}
-	defer database.Close()
-
-	expiredCACSR, expiredCAKey, expiredCACRL, expiredCACert, err := generateCACertificate(time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC))
-	if err != nil {
-		t.Fatalf("Failed to generate expired CA data: %s", err)
-	}
-
-	validCACSR, validCAKey, validCACRL, validCACert, err := generateCACertificate(time.Now().Add(30 * 24 * time.Hour))
-	if err != nil {
-		t.Fatalf("Failed to generate valid CA data: %s", err)
-	}
-
-	expiredCAID, err := database.CreateCertificateAuthority(expiredCACSR, expiredCAKey, expiredCACRL, expiredCACert+expiredCACert)
-	if err != nil {
-		t.Fatalf("Failed to create expired CA: %s", err)
-	}
-
-	validCAID, err := database.CreateCertificateAuthority(validCACSR, validCAKey, validCACRL, validCACert+validCACert)
-	if err != nil {
-		t.Fatalf("Failed to create valid CA: %s", err)
-	}
-
-	expiredCA, err := database.GetCertificateAuthority(db.ByCertificateAuthorityID(expiredCAID))
-	if err != nil {
-		t.Fatalf("Failed to get expired CA: %s", err)
-	}
-
-	validCA, err := database.GetCertificateAuthority(db.ByCertificateAuthorityID(validCAID))
-	if err != nil {
-		t.Fatalf("Failed to get valid CA: %s", err)
-	}
-
-	if expiredCA.Status != db.CAActive {
-		t.Fatalf("Expected CA status to be 'active', got '%s'", expiredCA.Status)
-	}
-
-	if validCA.Status != db.CAActive {
-		t.Fatalf("Expected CA status to be 'active', got '%s'", validCA.Status)
-	}
-
-	err = server.ReconcileCAStatus(database, zap.NewNop())
-	if err != nil {
-		t.Fatalf("ReconcileCAStatus failed: %s", err)
-	}
-
-	expiredCA, err = database.GetCertificateAuthority(db.ByCertificateAuthorityID(expiredCAID))
-	if err != nil {
-		t.Fatalf("GetCertificateAuthority failed: %s", err)
-	}
-
-	validCA, err = database.GetCertificateAuthority(db.ByCertificateAuthorityID(validCAID))
-	if err != nil {
-		t.Fatalf("GetCertificateAuthority failed: %s", err)
-	}
-
-	if expiredCA.Status != db.CAExpired {
-		t.Fatalf("Expected CA status to be 'expired', got '%s'", expiredCA.Status)
-	}
-
-	if validCA.Status != db.CAActive {
-		t.Fatalf("Expected CA status to be 'active', got '%s'", validCA.Status)
-	}
-}
-
-func generateCACertificate(notAfter time.Time) (csrPEM string, keyPEM string, crlPEM string, certPEM string, err error) {
-	caKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return "", "", "", "", fmt.Errorf("failed to generate CA key: %w", err)
-	}
-
-	csrTemplate := &x509.CertificateRequest{
-		Subject: pkix.Name{
-			CommonName: "Expired Root CA",
-		},
-	}
-	csrDER, err := x509.CreateCertificateRequest(rand.Reader, csrTemplate, caKey)
-	if err != nil {
-		return "", "", "", "", fmt.Errorf("failed to create CSR: %w", err)
-	}
-
-	caTemplate := &x509.Certificate{
-		SerialNumber:          big.NewInt(1),
-		Subject:               csrTemplate.Subject,
-		NotBefore:             time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		NotAfter:              notAfter,
-		IsCA:                  true,
-		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
-		BasicConstraintsValid: true,
-	}
-	caCertDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
-	if err != nil {
-		return "", "", "", "", fmt.Errorf("failed to create CA certificate: %w", err)
-	}
-
-	caCert, err := x509.ParseCertificate(caCertDER)
-	if err != nil {
-		return "", "", "", "", fmt.Errorf("failed to parse CA cert: %w", err)
-	}
-
-	now := time.Now()
-	crlTemplate := x509.RevocationList{
-		SignatureAlgorithm:  caCert.SignatureAlgorithm,
-		RevokedCertificates: []pkix.RevokedCertificate{},
-		ThisUpdate:          now.Add(-24 * time.Hour),
-		NextUpdate:          now.Add(30 * 24 * time.Hour),
-		Number:              big.NewInt(1),
-	}
-
-	crlDER, err := x509.CreateRevocationList(rand.Reader, &crlTemplate, caCert, caKey)
-	if err != nil {
-		return "", "", "", "", fmt.Errorf("failed to create CRL: %w", err)
-	}
-
-	keyPEM = encodePEM("RSA PRIVATE KEY", x509.MarshalPKCS1PrivateKey(caKey))
-	certPEM = encodePEM("CERTIFICATE", caCertDER)
-	csrPEM = encodePEM("CERTIFICATE REQUEST", csrDER)
-	crlPEM = encodePEM("X509 CRL", crlDER)
-
-	return csrPEM, keyPEM, crlPEM, certPEM, nil
-}
-
-func encodePEM(blockType string, derBytes []byte) string {
-	var b strings.Builder
-	_ = pem.Encode(&b, &pem.Block{Type: blockType, Bytes: derBytes})
-	return b.String()
 }

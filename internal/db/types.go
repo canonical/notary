@@ -20,7 +20,6 @@ func (ca CAStatus) MarshalJSON() ([]byte, error) {
 
 const (
 	CAActive  CAStatus = "active"
-	CAExpired CAStatus = "expired"
 	CAPending CAStatus = "pending"
 	CALegacy  CAStatus = "legacy"
 )
@@ -29,7 +28,6 @@ const (
 func NewStatusFromString(s string) (CAStatus, error) {
 	statuses := map[CAStatus]struct{}{
 		CAActive:  {},
-		CAExpired: {},
 		CAPending: {},
 		CALegacy:  {},
 	}
@@ -37,7 +35,7 @@ func NewStatusFromString(s string) (CAStatus, error) {
 	status := CAStatus(s)
 	_, ok := statuses[status]
 	if !ok {
-		return "", fmt.Errorf("invalid status: status must be one of %s, %s, %s, %s", CAActive, CAExpired, CAPending, CALegacy)
+		return "", fmt.Errorf("invalid status: status must be one of %s, %s, %s", CAActive, CAPending, CALegacy)
 	}
 	return status, nil
 }

@@ -4,8 +4,6 @@ package server
 import (
 	"crypto/rand"
 	"crypto/tls"
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"net/http"
 	"os/exec"
@@ -87,19 +85,6 @@ func New(port int, cert []byte, key []byte, dbPath string, externalHostname stri
 	env.Logger = logger
 	router := NewHandler(env)
 
-	// Start periodic CA reconciliation in background
-	go func() {
-		ticker := time.NewTicker(ReconcileLoopInterval)
-		defer ticker.Stop()
-
-		for {
-			if err := ReconcileCAStatus(env.DB, env.Logger); err != nil {
-				env.Logger.Error("failed to reconcile CA status", zap.Error(err))
-			}
-			<-ticker.C
-		}
-	}()
-
 	stdErrLog, err := zap.NewStdLogAt(logger, zapcore.ErrorLevel)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create logger for http server: %w", err)
@@ -119,48 +104,4 @@ func New(port int, cert []byte, key []byte, dbPath string, externalHostname stri
 	}
 
 	return s, nil
-}
-
-// ReconcileCAStatus checks the status of all CAs in the database and updates their status
-// if necessary.
-func ReconcileCAStatus(dbClient *db.Database, logger *zap.Logger) error {
-	certificateAuthorities, err := dbClient.ListCertificateAuthorities()
-	if err != nil {
-		return fmt.Errorf("failed to list certificate authorities: %w", err)
-	}
-
-	for _, ca := range certificateAuthorities {
-		caDenorm, err := dbClient.GetDenormalizedCertificateAuthority(
-			db.ByCertificateAuthorityDenormalizedID(ca.CertificateAuthorityID),
-		)
-		if err != nil {
-			logger.Warn("failed to get denormalized certificate authority", zap.Int64("ca_id", ca.CertificateAuthorityID), zap.Error(err))
-			continue
-		}
-
-		certPEM := []byte(caDenorm.CertificateChain)
-
-		block, _ := pem.Decode(certPEM)
-		if block == nil || block.Type != "CERTIFICATE" {
-			logger.Warn("failed to parse PEM block as certificate", zap.Int64("ca_id", ca.CertificateAuthorityID))
-			continue
-		}
-
-		cert, err := x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			logger.Warn("failed to parse certificate", zap.Int64("ca_id", ca.CertificateAuthorityID), zap.Error(err))
-			continue
-		}
-
-		if time.Now().After(cert.NotAfter) && ca.Status != db.CAExpired {
-			err = dbClient.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), db.CAExpired)
-			if err != nil {
-				logger.Warn("failed to update CA status to expired", zap.Int64("ca_id", ca.CertificateAuthorityID), zap.Error(err))
-				continue
-			}
-			logger.Info("updated CA status to expired", zap.Int64("ca_id", ca.CertificateAuthorityID))
-		}
-	}
-
-	return nil
 }

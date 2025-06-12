@@ -121,7 +121,7 @@ func New(port int, cert []byte, key []byte, dbPath string, externalHostname stri
 	return s, nil
 }
 
-// reconcileCAStatus checks the status of all CAs in the database and updates their status
+// ReconcileCAStatus checks the status of all CAs in the database and updates their status
 // if necessary.
 func ReconcileCAStatus(dbClient *db.Database, logger *zap.Logger) error {
 	certificateAuthorities, err := dbClient.ListCertificateAuthorities()
@@ -134,7 +134,8 @@ func ReconcileCAStatus(dbClient *db.Database, logger *zap.Logger) error {
 			db.ByCertificateAuthorityDenormalizedID(ca.CertificateAuthorityID),
 		)
 		if err != nil {
-			return fmt.Errorf("failed to get denormalized certificate authority: %w", err)
+			logger.Warn("failed to get denormalized certificate authority", zap.Int64("ca_id", ca.CertificateAuthorityID), zap.Error(err))
+			continue
 		}
 
 		certPEM := []byte(caDenorm.CertificateChain)
@@ -154,7 +155,8 @@ func ReconcileCAStatus(dbClient *db.Database, logger *zap.Logger) error {
 		if time.Now().After(cert.NotAfter) && ca.Status != db.CAExpired {
 			err = dbClient.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), db.CAExpired)
 			if err != nil {
-				return fmt.Errorf("failed to update CA status to expired: %w", err)
+				logger.Warn("failed to update CA status to expired", zap.Int64("ca_id", ca.CertificateAuthorityID), zap.Error(err))
+				continue
 			}
 			logger.Info("updated CA status to expired", zap.Int64("ca_id", ca.CertificateAuthorityID))
 		}

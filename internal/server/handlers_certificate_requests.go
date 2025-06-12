@@ -64,7 +64,7 @@ type CertificateRequest struct {
 	CSR              string `json:"csr"`
 	CertificateChain string `json:"certificate_chain"`
 	Status           string `json:"status"`
-	UserID           int64  `json:"user_id"`
+	Username         string `json:"username"`
 }
 
 // ListCertificateRequests returns all of the Certificate Requests
@@ -77,12 +77,21 @@ func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 		}
 		certificateRequestsResponse := make([]CertificateRequest, len(csrs))
 		for i, csr := range csrs {
+			user, err := env.DB.GetUser(db.ByUserID(csr.UserID))
+			if err != nil {
+				if errors.Is(err, db.ErrNotFound) {
+					writeError(w, http.StatusNotFound, "User Not Found", err, env.Logger)
+					return
+				}
+				writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
+				return
+			}
 			certificateRequestsResponse[i] = CertificateRequest{
 				ID:               csr.CSR_ID,
 				CSR:              csr.CSR,
 				Status:           csr.Status,
 				CertificateChain: csr.CertificateChain,
-				UserID:           csr.UserID,
+				Username:         user.Username,
 			}
 		}
 		err = writeResponse(w, certificateRequestsResponse, http.StatusOK)
@@ -163,12 +172,22 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
 			return
 		}
+		user, err := env.DB.GetUser(db.ByUserID(csr.UserID))
+		env.Logger.Warn("retrieving user for certificate request", zap.Int64("user_id", csr.UserID))
+		if err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				writeError(w, http.StatusNotFound, "User Not Found", err, env.Logger)
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
+			return
+		}
 		certificateRequestResponse := CertificateRequest{
 			ID:               csr.CSR_ID,
 			CSR:              csr.CSR,
 			CertificateChain: csr.CertificateChain,
 			Status:           csr.Status,
-			UserID:           csr.UserID,
+			Username:         user.Username,
 		}
 		err = writeResponse(w, certificateRequestResponse, http.StatusOK)
 		if err != nil {

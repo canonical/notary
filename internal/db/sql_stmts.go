@@ -198,6 +198,7 @@ SELECT
 	&CertificateRequestWithChain.csr_id,
 	&CertificateRequestWithChain.csr,
 	&CertificateRequestWithChain.status,
+	&CertificateRequestWithChain.user_id,
 	chain AS &CertificateRequestWithChain.certificate_chain
 FROM certificate_chain
 WHERE (csr_id = $CertificateRequestWithChain.csr_id OR csr = $CertificateRequestWithChain.csr) AND (chain = '' OR issuer_id = 0)`

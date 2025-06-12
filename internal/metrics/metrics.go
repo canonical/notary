@@ -194,9 +194,14 @@ func (pm *PrometheusMetrics) GenerateCACertificateMetrics(cas []db.CertificateAu
 	pm.ActiveCARemainingDays.Reset()
 
 	for _, entry := range cas {
-		if entry.Status == "active" {
+		if entry.CertificateChain != "" {
+			expiryDate := certificateExpiryDate(entry.CertificateChain)
+			if expiryDate.Before(time.Now()) {
+				expiredCACertCount += 1
+			}
+		}
+		if entry.Status == db.CAActive {
 			activeCACertCount += 1
-
 			if entry.CertificateChain != "" {
 				expiryDate := certificateExpiryDate(entry.CertificateChain)
 				daysRemaining := math.Floor(time.Until(expiryDate).Hours() / 24)
@@ -206,13 +211,10 @@ func (pm *PrometheusMetrics) GenerateCACertificateMetrics(cas []db.CertificateAu
 				}).Set(daysRemaining)
 			}
 		}
-		if entry.Status == "expired" {
-			expiredCACertCount += 1
-		}
-		if entry.Status == "pending" {
+		if entry.Status == db.CAPending {
 			pendingCACertCount += 1
 		}
-		if entry.Status == "legacy" {
+		if entry.Status == db.CALegacy {
 			legacyCACertCount += 1
 		}
 	}

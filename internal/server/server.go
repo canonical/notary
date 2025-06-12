@@ -14,10 +14,6 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-const (
-	ReconcileLoopInterval = 1 * time.Hour
-)
-
 type HandlerConfig struct {
 	DB                      *db.Database
 	Logger                  *zap.Logger

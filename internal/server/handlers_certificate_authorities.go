@@ -23,12 +23,12 @@ import (
 const nextUpdateYears = 1
 
 type CertificateAuthority struct {
-	ID             int64       `json:"id"`
-	Status         db.CAStatus `json:"status"`
-	PrivateKeyPEM  string      `json:"private_key,omitempty"`
-	CertificatePEM string      `json:"certificate"`
-	CSRPEM         string      `json:"csr"`
-	CRL            string      `json:"crl"`
+	ID             int64  `json:"id"`
+	Active         bool   `json:"active"`
+	PrivateKeyPEM  string `json:"private_key,omitempty"`
+	CertificatePEM string `json:"certificate"`
+	CSRPEM         string `json:"csr"`
+	CRL            string `json:"crl"`
 }
 
 type CRL struct {
@@ -49,7 +49,7 @@ type CreateCertificateAuthorityParams struct {
 }
 
 type UpdateCertificateAuthorityParams struct {
-	Status string `json:"status,omitempty"`
+	Active bool `json:"active,omitempty"`
 }
 
 type UploadCertificateToCertificateAuthorityParams struct {
@@ -79,16 +79,6 @@ func (params *CreateCertificateAuthorityParams) IsValid() (bool, error) {
 		if !notValidAfter.After(time.Now()) {
 			return false, errors.New("not_valid_after must be a future time")
 		}
-	}
-	return true, nil
-}
-
-func (updateCAParams *UpdateCertificateAuthorityParams) IsValid() (bool, error) {
-	if updateCAParams.Status == "" {
-		return false, errors.New("status is required")
-	}
-	if _, err := db.NewStatusFromString(updateCAParams.Status); err != nil {
-		return false, err
 	}
 	return true, nil
 }
@@ -239,7 +229,7 @@ func ListCertificateAuthorities(env *HandlerConfig) http.HandlerFunc {
 		for i, ca := range cas {
 			caResponse[i] = CertificateAuthority{
 				ID:             ca.CertificateAuthorityID,
-				Status:         ca.Status,
+				Active:         intToBool(ca.Active),
 				PrivateKeyPEM:  "",
 				CSRPEM:         ca.CSRPEM,
 				CertificatePEM: ca.CertificateChain,
@@ -252,6 +242,17 @@ func ListCertificateAuthorities(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 	}
+}
+
+func intToBool(i int) bool {
+	if i == 1 {
+		return true
+	}
+	if i == 0 {
+		return false
+	}
+	// If the value is not 0 or 1, return false by default
+	return false
 }
 
 // CreateCertificateAuthority handler creates a new Certificate Authority
@@ -315,7 +316,7 @@ func GetCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 		}
 		caResponse := CertificateAuthority{
 			ID:             ca.CertificateAuthorityID,
-			Status:         ca.Status,
+			Active:         intToBool(ca.Active),
 			PrivateKeyPEM:  "",
 			CSRPEM:         ca.CSRPEM,
 			CertificatePEM: ca.CertificateChain,
@@ -345,17 +346,9 @@ func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format", err, env.Logger)
 			return
 		}
-		valid, err := params.IsValid()
-		if !valid {
-			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.Logger)
-			return
-		}
-		status, err := db.NewStatusFromString(params.Status)
-		if err != nil {
-			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.Logger)
-			return
-		}
-		err = env.DB.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(idNum), status)
+		// TODO: Make it impossible to set to active if the CA does not have a certificate chain or if the certificate is expired
+
+		err = env.DB.UpdateCertificateAuthorityActiveStatus(db.ByCertificateAuthorityID(idNum), params.Active)
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found", err, env.Logger)

@@ -488,8 +488,8 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		if len(listCertRequestsResponse.Result) != 1 {
 			t.Fatalf("expected 1 certificate authority, got %d", len(listCertRequestsResponse.Result))
 		}
-		if listCertRequestsResponse.Result[0].Status != "active" {
-			t.Fatalf("expected active status, got %s", listCertRequestsResponse.Result[0].Status)
+		if listCertRequestsResponse.Result[0].Active != true {
+			t.Fatalf("expected active status, got %v", listCertRequestsResponse.Result[0].Active)
 		}
 		if listCertRequestsResponse.Result[0].CertificatePEM == "" {
 			t.Fatalf("expected certificate to have been created, got empty")
@@ -534,11 +534,11 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		if len(listCertRequestsResponse.Result) != 2 {
 			t.Fatalf("expected 2 certificate authority, got %d", len(listCertRequestsResponse.Result))
 		}
-		if listCertRequestsResponse.Result[0].Status != "active" {
-			t.Fatalf("expected active status, got %s", listCertRequestsResponse.Result[0].Status)
+		if listCertRequestsResponse.Result[0].Active != true {
+			t.Fatalf("expected active status, got %v", listCertRequestsResponse.Result[0].Active)
 		}
-		if listCertRequestsResponse.Result[1].Status != "pending" {
-			t.Fatalf("expected pending status, got %s", listCertRequestsResponse.Result[1].Status)
+		if listCertRequestsResponse.Result[1].Active != false {
+			t.Fatalf("expected pending status, got %v", listCertRequestsResponse.Result[1].Active)
 		}
 	})
 
@@ -557,8 +557,8 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		if getCAResponse.Result.ID != 2 {
 			t.Fatalf("expected ID %d, got %d", 2, getCAResponse.Result.ID)
 		}
-		if getCAResponse.Result.Status != "pending" {
-			t.Fatalf("expected pending status, got %s", getCAResponse.Result.Status)
+		if getCAResponse.Result.Active != false {
+			t.Fatalf("expected pending status, got %v", getCAResponse.Result.Active)
 		}
 		if getCAResponse.Result.CSRPEM == "" {
 			t.Fatalf("expected CSR to be set")
@@ -596,10 +596,10 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		if len(listCertRequestsResponse.Result) != 2 {
 			t.Fatalf("expected 2 certificates, got %d", len(listCertRequestsResponse.Result))
 		}
-		if listCertRequestsResponse.Result[0].Status != "active" {
+		if listCertRequestsResponse.Result[0].Active != true {
 			t.Fatalf("expected first CA to be active")
 		}
-		if listCertRequestsResponse.Result[1].Status != "active" {
+		if listCertRequestsResponse.Result[1].Active != true {
 			t.Fatalf("expected second CA to be active")
 		}
 	})
@@ -629,10 +629,10 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		if len(listCertRequestsResponse.Result) != 2 {
 			t.Fatalf("expected 2 certificates, got %d", len(listCertRequestsResponse.Result))
 		}
-		if listCertRequestsResponse.Result[0].Status != "legacy" {
+		if listCertRequestsResponse.Result[0].Active != false {
 			t.Fatalf("expected first CA to be legacy")
 		}
-		if listCertRequestsResponse.Result[1].Status != "active" {
+		if listCertRequestsResponse.Result[1].Active != true {
 			t.Fatalf("expected second CA to be active")
 		}
 	})
@@ -659,7 +659,7 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		if len(listCertRequestsResponse.Result) != 1 {
 			t.Fatalf("expected 1 certificate, got %d", len(listCertRequestsResponse.Result))
 		}
-		if listCertRequestsResponse.Result[0].Status != "active" {
+		if listCertRequestsResponse.Result[0].Active != true {
 			t.Fatalf("expected first CA to be active")
 		}
 	})
@@ -750,76 +750,6 @@ func TestCreateCertificateAuthorityInvalidInputs(t *testing.T) {
 				NotValidAfter:       test.notValidAfter,
 			}
 			statusCode, createCertResponse, err := createCertificateAuthority(ts.URL, client, adminToken, createCertificateAuthorityRequest)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if statusCode != http.StatusBadRequest {
-				t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
-			}
-			if createCertResponse.Error != test.error {
-				t.Fatalf("expected error %s, got %s", test.error, createCertResponse.Error)
-			}
-		})
-	}
-}
-
-func TestUpdateCertificateAuthorityParamsInvalidInputs(t *testing.T) {
-	tempDir := t.TempDir()
-	db_path := filepath.Join(tempDir, "db.sqlite3")
-	ts, _, err := setupServer(db_path)
-	if err != nil {
-		t.Fatalf("couldn't create test server: %s", err)
-	}
-	defer ts.Close()
-	client := ts.Client()
-
-	var adminToken string
-	var nonAdminToken string
-	t.Run("prepare user accounts and tokens", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
-
-	// create a self signed CA
-	createCertificatAuthorityParams := CreateCertificateAuthorityParams{
-		SelfSigned: true,
-		CommonName: "Self Signed CA",
-		SANsDNS:    "example.com",
-	}
-
-	statusCode, createCAResponse, err := createCertificateAuthority(ts.URL, client, adminToken, createCertificatAuthorityParams)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if statusCode != http.StatusCreated {
-		t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
-	}
-
-	if createCAResponse.Error != "" {
-		t.Fatalf("expected success, got %s", createCAResponse.Error)
-	}
-
-	tests := []struct {
-		testName string
-		status   string
-		error    string
-	}{
-		{
-			testName: "Invalid Status - not supported",
-			status:   "pizza",
-			error:    "Invalid request: invalid status: status must be one of active, pending, legacy",
-		},
-		{
-			testName: "Invalid Status - no status",
-			status:   "",
-			error:    "Invalid request: status is required",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.testName, func(t *testing.T) {
-			updateCertificateAuthorityRequest := UpdateCertificateAuthorityParams{
-				Status: test.status,
-			}
-			statusCode, createCertResponse, err := updateCertificateAuthority(ts.URL, client, adminToken, 1, updateCertificateAuthorityRequest)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -984,8 +914,8 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if len(listCertRequestsResponse.Result) != 1 {
 			t.Fatalf("expected 1 certificate authority, got %d", len(listCertRequestsResponse.Result))
 		}
-		if listCertRequestsResponse.Result[0].Status != "active" {
-			t.Fatalf("expected active status, got %s", listCertRequestsResponse.Result[0].Status)
+		if listCertRequestsResponse.Result[0].Active != true {
+			t.Fatalf("expected active status, got %v", listCertRequestsResponse.Result[0].Active)
 		}
 		if listCertRequestsResponse.Result[0].CertificatePEM == "" {
 			t.Fatalf("expected certificate to have been created, got empty")
@@ -1029,11 +959,11 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if len(listCertRequestsResponse.Result) != 2 {
 			t.Fatalf("expected 2 certificate authority, got %d", len(listCertRequestsResponse.Result))
 		}
-		if listCertRequestsResponse.Result[0].Status != "active" {
-			t.Fatalf("expected active status, got %s", listCertRequestsResponse.Result[0].Status)
+		if listCertRequestsResponse.Result[0].Active != true {
+			t.Fatalf("expected active status, got %v", listCertRequestsResponse.Result[0].Active)
 		}
-		if listCertRequestsResponse.Result[1].Status != "pending" {
-			t.Fatalf("expected pending status, got %s", listCertRequestsResponse.Result[1].Status)
+		if listCertRequestsResponse.Result[1].Active != false {
+			t.Fatalf("expected pending status, got %v", listCertRequestsResponse.Result[1].Active)
 		}
 	})
 
@@ -1051,8 +981,8 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if getCAResponse.Result.ID != 2 {
 			t.Fatalf("expected ID %d, got %d", 2, getCAResponse.Result.ID)
 		}
-		if getCAResponse.Result.Status != "pending" {
-			t.Fatalf("expected pending status, got %s", getCAResponse.Result.Status)
+		if getCAResponse.Result.Active != false {
+			t.Fatalf("expected pending status, got %v", getCAResponse.Result.Active)
 		}
 		if getCAResponse.Result.CSRPEM == "" {
 			t.Fatalf("expected CSR to be set")
@@ -1116,10 +1046,10 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if len(listCAsResponse.Result) != 2 {
 			t.Fatalf("expected 2 certificates, got %d", len(listCAsResponse.Result))
 		}
-		if listCAsResponse.Result[0].Status != "active" {
+		if listCAsResponse.Result[0].Active != true {
 			t.Fatalf("expected first CA to be active")
 		}
-		if listCAsResponse.Result[1].Status != "active" {
+		if listCAsResponse.Result[1].Active != true {
 			t.Fatalf("expected second CA to be active")
 		}
 		if strings.Count(listCAsResponse.Result[1].CertificatePEM, "BEGIN CERTIFICATE") != 2 {
@@ -1592,11 +1522,11 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if len(cas.Result) != 2 {
 			t.Fatalf("expected 2 certificate authorities, got %d", len(cas.Result))
 		}
-		if cas.Result[0].Status != "active" {
-			t.Fatalf("expected root CA to remain active after certificate revocation, got %s", cas.Result[0].Status)
+		if cas.Result[0].Active != true {
+			t.Fatalf("expected root CA to remain active after certificate revocation, got %v", cas.Result[0].Active)
 		}
-		if cas.Result[1].Status != "active" {
-			t.Fatalf("expected intermediate CA to remain active after certificate revocation, got %s", cas.Result[1].Status)
+		if cas.Result[1].Active != true {
+			t.Fatalf("expected intermediate CA to remain active after certificate revocation, got %v", cas.Result[1].Active)
 		}
 	})
 
@@ -1643,7 +1573,7 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got: %s", err)
 		}
-		if cas.Result[1].Status != "pending" {
+		if cas.Result[1].Active != false {
 			t.Fatalf("expected revoked intermediate CA to have pending status")
 		}
 		if cas.Result[1].CertificatePEM != "" {

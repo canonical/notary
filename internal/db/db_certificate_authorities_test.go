@@ -53,11 +53,11 @@ func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
 	}
-	if ca.Status != "active" || ca.CertificateChain == "" {
+	if ca.Active != 1 || ca.CertificateChain == "" {
 		t.Fatalf("Certificate authority is not active or missing certificate")
 	}
 
-	err = database.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), db.CALegacy)
+	err = database.UpdateCertificateAuthorityActiveStatus(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), false)
 	if err != nil {
 		t.Fatalf("Couldn't update certificate authority status: %s", err)
 	}
@@ -65,7 +65,7 @@ func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
 	}
-	if ca.Status != db.CALegacy {
+	if ca.Active != 0 {
 		t.Fatalf("Certificate authority status is not legacy")
 	}
 	if ca.CertificateChain == "" {
@@ -124,7 +124,7 @@ func TestRootCertificateAuthorityExpired(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
 	}
-	if ca.Status != "active" || ca.CertificateChain == "" {
+	if ca.Active != 1 || ca.CertificateChain == "" {
 		t.Fatalf("Certificate authority is not active or missing certificate")
 	}
 	csrID, err := database.CreateCertificateRequest(AppleCSR)
@@ -173,7 +173,7 @@ func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
 	}
-	if ca.Status != "pending" || ca.CertificateChain != "" {
+	if ca.Active != 0 || ca.CertificateChain != "" {
 		t.Fatalf("Certificate authority is not pending or has a certificate")
 	}
 
@@ -185,11 +185,11 @@ func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
 	}
-	if ca.Status != "active" || ca.CertificateChain != IntermediateCACertificate+"\n"+RootCACertificate {
+	if ca.Active != 1 || ca.CertificateChain != IntermediateCACertificate+"\n"+RootCACertificate {
 		t.Fatalf("Certificate authority is not active or has a certificate")
 	}
 
-	err = database.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), db.CALegacy)
+	err = database.UpdateCertificateAuthorityActiveStatus(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), false)
 	if err != nil {
 		t.Fatalf("Couldn't update certificate authority status: %s", err)
 	}
@@ -197,14 +197,14 @@ func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
 	}
-	if ca.Status != "legacy" {
+	if ca.Active != 0 {
 		t.Fatalf("Certificate authority status is not legacy")
 	}
 	if ca.CertificateChain == "" {
 		t.Fatalf("Certificate should not have been removed when updating status to legacy")
 	}
 
-	err = database.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), db.CAActive)
+	err = database.UpdateCertificateAuthorityActiveStatus(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), true)
 	if err != nil {
 		t.Fatalf("Couldn't update certificate authority status: %s", err)
 	}
@@ -212,7 +212,7 @@ func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
 	}
-	if ca.Status != "active" {
+	if ca.Active != 1 {
 		t.Fatalf("Certificate authority status is not active")
 	}
 	if ca.CertificateChain == "" {
@@ -301,19 +301,6 @@ func TestCertificateAuthorityFails(t *testing.T) {
 		t.Fatalf("Should have failed to update certificate authority")
 	}
 	err = database.UpdateCertificateAuthorityCertificate(db.ByCertificateAuthorityDenormalizedID(1), "no")
-	if err == nil {
-		t.Fatalf("Should have failed to update certificate authority")
-	}
-
-	err = database.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(0), "Legacy")
-	if err == nil {
-		t.Fatalf("Should have failed to update certificate authority")
-	}
-	err = database.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(10), "Legacy")
-	if err == nil {
-		t.Fatalf("Should have failed to update certificate authority")
-	}
-	err = database.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(1), "No")
 	if err == nil {
 		t.Fatalf("Should have failed to update certificate authority")
 	}

@@ -7,7 +7,7 @@ import {
   EmptyState,
   ContextualMenu,
 } from "@canonical/react-components";
-import { deleteCA, makeCALegacy, revokeCA, signCA } from "@/queries";
+import { deleteCA, makeCAInactive, revokeCA, signCA } from "@/queries";
 import { extractCSR, extractCert, splitBundle } from "@/utils";
 import { SubmitCertificateModal, SuccessNotification } from "./components";
 import { useAuth } from "@/hooks/useAuth";
@@ -92,18 +92,18 @@ export function CertificateAuthoritiesTable({
     });
   };
 
-  const handleMakeLegacy = (id: number) => {
+  const handleMakeInactive = (id: number) => {
     if (id === auth.activeCA?.id) {
       auth.setActiveCA(null);
     }
     setConfirmationModalData({
-      queryFn: makeCALegacy,
+      queryFn: makeCAInactive,
       queryParams: { id: id.toString(), authToken: auth.user?.authToken || "" },
       queryKey: "cas",
       closeFn: () => setConfirmationModalData(null),
       buttonConfirmText: "Continue",
       warningText:
-        "Making a CA Certificate Legacy will prevent signing CSR's with or renewing the CA certificate, but will not revoke any signed certificates. This action cannot be undone.",
+        "Making a CA Certificate Inactive will prevent signing CSR's with or renewing the CA certificate, but will not revoke any signed certificates. This action cannot be undone.",
     });
   };
 
@@ -174,7 +174,7 @@ export function CertificateAuthoritiesTable({
       sortData: {
         id: caEntry.id,
         common_name: csrObj.commonName,
-        ca_status: caEntry.status,
+        active: caEntry.active,
         cert_expiry_date: certObj?.notAfter || "",
       },
       columns: [
@@ -183,7 +183,7 @@ export function CertificateAuthoritiesTable({
         { content: csrObj.commonName || "N/A" },
         {
           content:
-            caEntry.status +
+            caEntry.active +
             (auth.activeCA?.id === caEntry.id ? " (selected)" : ""),
         },
         {
@@ -226,7 +226,7 @@ export function CertificateAuthoritiesTable({
                 <span className="p-contextual-menu__group">
                   <Button
                     className="p-contextual-menu__link"
-                    disabled={caEntry.status == "pending"}
+                    disabled={caEntry.active == false}
                     onClick={() => handleExpand(caEntry.id, "Cert")}
                   >
                     {isCertContentVisible
@@ -239,7 +239,7 @@ export function CertificateAuthoritiesTable({
                       disabled={auth.activeCA == null}
                       onClick={() => handleSign(caEntry.id)}
                     >
-                      {caEntry.status === "active" ? "Re-sign CSR" : "Sign CSR"}
+                      {caEntry.active === true ? "Re-sign CSR" : "Sign CSR"}
                     </Button>
                   )}
                   {isSelfSigned && (
@@ -264,7 +264,7 @@ export function CertificateAuthoritiesTable({
                   {!isSelfSigned && (
                     <Button
                       className="p-contextual-menu__link"
-                      disabled={caEntry.status == "pending"}
+                      disabled={caEntry.active == false}
                       onClick={() => handleRevoke(caEntry.id)}
                     >
                       Revoke Certificate
@@ -272,11 +272,11 @@ export function CertificateAuthoritiesTable({
                   )}
                 </span>
                 <span className="p-contextual-menu__group">
-                  {caEntry.status === "active" && (
+                  {caEntry.active === true && (
                     <Button
                       className="p-contextual-menu__link"
                       disabled={
-                        caEntry.status != "active" ||
+                        caEntry.active != true ||
                         auth.activeCA?.id === caEntry.id
                       }
                       onClick={() => {
@@ -286,12 +286,12 @@ export function CertificateAuthoritiesTable({
                       Set as default for signing CSRs
                     </Button>
                   )}
-                  {caEntry.status === "active" && (
+                  {caEntry.active === true && (
                     <Button
                       className="p-contextual-menu__link"
-                      onClick={() => handleMakeLegacy(caEntry.id)}
+                      onClick={() => handleMakeInactive(caEntry.id)}
                     >
-                      Make CA Legacy
+                      Make CA Inactive
                     </Button>
                   )}
                   <Button
@@ -403,8 +403,8 @@ export function CertificateAuthoritiesTable({
             sortKey: "common_name",
           },
           {
-            content: "CA Status",
-            sortKey: "ca_status",
+            content: "Active",
+            sortKey: "active",
           },
           {
             content: "Certificate Expiry Date",

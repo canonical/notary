@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/encryption_backend"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -63,7 +64,13 @@ func New(port int, cert []byte, key []byte, dbPath string, externalHostname stri
 	if err != nil {
 		return nil, err
 	}
-	database, err := db.NewDatabase(dbPath)
+	// Add path to yubihsm_pkcs11.dylib here
+	backend := encryption_backend.NewHSMBackend(
+		"",
+		"0001password",
+		0x1234,
+	)
+	database, err := db.NewDatabase(dbPath, backend)
 	if err != nil {
 		return nil, err
 	}

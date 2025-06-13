@@ -6,8 +6,37 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/canonical/notary/internal/encryption"
 	"gopkg.in/yaml.v3"
 )
+
+type BackendType string
+
+const (
+	Vault  BackendType = "vault"
+	PKCS11 BackendType = "pkcs11"
+	None   BackendType = "none"
+)
+
+// VaultBackendConfigYaml extends BackendConfig for Vault-specific fields.
+type VaultBackendConfigYaml struct {
+	Endpoint     string `yaml:"endpoint"`
+	Mount        string `yaml:"mount"`
+	KeyName      string `yaml:"key_name"`
+	RoleID       string `yaml:"role_id"`
+	RoleSecretID string `yaml:"role_secret_id"`
+	Token        string `yaml:"token"`
+}
+
+// PKCS11BackendConfigYaml extends BackendConfig for PKCS11-specific fields.
+type PKCS11BackendConfigYaml struct {
+	LibPath string `yaml:"lib_path"`
+	KeyID   uint16 `yaml:"key_id"`
+	Pin     string `yaml:"pin"`
+}
+
+type NoneBackendConfigYaml struct {
+}
 
 type SystemLoggingConfigYaml struct {
 	Level  string `yaml:"level"`
@@ -26,6 +55,7 @@ type ConfigYAML struct {
 	Port                int               `yaml:"port"`
 	PebbleNotifications bool              `yaml:"pebble_notifications"`
 	Logging             LoggingConfigYaml `yaml:"logging"`
+	EncryptionBackend   map[string]any    `yaml:"encryption_backend"`
 }
 
 type LoggingLevel string
@@ -56,6 +86,7 @@ type Config struct {
 	Port                       int
 	PebbleNotificationsEnabled bool
 	Logging                    Logging
+	EncryptionBackend          encryption.EncryptionBackend
 }
 
 // Validate opens and processes the given yaml file, and catches errors in the process
@@ -143,5 +174,42 @@ func Validate(filePath string) (Config, error) {
 	config.PebbleNotificationsEnabled = c.PebbleNotifications
 	config.Logging.System.Level = LoggingLevel(c.Logging.System.Level)
 	config.Logging.System.Output = c.Logging.System.Output
+	config.EncryptionBackend, err = createEncryptionBackend(c.EncryptionBackend)
+	if err != nil {
+		return Config{}, fmt.Errorf("failed to create encryption backend: %w", err)
+	}
 	return config, nil
+}
+
+// createEncryptionBackend creates a SecretBackend based on the type specified
+// in the config YAML.
+func createEncryptionBackend(backendConfig map[string]any) (encryption.EncryptionBackend, error) {
+	backendType := BackendType(backendConfig["type"].(string))
+	temp, err := yaml.Marshal(&backendConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal vault config: %w", err)
+	}
+
+	switch backendType {
+	case Vault:
+		return nil, fmt.Errorf("vault backend is not supported")
+
+	case PKCS11:
+		pkcs11Config := PKCS11BackendConfigYaml{}
+		if err := yaml.Unmarshal(temp, &pkcs11Config); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal pkcs11 config: %w", err)
+		}
+		if pkcs11Config.LibPath == "" {
+			return nil, fmt.Errorf("HSM library path cannot be empty")
+		}
+		if pkcs11Config.Pin == "" {
+			return nil, fmt.Errorf("HSM pin cannot be empty")
+		}
+		return encryption.NewHSMBackend(pkcs11Config.LibPath, pkcs11Config.Pin, pkcs11Config.KeyID), nil
+
+	case None:
+		return encryption.NoEncryptionBackend{}, nil
+	default:
+		return nil, fmt.Errorf("unknown backend type: %s", backendType)
+	}
 }

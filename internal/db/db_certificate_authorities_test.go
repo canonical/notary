@@ -11,7 +11,7 @@ import (
 
 func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
 	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend)
 	if err != nil {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}
@@ -89,7 +89,7 @@ func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
 
 func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {
 	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend)
 	if err != nil {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}
@@ -177,7 +177,7 @@ func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {
 
 func TestCertificateAuthorityFails(t *testing.T) {
 	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend)
 	if err != nil {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}
@@ -276,7 +276,7 @@ func TestCertificateAuthorityFails(t *testing.T) {
 
 func TestSelfSignedCertificateList(t *testing.T) {
 	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend)
 	if err != nil {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}
@@ -311,7 +311,7 @@ func TestSelfSignedCertificateList(t *testing.T) {
 
 func TestSigningCSRsFromSelfSignedCertificate(t *testing.T) {
 	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend)
 	if err != nil {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}
@@ -342,7 +342,7 @@ func TestSigningCSRsFromSelfSignedCertificate(t *testing.T) {
 
 func TestSigningCSRsFromIntermediateCertificate(t *testing.T) {
 	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend)
 	if err != nil {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}
@@ -380,7 +380,7 @@ func TestSigningCSRsFromIntermediateCertificate(t *testing.T) {
 
 func TestSigningCSRFromUnsignedIntermediateCertificate(t *testing.T) {
 	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend)
 	if err != nil {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}
@@ -415,7 +415,7 @@ func TestSigningCSRFromUnsignedIntermediateCertificate(t *testing.T) {
 
 func TestSigningIntermediateCAByRootCA(t *testing.T) {
 	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend)
 	if err != nil {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}
@@ -482,7 +482,7 @@ func TestSigningIntermediateCAByRootCA(t *testing.T) {
 
 func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend)
 	if err != nil {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}

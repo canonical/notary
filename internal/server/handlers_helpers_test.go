@@ -8,12 +8,14 @@ import (
 	"testing"
 
 	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/encryption"
 	"github.com/canonical/notary/internal/server"
 	"go.uber.org/zap"
 )
 
 func setupServer(filepath string) (*httptest.Server, *server.HandlerConfig, error) {
-	testdb, err := db.NewDatabase(filepath)
+	noneEncryptionBackend := encryption.NoEncryptionBackend{}
+	testdb, err := db.NewDatabase(filepath, noneEncryptionBackend)
 	if err != nil {
 		return nil, nil, err
 	}

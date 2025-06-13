@@ -33,12 +33,13 @@ func (db *Database) GetCertificateRequestAndChain(filter CSRFilter) (*Certificat
 }
 
 // CreateCertificateRequest creates a new CSR entry in the repository. The string must be a valid CSR and unique.
-func (db *Database) CreateCertificateRequest(csr string) (int64, error) {
+func (db *Database) CreateCertificateRequest(csr string, userID int64) (int64, error) {
 	if err := ValidateCertificateRequest(csr); err != nil {
 		return 0, err
 	}
 	row := CertificateRequest{
-		CSR: csr,
+		CSR:    csr,
+		UserID: userID,
 	}
 	return CreateEntity(db, db.stmts.CreateCertificateRequest, row)
 }

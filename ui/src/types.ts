@@ -3,6 +3,7 @@ export type CSREntry = {
   csr: string;
   certificate_chain: string;
   status: "Outstanding" | "Active" | "Rejected" | "Revoked";
+  username: string;
 };
 
 export type CertificateSigningRequest = {

@@ -25,9 +25,9 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   firstUserCreated: false,
-  setFirstUserCreated: () => {},
+  setFirstUserCreated: () => { },
   activeCA: null,
-  setActiveCA: () => {},
+  setActiveCA: () => { },
 });
 
 export const AuthProvider = ({

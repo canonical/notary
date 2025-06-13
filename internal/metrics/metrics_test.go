@@ -399,10 +399,9 @@ func TestCACertificateMetrics(t *testing.T) {
 	}
 
 	foundMetrics := map[string]bool{
-		"active_ca_certificates":  false,
-		"expired_ca_certificates": false,
-		"pending_ca_certificates": false,
-		"legacy_ca_certificates":  false,
+		"active_ca_certificates":   false,
+		"expired_ca_certificates":  false,
+		"inactive_ca_certificates": false,
 	}
 
 	for _, line := range strings.Split(recorder.Body.String(), "\n") {
@@ -421,15 +420,10 @@ func TestCACertificateMetrics(t *testing.T) {
 			if !strings.HasSuffix(line, "0") {
 				t.Errorf("Expected expired_ca_certificates to be 0, got %s", line)
 			}
-		} else if strings.HasPrefix(trimmedLine, "pending_ca_certificates ") {
-			foundMetrics["pending_ca_certificates"] = true
+		} else if strings.HasPrefix(trimmedLine, "inactive_ca_certificates ") {
+			foundMetrics["inactive_ca_certificates"] = true
 			if !strings.HasSuffix(line, "1") {
-				t.Errorf("Expected pending_ca_certificates to be 1, got %s", line)
-			}
-		} else if strings.HasPrefix(trimmedLine, "legacy_ca_certificates ") {
-			foundMetrics["legacy_ca_certificates"] = true
-			if !strings.HasSuffix(line, "0") {
-				t.Errorf("Expected legacy_ca_certificates to be 0, got %s", line)
+				t.Errorf("Expected inactive_ca_certificates to be 1, got %s", line)
 			}
 		}
 	}

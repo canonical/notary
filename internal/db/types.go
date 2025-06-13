@@ -1,45 +1,11 @@
 package db
 
-import (
-	"encoding/json"
-	"fmt"
-)
-
 const CAMaxExpiryYears = 1
 
-// CA Status Types and Conversions
-type CAStatus string
+type CAActive int
 
-func (ca CAStatus) String() string {
-	return string(ca)
-}
-
-func (ca CAStatus) MarshalJSON() ([]byte, error) {
-	return json.Marshal(ca.String())
-}
-
-const (
-	CAActive  CAStatus = "active"
-	CAExpired CAStatus = "expired"
-	CAPending CAStatus = "pending"
-	CALegacy  CAStatus = "legacy"
-)
-
-// NewStatusFromString creates a CAStatus from a string.
-func NewStatusFromString(s string) (CAStatus, error) {
-	statuses := map[CAStatus]struct{}{
-		CAActive:  {},
-		CAExpired: {},
-		CAPending: {},
-		CALegacy:  {},
-	}
-
-	status := CAStatus(s)
-	_, ok := statuses[status]
-	if !ok {
-		return "", fmt.Errorf("invalid status: status must be one of %s, %s, %s, %s", CAActive, CAExpired, CAPending, CALegacy)
-	}
-	return status, nil
+func (c CAActive) ToBool() bool {
+	return c == 1
 }
 
 // CertificateAuthority contains information about a CA, identified by the contents
@@ -49,11 +15,18 @@ type CertificateAuthority struct {
 	CertificateAuthorityID int64 `db:"certificate_authority_id"`
 
 	CRL    string   `db:"crl"`
-	Status CAStatus `db:"status"`
+	Active CAActive `db:"active"`
 
 	PrivateKeyID  int64 `db:"private_key_id"`
 	CertificateID int64 `db:"certificate_id"`
 	CSRID         int64 `db:"csr_id"`
+}
+
+func BoolToCAActive(b bool) CAActive {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 // CertificateAuthorityDenormalized contains the same information as the CertificateAuthority
@@ -62,7 +35,7 @@ type CertificateAuthority struct {
 type CertificateAuthorityDenormalized struct {
 	CertificateAuthorityID int64    `db:"certificate_authority_id"`
 	CRL                    string   `db:"crl"`
-	Status                 CAStatus `db:"status"`
+	Active                 CAActive `db:"active"`
 	PrivateKeyID           int64    `db:"private_key_id"`
 	CertificateChain       string   `db:"certificate_chain"`
 	CSRPEM                 string   `db:"csr"`

@@ -9,8 +9,6 @@ import (
 )
 
 // HSMBackend implements EncryptionBackend using a Hardware Security Module.
-// It uses pointer receivers to maintain connection state and avoid copying
-// security-sensitive resources.
 type HSMBackend struct {
 	libPath string
 	pin     string
@@ -19,6 +17,8 @@ type HSMBackend struct {
 
 const ivSize = 16
 
+// NewHSMBackend creates a new HSMBackend.
+// Uses PKCS11
 func NewHSMBackend(libPath string, pin string, keyID uint16) *HSMBackend {
 	return &HSMBackend{
 		libPath: libPath,
@@ -28,6 +28,7 @@ func NewHSMBackend(libPath string, pin string, keyID uint16) *HSMBackend {
 }
 
 // Encrypt encrypts the plaintext using the HSM.
+// Uses the AES-CBC algorithm.
 func (h *HSMBackend) Encrypt(data []byte) ([]byte, error) {
 	p, session, key, err := h.connectToHSM()
 	if err != nil {
@@ -64,6 +65,7 @@ func (h *HSMBackend) Encrypt(data []byte) ([]byte, error) {
 }
 
 // Decrypt decrypts the ciphertext using the HSM.
+// Uses the AES-CBC algorithm.
 func (h *HSMBackend) Decrypt(ciphertext []byte) ([]byte, error) {
 	if len(ciphertext) < ivSize {
 		return nil, fmt.Errorf("invalid ciphertext: too short to contain IV")

@@ -18,7 +18,7 @@ const (
 	None   BackendType = "none"
 )
 
-// VaultBackendConfig extends BackendConfig for Vault-specific fields.
+// VaultBackendConfigYaml extends BackendConfig for Vault-specific fields.
 type VaultBackendConfigYaml struct {
 	Endpoint     string `yaml:"endpoint"`
 	Mount        string `yaml:"mount"`
@@ -28,7 +28,7 @@ type VaultBackendConfigYaml struct {
 	Token        string `yaml:"token"`
 }
 
-// PKCS11BackendConfig extends BackendConfig for PKCS11-specific fields.
+// PKCS11BackendConfigYaml extends BackendConfig for PKCS11-specific fields.
 type PKCS11BackendConfigYaml struct {
 	LibPath string `yaml:"lib_path"`
 	KeyID   uint16 `yaml:"key_id"`

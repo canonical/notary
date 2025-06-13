@@ -12,8 +12,10 @@ const (
 
 			csr TEXT NOT NULL UNIQUE,
 			certificate_id INTEGER,
-			user_id INTEGER NOT NULL,
+			user_id INTEGER,
 			status TEXT DEFAULT 'Outstanding',
+
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
 
 			CHECK (status IN ('Outstanding', 'Rejected', 'Revoked', 'Active')),
 			CHECK (NOT (certificate_id == NULL AND status == 'Active' )),

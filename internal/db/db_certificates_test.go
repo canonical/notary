@@ -17,14 +17,19 @@ func TestCertificatesEndToEnd(t *testing.T) {
 	}
 	defer database.Close()
 
-	csrID, err := database.CreateCertificateRequest(AppleCSR, 0)
+	userID, err := database.CreateUser("testuser", "testpassword", 0)
+	if err != nil {
+		t.Fatalf("Couldn't complete CreateUser: %s", err)
+	}
+
+	csrID, err := database.CreateCertificateRequest(AppleCSR, userID)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
 	if csrID != 1 {
 		t.Fatalf("Couldn't complete Create: wrong csr id. expected 1, got %d", csrID)
 	}
-	csrID, err = database.CreateCertificateRequest(BananaCSR, 0)
+	csrID, err = database.CreateCertificateRequest(BananaCSR, userID)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
@@ -130,7 +135,12 @@ func TestGetCertificateFails(t *testing.T) {
 	database, _ := db.NewDatabase(":memory:")
 	defer database.Close()
 
-	database.CreateCertificateRequest(AppleCSR, 0)                                                                                   //nolint:errcheck
+	userID, err := database.CreateUser("testuser", "testpassword", 0)
+	if err != nil {
+		t.Fatalf("Couldn't complete CreateUser: %s", err)
+	}
+
+	database.CreateCertificateRequest(AppleCSR, userID)                                                                              //nolint:errcheck
 	database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(AppleCSR), AppleCert+IntermediateCert+"some extra string"+RootCert) //nolint:errcheck
 
 	cert, err := database.GetCertificate(db.ByCertificatePEM(AppleCert))
@@ -167,11 +177,16 @@ func TestCertificateAddFails(t *testing.T) {
 	database, _ := db.NewDatabase(":memory:")
 	defer database.Close()
 
-	_, err := database.CreateCertificateRequest(AppleCSR, 0)
+	userID, err := database.CreateUser("testuser", "testpassword", 0)
+	if err != nil {
+		t.Fatalf("Couldn't complete CreateUser: %s", err)
+	}
+
+	_, err = database.CreateCertificateRequest(AppleCSR, userID)
 	if err != nil {
 		t.Fatalf("The certificate should have been uploaded successfully")
 	}
-	_, err = database.CreateCertificateRequest(BananaCSR, 0)
+	_, err = database.CreateCertificateRequest(BananaCSR, userID)
 	if err != nil {
 		t.Fatalf("The certificate should have been uploaded successfully")
 	}
@@ -206,11 +221,16 @@ func TestGetCertificateChainFails(t *testing.T) {
 	database, _ := db.NewDatabase(":memory:")
 	defer database.Close()
 
-	_, err := database.CreateCertificateRequest(AppleCSR, 0)
+	userID, err := database.CreateUser("testuser", "testpassword", 0)
+	if err != nil {
+		t.Fatalf("Couldn't complete CreateUser: %s", err)
+	}
+
+	_, err = database.CreateCertificateRequest(AppleCSR, userID)
 	if err != nil {
 		t.Fatalf("The certificate should have been uploaded successfully")
 	}
-	_, err = database.CreateCertificateRequest(BananaCSR, 0)
+	_, err = database.CreateCertificateRequest(BananaCSR, userID)
 	if err != nil {
 		t.Fatalf("The certificate should have been uploaded successfully")
 	}

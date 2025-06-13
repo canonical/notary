@@ -77,21 +77,25 @@ func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 		}
 		certificateRequestsResponse := make([]CertificateRequest, len(csrs))
 		for i, csr := range csrs {
+			var username string
 			user, err := env.DB.GetUser(db.ByUserID(csr.UserID))
 			if err != nil {
 				if errors.Is(err, db.ErrNotFound) {
-					writeError(w, http.StatusNotFound, "User Not Found", err, env.Logger)
+					env.Logger.Warn("user not found for certificate request", zap.Int64("user_id", csr.UserID))
+					username = "unknown"
+				} else {
+					writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
 					return
 				}
-				writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
-				return
+			} else {
+				username = user.Username
 			}
 			certificateRequestsResponse[i] = CertificateRequest{
 				ID:               csr.CSR_ID,
 				CSR:              csr.CSR,
 				Status:           csr.Status,
 				CertificateChain: csr.CertificateChain,
-				Username:         user.Username,
+				Username:         username,
 			}
 		}
 		err = writeResponse(w, certificateRequestsResponse, http.StatusOK)
@@ -172,22 +176,25 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
 			return
 		}
+		var username string
 		user, err := env.DB.GetUser(db.ByUserID(csr.UserID))
-		env.Logger.Warn("retrieving user for certificate request", zap.Int64("user_id", csr.UserID))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
-				writeError(w, http.StatusNotFound, "User Not Found", err, env.Logger)
+				env.Logger.Warn("user not found for certificate request", zap.Int64("user_id", csr.UserID))
+				username = "unknown"
+			} else {
+				writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
-			return
+		} else {
+			username = user.Username
 		}
 		certificateRequestResponse := CertificateRequest{
 			ID:               csr.CSR_ID,
 			CSR:              csr.CSR,
 			CertificateChain: csr.CertificateChain,
 			Status:           csr.Status,
-			Username:         user.Username,
+			Username:         username,
 		}
 		err = writeResponse(w, certificateRequestResponse, http.StatusOK)
 		if err != nil {

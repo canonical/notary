@@ -11,7 +11,7 @@ import (
 
 func TestCertificatesEndToEnd(t *testing.T) {
 	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend)
 	if err != nil {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}
@@ -127,7 +127,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 }
 
 func TestGetCertificateFails(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:")
+	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend)
 	defer database.Close()
 
 	database.CreateCertificateRequest(AppleCSR)                                                                                      //nolint:errcheck
@@ -164,7 +164,7 @@ func TestGetCertificateFails(t *testing.T) {
 }
 
 func TestCertificateAddFails(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:")
+	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend)
 	defer database.Close()
 
 	_, err := database.CreateCertificateRequest(AppleCSR)
@@ -203,7 +203,7 @@ func TestCertificateAddFails(t *testing.T) {
 }
 
 func TestGetCertificateChainFails(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:")
+	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend)
 	defer database.Close()
 
 	_, err := database.CreateCertificateRequest(AppleCSR)

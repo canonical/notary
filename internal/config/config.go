@@ -30,9 +30,9 @@ type VaultBackendConfigYaml struct {
 
 // PKCS11BackendConfigYaml extends BackendConfig for PKCS11-specific fields.
 type PKCS11BackendConfigYaml struct {
-	LibPath string `yaml:"lib_path"`
-	KeyID   uint16 `yaml:"key_id"`
-	Pin     string `yaml:"pin"`
+	LibPath string  `yaml:"lib_path"`
+	KeyID   *uint16 `yaml:"key_id"`
+	Pin     string  `yaml:"pin"`
 }
 
 type NoneBackendConfigYaml struct {
@@ -184,7 +184,18 @@ func Validate(filePath string) (Config, error) {
 // createEncryptionBackend creates a SecretBackend based on the type specified
 // in the config YAML.
 func createEncryptionBackend(backendConfig map[string]any) (encryption.EncryptionBackend, error) {
-	backendType := BackendType(backendConfig["type"].(string))
+	if backendConfig == nil {
+		return nil, fmt.Errorf("encryption backend not specified")
+	}
+	typeVal, ok := backendConfig["type"]
+	if !ok || typeVal == nil {
+		return nil, fmt.Errorf("encryption backend type is not specified in the configuration")
+	}
+	typeStr, ok := typeVal.(string)
+	if !ok {
+		return nil, fmt.Errorf("encryption backend type must be a string")
+	}
+	backendType := BackendType(typeStr)
 	temp, err := yaml.Marshal(&backendConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal vault config: %w", err)
@@ -200,12 +211,19 @@ func createEncryptionBackend(backendConfig map[string]any) (encryption.Encryptio
 			return nil, fmt.Errorf("failed to unmarshal pkcs11 config: %w", err)
 		}
 		if pkcs11Config.LibPath == "" {
-			return nil, fmt.Errorf("HSM library path cannot be empty")
+			return nil, fmt.Errorf("PKCS11 library must be specified")
 		}
 		if pkcs11Config.Pin == "" {
-			return nil, fmt.Errorf("HSM pin cannot be empty")
+			return nil, fmt.Errorf("Pin must be specified")
 		}
-		return encryption.NewHSMBackend(pkcs11Config.LibPath, pkcs11Config.Pin, pkcs11Config.KeyID), nil
+		if pkcs11Config.KeyID == nil {
+			return nil, fmt.Errorf("key ID must be specified")
+		}
+		backend, err := encryption.NewPKCS11Backend(pkcs11Config.LibPath, pkcs11Config.Pin, *pkcs11Config.KeyID)
+		if err != nil {
+			return nil, err
+		}
+		return backend, nil
 
 	case None:
 		return encryption.NoEncryptionBackend{}, nil

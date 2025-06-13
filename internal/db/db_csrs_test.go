@@ -11,7 +11,7 @@ import (
 
 func TestCSRsEndToEnd(t *testing.T) {
 	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend)
 	if err != nil {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}
@@ -126,7 +126,7 @@ func TestCSRsEndToEnd(t *testing.T) {
 }
 
 func TestCreateCertificateRequestFails(t *testing.T) {
-	db, _ := db.NewDatabase(":memory:")
+	db, _ := db.NewDatabase(":memory:", NoneEncryptionBackend)
 	defer db.Close()
 
 	InvalidCSR := strings.ReplaceAll(AppleCSR, "M", "i")
@@ -144,7 +144,7 @@ func TestCreateCertificateRequestFails(t *testing.T) {
 }
 
 func TestGetCertificateRequestFails(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:")
+	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend)
 	defer database.Close()
 
 	_, err := database.CreateCertificateRequest(AppleCSR)
@@ -171,7 +171,7 @@ func TestGetCertificateRequestFails(t *testing.T) {
 }
 
 func TestDeleteCertificateRequest(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:")
+	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend)
 	defer database.Close()
 	_, err := database.CreateCertificateRequest(AppleCSR)
 	if err != nil {
@@ -201,7 +201,7 @@ func TestDeleteCertificateRequest(t *testing.T) {
 }
 
 func TestRevokeCertificateRequestFails(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:")
+	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend)
 	defer database.Close()
 
 	_, err := database.CreateCertificateRequest(AppleCSR)
@@ -226,7 +226,7 @@ func TestRevokeCertificateRequestFails(t *testing.T) {
 }
 
 func TestRejectCertificateRequestFails(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:")
+	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend)
 	defer database.Close()
 
 	_, err := database.CreateCertificateRequest(AppleCSR)
@@ -254,7 +254,7 @@ func TestRejectCertificateRequestFails(t *testing.T) {
 
 func TestCASNotShowingUpInCSRsTable(t *testing.T) {
 	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend)
 	if err != nil {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}

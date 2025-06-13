@@ -11,11 +11,13 @@ After going through these steps, you will have a general idea of how to build an
 ### Prerequisites
 
 Install Go:
+
 ```bash
 sudo snap install go --classic
 ```
 
 Install NodeJS:
+
 ```bash
 curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
 NODE_MAJOR=20
@@ -35,7 +37,7 @@ git@github.com:canonical/notary.git
 Install the npm dependencies:
 
 ```bash
-npm install --prefix ui 
+npm install --prefix ui
 ```
 
 Build the frontend:
@@ -61,7 +63,7 @@ openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 1 -out cert.pem 
 Create a `notary.yaml` file with the following content:
 
 ```yaml
-key_path:  "key.pem"
+key_path: "key.pem"
 cert_path: "cert.pem"
 db_path: "notary.db"
 port: 3000
@@ -70,6 +72,8 @@ logging:
   system:
     level: "info"
     output: "stdout"
+encryption_backend:
+  type: "none"
 ```
 
 Run Notary:
@@ -85,11 +89,13 @@ Access the Notary UI at `https://localhost:3000`.
 ### Run Unit Tests
 
 Run go unit tests by running:
+
 ```bash
 go test ./...
 ```
 
 Run frontend vitest test suite by running:
+
 ```bash
 npm run test --prefix ui
 ```
@@ -97,11 +103,13 @@ npm run test --prefix ui
 ### Run Lint checks
 
 Run the linter for golang by running:
+
 ```bash
 golangci-lint run ./...
 ```
 
 Run the linter for typescript by running:
+
 ```bash
 npm run lint
 ```
@@ -109,6 +117,7 @@ npm run lint
 ### Create a container Image
 
 Install rockcraft:
+
 ```bash
 sudo snap install rockcraft --classic
 ```
@@ -120,6 +129,7 @@ rockcraft pack -v
 ```
 
 Copy the container image to the docker daemon:
+
 ```bash
 version=$(yq '.version' rockcraft.yaml)
 sudo rockcraft.skopeo --insecure-policy copy oci-archive:notary_${version}_amd64.rock docker-daemon:notary:${version}
@@ -134,6 +144,7 @@ docker run notary:${version}
 ## Build the documentation site
 
 Go to the `docs` directory:
+
 ```shell
 cd docs
 ```

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/encryption"
 	metrics "github.com/canonical/notary/internal/metrics"
 	"go.uber.org/zap"
 )
@@ -160,7 +161,8 @@ Uvcl7qdfypv0ccF7BmPH70z/T8SZOgJZaLWak9twiTsGSMcfCqW4Kw==
 // TestPrometheusHandler tests that the Prometheus metrics handler responds correctly to an HTTP request.
 func TestPrometheusHandler(t *testing.T) {
 	tempDir := t.TempDir()
-	db, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	noneEncryptionBackend := encryption.NoEncryptionBackend{}
+	db, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), noneEncryptionBackend)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -277,7 +279,8 @@ func initializeTestDBWithCaCerts(t *testing.T, database *db.Database) {
 // TestMetrics tests some of the metrics that we currently collect.
 func TestCertificateMetrics(t *testing.T) {
 	tempDir := t.TempDir()
-	db, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	noneEncryptionBackend := encryption.NoEncryptionBackend{}
+	db, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), noneEncryptionBackend)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -379,7 +382,8 @@ func TestCertificateMetrics(t *testing.T) {
 
 func TestCACertificateMetrics(t *testing.T) {
 	tempDir := t.TempDir()
-	db, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	noneEncryptionBackend := encryption.NoEncryptionBackend{}
+	db, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), noneEncryptionBackend)
 	if err != nil {
 		t.Fatal(err)
 	}

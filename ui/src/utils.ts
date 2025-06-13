@@ -356,5 +356,8 @@ export const retryUnlessUnauthorized = (
   if (error.message.includes("401")) {
     return false;
   }
+  if (error.message.includes("403")) {
+    return false;
+  }
   return true;
 };

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/canonical/notary/internal/encryption"
+	"github.com/canonical/notary/internal/encryption_backend"
 )
 
 // ParseCertificateChain receives a PEM string chain and returns an x.509.Certificate list.
@@ -110,7 +111,7 @@ func getTypeName[T any]() string {
 	return reflect.TypeOf(t).Name()
 }
 
-func setUpEncryptionKey(database *Database) ([]byte, error) {
+func setUpEncryptionKey(database *Database, backend encryption_backend.EncryptionBackend) ([]byte, error) {
 	encryptionKeyFromDb, err := database.GetEncryptionKey()
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
@@ -118,7 +119,11 @@ func setUpEncryptionKey(database *Database) ([]byte, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to generate encryption key: %w", err)
 			}
-			err = database.CreateEncryptionKey(encryptionKey)
+			encryptedEncryptionKey, err := backend.Encrypt(encryptionKey)
+			if err != nil {
+				return nil, fmt.Errorf("failed to encrypt encryption key: %w", err)
+			}
+			err = database.CreateEncryptionKey(encryptedEncryptionKey)
 			if err != nil {
 				return nil, fmt.Errorf("failed to store encryption key: %w", err)
 			}
@@ -126,5 +131,6 @@ func setUpEncryptionKey(database *Database) ([]byte, error) {
 		}
 		return nil, err
 	}
-	return encryptionKeyFromDb, nil
+	decryptedEncryptionKey, err := backend.Decrypt(encryptionKeyFromDb)
+	return decryptedEncryptionKey, nil
 }

@@ -95,7 +95,7 @@ func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
 	}
 }
 
-func TestRootCertificateAuthorityExpired(t *testing.T) {
+func TestCreateCertificateAuthorityExpired(t *testing.T) {
 	tempDir := t.TempDir()
 	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
 	if err != nil {
@@ -134,6 +134,35 @@ func TestRootCertificateAuthorityExpired(t *testing.T) {
 	err = database.SignCertificateRequest(db.ByCSRID(csrID), db.ByCertificateAuthorityDenormalizedID(caID), "example.com")
 	if err == nil {
 		t.Fatalf("Expected signing to fail for expired CA: %s", err)
+	}
+}
+
+func TestUpdateCertificateAuthorityActiveStatusExpired(t *testing.T) {
+	tempDir := t.TempDir()
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	if err != nil {
+		t.Fatalf("Couldn't complete NewDatabase: %s", err)
+	}
+	defer database.Close()
+
+	expiredCACSR, expiredCAKey, expiredCACRL, expiredCACert, err := generateCACertificate(time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("Failed to generate expired CA data: %s", err)
+	}
+
+	caID, err := database.CreateCertificateAuthority(expiredCACSR, expiredCAKey, expiredCACRL, expiredCACert+"\n"+expiredCACert)
+	if err != nil {
+		t.Fatalf("Couldn't create certificate authority: %s", err)
+	}
+
+	err = database.UpdateCertificateAuthorityActiveStatus(db.ByCertificateAuthorityID(caID), false)
+	if err != nil {
+		t.Fatalf("Expected updating status to inactive to succeed for expired CA: %s", err)
+	}
+
+	err = database.UpdateCertificateAuthorityActiveStatus(db.ByCertificateAuthorityID(caID), true)
+	if err == nil {
+		t.Fatalf("Expected updating status to active to fail for expired CA: %s", err)
 	}
 }
 

@@ -49,7 +49,7 @@ func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, cr
 	CARow := CertificateAuthority{
 		CSRID:        csrID,
 		PrivateKeyID: pkID,
-		Active:       boolToInt(false),
+		Active:       BoolToCAActive(false),
 	}
 	if certChainPEM != "" {
 		if crlPEM == "" {
@@ -64,7 +64,7 @@ func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, cr
 			CertificateID: certID,
 			CRL:           crlPEM,
 			PrivateKeyID:  pkID,
-			Active:        boolToInt(true),
+			Active:        BoolToCAActive(true),
 		}
 	}
 	insertedRowID, err := CreateEntity(db, db.stmts.CreateCertificateAuthority, CARow)
@@ -124,7 +124,7 @@ func (db *Database) UpdateCertificateAuthorityCertificate(filter CertificateAuth
 		CertificateAuthorityID: ca.CertificateAuthorityID,
 		CertificateID:          certID,
 		CRL:                    newCRL,
-		Active:                 boolToInt(true),
+		Active:                 BoolToCAActive(true),
 	}
 	return UpdateEntity(db, db.stmts.UpdateCertificateAuthority, newRow)
 }
@@ -135,15 +135,21 @@ func (db *Database) UpdateCertificateAuthorityActiveStatus(filter CertificateAut
 	if err != nil {
 		return err
 	}
-	ca.Active = boolToInt(active)
-	return UpdateEntity(db, db.stmts.UpdateCertificateAuthority, ca)
-}
-
-func boolToInt(b bool) int {
-	if b {
-		return 1
+	if active {
+		caDenormalized, err := db.GetDenormalizedCertificateAuthority(ByCertificateAuthorityDenormalizedID(ca.CertificateAuthorityID))
+		if err != nil {
+			return err
+		}
+		if caDenormalized.CertificateChain == "" {
+			return fmt.Errorf("%w: cannot update status of a certificate authority without a valid certificate chain", ErrInvalidInput)
+		}
+		expiryDate := certificateExpiryDate(caDenormalized.CertificateChain)
+		if expiryDate.Before(time.Now()) {
+			return fmt.Errorf("%w: cannot update status of a certificate authority with an expired certificate", ErrInvalidInput)
+		}
 	}
-	return 0
+	ca.Active = BoolToCAActive(active)
+	return UpdateEntity(db, db.stmts.UpdateCertificateAuthority, ca)
 }
 
 // UpdateCertificateAuthorityCRL updates the CRL of a certificate authority.

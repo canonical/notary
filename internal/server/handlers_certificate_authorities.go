@@ -229,7 +229,7 @@ func ListCertificateAuthorities(env *HandlerConfig) http.HandlerFunc {
 		for i, ca := range cas {
 			caResponse[i] = CertificateAuthority{
 				ID:             ca.CertificateAuthorityID,
-				Active:         intToBool(ca.Active),
+				Active:         ca.Active.ToBool(),
 				PrivateKeyPEM:  "",
 				CSRPEM:         ca.CSRPEM,
 				CertificatePEM: ca.CertificateChain,
@@ -242,17 +242,6 @@ func ListCertificateAuthorities(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 	}
-}
-
-func intToBool(i int) bool {
-	if i == 1 {
-		return true
-	}
-	if i == 0 {
-		return false
-	}
-	// If the value is not 0 or 1, return false by default
-	return false
 }
 
 // CreateCertificateAuthority handler creates a new Certificate Authority
@@ -316,7 +305,7 @@ func GetCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 		}
 		caResponse := CertificateAuthority{
 			ID:             ca.CertificateAuthorityID,
-			Active:         intToBool(ca.Active),
+			Active:         ca.Active.ToBool(),
 			PrivateKeyPEM:  "",
 			CSRPEM:         ca.CSRPEM,
 			CertificatePEM: ca.CertificateChain,
@@ -346,7 +335,6 @@ func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format", err, env.Logger)
 			return
 		}
-		// TODO: Make it impossible to set to active if the CA does not have a certificate chain or if the certificate is expired
 
 		err = env.DB.UpdateCertificateAuthorityActiveStatus(db.ByCertificateAuthorityID(idNum), params.Active)
 		if err != nil {

@@ -2,30 +2,43 @@ package db
 
 const CAMaxExpiryYears = 1
 
+type CAActive int
+
+func (c CAActive) ToBool() bool {
+	return c == 1
+}
+
 // CertificateAuthority contains information about a CA, identified by the contents
 // of the CSR that it was created with. It has an assigned private key and optionally,
 // a fulfilled certificate and an associated CRL.
 type CertificateAuthority struct {
 	CertificateAuthorityID int64 `db:"certificate_authority_id"`
 
-	CRL    string `db:"crl"`
-	Active int    `db:"active"`
+	CRL    string   `db:"crl"`
+	Active CAActive `db:"active"`
 
 	PrivateKeyID  int64 `db:"private_key_id"`
 	CertificateID int64 `db:"certificate_id"`
 	CSRID         int64 `db:"csr_id"`
 }
 
+func BoolToCAActive(b bool) CAActive {
+	if b {
+		return 1
+	}
+	return 0
+}
+
 // CertificateAuthorityDenormalized contains the same information as the CertificateAuthority
 // object, but this object contains the PEM encoded strings directly embedded to the struct
 // instead of an ID integer.
 type CertificateAuthorityDenormalized struct {
-	CertificateAuthorityID int64  `db:"certificate_authority_id"`
-	CRL                    string `db:"crl"`
-	Active                 int    `db:"active"`
-	PrivateKeyID           int64  `db:"private_key_id"`
-	CertificateChain       string `db:"certificate_chain"`
-	CSRPEM                 string `db:"csr"`
+	CertificateAuthorityID int64    `db:"certificate_authority_id"`
+	CRL                    string   `db:"crl"`
+	Active                 CAActive `db:"active"`
+	PrivateKeyID           int64    `db:"private_key_id"`
+	CertificateChain       string   `db:"certificate_chain"`
+	CSRPEM                 string   `db:"csr"`
 }
 
 // Certificate contains information about a singular certificate in the database. Its IssuerID

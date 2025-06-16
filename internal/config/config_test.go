@@ -22,10 +22,7 @@ logging:
     level: "debug"
     output: "stdout"
 encryption_backend:
-  type: "pkcs11"
-  lib_path: "/usr/local/lib/pkcs11/yubihsm_pkcs11.dylib"
-  pin: "0001password"
-  key_id: 0x1234
+  type: "none"
 `
 	noCertPathConfig = `key_path:  "./key_test.pem"
 external_hostname: "example.com"

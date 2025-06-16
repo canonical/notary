@@ -36,7 +36,12 @@ func (h *PKCS11Backend) Encrypt(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to backend: %w", err)
 	}
-	defer h.cleanup(session)
+	defer func() {
+		if cleanupErr := h.cleanupSession(session); cleanupErr != nil {
+			// Log cleanup errors but don't override the main operation error
+			fmt.Printf("Warning: cleanup errors during encryption: %v\n", cleanupErr)
+		}
+	}()
 
 	iv, err := generateRandomIV()
 	if err != nil {
@@ -76,7 +81,12 @@ func (h *PKCS11Backend) Decrypt(ciphertext []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to backend: %w", err)
 	}
-	defer h.cleanup(session)
+	defer func() {
+		if cleanupErr := h.cleanupSession(session); cleanupErr != nil {
+			// Log cleanup errors but don't override the main operation error
+			fmt.Printf("Warning: cleanup errors during decryption: %v\n", cleanupErr)
+		}
+	}()
 
 	mech := pkcs11.NewMechanism(pkcs11.CKM_AES_CBC_PAD, iv)
 
@@ -111,41 +121,69 @@ func (h *PKCS11Backend) findKey(session pkcs11.SessionHandle, id uint16) (pkcs11
 	return objects[0], nil
 }
 
+// cleanupSession performs cleanup of an active session
+func (h *PKCS11Backend) cleanupSession(session pkcs11.SessionHandle) error {
+	if err := h.ctx.Logout(session); err != nil {
+		return err
+	}
+	if err := h.ctx.CloseSession(session); err != nil {
+		return err
+	}
+	if err := h.ctx.Finalize(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// cleanupInitialization performs cleanup of just the initialization
+func (h *PKCS11Backend) cleanupInitialization() error {
+	if err := h.ctx.Finalize(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (h *PKCS11Backend) connectToBackend() (pkcs11.SessionHandle, pkcs11.ObjectHandle, error) {
 	if err := h.ctx.Initialize(); err != nil {
-		return 0, 0, fmt.Errorf("failed to initialize backend: %w", err)
+		return 0, 0, err
 	}
 
 	slots, err := h.ctx.GetSlotList(true)
 	if err != nil || len(slots) == 0 {
-		h.ctx.Finalize()
-		return 0, 0, fmt.Errorf("failed to get slot list: %w", err)
+		if cleanupErr := h.cleanupInitialization(); cleanupErr != nil {
+			fmt.Printf("Warning: cleanup error after GetSlotList failure: %v\n", cleanupErr)
+		}
+		return 0, 0, err
 	}
 	slot := slots[0]
 
 	session, err := h.ctx.OpenSession(slot, pkcs11.CKF_SERIAL_SESSION|pkcs11.CKF_RW_SESSION)
 	if err != nil {
-		h.ctx.Finalize()
-		return 0, 0, fmt.Errorf("failed to open session: %w", err)
+		if cleanupErr := h.cleanupInitialization(); cleanupErr != nil {
+			fmt.Printf("Warning: cleanup error after OpenSession failure: %v\n", cleanupErr)
+		}
+		return 0, 0, err
 	}
 
+	// If login fails, we need to close the session and finalize
 	if err := h.ctx.Login(session, pkcs11.CKU_USER, h.pin); err != nil {
-		h.ctx.CloseSession(session)
-		h.ctx.Finalize()
-		return 0, 0, fmt.Errorf("failed to login: %w", err)
+		if closeErr := h.ctx.CloseSession(session); closeErr != nil {
+			fmt.Printf("Warning: close session error after login failure: %v\n", closeErr)
+		}
+		if cleanupErr := h.cleanupInitialization(); cleanupErr != nil {
+			fmt.Printf("Warning: cleanup error after login failure: %v\n", cleanupErr)
+		}
+		return 0, 0, err
 	}
 
 	keyHandle, err := h.findKey(session, h.keyID)
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to find key: %w", err)
+		if cleanupErr := h.cleanupSession(session); cleanupErr != nil {
+			fmt.Printf("Warning: cleanup error after findKey failure: %v\n", cleanupErr)
+		}
+		return 0, 0, err
 	}
 	return session, keyHandle, nil
-}
-
-func (h *PKCS11Backend) cleanup(session pkcs11.SessionHandle) {
-	h.ctx.Logout(session)
-	h.ctx.CloseSession(session)
-	h.ctx.Finalize()
 }
 
 func generateRandomIV() ([]byte, error) {

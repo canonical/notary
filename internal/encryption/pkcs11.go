@@ -38,7 +38,6 @@ func (h *PKCS11Backend) Encrypt(data []byte) ([]byte, error) {
 	}
 	defer func() {
 		if cleanupErr := h.cleanupSession(session); cleanupErr != nil {
-			// Log cleanup errors but don't override the main operation error
 			fmt.Printf("Warning: cleanup errors during encryption: %v\n", cleanupErr)
 		}
 	}()
@@ -83,7 +82,6 @@ func (h *PKCS11Backend) Decrypt(ciphertext []byte) ([]byte, error) {
 	}
 	defer func() {
 		if cleanupErr := h.cleanupSession(session); cleanupErr != nil {
-			// Log cleanup errors but don't override the main operation error
 			fmt.Printf("Warning: cleanup errors during decryption: %v\n", cleanupErr)
 		}
 	}()

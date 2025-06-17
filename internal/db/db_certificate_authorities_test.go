@@ -108,12 +108,17 @@ func TestCreateCertificateAuthorityExpired(t *testing.T) {
 	}
 	defer database.Close()
 
+	userID, err := database.CreateUser("testuser", "whateverpassword", 0)
+	if err != nil {
+		t.Fatalf("Couldn't create user: %s", err)
+	}
+
 	expiredCACSR, expiredCAKey, expiredCACRL, expiredCACert, err := generateCACertificate(time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatalf("Failed to generate expired CA data: %s", err)
 	}
 
-	caID, err := database.CreateCertificateAuthority(expiredCACSR, expiredCAKey, expiredCACRL, expiredCACert+"\n"+expiredCACert)
+	caID, err := database.CreateCertificateAuthority(expiredCACSR, expiredCAKey, expiredCACRL, expiredCACert+"\n"+expiredCACert, userID)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
@@ -132,7 +137,7 @@ func TestCreateCertificateAuthorityExpired(t *testing.T) {
 	if ca.Active != 1 || ca.CertificateChain == "" {
 		t.Fatalf("Certificate authority is not active or missing certificate")
 	}
-	csrID, err := database.CreateCertificateRequest(AppleCSR)
+	csrID, err := database.CreateCertificateRequest(AppleCSR, userID)
 	if err != nil {
 		t.Fatalf("Couldn't create CSR: %s", err)
 	}
@@ -150,12 +155,17 @@ func TestUpdateCertificateAuthorityActiveStatusExpired(t *testing.T) {
 	}
 	defer database.Close()
 
+	userID, err := database.CreateUser("testuser", "whateverpassword", 0)
+	if err != nil {
+		t.Fatalf("Couldn't create user: %s", err)
+	}
+
 	expiredCACSR, expiredCAKey, expiredCACRL, expiredCACert, err := generateCACertificate(time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatalf("Failed to generate expired CA data: %s", err)
 	}
 
-	caID, err := database.CreateCertificateAuthority(expiredCACSR, expiredCAKey, expiredCACRL, expiredCACert+"\n"+expiredCACert)
+	caID, err := database.CreateCertificateAuthority(expiredCACSR, expiredCAKey, expiredCACRL, expiredCACert+"\n"+expiredCACert, userID)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}

@@ -123,8 +123,9 @@ logging:
     output: "stdout"
 encryption_backend:
   type: "pkcs11"
-  lib_path: "/usr/local/lib/pkcs11/yubihsm_pkcs11.dylib"
-  key_id: 0x1234
+  pkcs11:
+    lib_path: "/usr/local/lib/pkcs11/yubihsm_pkcs11.dylib"
+    key_id: 0x1234
 `
 	invalidYAMLConfig = `just_an=invalid
 yaml.here`
@@ -197,9 +198,9 @@ func TestBadConfigFail(t *testing.T) {
 		{"wrong key path", wrongKeyPathConfig, "no such file or directory"},
 		{"invalid yaml", invalidYAMLConfig, "unmarshal errors"},
 		{"no logging", noLoggingConfig, "`logging` is empty"},
-		{"No encryption backend", noEncryptionBackendConfig, "failed to create encryption backend: encryption backend not specified"},
-		{"Invalid encryption backend type", invalidEncryptionBackendTypeConfig, "failed to create encryption backend: unknown backend type: invalid type"},
-		{"Invalid encryption backend config", incompleteEncryptionBackendConfig, "failed to create encryption backend: Pin must be specified"},
+		{"No encryption backend", noEncryptionBackendConfig, "encryption backend type is missing"},
+		{"Invalid encryption backend type", invalidEncryptionBackendTypeConfig, "unknown backend type: invalid type"},
+		{"Invalid encryption backend config", incompleteEncryptionBackendConfig, "Pin is missing"},
 	}
 
 	for _, tc := range cases {

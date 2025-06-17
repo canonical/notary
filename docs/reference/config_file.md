@@ -17,15 +17,10 @@ Start Notary with the `--config` flag to specify the path to the configuration f
     - `output` (string): The output destination for logs. Options are `stdout`, `stderr`, or a file path.
 - `encryption_backend` (object): Configuration for the encryption backend
   - `type` (string): Type of the encryption backend, currently supported backends are `vault`, `pkcs11` and `none` for no encryption backend.
-  - `endpoint` (string): URL endpoint for the Vault server when using the Vault backend.
-  - `role_id` (string): Role ID for Vault AppRole authentication when using the Vault backend.
-  - `role_secret_id` (string): Role Secret ID for Vault AppRole authentication when using the Vault backend.
-  - `token` (string): Authentication token for accessing Vault when using the Vault backend.
-  - `key_name` (string): Name of the encryption key to use in Vault when using the Vault backend.
-  - `mount` (string): Mount path where the transit secrets engine is enabled in Vault when using the Vault backend.
-  - `lib_path` (string): Path to the PKCS#11 library needed to communicate with the backend when using the PKCS#11 backend.
-  - `pin` (string): PIN for authenticating with the PKCS#11 device when using the PKCS#11 backend.
-  - `key_id` (integer): ID of the key to use on the PKCS#11 device when using the PKCS#11 backend.
+  - `pkcs11` (object): Specifies the beginning of the config for the PKCS11 backend when that backend is chosen.
+    - `lib_path` (string): Path to the PKCS#11 library needed to communicate with the backend when using the PKCS#11 backend.
+    - `pin` (string): PIN for authenticating with the PKCS#11 device when using the PKCS#11 backend.
+    - `key_id` (integer): ID of the key to use on the PKCS#11 device when using the PKCS#11 backend.
 
 ## Example
 
@@ -41,7 +36,8 @@ logging:
     output: "var/lib/notary/logs/notary.log"
 encryption_backend:
   type: "pkcs11"
-  lib_path: "/usr/local/lib/pkcs11/yubihsm_pkcs11.dylib"
-  pin: "0001password"
-  key_id: 0x1234
+  pkcs11:
+    lib_path: "/usr/local/lib/pkcs11/yubihsm_pkcs11.dylib"
+    pin: "0001password"
+    key_id: 0x1234
 ```

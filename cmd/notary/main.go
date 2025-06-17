@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 
 	"github.com/canonical/notary/internal/config"
+	"github.com/canonical/notary/internal/encryption"
 	l "github.com/canonical/notary/internal/logger"
 	"github.com/canonical/notary/internal/server"
 	"go.uber.org/zap"
@@ -29,7 +31,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Couldn't create logger: %s", err)
 	}
-	srv, err := server.New(conf.Port, conf.Cert, conf.Key, conf.DBPath, conf.ExternalHostname, conf.PebbleNotificationsEnabled, logger, conf.EncryptionBackend)
+	encryptionBackend, err := createEncryptionBackend(conf.EncryptionBackend, logger)
+	if err != nil {
+		log.Fatalf("Couldn't create encryption backend: %s", err)
+	}
+	srv, err := server.New(conf.Port, conf.Cert, conf.Key, conf.DBPath, conf.ExternalHostname, conf.PebbleNotificationsEnabled, logger, encryptionBackend)
 	if err != nil {
 		logger.Fatal("Couldn't create server", zap.Error(err))
 	}
@@ -52,4 +58,20 @@ func main() {
 	}
 	logger.Info("Shutting down server")
 	<-idleConnsClosed
+}
+
+func createEncryptionBackend(backendConfig config.BackendConfig, logger *zap.Logger) (encryption.EncryptionBackend, error) {
+	switch backendConfig.Type {
+	case config.PKCS11:
+		backend, err := encryption.NewPKCS11Backend(backendConfig.PKCS11.LibPath, backendConfig.PKCS11.Pin, *backendConfig.PKCS11.KeyID, logger)
+		if err != nil {
+			return nil, err
+		}
+		return backend, nil
+	case config.Vault:
+		return nil, fmt.Errorf("vault backend is not implemented")
+	case config.None:
+		return encryption.NoEncryptionBackend{}, nil
+	}
+	return nil, fmt.Errorf("unknown backend type")
 }

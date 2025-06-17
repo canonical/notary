@@ -5,28 +5,31 @@ import (
 	"fmt"
 
 	"github.com/miekg/pkcs11"
+	"go.uber.org/zap"
 )
 
-// PKCS11Backend implements EncryptionBackend using PKCS11 protocol for HSMs.
+// PKCS11Backend implements EncryptionBackend using the PKCS11 protocol for HSMs.
 type PKCS11Backend struct {
-	ctx   *pkcs11.Ctx
-	pin   string
-	keyID uint16
+	ctx    *pkcs11.Ctx
+	pin    string
+	keyID  uint16
+	logger *zap.Logger
 }
 
-const ivSize = 16
+const ivSize = 16 // bytes
 
 // NewPKCS11Backend creates a new PKCS11Backend.
-func NewPKCS11Backend(libPath string, pin string, keyID uint16) (*PKCS11Backend, error) {
+func NewPKCS11Backend(libPath string, pin string, keyID uint16, logger *zap.Logger) (*PKCS11Backend, error) {
 	ctx := pkcs11.New(libPath)
 	if ctx == nil {
 		return nil, fmt.Errorf("failed to load PKCS#11 library at %s", libPath)
 	}
 
 	return &PKCS11Backend{
-		ctx:   ctx,
-		pin:   pin,
-		keyID: keyID,
+		ctx:    ctx,
+		pin:    pin,
+		keyID:  keyID,
+		logger: logger,
 	}, nil
 }
 
@@ -38,7 +41,7 @@ func (h *PKCS11Backend) Encrypt(data []byte) ([]byte, error) {
 	}
 	defer func() {
 		if cleanupErr := h.cleanupSession(session); cleanupErr != nil {
-			fmt.Printf("Warning: cleanup errors during encryption: %v\n", cleanupErr)
+			h.logger.Error("Error during cleanup of PKCS11 resources after encryption", zap.Error(cleanupErr))
 		}
 	}()
 
@@ -67,6 +70,7 @@ func (h *PKCS11Backend) Encrypt(data []byte) ([]byte, error) {
 }
 
 // Decrypt decrypts the ciphertext using AES-CBC algorithm.
+// The ciphertext is expected to contain the IV at the beginning.
 func (h *PKCS11Backend) Decrypt(ciphertext []byte) ([]byte, error) {
 	if len(ciphertext) < ivSize {
 		return nil, fmt.Errorf("invalid ciphertext: too short to contain IV")
@@ -82,7 +86,7 @@ func (h *PKCS11Backend) Decrypt(ciphertext []byte) ([]byte, error) {
 	}
 	defer func() {
 		if cleanupErr := h.cleanupSession(session); cleanupErr != nil {
-			fmt.Printf("Warning: cleanup errors during decryption: %v\n", cleanupErr)
+			h.logger.Error("Error during cleanup of PKCS11 resources after decryption", zap.Error(cleanupErr))
 		}
 	}()
 
@@ -149,39 +153,45 @@ func (h *PKCS11Backend) connectToBackend() (pkcs11.SessionHandle, pkcs11.ObjectH
 	slots, err := h.ctx.GetSlotList(true)
 	if err != nil || len(slots) == 0 {
 		if cleanupErr := h.cleanupInitialization(); cleanupErr != nil {
-			fmt.Printf("Warning: cleanup error after GetSlotList failure: %v\n", cleanupErr)
-		}
-		return 0, 0, err
-	}
-	slot := slots[0]
-
-	session, err := h.ctx.OpenSession(slot, pkcs11.CKF_SERIAL_SESSION|pkcs11.CKF_RW_SESSION)
-	if err != nil {
-		if cleanupErr := h.cleanupInitialization(); cleanupErr != nil {
-			fmt.Printf("Warning: cleanup error after OpenSession failure: %v\n", cleanupErr)
+			h.logger.Error("Error during cleanup of PKCS11 resources while connecting to backend", zap.Error(cleanupErr))
 		}
 		return 0, 0, err
 	}
 
-	// If login fails, we need to close the session and finalize
-	if err := h.ctx.Login(session, pkcs11.CKU_USER, h.pin); err != nil {
-		if closeErr := h.ctx.CloseSession(session); closeErr != nil {
-			fmt.Printf("Warning: close session error after login failure: %v\n", closeErr)
+	var session pkcs11.SessionHandle
+	var keyHandle pkcs11.ObjectHandle
+	var lastErr error
+
+	for _, slot := range slots {
+		session, err = h.ctx.OpenSession(slot, pkcs11.CKF_SERIAL_SESSION|pkcs11.CKF_RW_SESSION)
+		if err != nil {
+			lastErr = err
+			continue
 		}
-		if cleanupErr := h.cleanupInitialization(); cleanupErr != nil {
-			fmt.Printf("Warning: cleanup error after login failure: %v\n", cleanupErr)
+
+		if err := h.ctx.Login(session, pkcs11.CKU_USER, h.pin); err != nil {
+			h.ctx.CloseSession(session)
+			lastErr = err
+			continue
 		}
-		return 0, 0, err
+
+		keyHandle, err = h.findKey(session, h.keyID)
+		if err != nil {
+			h.ctx.Logout(session)
+			h.ctx.CloseSession(session)
+			lastErr = err
+			continue
+		}
+
+		// Found our key!
+		return session, keyHandle, nil
 	}
 
-	keyHandle, err := h.findKey(session, h.keyID)
-	if err != nil {
-		if cleanupErr := h.cleanupSession(session); cleanupErr != nil {
-			fmt.Printf("Warning: cleanup error after findKey failure: %v\n", cleanupErr)
-		}
-		return 0, 0, err
+	// If we get here, we tried all slots and didn't find our key
+	if cleanupErr := h.cleanupInitialization(); cleanupErr != nil {
+		h.logger.Error("Error during cleanup of PKCS11 resources while connecting to backend", zap.Error(cleanupErr))
 	}
-	return session, keyHandle, nil
+	return 0, 0, fmt.Errorf("failed to find key in any slot: %v", lastErr)
 }
 
 func generateRandomIV() ([]byte, error) {

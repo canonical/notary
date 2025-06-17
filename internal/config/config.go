@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/canonical/notary/internal/encryption"
 	"gopkg.in/yaml.v3"
 )
 
@@ -47,15 +46,23 @@ type LoggingConfigYaml struct {
 	System SystemLoggingConfigYaml `yaml:"system"`
 }
 
+// EncryptionBackendConfig represents the configuration for an encryption backend
+type EncryptionBackendConfig struct {
+	Type   BackendType              `yaml:"type"`
+	PKCS11 *PKCS11BackendConfigYaml `yaml:"pkcs11,omitempty"`
+	Vault  *VaultBackendConfigYaml  `yaml:"vault,omitempty"`
+	None   *NoneBackendConfigYaml   `yaml:"none,omitempty"`
+}
+
 type ConfigYAML struct {
-	KeyPath             string            `yaml:"key_path"`
-	CertPath            string            `yaml:"cert_path"`
-	ExternalHostname    string            `yaml:"external_hostname"`
-	DBPath              string            `yaml:"db_path"`
-	Port                int               `yaml:"port"`
-	PebbleNotifications bool              `yaml:"pebble_notifications"`
-	Logging             LoggingConfigYaml `yaml:"logging"`
-	EncryptionBackend   map[string]any    `yaml:"encryption_backend"`
+	KeyPath             string                  `yaml:"key_path"`
+	CertPath            string                  `yaml:"cert_path"`
+	ExternalHostname    string                  `yaml:"external_hostname"`
+	DBPath              string                  `yaml:"db_path"`
+	Port                int                     `yaml:"port"`
+	PebbleNotifications bool                    `yaml:"pebble_notifications"`
+	Logging             LoggingConfigYaml       `yaml:"logging"`
+	EncryptionBackend   EncryptionBackendConfig `yaml:"encryption_backend"`
 }
 
 type LoggingLevel string
@@ -78,6 +85,14 @@ type Logging struct {
 	System SystemLoggingConfig
 }
 
+// BackendConfig holds the configuration for an encryption backend
+type BackendConfig struct {
+	Type   BackendType
+	PKCS11 *PKCS11BackendConfigYaml
+	Vault  *VaultBackendConfigYaml
+	None   *NoneBackendConfigYaml
+}
+
 type Config struct {
 	Key                        []byte
 	Cert                       []byte
@@ -86,7 +101,7 @@ type Config struct {
 	Port                       int
 	PebbleNotificationsEnabled bool
 	Logging                    Logging
-	EncryptionBackend          encryption.EncryptionBackend
+	EncryptionBackend          BackendConfig
 }
 
 // Validate opens and processes the given yaml file, and catches errors in the process
@@ -166,6 +181,37 @@ func Validate(filePath string) (Config, error) {
 		return Config{}, fmt.Errorf("`output` is empty in logging config")
 	}
 
+	// Validate encryption backend config
+	if c.EncryptionBackend.Type == "" {
+		return Config{}, fmt.Errorf("encryption backend type is missing")
+	}
+
+	switch c.EncryptionBackend.Type {
+	case Vault:
+		if c.EncryptionBackend.Vault == nil {
+			return Config{}, fmt.Errorf("vault configuration is missing")
+		}
+	case PKCS11:
+		if c.EncryptionBackend.PKCS11 == nil {
+			return Config{}, fmt.Errorf("pkcs11 configuration is missing")
+		}
+		if c.EncryptionBackend.PKCS11.LibPath == "" {
+			return Config{}, fmt.Errorf("PKCS11 library is missing")
+		}
+		if c.EncryptionBackend.PKCS11.Pin == "" {
+			return Config{}, fmt.Errorf("Pin is missing")
+		}
+		if c.EncryptionBackend.PKCS11.KeyID == nil {
+			return Config{}, fmt.Errorf("key ID is missing")
+		}
+	case None:
+		if c.EncryptionBackend.None != nil {
+			return Config{}, fmt.Errorf("none backend does not accept configuration")
+		}
+	default:
+		return Config{}, fmt.Errorf("unknown backend type: %s", c.EncryptionBackend.Type)
+	}
+
 	config.Cert = cert
 	config.Key = key
 	config.ExternalHostname = c.ExternalHostname
@@ -174,60 +220,11 @@ func Validate(filePath string) (Config, error) {
 	config.PebbleNotificationsEnabled = c.PebbleNotifications
 	config.Logging.System.Level = LoggingLevel(c.Logging.System.Level)
 	config.Logging.System.Output = c.Logging.System.Output
-	config.EncryptionBackend, err = createEncryptionBackend(c.EncryptionBackend)
-	if err != nil {
-		return Config{}, fmt.Errorf("failed to create encryption backend: %w", err)
+	config.EncryptionBackend = BackendConfig{
+		Type:   c.EncryptionBackend.Type,
+		PKCS11: c.EncryptionBackend.PKCS11,
+		Vault:  c.EncryptionBackend.Vault,
+		None:   c.EncryptionBackend.None,
 	}
 	return config, nil
-}
-
-// createEncryptionBackend creates a SecretBackend based on the type specified
-// in the config YAML.
-func createEncryptionBackend(backendConfig map[string]any) (encryption.EncryptionBackend, error) {
-	if backendConfig == nil {
-		return nil, fmt.Errorf("encryption backend not specified")
-	}
-	typeVal, ok := backendConfig["type"]
-	if !ok || typeVal == nil {
-		return nil, fmt.Errorf("encryption backend type is not specified in the configuration")
-	}
-	typeStr, ok := typeVal.(string)
-	if !ok {
-		return nil, fmt.Errorf("encryption backend type must be a string")
-	}
-	backendType := BackendType(typeStr)
-	temp, err := yaml.Marshal(&backendConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal vault config: %w", err)
-	}
-
-	switch backendType {
-	case Vault:
-		return nil, fmt.Errorf("vault backend is not supported")
-
-	case PKCS11:
-		pkcs11Config := PKCS11BackendConfigYaml{}
-		if err := yaml.Unmarshal(temp, &pkcs11Config); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal pkcs11 config: %w", err)
-		}
-		if pkcs11Config.LibPath == "" {
-			return nil, fmt.Errorf("PKCS11 library must be specified")
-		}
-		if pkcs11Config.Pin == "" {
-			return nil, fmt.Errorf("Pin must be specified")
-		}
-		if pkcs11Config.KeyID == nil {
-			return nil, fmt.Errorf("key ID must be specified")
-		}
-		backend, err := encryption.NewPKCS11Backend(pkcs11Config.LibPath, pkcs11Config.Pin, *pkcs11Config.KeyID)
-		if err != nil {
-			return nil, err
-		}
-		return backend, nil
-
-	case None:
-		return encryption.NoEncryptionBackend{}, nil
-	default:
-		return nil, fmt.Errorf("unknown backend type: %s", backendType)
-	}
 }

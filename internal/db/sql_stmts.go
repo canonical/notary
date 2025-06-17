@@ -12,7 +12,10 @@ const (
 
 			csr TEXT NOT NULL UNIQUE,
 			certificate_id INTEGER,
+			user_id INTEGER,
 			status TEXT DEFAULT 'Outstanding',
+
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
 
 			CHECK (status IN ('Outstanding', 'Rejected', 'Revoked', 'Active')),
 			CHECK (NOT (certificate_id == NULL AND status == 'Active' )),
@@ -80,7 +83,7 @@ const (
 	listCertificateRequestsWithoutCASStmt = "SELECT csrs.&CertificateRequest.csr_id, csrs.&CertificateRequest.csr, csrs.&CertificateRequest.status, csrs.&CertificateRequest.certificate_id FROM certificate_requests csrs LEFT JOIN certificate_authorities cas ON csrs.csr_id = cas.csr_id WHERE cas.certificate_authority_id IS NULL"
 	getCertificateRequestStmt             = "SELECT &CertificateRequest.* FROM certificate_requests WHERE csr_id==$CertificateRequest.csr_id or csr==$CertificateRequest.csr"
 	updateCertificateRequestStmt          = "UPDATE certificate_requests SET certificate_id=$CertificateRequest.certificate_id, status=$CertificateRequest.status WHERE csr_id==$CertificateRequest.csr_id or csr==$CertificateRequest.csr"
-	createCertificateRequestStmt          = "INSERT INTO certificate_requests (csr) VALUES ($CertificateRequest.csr)"
+	createCertificateRequestStmt          = "INSERT INTO certificate_requests (csr, user_id) VALUES ($CertificateRequest.csr, $CertificateRequest.user_id)"
 	deleteCertificateRequestStmt          = "DELETE FROM certificate_requests WHERE csr_id=$CertificateRequest.csr_id or csr=$CertificateRequest.csr"
 
 	listCertificateRequestsWithCertificatesStmt = `
@@ -89,6 +92,7 @@ WITH RECURSIVE certificate_chain AS (
         csr.csr_id,
         csr.csr,
 		csr.status,
+		csr.user_id,
         cert.certificate_id,
         cert.issuer_id,
         cert.certificate,
@@ -104,6 +108,7 @@ WITH RECURSIVE certificate_chain AS (
         cc.csr_id,
         cc.csr,
 		cc.status,
+		cc.user_id,
         cert.certificate_id,
         cert.issuer_id,
         cert.certificate,
@@ -124,7 +129,8 @@ WITH RECURSIVE certificate_chain AS (
     SELECT
         csr.csr_id,
         csr.csr,
-		csr.status,
+        csr.status,
+        csr.user_id,
         cert.certificate_id,
         cert.issuer_id,
         cert.certificate,
@@ -139,7 +145,8 @@ WITH RECURSIVE certificate_chain AS (
     SELECT
         cc.csr_id,
         cc.csr,
-		cc.status,
+        cc.status,
+        cc.user_id,
         cert.certificate_id,
         cert.issuer_id,
         cert.certificate,
@@ -152,6 +159,7 @@ SELECT
 	cc.&CertificateRequestWithChain.csr_id,
 	cc.&CertificateRequestWithChain.csr,
 	cc.&CertificateRequestWithChain.status,
+	cc.&CertificateRequestWithChain.user_id,
 	chain AS &CertificateRequestWithChain.certificate_chain
 FROM certificate_chain cc
 LEFT JOIN certificate_authorities cas ON cc.csr_id = cas.csr_id
@@ -163,6 +171,7 @@ WITH RECURSIVE certificate_chain AS (
         csr.csr_id,
         csr.csr,
 		csr.status,
+		csr.user_id,
         cert.certificate_id,
         cert.issuer_id,
         cert.certificate,
@@ -178,6 +187,7 @@ WITH RECURSIVE certificate_chain AS (
         cc.csr_id,
         cc.csr,
 		cc.status,
+		cc.user_id,
         cert.certificate_id,
         cert.issuer_id,
         cert.certificate,
@@ -190,6 +200,7 @@ SELECT
 	&CertificateRequestWithChain.csr_id,
 	&CertificateRequestWithChain.csr,
 	&CertificateRequestWithChain.status,
+	&CertificateRequestWithChain.user_id,
 	chain AS &CertificateRequestWithChain.certificate_chain
 FROM certificate_chain
 WHERE (csr_id = $CertificateRequestWithChain.csr_id OR csr = $CertificateRequestWithChain.csr) AND (chain = '' OR issuer_id = 0)`

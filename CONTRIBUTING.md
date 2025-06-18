@@ -72,8 +72,7 @@ logging:
   system:
     level: "info"
     output: "stdout"
-encryption_backend:
-  type: "none"
+encryption_backend: none
 ```
 
 Run Notary:

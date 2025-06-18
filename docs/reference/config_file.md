@@ -15,15 +15,16 @@ Start Notary with the `--config` flag to specify the path to the configuration f
   - `system` (object): Configuration for system logging.
     - `level` (string): The level of logging. Options are `debug`, `info`, `warn`, `error`, and `fatal`.
     - `output` (string): The output destination for logs. Options are `stdout`, `stderr`, or a file path.
-- `encryption_backend` (object): Configuration for the encryption backend
-  - `type` (string): Type of the encryption backend, currently supported backends are `vault`, `pkcs11` and `none` for no encryption backend.
-  - `pkcs11` (object): Specifies the beginning of the config for the PKCS11 backend when that backend is chosen.
-    - `lib_path` (string): Path to the PKCS#11 library needed to communicate with the backend when using the PKCS#11 backend.
-    - `pin` (string): PIN for authenticating with the PKCS#11 device when using the PKCS#11 backend.
-    - `key_id` (integer): ID of the key to use on the PKCS#11 device when using the PKCS#11 backend.
+- `encryption_backend` (string or object): Configuration for the encryption backend. Can be either "none" for no encryption, or an object containing named backend configurations.
+  - `backend_name` (object): User-defined name for the encryption backend (e.g., "yubihsm", "hsm1").
+    - `pkcs11` (object): Configuration for PKCS#11 backend.
+      - `lib_path` (string): Path to the PKCS#11 library needed to communicate with the backend.
+      - `pin` (string): PIN for authenticating with the PKCS#11 device.
+      - `key_id` (integer): ID of the key to use on the PKCS#11 device.
 
-## Example
+## Examples
 
+### With PKCS#11 Backend
 ```yaml
 key_path: "/etc/notary/config/key.pem"
 cert_path: "/etc/notary/config/cert.pem"
@@ -33,11 +34,25 @@ pebble_notifications: true
 logging:
   system:
     level: "debug"
-    output: "var/lib/notary/logs/notary.log"
+    output: "/var/lib/notary/logs/notary.log"
 encryption_backend:
-  type: "pkcs11"
-  pkcs11:
-    lib_path: "/usr/local/lib/pkcs11/yubihsm_pkcs11.dylib"
-    pin: "0001password"
-    key_id: 0x1234
+  yubihsm:
+    pkcs11:
+      lib_path: "/usr/local/lib/pkcs11/yubihsm_pkcs11.dylib"
+      pin: "0001password"
+      key_id: 0x1234
+```
+
+### With No Encryption
+```yaml
+key_path: "/etc/notary/config/key.pem"
+cert_path: "/etc/notary/config/cert.pem"
+db_path: "/var/lib/notary/database/notary.db"
+port: 3000
+pebble_notifications: false
+logging:
+  system:
+    level: "info"
+    output: "stdout"
+encryption_backend: none
 ```

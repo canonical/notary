@@ -17,7 +17,7 @@ const (
 	None   BackendType = "none"
 )
 
-// VaultBackendConfigYaml extends BackendConfig for Vault-specific fields.
+// VaultBackendConfigYaml BackendConfig for Vault-specific fields.
 type VaultBackendConfigYaml struct {
 	Endpoint     string `yaml:"endpoint"`
 	Mount        string `yaml:"mount"`
@@ -27,14 +27,49 @@ type VaultBackendConfigYaml struct {
 	Token        string `yaml:"token"`
 }
 
-// PKCS11BackendConfigYaml extends BackendConfig for PKCS11-specific fields.
+// PKCS11BackendConfigYaml BackendConfig for PKCS11-specific fields.
 type PKCS11BackendConfigYaml struct {
 	LibPath string  `yaml:"lib_path"`
 	KeyID   *uint16 `yaml:"key_id"`
 	Pin     string  `yaml:"pin"`
 }
 
-type NoneBackendConfigYaml struct {
+// NamedBackendConfigYaml represents a single named backend configuration
+type NamedBackendConfigYaml struct {
+	PKCS11 *PKCS11BackendConfigYaml `yaml:"pkcs11,omitempty"`
+	Vault  *VaultBackendConfigYaml  `yaml:"vault,omitempty"`
+}
+
+// EncryptionBackendConfigYaml can be either "none" or a map of named backends
+type EncryptionBackendConfigYaml struct {
+	IsNone   bool
+	Backends map[string]NamedBackendConfigYaml
+}
+
+// UnmarshalYAML implements custom YAML unmarshaling to handle both string and map formats
+// To handle the case of no encryption backend, we use a string value of "none"
+func (e *EncryptionBackendConfigYaml) UnmarshalYAML(node *yaml.Node) error {
+	var str string
+	if err := node.Decode(&str); err == nil {
+		if str == "none" {
+			e.IsNone = true
+			return nil
+		}
+		return fmt.Errorf("encryption_backend must be either 'none' or a map of named backend")
+	}
+
+	var backends map[string]NamedBackendConfigYaml
+	if err := node.Decode(&backends); err != nil {
+		return fmt.Errorf("encryption_backend must be either 'none' or a map of named backends")
+	}
+
+	if len(backends) == 0 {
+		return fmt.Errorf("encryption backend configuration is missing")
+	}
+
+	e.IsNone = false
+	e.Backends = backends
+	return nil
 }
 
 type SystemLoggingConfigYaml struct {
@@ -46,23 +81,15 @@ type LoggingConfigYaml struct {
 	System SystemLoggingConfigYaml `yaml:"system"`
 }
 
-// EncryptionBackendConfig represents the configuration for an encryption backend
-type EncryptionBackendConfig struct {
-	Type   BackendType              `yaml:"type"`
-	PKCS11 *PKCS11BackendConfigYaml `yaml:"pkcs11,omitempty"`
-	Vault  *VaultBackendConfigYaml  `yaml:"vault,omitempty"`
-	None   *NoneBackendConfigYaml   `yaml:"none,omitempty"`
-}
-
 type ConfigYAML struct {
-	KeyPath             string                  `yaml:"key_path"`
-	CertPath            string                  `yaml:"cert_path"`
-	ExternalHostname    string                  `yaml:"external_hostname"`
-	DBPath              string                  `yaml:"db_path"`
-	Port                int                     `yaml:"port"`
-	PebbleNotifications bool                    `yaml:"pebble_notifications"`
-	Logging             LoggingConfigYaml       `yaml:"logging"`
-	EncryptionBackend   EncryptionBackendConfig `yaml:"encryption_backend"`
+	KeyPath             string                      `yaml:"key_path"`
+	CertPath            string                      `yaml:"cert_path"`
+	ExternalHostname    string                      `yaml:"external_hostname"`
+	DBPath              string                      `yaml:"db_path"`
+	Port                int                         `yaml:"port"`
+	PebbleNotifications bool                        `yaml:"pebble_notifications"`
+	Logging             LoggingConfigYaml           `yaml:"logging"`
+	EncryptionBackend   EncryptionBackendConfigYaml `yaml:"encryption_backend"`
 }
 
 type LoggingLevel string
@@ -90,7 +117,6 @@ type BackendConfig struct {
 	Type   BackendType
 	PKCS11 *PKCS11BackendConfigYaml
 	Vault  *VaultBackendConfigYaml
-	None   *NoneBackendConfigYaml
 }
 
 type Config struct {
@@ -181,35 +207,42 @@ func Validate(filePath string) (Config, error) {
 		return Config{}, fmt.Errorf("`output` is empty in logging config")
 	}
 
-	// Validate encryption backend config
-	if c.EncryptionBackend.Type == "" {
-		return Config{}, fmt.Errorf("encryption backend type is missing")
-	}
+	var backendConfig BackendConfig
 
-	switch c.EncryptionBackend.Type {
-	case Vault:
-		if c.EncryptionBackend.Vault == nil {
-			return Config{}, fmt.Errorf("vault configuration is missing")
+	if c.EncryptionBackend.IsNone {
+		backendConfig = BackendConfig{Type: None}
+	} else if len(c.EncryptionBackend.Backends) > 0 {
+		var selectedBackend NamedBackendConfigYaml
+		// Until we support multiple backends, we only use the first one
+		for _, selectedBackend = range c.EncryptionBackend.Backends {
+			break
 		}
-	case PKCS11:
-		if c.EncryptionBackend.PKCS11 == nil {
-			return Config{}, fmt.Errorf("pkcs11 configuration is missing")
+
+		switch {
+		case selectedBackend.Vault != nil:
+			backendConfig = BackendConfig{
+				Type:  Vault,
+				Vault: selectedBackend.Vault,
+			}
+		case selectedBackend.PKCS11 != nil:
+			if selectedBackend.PKCS11.LibPath == "" {
+				return Config{}, fmt.Errorf("PKCS11 library is missing")
+			}
+			if selectedBackend.PKCS11.Pin == "" {
+				return Config{}, fmt.Errorf("Pin is missing")
+			}
+			if selectedBackend.PKCS11.KeyID == nil {
+				return Config{}, fmt.Errorf("key ID is missing")
+			}
+			backendConfig = BackendConfig{
+				Type:   PKCS11,
+				PKCS11: selectedBackend.PKCS11,
+			}
+		default:
+			return Config{}, fmt.Errorf("unknown backend type: invalid")
 		}
-		if c.EncryptionBackend.PKCS11.LibPath == "" {
-			return Config{}, fmt.Errorf("PKCS11 library is missing")
-		}
-		if c.EncryptionBackend.PKCS11.Pin == "" {
-			return Config{}, fmt.Errorf("Pin is missing")
-		}
-		if c.EncryptionBackend.PKCS11.KeyID == nil {
-			return Config{}, fmt.Errorf("key ID is missing")
-		}
-	case None:
-		if c.EncryptionBackend.None != nil {
-			return Config{}, fmt.Errorf("none backend does not accept configuration")
-		}
-	default:
-		return Config{}, fmt.Errorf("unknown backend type: %s", c.EncryptionBackend.Type)
+	} else {
+		return Config{}, fmt.Errorf("encryption backend configuration is missing")
 	}
 
 	config.Cert = cert
@@ -220,11 +253,6 @@ func Validate(filePath string) (Config, error) {
 	config.PebbleNotificationsEnabled = c.PebbleNotifications
 	config.Logging.System.Level = LoggingLevel(c.Logging.System.Level)
 	config.Logging.System.Output = c.Logging.System.Output
-	config.EncryptionBackend = BackendConfig{
-		Type:   c.EncryptionBackend.Type,
-		PKCS11: c.EncryptionBackend.PKCS11,
-		Vault:  c.EncryptionBackend.Vault,
-		None:   c.EncryptionBackend.None,
-	}
+	config.EncryptionBackend = backendConfig
 	return config, nil
 }

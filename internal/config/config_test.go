@@ -95,7 +95,7 @@ logging:
 encryption_backend:
   yubihsm2:
     invalid:
-      lib_path: "/usr/local/lib/pkcs11/yubihsm_pkcs11.dylib"
+      lib_path: "/usr/local/lib/pkcs11/yubihsm_pkcs11.so"
       key_id: 0x1234
       pin: "0001password"`
 	invalidEncryptionBackendConfig = `key_path:  "./key_test.pem"
@@ -131,7 +131,7 @@ logging:
 encryption_backend:
   yubihsm2:
     pkcs11:
-      lib_path: "/usr/local/lib/pkcs11/yubihsm_pkcs11.dylib"
+      lib_path: "/usr/local/lib/pkcs11/yubihsm_pkcs11.so"
       key_id: 0x1234
 `
 	invalidYAMLConfig = `just_an=invalid

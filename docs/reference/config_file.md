@@ -38,7 +38,7 @@ logging:
 encryption_backend:
   yubihsm:
     pkcs11:
-      lib_path: "/usr/local/lib/pkcs11/yubihsm_pkcs11.dylib"
+      lib_path: "/path/to/yubihsm_pkcs11.so"
       pin: "0001password"
       key_id: 0x1234
 ```

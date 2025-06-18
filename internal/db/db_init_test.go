@@ -22,7 +22,7 @@ func Example() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	csrID, err := database.CreateCertificateRequest(BananaCSR)
+	csrID, err := database.CreateCertificateRequest(BananaCSR, 0)
 	if err != nil {
 		log.Fatalln(err)
 	}

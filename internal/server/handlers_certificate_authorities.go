@@ -268,6 +268,11 @@ func CreateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.Logger)
 			return
 		}
+		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
+		if headerErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.Logger)
+			return
+		}
 		csrPEM, privPEM, crlPEM, certPEM, err := createCertificateAuthority(params)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Failed to create certificate authority", err, env.Logger)
@@ -275,9 +280,9 @@ func CreateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 		}
 		var newCAID int64
 		if certPEM != "" {
-			newCAID, err = env.DB.CreateCertificateAuthority(strings.TrimSpace(csrPEM), strings.TrimSpace(privPEM), strings.TrimSpace(crlPEM), strings.TrimSpace(certPEM+certPEM))
+			newCAID, err = env.DB.CreateCertificateAuthority(strings.TrimSpace(csrPEM), strings.TrimSpace(privPEM), strings.TrimSpace(crlPEM), strings.TrimSpace(certPEM+certPEM), claims.ID)
 		} else {
-			newCAID, err = env.DB.CreateCertificateAuthority(strings.TrimSpace(csrPEM), strings.TrimSpace(privPEM), "", "")
+			newCAID, err = env.DB.CreateCertificateAuthority(strings.TrimSpace(csrPEM), strings.TrimSpace(privPEM), "", "", claims.ID)
 		}
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Failed to create certificate authority", err, env.Logger)

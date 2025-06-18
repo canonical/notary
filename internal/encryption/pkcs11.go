@@ -183,11 +183,9 @@ func (h *PKCS11Backend) connectToBackend() (pkcs11.SessionHandle, pkcs11.ObjectH
 			continue
 		}
 
-		// Found our key!
 		return session, keyHandle, nil
 	}
 
-	// If we get here, we tried all slots and didn't find our key
 	if cleanupErr := h.cleanupInitialization(); cleanupErr != nil {
 		h.logger.Error("Error during cleanup of PKCS11 resources while connecting to backend", zap.Error(cleanupErr))
 	}

@@ -21,3 +21,5 @@ AppRole
 PKCS
 backend
 backends
+hsm
+yubihsm

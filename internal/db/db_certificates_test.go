@@ -133,7 +133,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 
 func TestCertificateRequestUserMappingEndToEnd(t *testing.T) {
 	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend)
 	if err != nil {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}

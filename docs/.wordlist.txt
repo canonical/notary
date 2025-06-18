@@ -23,3 +23,11 @@ backend
 backends
 hsm
 yubihsm
+YubiHSM
+HSM
+HSMs
+AES
+decrypt
+HSM's
+SDK
+dylib

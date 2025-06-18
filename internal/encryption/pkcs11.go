@@ -8,9 +8,69 @@ import (
 	"go.uber.org/zap"
 )
 
+// PKCS11Context defines the interface for PKCS11 operations needed by our backend
+type PKCS11Context interface {
+	Initialize() error
+	Finalize() error
+	GetSlotList(bool) ([]uint, error)
+	OpenSession(uint, uint) (pkcs11.SessionHandle, error)
+	CloseSession(pkcs11.SessionHandle) error
+	Login(pkcs11.SessionHandle, uint, string) error
+	Logout(pkcs11.SessionHandle) error
+	FindObjectsInit(pkcs11.SessionHandle, []*pkcs11.Attribute) error
+	FindObjects(pkcs11.SessionHandle, int) ([]pkcs11.ObjectHandle, bool, error)
+	FindObjectsFinal(pkcs11.SessionHandle) error
+	EncryptInit(pkcs11.SessionHandle, []*pkcs11.Mechanism, pkcs11.ObjectHandle) error
+	Encrypt(pkcs11.SessionHandle, []byte) ([]byte, error)
+	DecryptInit(pkcs11.SessionHandle, []*pkcs11.Mechanism, pkcs11.ObjectHandle) error
+	Decrypt(pkcs11.SessionHandle, []byte) ([]byte, error)
+}
+
+// pkcs11ContextWrapper implements PKCS11Context using the real pkcs11.Ctx
+type pkcs11ContextWrapper struct {
+	ctx *pkcs11.Ctx
+}
+
+func (p *pkcs11ContextWrapper) Initialize() error { return p.ctx.Initialize() }
+func (p *pkcs11ContextWrapper) Finalize() error   { return p.ctx.Finalize() }
+func (p *pkcs11ContextWrapper) GetSlotList(tokenPresent bool) ([]uint, error) {
+	return p.ctx.GetSlotList(tokenPresent)
+}
+func (p *pkcs11ContextWrapper) OpenSession(slotID uint, flags uint) (pkcs11.SessionHandle, error) {
+	return p.ctx.OpenSession(slotID, flags)
+}
+func (p *pkcs11ContextWrapper) CloseSession(sh pkcs11.SessionHandle) error {
+	return p.ctx.CloseSession(sh)
+}
+func (p *pkcs11ContextWrapper) Login(sh pkcs11.SessionHandle, ut uint, pin string) error {
+	return p.ctx.Login(sh, ut, pin)
+}
+func (p *pkcs11ContextWrapper) Logout(sh pkcs11.SessionHandle) error { return p.ctx.Logout(sh) }
+func (p *pkcs11ContextWrapper) FindObjectsInit(sh pkcs11.SessionHandle, temp []*pkcs11.Attribute) error {
+	return p.ctx.FindObjectsInit(sh, temp)
+}
+func (p *pkcs11ContextWrapper) FindObjects(sh pkcs11.SessionHandle, max int) ([]pkcs11.ObjectHandle, bool, error) {
+	return p.ctx.FindObjects(sh, max)
+}
+func (p *pkcs11ContextWrapper) FindObjectsFinal(sh pkcs11.SessionHandle) error {
+	return p.ctx.FindObjectsFinal(sh)
+}
+func (p *pkcs11ContextWrapper) EncryptInit(sh pkcs11.SessionHandle, m []*pkcs11.Mechanism, o pkcs11.ObjectHandle) error {
+	return p.ctx.EncryptInit(sh, m, o)
+}
+func (p *pkcs11ContextWrapper) Encrypt(sh pkcs11.SessionHandle, message []byte) ([]byte, error) {
+	return p.ctx.Encrypt(sh, message)
+}
+func (p *pkcs11ContextWrapper) DecryptInit(sh pkcs11.SessionHandle, m []*pkcs11.Mechanism, o pkcs11.ObjectHandle) error {
+	return p.ctx.DecryptInit(sh, m, o)
+}
+func (p *pkcs11ContextWrapper) Decrypt(sh pkcs11.SessionHandle, message []byte) ([]byte, error) {
+	return p.ctx.Decrypt(sh, message)
+}
+
 // PKCS11Backend implements EncryptionBackend using the PKCS11 protocol for HSMs.
 type PKCS11Backend struct {
-	ctx    *pkcs11.Ctx
+	ctx    PKCS11Context
 	pin    string
 	keyID  uint16
 	logger *zap.Logger
@@ -26,7 +86,7 @@ func NewPKCS11Backend(libPath string, pin string, keyID uint16, logger *zap.Logg
 	}
 
 	return &PKCS11Backend{
-		ctx:    ctx,
+		ctx:    &pkcs11ContextWrapper{ctx: ctx},
 		pin:    pin,
 		keyID:  keyID,
 		logger: logger,
@@ -76,7 +136,7 @@ func (h *PKCS11Backend) Decrypt(ciphertext []byte) ([]byte, error) {
 		return nil, fmt.Errorf("invalid ciphertext: too short to contain IV")
 	}
 
-	// Extract IV from the start of the combined data
+	// Extract IV from the start of the ciphertext
 	iv := ciphertext[:ivSize]
 	ciphertext = ciphertext[ivSize:]
 

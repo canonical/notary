@@ -170,15 +170,24 @@ func (h *PKCS11Backend) connectToBackend() (pkcs11.SessionHandle, pkcs11.ObjectH
 		}
 
 		if err := h.ctx.Login(session, pkcs11.CKU_USER, h.pin); err != nil {
-			h.ctx.CloseSession(session)
+			closeErr := h.ctx.CloseSession(session)
+			if closeErr != nil {
+				h.logger.Error("Error closing session while connecting to backend", zap.Error(closeErr))
+			}
 			lastErr = err
 			continue
 		}
 
 		keyHandle, err = h.findKey(session, h.keyID)
 		if err != nil {
-			h.ctx.Logout(session)
-			h.ctx.CloseSession(session)
+			closeErr := h.ctx.Logout(session)
+			if closeErr != nil {
+				h.logger.Error("Error logging out while connecting to backend", zap.Error(closeErr))
+			}
+			closeErr = h.ctx.CloseSession(session)
+			if closeErr != nil {
+				h.logger.Error("Error closing session while connecting to backend", zap.Error(closeErr))
+			}
 			lastErr = err
 			continue
 		}

@@ -67,7 +67,7 @@ func createEncryptionBackend(backendConfig config.BackendConfig, logger *zap.Log
 		if err != nil {
 			return nil, err
 		}
-		logger.Info("PKCS11 backend created")
+		logger.Info("PKCS11 backend configured")
 		return backend, nil
 	case config.Vault:
 		return nil, fmt.Errorf("vault backend is not implemented")

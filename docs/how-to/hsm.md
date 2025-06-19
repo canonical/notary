@@ -27,3 +27,12 @@ encryption_backend:
       pin: "0001password"
       key_id: 0x1234
 ```
+
+Start Notary
+Once you start Notary you should see the following logs:
+```
+"msg":"PKCS11 backend configured"
+"msg":"Encryption key generated successfully"
+"msg":"Encryption key encrypted successfully using the configured encryption backend"
+
+```

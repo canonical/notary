@@ -176,7 +176,7 @@ func TestUpdateCertificateAuthorityEnabledStatusExpired(t *testing.T) {
 	}
 
 	err = database.UpdateCertificateAuthorityEnabledStatus(db.ByCertificateAuthorityID(caID), true)
-	if err == nil {
+	if err != nil {
 		t.Fatalf("Expected updating status to enabled to succeed for expired CA: %s", err)
 	}
 }

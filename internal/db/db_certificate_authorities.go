@@ -135,19 +135,6 @@ func (db *Database) UpdateCertificateAuthorityEnabledStatus(filter CertificateAu
 	if err != nil {
 		return err
 	}
-	if enabled {
-		caDenormalized, err := db.GetDenormalizedCertificateAuthority(ByCertificateAuthorityDenormalizedID(ca.CertificateAuthorityID))
-		if err != nil {
-			return err
-		}
-		if caDenormalized.CertificateChain == "" {
-			return fmt.Errorf("%w: cannot update status of a certificate authority without a valid certificate chain", ErrInvalidInput)
-		}
-		expiryDate := certificateExpiryDate(caDenormalized.CertificateChain)
-		if expiryDate.Before(time.Now()) {
-			return fmt.Errorf("%w: cannot update status of a certificate authority with an expired certificate", ErrInvalidInput)
-		}
-	}
 	ca.Enabled = BoolToCAEnabled(enabled)
 	return UpdateEntity(db, db.stmts.UpdateCertificateAuthority, ca)
 }

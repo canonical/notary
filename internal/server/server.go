@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/canonical/notary/internal/db"
-	"github.com/canonical/notary/internal/encryption"
+	"github.com/canonical/notary/internal/encryption_backend"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -59,7 +59,7 @@ func generateJWTSecret() ([]byte, error) {
 }
 
 // New creates an environment and an http server with handlers that Go can start listening to
-func New(port int, cert []byte, key []byte, dbPath string, externalHostname string, pebbleNotificationsEnabled bool, logger *zap.Logger, encryptionBackend encryption.EncryptionBackend) (*http.Server, error) {
+func New(port int, cert []byte, key []byte, dbPath string, externalHostname string, pebbleNotificationsEnabled bool, logger *zap.Logger, encryptionBackend encryption_backend.EncryptionBackend) (*http.Server, error) {
 	serverCerts, err := tls.X509KeyPair(cert, key)
 	if err != nil {
 		return nil, err

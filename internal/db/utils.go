@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/canonical/notary/internal/encryption"
+	"github.com/canonical/notary/internal/encryption_backend"
 )
 
 // ParseCertificateChain receives a PEM string chain and returns an x.509.Certificate list.
@@ -110,7 +111,7 @@ func getTypeName[T any]() string {
 	return reflect.TypeOf(t).Name()
 }
 
-func setUpEncryptionKey(database *Database, backend encryption.EncryptionBackend) ([]byte, error) {
+func setUpEncryptionKey(database *Database, backend encryption_backend.EncryptionBackend) ([]byte, error) {
 	encryptionKeyFromDb, err := database.GetEncryptionKey()
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {

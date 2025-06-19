@@ -1,4 +1,4 @@
-package encryption
+package encryption_backend
 
 import (
 	"bytes"
@@ -12,44 +12,44 @@ import (
 	"go.uber.org/zap"
 )
 
-type mockPKCS11Context struct {
+type fakePKCS11Provider struct {
 	key []byte
 	iv  []byte
 }
 
-func newMockPKCS11Context() (*mockPKCS11Context, error) {
+func newfakePKCS11Provider() (*fakePKCS11Provider, error) {
 	key := make([]byte, 32) // AES-256
 	if _, err := rand.Read(key); err != nil {
 		return nil, fmt.Errorf("failed to generate test key: %v", err)
 	}
-	return &mockPKCS11Context{key: key}, nil
+	return &fakePKCS11Provider{key: key}, nil
 }
 
-func (m *mockPKCS11Context) Initialize() error                { return nil }
-func (m *mockPKCS11Context) Finalize() error                  { return nil }
-func (m *mockPKCS11Context) GetSlotList(bool) ([]uint, error) { return []uint{0}, nil }
-func (m *mockPKCS11Context) OpenSession(uint, uint) (pkcs11.SessionHandle, error) {
+func (m *fakePKCS11Provider) Initialize() error                { return nil }
+func (m *fakePKCS11Provider) Finalize() error                  { return nil }
+func (m *fakePKCS11Provider) GetSlotList(bool) ([]uint, error) { return []uint{0}, nil }
+func (m *fakePKCS11Provider) OpenSession(uint, uint) (pkcs11.SessionHandle, error) {
 	return pkcs11.SessionHandle(1), nil
 }
-func (m *mockPKCS11Context) CloseSession(pkcs11.SessionHandle) error        { return nil }
-func (m *mockPKCS11Context) Login(pkcs11.SessionHandle, uint, string) error { return nil }
-func (m *mockPKCS11Context) Logout(pkcs11.SessionHandle) error              { return nil }
-func (m *mockPKCS11Context) FindObjectsInit(pkcs11.SessionHandle, []*pkcs11.Attribute) error {
+func (m *fakePKCS11Provider) CloseSession(pkcs11.SessionHandle) error        { return nil }
+func (m *fakePKCS11Provider) Login(pkcs11.SessionHandle, uint, string) error { return nil }
+func (m *fakePKCS11Provider) Logout(pkcs11.SessionHandle) error              { return nil }
+func (m *fakePKCS11Provider) FindObjectsInit(pkcs11.SessionHandle, []*pkcs11.Attribute) error {
 	return nil
 }
-func (m *mockPKCS11Context) FindObjects(pkcs11.SessionHandle, int) ([]pkcs11.ObjectHandle, bool, error) {
+func (m *fakePKCS11Provider) FindObjects(pkcs11.SessionHandle, int) ([]pkcs11.ObjectHandle, bool, error) {
 	return []pkcs11.ObjectHandle{pkcs11.ObjectHandle(1)}, false, nil
 }
-func (m *mockPKCS11Context) FindObjectsFinal(pkcs11.SessionHandle) error { return nil }
+func (m *fakePKCS11Provider) FindObjectsFinal(pkcs11.SessionHandle) error { return nil }
 
-func (m *mockPKCS11Context) EncryptInit(sh pkcs11.SessionHandle, mech []*pkcs11.Mechanism, obj pkcs11.ObjectHandle) error {
+func (m *fakePKCS11Provider) EncryptInit(sh pkcs11.SessionHandle, mech []*pkcs11.Mechanism, obj pkcs11.ObjectHandle) error {
 	if len(mech) > 0 && mech[0].Parameter != nil {
 		m.iv = mech[0].Parameter
 	}
 	return nil
 }
 
-func (m *mockPKCS11Context) Encrypt(sh pkcs11.SessionHandle, message []byte) ([]byte, error) {
+func (m *fakePKCS11Provider) Encrypt(sh pkcs11.SessionHandle, message []byte) ([]byte, error) {
 	if m.iv == nil {
 		return nil, fmt.Errorf("IV not set")
 	}
@@ -70,14 +70,14 @@ func (m *mockPKCS11Context) Encrypt(sh pkcs11.SessionHandle, message []byte) ([]
 	return ciphertext, nil
 }
 
-func (m *mockPKCS11Context) DecryptInit(sh pkcs11.SessionHandle, mech []*pkcs11.Mechanism, obj pkcs11.ObjectHandle) error {
+func (m *fakePKCS11Provider) DecryptInit(sh pkcs11.SessionHandle, mech []*pkcs11.Mechanism, obj pkcs11.ObjectHandle) error {
 	if len(mech) > 0 && mech[0].Parameter != nil {
 		m.iv = mech[0].Parameter
 	}
 	return nil
 }
 
-func (m *mockPKCS11Context) Decrypt(sh pkcs11.SessionHandle, message []byte) ([]byte, error) {
+func (m *fakePKCS11Provider) Decrypt(sh pkcs11.SessionHandle, message []byte) ([]byte, error) {
 	if m.iv == nil {
 		return nil, fmt.Errorf("IV not set")
 	}
@@ -102,32 +102,24 @@ func (m *mockPKCS11Context) Decrypt(sh pkcs11.SessionHandle, message []byte) ([]
 	return plaintext, nil
 }
 
-func TestPKCS11Backend_EncryptDecryptEndToEnd(t *testing.T) {
+func TestPKCS11BackendEncryptDecryptSuccess(t *testing.T) {
 	tests := []struct {
-		name      string
-		message   []byte
-		wantErr   bool
-		errorCase string
+		name    string
+		message []byte
 	}{
 		{
-			name:    "success - normal encryption/decryption",
+			name:    "normal message",
 			message: []byte("test data to encrypt and decrypt"),
 		},
 		{
-			name:    "success - normal encryption/decryption with a short message",
+			name:    "short message",
 			message: []byte("short"),
-		},
-		{
-			name:      "error - a ciphertext that is too short, it can't be containing the IV, will fail the decryption",
-			message:   []byte("A"),
-			wantErr:   true,
-			errorCase: "short",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockCtx, err := newMockPKCS11Context()
+			mockCtx, err := newfakePKCS11Provider()
 			if err != nil {
 				t.Fatalf("Failed to create mock context: %v", err)
 			}
@@ -166,22 +158,42 @@ func TestPKCS11Backend_EncryptDecryptEndToEnd(t *testing.T) {
 				t.Fatal("Expected ciphertexts to be different due to different IVs")
 			}
 
-			switch tt.errorCase {
-			case "":
-				decrypted, err := backend.Decrypt(ciphertext1)
-				if err != nil {
-					t.Fatalf("Expected decryption to succeed, got error: %v", err)
-				}
-				if !bytes.Equal(tt.message, decrypted) {
-					t.Fatalf("Expected decrypted data to match original.\nExpected: %q\nGot: %q", tt.message, decrypted)
-				}
-
-			case "short":
-				_, err = backend.Decrypt(tt.message)
-				if err == nil {
-					t.Fatal("Expected error when decrypting invalid ciphertext")
-				}
+			decrypted, err := backend.Decrypt(ciphertext1)
+			if err != nil {
+				t.Fatalf("Expected decryption to succeed, got error: %v", err)
+			}
+			if !bytes.Equal(tt.message, decrypted) {
+				t.Fatalf("Expected decrypted data to match original.\nExpected: %q\nGot: %q", tt.message, decrypted)
 			}
 		})
+	}
+}
+
+func TestPKCS11BackendDecryptInvalidInput(t *testing.T) {
+	mockCtx, err := newfakePKCS11Provider()
+	if err != nil {
+		t.Fatalf("Failed to create mock context: %v", err)
+	}
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		t.Fatalf("Failed to create logger: %v", err)
+	}
+
+	backend := &PKCS11Backend{
+		ctx:    mockCtx,
+		pin:    "1234",
+		keyID:  1,
+		logger: logger,
+	}
+
+	invalidInput := []byte("A")
+	expectedError := "invalid ciphertext: too short to contain IV"
+
+	_, err = backend.Decrypt(invalidInput)
+	if err == nil {
+		t.Fatal("Expected decryption to fail but it succeeded")
+	}
+	if err.Error() != expectedError {
+		t.Errorf("Expected error message %q, got %q", expectedError, err.Error())
 	}
 }

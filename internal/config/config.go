@@ -226,23 +226,23 @@ func Validate(filePath string) (Config, error) {
 			}
 		case selectedBackend.PKCS11 != nil:
 			if selectedBackend.PKCS11.LibPath == "" {
-				return Config{}, fmt.Errorf("PKCS11 library is missing")
+				return Config{}, fmt.Errorf("lib_path is missing")
 			}
 			if selectedBackend.PKCS11.Pin == "" {
-				return Config{}, fmt.Errorf("Pin is missing")
+				return Config{}, fmt.Errorf("pin is missing")
 			}
 			if selectedBackend.PKCS11.KeyID == nil {
-				return Config{}, fmt.Errorf("key ID is missing")
+				return Config{}, fmt.Errorf("key_id is missing")
 			}
 			backendConfig = BackendConfig{
 				Type:   PKCS11,
 				PKCS11: selectedBackend.PKCS11,
 			}
 		default:
-			return Config{}, fmt.Errorf("unknown backend type: invalid")
+			return Config{}, fmt.Errorf("invalid backend type, should be either 'vault' or 'pkcs11'")
 		}
 	} else {
-		return Config{}, fmt.Errorf("encryption backend configuration is missing")
+		return Config{}, fmt.Errorf("encryption_backend configuration is missing")
 	}
 
 	config.Cert = cert

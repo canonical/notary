@@ -205,10 +205,10 @@ func TestBadConfigFail(t *testing.T) {
 		{"wrong key path", wrongKeyPathConfig, "no such file or directory"},
 		{"invalid yaml", invalidYAMLConfig, "unmarshal errors"},
 		{"no logging", noLoggingConfig, "`logging` is empty"},
-		{"No encryption backend", noEncryptionBackendConfig, "encryption backend configuration is missing"},
-		{"Invalid encryption backend config", invalidEncryptionBackendConfigType, "unknown backend type: invalid"},
+		{"No encryption backend", noEncryptionBackendConfig, "encryption_backend configuration is missing"},
+		{"Invalid encryption backend config", invalidEncryptionBackendConfigType, "invalid backend type, should be either 'vault' or 'pkcs11'"},
 		{"Invalid encryption backend config", invalidEncryptionBackendConfig, "encryption_backend must be either 'none' or a map of named backend"},
-		{"Incomplete encryption backend config", incompleteEncryptionBackendConfig, "Pin is missing"},
+		{"Incomplete encryption backend config", incompleteEncryptionBackendConfig, "pin is missing"},
 	}
 
 	for _, tc := range cases {

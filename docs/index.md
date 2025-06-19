@@ -14,7 +14,6 @@ We designed Notary for Enterprise environments where users need to securely mana
 - **Metrics**: Monitor the state of your certificates and the health of your Notary instance with Prometheus metrics.
 - **Encryption at Rest**: Sensitive data like private keys is encrypted in the database.
 - **Encryption Backend Support**: To increase security an external encryption backend can be configured to encrypt Notary's encryption key.
-    **Note**: Once Notary is initialized it must continue using the encryption backend configured at the time of initialization, at the moment there is no way to switch backends.
 
 
 ## In this documentation

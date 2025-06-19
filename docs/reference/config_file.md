@@ -30,7 +30,7 @@ key_path: "/etc/notary/config/key.pem"
 cert_path: "/etc/notary/config/cert.pem"
 db_path: "/var/lib/notary/database/notary.db"
 port: 3000
-pebble_notifications: false
+pebble_notifications: true
 logging:
   system:
     level: "info"

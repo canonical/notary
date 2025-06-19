@@ -28,10 +28,10 @@ type PrometheusMetrics struct {
 	CertificatesExpiringIn30Days   prometheus.Gauge
 	CertificatesExpiringIn90Days   prometheus.Gauge
 	ExpiredCertificates            prometheus.Gauge
-	ActiveCACertificates           prometheus.Gauge
+	EnabledCACertificates          prometheus.Gauge
 	ExpiredCACertificates          prometheus.Gauge
-	InactiveCACertificates         prometheus.Gauge
-	ActiveCARemainingDays          prometheus.GaugeVec
+	DisabledCACertificates         prometheus.Gauge
+	EnabledCARemainingDays         prometheus.GaugeVec
 
 	RequestsTotal    prometheus.CounterVec
 	RequestsDuration prometheus.HistogramVec
@@ -105,12 +105,12 @@ func newPrometheusMetrics() *PrometheusMetrics {
 		CertificatesExpiringIn7Days:    certificatesExpiringIn7DaysMetric(),
 		CertificatesExpiringIn30Days:   certificatesExpiringIn30DaysMetric(),
 		CertificatesExpiringIn90Days:   certificatesExpiringIn90DaysMetric(),
-		ActiveCACertificates:           activeCACertificatesMetric(),
+		EnabledCACertificates:          enabledCACertificatesMetric(),
 		RequestsTotal:                  requestsTotalMetric(),
 		RequestsDuration:               requestDurationMetric(),
 		ExpiredCACertificates:          expiredCACertificatesMetric(),
-		InactiveCACertificates:         inactiveCACertificatesMetric(),
-		ActiveCARemainingDays:          activeCARemainingDaysMetric(),
+		DisabledCACertificates:         disabledCACertificatesMetric(),
+		EnabledCARemainingDays:         enabledCARemainingDaysMetric(),
 	}
 	m.registry.MustRegister(m.CertificateRequests)
 	m.registry.MustRegister(m.OutstandingCertificateRequests)
@@ -120,10 +120,10 @@ func newPrometheusMetrics() *PrometheusMetrics {
 	m.registry.MustRegister(m.CertificatesExpiringIn7Days)
 	m.registry.MustRegister(m.CertificatesExpiringIn30Days)
 	m.registry.MustRegister(m.CertificatesExpiringIn90Days)
-	m.registry.MustRegister(m.ActiveCACertificates)
+	m.registry.MustRegister(m.EnabledCACertificates)
 	m.registry.MustRegister(m.ExpiredCACertificates)
-	m.registry.MustRegister(m.InactiveCACertificates)
-	m.registry.MustRegister(m.ActiveCARemainingDays)
+	m.registry.MustRegister(m.DisabledCACertificates)
+	m.registry.MustRegister(m.EnabledCARemainingDays)
 
 	m.registry.MustRegister(m.RequestsTotal)
 	m.registry.MustRegister(m.RequestsDuration)
@@ -183,11 +183,11 @@ func (pm *PrometheusMetrics) GenerateCertificateMetrics(csrs []db.CertificateReq
 }
 
 func (pm *PrometheusMetrics) GenerateCACertificateMetrics(cas []db.CertificateAuthorityDenormalized) {
-	var activeCACertCount float64
-	var inactiveCACertCount float64
+	var enabledCACertCount float64
+	var disabledCACertCount float64
 	var expiredCACertCount float64
 
-	pm.ActiveCARemainingDays.Reset()
+	pm.EnabledCARemainingDays.Reset()
 
 	for _, entry := range cas {
 		if entry.CertificateChain != "" {
@@ -196,23 +196,23 @@ func (pm *PrometheusMetrics) GenerateCACertificateMetrics(cas []db.CertificateAu
 				expiredCACertCount += 1
 			}
 		}
-		if entry.Active == 1 {
-			activeCACertCount += 1
+		if entry.Enabled == 1 {
+			enabledCACertCount += 1
 			if entry.CertificateChain != "" {
 				expiryDate := certificateExpiryDate(entry.CertificateChain)
 				daysRemaining := math.Floor(time.Until(expiryDate).Hours() / 24)
 
-				pm.ActiveCARemainingDays.With(prometheus.Labels{
+				pm.EnabledCARemainingDays.With(prometheus.Labels{
 					"ca_id": fmt.Sprintf("%d", entry.CertificateAuthorityID),
 				}).Set(daysRemaining)
 			}
 		} else {
-			inactiveCACertCount += 1
+			disabledCACertCount += 1
 		}
 	}
-	pm.ActiveCACertificates.Set(activeCACertCount)
+	pm.EnabledCACertificates.Set(enabledCACertCount)
 	pm.ExpiredCACertificates.Set(expiredCACertCount)
-	pm.InactiveCACertificates.Set(inactiveCACertCount)
+	pm.DisabledCACertificates.Set(disabledCACertCount)
 }
 
 func certificateRequestsMetric() prometheus.Gauge {
@@ -279,10 +279,10 @@ func certificatesExpiringIn90DaysMetric() prometheus.Gauge {
 	return metric
 }
 
-func activeCACertificatesMetric() prometheus.Gauge {
+func enabledCACertificatesMetric() prometheus.Gauge {
 	metric := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "active_ca_certificates",
-		Help: "Number of active CA certificates",
+		Name: "enabled_ca_certificates",
+		Help: "Number of enabled CA certificates",
 	})
 	return metric
 }
@@ -295,19 +295,19 @@ func expiredCACertificatesMetric() prometheus.Gauge {
 	return metric
 }
 
-func inactiveCACertificatesMetric() prometheus.Gauge {
+func disabledCACertificatesMetric() prometheus.Gauge {
 	metric := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "inactive_ca_certificates",
-		Help: "Number of inactive CA certificates",
+		Name: "disabled_ca_certificates",
+		Help: "Number of disabled CA certificates",
 	})
 	return metric
 }
 
-func activeCARemainingDaysMetric() prometheus.GaugeVec {
+func enabledCARemainingDaysMetric() prometheus.GaugeVec {
 	metric := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "active_ca_certificate_validity_days",
-			Help: "Number of days remaining until active CA certificates expire",
+			Name: "enabled_ca_certificate_validity_days",
+			Help: "Number of days remaining until enabled CA certificates expire",
 		},
 		[]string{"ca_id"},
 	)

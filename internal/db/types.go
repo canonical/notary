@@ -2,9 +2,9 @@ package db
 
 const CAMaxExpiryYears = 1
 
-type CAActive int
+type CAEnabled int
 
-func (c CAActive) ToBool() bool {
+func (c CAEnabled) ToBool() bool {
 	return c == 1
 }
 
@@ -14,15 +14,15 @@ func (c CAActive) ToBool() bool {
 type CertificateAuthority struct {
 	CertificateAuthorityID int64 `db:"certificate_authority_id"`
 
-	CRL    string   `db:"crl"`
-	Active CAActive `db:"active"`
+	CRL     string    `db:"crl"`
+	Enabled CAEnabled `db:"enabled"`
 
 	PrivateKeyID  int64 `db:"private_key_id"`
 	CertificateID int64 `db:"certificate_id"`
 	CSRID         int64 `db:"csr_id"`
 }
 
-func BoolToCAActive(b bool) CAActive {
+func BoolToCAEnabled(b bool) CAEnabled {
 	if b {
 		return 1
 	}
@@ -33,12 +33,12 @@ func BoolToCAActive(b bool) CAActive {
 // object, but this object contains the PEM encoded strings directly embedded to the struct
 // instead of an ID integer.
 type CertificateAuthorityDenormalized struct {
-	CertificateAuthorityID int64    `db:"certificate_authority_id"`
-	CRL                    string   `db:"crl"`
-	Active                 CAActive `db:"active"`
-	PrivateKeyID           int64    `db:"private_key_id"`
-	CertificateChain       string   `db:"certificate_chain"`
-	CSRPEM                 string   `db:"csr"`
+	CertificateAuthorityID int64     `db:"certificate_authority_id"`
+	CRL                    string    `db:"crl"`
+	Enabled                CAEnabled `db:"enabled"`
+	PrivateKeyID           int64     `db:"private_key_id"`
+	CertificateChain       string    `db:"certificate_chain"`
+	CSRPEM                 string    `db:"csr"`
 }
 
 // Certificate contains information about a singular certificate in the database. Its IssuerID

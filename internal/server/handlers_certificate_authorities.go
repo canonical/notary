@@ -24,7 +24,7 @@ const nextUpdateYears = 1
 
 type CertificateAuthority struct {
 	ID             int64  `json:"id"`
-	Active         bool   `json:"active"`
+	Enabled        bool   `json:"enabled"`
 	PrivateKeyPEM  string `json:"private_key,omitempty"`
 	CertificatePEM string `json:"certificate"`
 	CSRPEM         string `json:"csr"`
@@ -49,7 +49,7 @@ type CreateCertificateAuthorityParams struct {
 }
 
 type UpdateCertificateAuthorityParams struct {
-	Active bool `json:"active,omitempty"`
+	Enabled bool `json:"enabled,omitempty"`
 }
 
 type UploadCertificateToCertificateAuthorityParams struct {
@@ -229,7 +229,7 @@ func ListCertificateAuthorities(env *HandlerConfig) http.HandlerFunc {
 		for i, ca := range cas {
 			caResponse[i] = CertificateAuthority{
 				ID:             ca.CertificateAuthorityID,
-				Active:         ca.Active.ToBool(),
+				Enabled:        ca.Enabled.ToBool(),
 				PrivateKeyPEM:  "",
 				CSRPEM:         ca.CSRPEM,
 				CertificatePEM: ca.CertificateChain,
@@ -310,7 +310,7 @@ func GetCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 		}
 		caResponse := CertificateAuthority{
 			ID:             ca.CertificateAuthorityID,
-			Active:         ca.Active.ToBool(),
+			Enabled:        ca.Enabled.ToBool(),
 			PrivateKeyPEM:  "",
 			CSRPEM:         ca.CSRPEM,
 			CertificatePEM: ca.CertificateChain,
@@ -341,7 +341,7 @@ func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 
-		err = env.DB.UpdateCertificateAuthorityActiveStatus(db.ByCertificateAuthorityID(idNum), params.Active)
+		err = env.DB.UpdateCertificateAuthorityEnabledStatus(db.ByCertificateAuthorityID(idNum), params.Enabled)
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found", err, env.Logger)
@@ -427,7 +427,7 @@ func PostCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
 	}
 }
 
-// SignCertificateAuthority handler receives the ID of an existing active certificate authority in Notary
+// SignCertificateAuthority handler receives the ID of an existing enabled certificate authority in Notary
 // to sign any pending intermediate certificate authority available in Notary.
 // It returns a 202 Accepted on success.
 func SignCertificateAuthority(env *HandlerConfig) http.HandlerFunc {

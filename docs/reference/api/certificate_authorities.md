@@ -127,7 +127,7 @@ This path updates the status of a certificate authority.
 
 ### Parameters
 
-- `active` (bool): Whether the certificate authority is active or not. A certificate authority can only be active if it has a certificate chain uploaded and is not expired.
+- `enabled` (bool): Whether the certificate authority can be used to sign certificates. You may disable a CA for maintenance, auditing, or policy reasons — even if the certificate is still valid.
 
 ### Sample Response
 

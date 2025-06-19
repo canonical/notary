@@ -49,7 +49,7 @@ func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, cr
 	CARow := CertificateAuthority{
 		CSRID:        csrID,
 		PrivateKeyID: pkID,
-		Active:       BoolToCAActive(false),
+		Enabled:      BoolToCAEnabled(false),
 	}
 	if certChainPEM != "" {
 		if crlPEM == "" {
@@ -64,7 +64,7 @@ func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, cr
 			CertificateID: certID,
 			CRL:           crlPEM,
 			PrivateKeyID:  pkID,
-			Active:        BoolToCAActive(true),
+			Enabled:       BoolToCAEnabled(true),
 		}
 	}
 	insertedRowID, err := CreateEntity(db, db.stmts.CreateCertificateAuthority, CARow)
@@ -124,18 +124,18 @@ func (db *Database) UpdateCertificateAuthorityCertificate(filter CertificateAuth
 		CertificateAuthorityID: ca.CertificateAuthorityID,
 		CertificateID:          certID,
 		CRL:                    newCRL,
-		Active:                 BoolToCAActive(true),
+		Enabled:                BoolToCAEnabled(true),
 	}
 	return UpdateEntity(db, db.stmts.UpdateCertificateAuthority, newRow)
 }
 
 // UpdateCertificateAuthorityStatus updates the status of a certificate authority.
-func (db *Database) UpdateCertificateAuthorityActiveStatus(filter CertificateAuthorityFilter, active bool) error {
+func (db *Database) UpdateCertificateAuthorityEnabledStatus(filter CertificateAuthorityFilter, enabled bool) error {
 	ca, err := db.GetCertificateAuthority(filter)
 	if err != nil {
 		return err
 	}
-	if active {
+	if enabled {
 		caDenormalized, err := db.GetDenormalizedCertificateAuthority(ByCertificateAuthorityDenormalizedID(ca.CertificateAuthorityID))
 		if err != nil {
 			return err
@@ -148,7 +148,7 @@ func (db *Database) UpdateCertificateAuthorityActiveStatus(filter CertificateAut
 			return fmt.Errorf("%w: cannot update status of a certificate authority with an expired certificate", ErrInvalidInput)
 		}
 	}
-	ca.Active = BoolToCAActive(active)
+	ca.Enabled = BoolToCAEnabled(enabled)
 	return UpdateEntity(db, db.stmts.UpdateCertificateAuthority, ca)
 }
 
@@ -193,8 +193,8 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 	if caRow.CertificateChain == "" {
 		return errors.New("CA does not have a valid signed certificate to sign certificates")
 	}
-	if caRow.Active != 1 {
-		return errors.New("CA is not active to sign certificates")
+	if caRow.Enabled != 1 {
+		return errors.New("CA is not enabled to sign certificates")
 	}
 
 	expiryDate := certificateExpiryDate(caRow.CertificateChain)
@@ -340,7 +340,7 @@ func (db *Database) RevokeCertificate(filter CSRFilter) error {
 	// Check if the certificate being revoked belongs to a CA, if so, set its status to pending
 	revokedCA, err := db.GetCertificateAuthority(ByCertificateAuthorityCertificateID(certToRevoke.CertificateID))
 	if rowFound(err) {
-		err = db.UpdateCertificateAuthorityActiveStatus(ByCertificateAuthorityID(revokedCA.CertificateAuthorityID), false)
+		err = db.UpdateCertificateAuthorityEnabledStatus(ByCertificateAuthorityID(revokedCA.CertificateAuthorityID), false)
 		if err != nil {
 			return err
 		}

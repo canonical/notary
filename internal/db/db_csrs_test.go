@@ -11,7 +11,7 @@ import (
 
 func TestCSRsEndToEnd(t *testing.T) {
 	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend)
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend, logger)
 	if err != nil {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}
@@ -131,7 +131,7 @@ func TestCSRsEndToEnd(t *testing.T) {
 }
 
 func TestCreateCertificateRequestFails(t *testing.T) {
-	db, _ := db.NewDatabase(":memory:", NoneEncryptionBackend)
+	db, _ := db.NewDatabase(":memory:", NoneEncryptionBackend, logger)
 	defer db.Close()
 
 	userID, err := db.CreateUser("testuser", "testpassword", 0)
@@ -154,7 +154,7 @@ func TestCreateCertificateRequestFails(t *testing.T) {
 }
 
 func TestGetCertificateRequestFails(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend)
+	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend, logger)
 	defer database.Close()
 
 	userID, err := database.CreateUser("testuser", "testpassword", 0)
@@ -186,7 +186,7 @@ func TestGetCertificateRequestFails(t *testing.T) {
 }
 
 func TestDeleteCertificateRequest(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend)
+	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend, logger)
 	defer database.Close()
 
 	userID, err := database.CreateUser("testuser", "testpassword", 0)
@@ -222,7 +222,7 @@ func TestDeleteCertificateRequest(t *testing.T) {
 }
 
 func TestRevokeCertificateRequestFails(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend)
+	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend, logger)
 	defer database.Close()
 
 	userID, err := database.CreateUser("testuser", "testpassword", 0)
@@ -252,7 +252,7 @@ func TestRevokeCertificateRequestFails(t *testing.T) {
 }
 
 func TestRejectCertificateRequestFails(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend)
+	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend, logger)
 	defer database.Close()
 
 	userID, err := database.CreateUser("testuser", "testpassword", 0)
@@ -285,7 +285,7 @@ func TestRejectCertificateRequestFails(t *testing.T) {
 
 func TestCASNotShowingUpInCSRsTable(t *testing.T) {
 	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend)
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend, logger)
 	if err != nil {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}

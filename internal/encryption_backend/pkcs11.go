@@ -81,13 +81,13 @@ const ivSize = 16 // bytes
 
 // NewPKCS11Backend creates a new PKCS11Backend.
 func NewPKCS11Backend(libPath string, pin string, keyID uint16, logger *zap.Logger) (*PKCS11Backend, error) {
-	ctx := pkcs11.New(libPath)
-	if ctx == nil {
+	pkcs11Provider := pkcs11.New(libPath)
+	if pkcs11Provider == nil {
 		return nil, fmt.Errorf("failed to load PKCS#11 library at %s", libPath)
 	}
 
 	return &PKCS11Backend{
-		pkcs11Provider: &realPKCS11Provider{ctx: ctx},
+		pkcs11Provider: &realPKCS11Provider{ctx: pkcs11Provider},
 		pin:            pin,
 		keyID:          keyID,
 		logger:         logger,

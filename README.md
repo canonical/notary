@@ -14,7 +14,6 @@ We designed Notary for Enterprise environments where users need to securely mana
 - **Simple UI**: A simple and intuitive web interface for managing certificates.
 - **Extensive HTTP API**: Accomplish all the tasks you can do in the UI via the HTTP API.
 - **Metrics**: Monitor the state of your certificates and the health of your Notary instance with Prometheus metrics.
-- **Encryption at Rest**: Sensitive data like private keys is encrypted in the database.
 - **HSM Support**: Secure Notary's private keys using a PKCS#11 compliant Hardware Security Module (HSM).
 
 ## Quick links

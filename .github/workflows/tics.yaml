@@ -5,6 +5,7 @@ on:
     - cron: "0 3 * * 0" # Every Sunday at 3 am
   workflow_dispatch:
 
+
 jobs:
   analyze:
     runs-on: [self-hosted, linux, amd64, tiobe, jammy]

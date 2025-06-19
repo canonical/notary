@@ -1,5 +1,7 @@
 # Use an HSM as Notary's Encryption Backend
 
+**Note**: Once Notary is initialized it must continue using the encryption backend configured at the time of initialization, at the moment there is no way to switch backends.
+
 In this guide we show the required configuration to use a Hardware Security Module (HSM) as an encryption backend for Notary.
 **Note**: This has been tested with YubiHSM2, while this should work with any HSM that supports the PKCS11 protocol please follow any further instruction from the specific HSM vendor.
 

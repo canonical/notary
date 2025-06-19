@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/canonical/notary/internal/encryption"
+	"github.com/canonical/notary/internal/encryption_backend"
 	"github.com/canonical/sqlair"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -35,7 +35,7 @@ func (db *Database) Close() error {
 // stores the connection information and returns an object containing the information.
 // The database path must be a valid file path or ":memory:".
 // The table will be created if it doesn't exist in the format expected by the package.
-func NewDatabase(databasePath string, backend encryption.EncryptionBackend) (*Database, error) {
+func NewDatabase(databasePath string, backend encryption_backend.EncryptionBackend) (*Database, error) {
 	sqlConnection, err := sql.Open("sqlite3", databasePath)
 	if err != nil {
 		return nil, err

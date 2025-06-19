@@ -1,11 +1,4 @@
-package encryption
-
-// EncryptionBackend defines the interface for encryption operations.
-// Implementations should handle the encryption and decryption of sensitive data.
-type EncryptionBackend interface {
-	Decrypt(ciphertext []byte) ([]byte, error)
-	Encrypt(plaintext []byte) ([]byte, error)
-}
+package encryption_backend
 
 // NoEncryptionBackend is a no-op implementation of the EncryptionBackend interface.
 // It used when encryption backend is configured to none.

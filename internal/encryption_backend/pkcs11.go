@@ -1,4 +1,4 @@
-package encryption
+package encryption_backend
 
 import (
 	"crypto/rand"
@@ -8,8 +8,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// PKCS11Context defines the interface for PKCS11 operations needed by our backend
-type PKCS11Context interface {
+// PKCS11Provider defines the interface for PKCS11 operations needed by our backend
+type PKCS11Provider interface {
 	Initialize() error
 	Finalize() error
 	GetSlotList(bool) ([]uint, error)
@@ -26,51 +26,51 @@ type PKCS11Context interface {
 	Decrypt(pkcs11.SessionHandle, []byte) ([]byte, error)
 }
 
-// pkcs11ContextWrapper implements PKCS11Context using the real pkcs11.Ctx
-type pkcs11ContextWrapper struct {
+// realPKCS11Provider implements PKCS11Provider using the real pkcs11.Ctx
+type realPKCS11Provider struct {
 	ctx *pkcs11.Ctx
 }
 
-func (p *pkcs11ContextWrapper) Initialize() error { return p.ctx.Initialize() }
-func (p *pkcs11ContextWrapper) Finalize() error   { return p.ctx.Finalize() }
-func (p *pkcs11ContextWrapper) GetSlotList(tokenPresent bool) ([]uint, error) {
+func (p *realPKCS11Provider) Initialize() error { return p.ctx.Initialize() }
+func (p *realPKCS11Provider) Finalize() error   { return p.ctx.Finalize() }
+func (p *realPKCS11Provider) GetSlotList(tokenPresent bool) ([]uint, error) {
 	return p.ctx.GetSlotList(tokenPresent)
 }
-func (p *pkcs11ContextWrapper) OpenSession(slotID uint, flags uint) (pkcs11.SessionHandle, error) {
+func (p *realPKCS11Provider) OpenSession(slotID uint, flags uint) (pkcs11.SessionHandle, error) {
 	return p.ctx.OpenSession(slotID, flags)
 }
-func (p *pkcs11ContextWrapper) CloseSession(sh pkcs11.SessionHandle) error {
+func (p *realPKCS11Provider) CloseSession(sh pkcs11.SessionHandle) error {
 	return p.ctx.CloseSession(sh)
 }
-func (p *pkcs11ContextWrapper) Login(sh pkcs11.SessionHandle, ut uint, pin string) error {
+func (p *realPKCS11Provider) Login(sh pkcs11.SessionHandle, ut uint, pin string) error {
 	return p.ctx.Login(sh, ut, pin)
 }
-func (p *pkcs11ContextWrapper) Logout(sh pkcs11.SessionHandle) error { return p.ctx.Logout(sh) }
-func (p *pkcs11ContextWrapper) FindObjectsInit(sh pkcs11.SessionHandle, temp []*pkcs11.Attribute) error {
+func (p *realPKCS11Provider) Logout(sh pkcs11.SessionHandle) error { return p.ctx.Logout(sh) }
+func (p *realPKCS11Provider) FindObjectsInit(sh pkcs11.SessionHandle, temp []*pkcs11.Attribute) error {
 	return p.ctx.FindObjectsInit(sh, temp)
 }
-func (p *pkcs11ContextWrapper) FindObjects(sh pkcs11.SessionHandle, max int) ([]pkcs11.ObjectHandle, bool, error) {
+func (p *realPKCS11Provider) FindObjects(sh pkcs11.SessionHandle, max int) ([]pkcs11.ObjectHandle, bool, error) {
 	return p.ctx.FindObjects(sh, max)
 }
-func (p *pkcs11ContextWrapper) FindObjectsFinal(sh pkcs11.SessionHandle) error {
+func (p *realPKCS11Provider) FindObjectsFinal(sh pkcs11.SessionHandle) error {
 	return p.ctx.FindObjectsFinal(sh)
 }
-func (p *pkcs11ContextWrapper) EncryptInit(sh pkcs11.SessionHandle, m []*pkcs11.Mechanism, o pkcs11.ObjectHandle) error {
+func (p *realPKCS11Provider) EncryptInit(sh pkcs11.SessionHandle, m []*pkcs11.Mechanism, o pkcs11.ObjectHandle) error {
 	return p.ctx.EncryptInit(sh, m, o)
 }
-func (p *pkcs11ContextWrapper) Encrypt(sh pkcs11.SessionHandle, message []byte) ([]byte, error) {
+func (p *realPKCS11Provider) Encrypt(sh pkcs11.SessionHandle, message []byte) ([]byte, error) {
 	return p.ctx.Encrypt(sh, message)
 }
-func (p *pkcs11ContextWrapper) DecryptInit(sh pkcs11.SessionHandle, m []*pkcs11.Mechanism, o pkcs11.ObjectHandle) error {
+func (p *realPKCS11Provider) DecryptInit(sh pkcs11.SessionHandle, m []*pkcs11.Mechanism, o pkcs11.ObjectHandle) error {
 	return p.ctx.DecryptInit(sh, m, o)
 }
-func (p *pkcs11ContextWrapper) Decrypt(sh pkcs11.SessionHandle, message []byte) ([]byte, error) {
+func (p *realPKCS11Provider) Decrypt(sh pkcs11.SessionHandle, message []byte) ([]byte, error) {
 	return p.ctx.Decrypt(sh, message)
 }
 
 // PKCS11Backend implements EncryptionBackend using the PKCS11 protocol for HSMs.
 type PKCS11Backend struct {
-	ctx    PKCS11Context
+	ctx    PKCS11Provider
 	pin    string
 	keyID  uint16
 	logger *zap.Logger
@@ -86,7 +86,7 @@ func NewPKCS11Backend(libPath string, pin string, keyID uint16, logger *zap.Logg
 	}
 
 	return &PKCS11Backend{
-		ctx:    &pkcs11ContextWrapper{ctx: ctx},
+		ctx:    &realPKCS11Provider{ctx: ctx},
 		pin:    pin,
 		keyID:  keyID,
 		logger: logger,
@@ -205,6 +205,23 @@ func (h *PKCS11Backend) cleanupInitialization() error {
 	return nil
 }
 
+func (h *PKCS11Backend) openSessionOnSlot(slot uint) (pkcs11.SessionHandle, error) {
+	session, err := h.ctx.OpenSession(slot, pkcs11.CKF_SERIAL_SESSION|pkcs11.CKF_RW_SESSION)
+	if err != nil {
+		return 0, fmt.Errorf("failed to open session: %w", err)
+	}
+
+	if err := h.ctx.Login(session, pkcs11.CKU_USER, h.pin); err != nil {
+		closeErr := h.ctx.CloseSession(session)
+		if closeErr != nil {
+			h.logger.Error("Error closing session after failed login", zap.Error(closeErr))
+		}
+		return 0, fmt.Errorf("failed to login: %w", err)
+	}
+
+	return session, nil
+}
+
 func (h *PKCS11Backend) connectToBackend() (pkcs11.SessionHandle, pkcs11.ObjectHandle, error) {
 	if err := h.ctx.Initialize(); err != nil {
 		return 0, 0, err
@@ -218,34 +235,20 @@ func (h *PKCS11Backend) connectToBackend() (pkcs11.SessionHandle, pkcs11.ObjectH
 		return 0, 0, err
 	}
 
-	var session pkcs11.SessionHandle
-	var keyHandle pkcs11.ObjectHandle
 	var lastErr error
-
 	for _, slot := range slots {
-		session, err = h.ctx.OpenSession(slot, pkcs11.CKF_SERIAL_SESSION|pkcs11.CKF_RW_SESSION)
+		session, err := h.openSessionOnSlot(slot)
 		if err != nil {
 			lastErr = err
 			continue
 		}
 
-		if err := h.ctx.Login(session, pkcs11.CKU_USER, h.pin); err != nil {
-			closeErr := h.ctx.CloseSession(session)
-			if closeErr != nil {
-				h.logger.Error("Error closing session while connecting to backend", zap.Error(closeErr))
-			}
-			lastErr = err
-			continue
-		}
-
-		keyHandle, err = h.findKey(session, h.keyID)
+		keyHandle, err := h.findKey(session, h.keyID)
 		if err != nil {
-			closeErr := h.ctx.Logout(session)
-			if closeErr != nil {
-				h.logger.Error("Error logging out while connecting to backend", zap.Error(closeErr))
+			if logoutErr := h.ctx.Logout(session); logoutErr != nil {
+				h.logger.Error("Error logging out while connecting to backend", zap.Error(logoutErr))
 			}
-			closeErr = h.ctx.CloseSession(session)
-			if closeErr != nil {
+			if closeErr := h.ctx.CloseSession(session); closeErr != nil {
 				h.logger.Error("Error closing session while connecting to backend", zap.Error(closeErr))
 			}
 			lastErr = err

@@ -24,7 +24,21 @@ Start Notary with the `--config` flag to specify the path to the configuration f
 
 ## Examples
 
-### With PKCS#11 Backend
+### Default
+```yaml
+key_path: "/etc/notary/config/key.pem"
+cert_path: "/etc/notary/config/cert.pem"
+db_path: "/var/lib/notary/database/notary.db"
+port: 3000
+pebble_notifications: false
+logging:
+  system:
+    level: "info"
+    output: "stdout"
+encryption_backend: none
+```
+
+### With HSM as an Encryption Backend
 ```yaml
 key_path: "/etc/notary/config/key.pem"
 cert_path: "/etc/notary/config/cert.pem"
@@ -41,18 +55,4 @@ encryption_backend:
       lib_path: "/path/to/yubihsm_pkcs11.so"
       pin: "0001password"
       key_id: 0x1234
-```
-
-### With No Encryption
-```yaml
-key_path: "/etc/notary/config/key.pem"
-cert_path: "/etc/notary/config/cert.pem"
-db_path: "/var/lib/notary/database/notary.db"
-port: 3000
-pebble_notifications: false
-logging:
-  system:
-    level: "info"
-    output: "stdout"
-encryption_backend: none
 ```

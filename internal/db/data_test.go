@@ -1,6 +1,6 @@
 package db_test
 
-import "github.com/canonical/notary/internal/encryption"
+import "github.com/canonical/notary/internal/encryption_backend"
 
 const (
 	RootCACSR = `-----BEGIN CERTIFICATE REQUEST-----
@@ -399,4 +399,4 @@ wM1PZYERQJNOGMAI5Q==
 -----END CERTIFICATE-----`
 )
 
-var NoneEncryptionBackend = encryption.NoEncryptionBackend{}
+var NoneEncryptionBackend = encryption_backend.NoEncryptionBackend{}

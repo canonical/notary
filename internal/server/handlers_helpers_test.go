@@ -14,15 +14,14 @@ import (
 )
 
 func setupServer(filepath string) (*httptest.Server, *server.HandlerConfig, error) {
-	noneEncryptionBackend := encryption_backend.NoEncryptionBackend{}
-	testdb, err := db.NewDatabase(filepath, noneEncryptionBackend)
-	if err != nil {
-		return nil, nil, err
-	}
-
 	logger, err := zap.NewDevelopment()
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't create logger: %w", err)
+	}
+	noneEncryptionBackend := encryption_backend.NoEncryptionBackend{}
+	testdb, err := db.NewDatabase(filepath, noneEncryptionBackend, logger)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	config := &server.HandlerConfig{

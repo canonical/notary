@@ -64,7 +64,7 @@ func New(port int, cert []byte, key []byte, dbPath string, externalHostname stri
 	if err != nil {
 		return nil, err
 	}
-	database, err := db.NewDatabase(dbPath, encryptionBackend)
+	database, err := db.NewDatabase(dbPath, encryptionBackend, logger)
 	if err != nil {
 		return nil, err
 	}

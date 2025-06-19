@@ -1,6 +1,9 @@
 package db_test
 
-import "github.com/canonical/notary/internal/encryption_backend"
+import (
+	"github.com/canonical/notary/internal/encryption_backend"
+	"go.uber.org/zap"
+)
 
 const (
 	RootCACSR = `-----BEGIN CERTIFICATE REQUEST-----
@@ -400,3 +403,5 @@ wM1PZYERQJNOGMAI5Q==
 )
 
 var NoneEncryptionBackend = encryption_backend.NoEncryptionBackend{}
+
+var logger, _ = zap.NewDevelopment()

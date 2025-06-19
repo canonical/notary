@@ -119,7 +119,7 @@ func TestPKCS11BackendEncryptDecryptSuccess(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockCtx, err := newfakePKCS11Provider()
+			fakeProvider, err := newfakePKCS11Provider()
 			if err != nil {
 				t.Fatalf("Failed to create mock context: %v", err)
 			}
@@ -129,7 +129,7 @@ func TestPKCS11BackendEncryptDecryptSuccess(t *testing.T) {
 			}
 
 			backend := &PKCS11Backend{
-				pkcs11Provider: mockCtx,
+				pkcs11Provider: fakeProvider,
 				pin:            "1234",
 				keyID:          1,
 				logger:         logger,
@@ -170,7 +170,7 @@ func TestPKCS11BackendEncryptDecryptSuccess(t *testing.T) {
 }
 
 func TestPKCS11BackendDecryptInvalidInput(t *testing.T) {
-	mockCtx, err := newfakePKCS11Provider()
+	fakeProvider, err := newfakePKCS11Provider()
 	if err != nil {
 		t.Fatalf("Failed to create mock context: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestPKCS11BackendDecryptInvalidInput(t *testing.T) {
 	}
 
 	backend := &PKCS11Backend{
-		pkcs11Provider: mockCtx,
+		pkcs11Provider: fakeProvider,
 		pin:            "1234",
 		keyID:          1,
 		logger:         logger,

@@ -31,3 +31,4 @@ decrypt
 HSM's
 SDK
 dylib
+config

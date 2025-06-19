@@ -44,5 +44,3 @@ jobs:
     needs: [snap-build]
     uses: ./.github/workflows/snap-publish.yaml
     secrets: inherit
-  tics:
-    uses: ./.github/workflows/tics.yaml

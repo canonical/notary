@@ -96,7 +96,7 @@ encryption_backend:
   yubihsm2:
     invalid:
       lib_path: "/usr/local/lib/pkcs11/yubihsm_pkcs11.so"
-      key_id: 0x1234
+      aes_encryption_key_id: 0x1234
       pin: "0001password"`
 	invalidEncryptionBackendConfig = `key_path:  "./key_test.pem"
 cert_path: "./cert_test.pem"
@@ -132,7 +132,7 @@ encryption_backend:
   yubihsm2:
     pkcs11:
       lib_path: "/usr/local/lib/pkcs11/yubihsm_pkcs11.so"
-      key_id: 0x1234
+      aes_encryption_key_id: 0x1234
 `
 	invalidYAMLConfig = `just_an=invalid
 yaml.here`

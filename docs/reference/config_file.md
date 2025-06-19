@@ -20,7 +20,7 @@ Start Notary with the `--config` flag to specify the path to the configuration f
     - `pkcs11` (object): Configuration for PKCS#11 backend.
       - `lib_path` (string): Path to the PKCS#11 library needed to communicate with the backend.
       - `pin` (string): PIN for authenticating with the PKCS#11 device.
-      - `key_id` (integer): ID of the key to use on the PKCS#11 device.
+      - `aes_encryption_key_id` (integer): ID of the key to use on the PKCS#11 device.
 
 ## Examples
 
@@ -54,5 +54,5 @@ encryption_backend:
     pkcs11:
       lib_path: "/path/to/yubihsm_pkcs11.so"
       pin: "0001password"
-      key_id: 0x1234
+      aes_encryption_key_id: 0x1234
 ```

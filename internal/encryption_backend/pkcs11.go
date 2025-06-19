@@ -2,6 +2,7 @@ package encryption_backend
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 
 	"github.com/miekg/pkcs11"
@@ -70,10 +71,10 @@ func (p *realPKCS11Provider) Decrypt(sh pkcs11.SessionHandle, message []byte) ([
 
 // PKCS11Backend implements EncryptionBackend using the PKCS11 protocol for HSMs.
 type PKCS11Backend struct {
-	ctx    PKCS11Provider
-	pin    string
-	keyID  uint16
-	logger *zap.Logger
+	pkcs11Provider PKCS11Provider
+	pin            string
+	keyID          uint16
+	logger         *zap.Logger
 }
 
 const ivSize = 16 // bytes
@@ -86,10 +87,10 @@ func NewPKCS11Backend(libPath string, pin string, keyID uint16, logger *zap.Logg
 	}
 
 	return &PKCS11Backend{
-		ctx:    &realPKCS11Provider{ctx: ctx},
-		pin:    pin,
-		keyID:  keyID,
-		logger: logger,
+		pkcs11Provider: &realPKCS11Provider{ctx: ctx},
+		pin:            pin,
+		keyID:          keyID,
+		logger:         logger,
 	}, nil
 }
 
@@ -112,11 +113,11 @@ func (h *PKCS11Backend) Encrypt(data []byte) ([]byte, error) {
 
 	mech := pkcs11.NewMechanism(pkcs11.CKM_AES_CBC_PAD, iv)
 
-	if err := h.ctx.EncryptInit(session, []*pkcs11.Mechanism{mech}, key); err != nil {
+	if err := h.pkcs11Provider.EncryptInit(session, []*pkcs11.Mechanism{mech}, key); err != nil {
 		return nil, fmt.Errorf("failed to initialize encryption: %w", err)
 	}
 
-	ciphertext, err := h.ctx.Encrypt(session, data)
+	ciphertext, err := h.pkcs11Provider.Encrypt(session, data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encrypt data: %w", err)
 	}
@@ -133,7 +134,7 @@ func (h *PKCS11Backend) Encrypt(data []byte) ([]byte, error) {
 // The ciphertext is expected to contain the IV at the beginning.
 func (h *PKCS11Backend) Decrypt(ciphertext []byte) ([]byte, error) {
 	if len(ciphertext) < ivSize {
-		return nil, fmt.Errorf("invalid ciphertext: too short to contain IV")
+		return nil, errors.New("invalid ciphertext: too short to contain IV")
 	}
 
 	// Extract IV from the start of the ciphertext
@@ -152,11 +153,11 @@ func (h *PKCS11Backend) Decrypt(ciphertext []byte) ([]byte, error) {
 
 	mech := pkcs11.NewMechanism(pkcs11.CKM_AES_CBC_PAD, iv)
 
-	if err := h.ctx.DecryptInit(session, []*pkcs11.Mechanism{mech}, key); err != nil {
+	if err := h.pkcs11Provider.DecryptInit(session, []*pkcs11.Mechanism{mech}, key); err != nil {
 		return nil, fmt.Errorf("failed to initialize decryption: %w", err)
 	}
 
-	plaintext, err := h.ctx.Decrypt(session, ciphertext)
+	plaintext, err := h.pkcs11Provider.Decrypt(session, ciphertext)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decrypt data: %w", err)
 	}
@@ -170,14 +171,14 @@ func (h *PKCS11Backend) findKey(session pkcs11.SessionHandle, id uint16) (pkcs11
 		pkcs11.NewAttribute(pkcs11.CKA_ID, keyIDBytes),
 	}
 
-	if err := h.ctx.FindObjectsInit(session, template); err != nil {
+	if err := h.pkcs11Provider.FindObjectsInit(session, template); err != nil {
 		return 0, fmt.Errorf("failed to initialize object search: %w", err)
 	}
-	objects, _, err := h.ctx.FindObjects(session, 1)
+	objects, _, err := h.pkcs11Provider.FindObjects(session, 1)
 	if err != nil || len(objects) == 0 {
 		return 0, fmt.Errorf("failed to find objects: %w", err)
 	}
-	if err := h.ctx.FindObjectsFinal(session); err != nil {
+	if err := h.pkcs11Provider.FindObjectsFinal(session); err != nil {
 		return 0, fmt.Errorf("failed to finalize object search: %w", err)
 	}
 	return objects[0], nil
@@ -185,13 +186,13 @@ func (h *PKCS11Backend) findKey(session pkcs11.SessionHandle, id uint16) (pkcs11
 
 // cleanupSession performs cleanup of an active session
 func (h *PKCS11Backend) cleanupSession(session pkcs11.SessionHandle) error {
-	if err := h.ctx.Logout(session); err != nil {
+	if err := h.pkcs11Provider.Logout(session); err != nil {
 		return err
 	}
-	if err := h.ctx.CloseSession(session); err != nil {
+	if err := h.pkcs11Provider.CloseSession(session); err != nil {
 		return err
 	}
-	if err := h.ctx.Finalize(); err != nil {
+	if err := h.pkcs11Provider.Finalize(); err != nil {
 		return err
 	}
 	return nil
@@ -199,20 +200,20 @@ func (h *PKCS11Backend) cleanupSession(session pkcs11.SessionHandle) error {
 
 // cleanupInitialization performs cleanup of just the initialization
 func (h *PKCS11Backend) cleanupInitialization() error {
-	if err := h.ctx.Finalize(); err != nil {
+	if err := h.pkcs11Provider.Finalize(); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (h *PKCS11Backend) openSessionOnSlot(slot uint) (pkcs11.SessionHandle, error) {
-	session, err := h.ctx.OpenSession(slot, pkcs11.CKF_SERIAL_SESSION|pkcs11.CKF_RW_SESSION)
+	session, err := h.pkcs11Provider.OpenSession(slot, pkcs11.CKF_SERIAL_SESSION|pkcs11.CKF_RW_SESSION)
 	if err != nil {
 		return 0, fmt.Errorf("failed to open session: %w", err)
 	}
 
-	if err := h.ctx.Login(session, pkcs11.CKU_USER, h.pin); err != nil {
-		closeErr := h.ctx.CloseSession(session)
+	if err := h.pkcs11Provider.Login(session, pkcs11.CKU_USER, h.pin); err != nil {
+		closeErr := h.pkcs11Provider.CloseSession(session)
 		if closeErr != nil {
 			h.logger.Error("Error closing session after failed login", zap.Error(closeErr))
 		}
@@ -223,11 +224,11 @@ func (h *PKCS11Backend) openSessionOnSlot(slot uint) (pkcs11.SessionHandle, erro
 }
 
 func (h *PKCS11Backend) connectToBackend() (pkcs11.SessionHandle, pkcs11.ObjectHandle, error) {
-	if err := h.ctx.Initialize(); err != nil {
+	if err := h.pkcs11Provider.Initialize(); err != nil {
 		return 0, 0, err
 	}
 
-	slots, err := h.ctx.GetSlotList(true)
+	slots, err := h.pkcs11Provider.GetSlotList(true)
 	if err != nil || len(slots) == 0 {
 		if cleanupErr := h.cleanupInitialization(); cleanupErr != nil {
 			h.logger.Error("Error during cleanup of PKCS11 resources while connecting to backend", zap.Error(cleanupErr))
@@ -245,10 +246,10 @@ func (h *PKCS11Backend) connectToBackend() (pkcs11.SessionHandle, pkcs11.ObjectH
 
 		keyHandle, err := h.findKey(session, h.keyID)
 		if err != nil {
-			if logoutErr := h.ctx.Logout(session); logoutErr != nil {
+			if logoutErr := h.pkcs11Provider.Logout(session); logoutErr != nil {
 				h.logger.Error("Error logging out while connecting to backend", zap.Error(logoutErr))
 			}
-			if closeErr := h.ctx.CloseSession(session); closeErr != nil {
+			if closeErr := h.pkcs11Provider.CloseSession(session); closeErr != nil {
 				h.logger.Error("Error closing session while connecting to backend", zap.Error(closeErr))
 			}
 			lastErr = err
@@ -261,7 +262,7 @@ func (h *PKCS11Backend) connectToBackend() (pkcs11.SessionHandle, pkcs11.ObjectH
 	if cleanupErr := h.cleanupInitialization(); cleanupErr != nil {
 		h.logger.Error("Error during cleanup of PKCS11 resources while connecting to backend", zap.Error(cleanupErr))
 	}
-	return 0, 0, fmt.Errorf("failed to find key in any slot: %v", lastErr)
+	return 0, 0, fmt.Errorf("failed to find key in any slot: %w", lastErr)
 }
 
 func generateRandomIV() ([]byte, error) {

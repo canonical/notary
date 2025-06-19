@@ -25,7 +25,7 @@ encryption_backend:
     pkcs11:
       lib_path: "/usr/lib/x86_64-linux-gnu/pkcs11/yubihsm_pkcs11.so"
       pin: "0001password"
-      key_id: 0x1234
+      aes_encryption_key_id: 0x1234
 ```
 
 Start Notary

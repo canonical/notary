@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -70,9 +70,9 @@ func createEncryptionBackend(backendConfig config.BackendConfig, logger *zap.Log
 		logger.Info("PKCS11 backend configured")
 		return backend, nil
 	case config.Vault:
-		return nil, fmt.Errorf("vault backend is not implemented")
+		return nil, errors.New("vault backend is not implemented")
 	case config.None:
 		return encryption_backend.NoEncryptionBackend{}, nil
 	}
-	return nil, fmt.Errorf("unknown backend type")
+	return nil, errors.New("unknown backend type")
 }

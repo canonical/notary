@@ -129,10 +129,10 @@ func TestPKCS11BackendEncryptDecryptSuccess(t *testing.T) {
 			}
 
 			backend := &PKCS11Backend{
-				ctx:    mockCtx,
-				pin:    "1234",
-				keyID:  1,
-				logger: logger,
+				pkcs11Provider: mockCtx,
+				pin:            "1234",
+				keyID:          1,
+				logger:         logger,
 			}
 
 			ciphertext1, err := backend.Encrypt(tt.message)
@@ -180,10 +180,10 @@ func TestPKCS11BackendDecryptInvalidInput(t *testing.T) {
 	}
 
 	backend := &PKCS11Backend{
-		ctx:    mockCtx,
-		pin:    "1234",
-		keyID:  1,
-		logger: logger,
+		pkcs11Provider: mockCtx,
+		pin:            "1234",
+		keyID:          1,
+		logger:         logger,
 	}
 
 	invalidInput := []byte("A")

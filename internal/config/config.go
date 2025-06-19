@@ -30,7 +30,7 @@ type VaultBackendConfigYaml struct {
 // PKCS11BackendConfigYaml BackendConfig for PKCS11-specific fields.
 type PKCS11BackendConfigYaml struct {
 	LibPath string  `yaml:"lib_path"`
-	KeyID   *uint16 `yaml:"key_id"`
+	KeyID   *uint16 `yaml:"aes_encryption_key_id"`
 	Pin     string  `yaml:"pin"`
 }
 
@@ -180,15 +180,15 @@ func Validate(filePath string) (Config, error) {
 	}
 
 	if c.Logging == (LoggingConfigYaml{}) {
-		return Config{}, fmt.Errorf("`logging` is empty")
+		return Config{}, errors.New("`logging` is empty")
 	}
 
 	if c.Logging.System == (SystemLoggingConfigYaml{}) {
-		return Config{}, fmt.Errorf("`system` is empty in logging config")
+		return Config{}, errors.New("`system` is empty in logging config")
 	}
 
 	if c.Logging.System.Level == "" {
-		return Config{}, fmt.Errorf("`level` is empty in logging config")
+		return Config{}, errors.New("`level` is empty in logging config")
 	}
 
 	validLogLevels := []string{"debug", "info", "warn", "error", "fatal", "panic"}
@@ -204,7 +204,7 @@ func Validate(filePath string) (Config, error) {
 	}
 
 	if c.Logging.System.Output == "" {
-		return Config{}, fmt.Errorf("`output` is empty in logging config")
+		return Config{}, errors.New("`output` is empty in logging config")
 	}
 
 	var backendConfig BackendConfig
@@ -226,23 +226,23 @@ func Validate(filePath string) (Config, error) {
 			}
 		case selectedBackend.PKCS11 != nil:
 			if selectedBackend.PKCS11.LibPath == "" {
-				return Config{}, fmt.Errorf("lib_path is missing")
+				return Config{}, errors.New("lib_path is missing")
 			}
 			if selectedBackend.PKCS11.Pin == "" {
-				return Config{}, fmt.Errorf("pin is missing")
+				return Config{}, errors.New("pin is missing")
 			}
 			if selectedBackend.PKCS11.KeyID == nil {
-				return Config{}, fmt.Errorf("key_id is missing")
+				return Config{}, errors.New("aes_encryption_key_id is missing")
 			}
 			backendConfig = BackendConfig{
 				Type:   PKCS11,
 				PKCS11: selectedBackend.PKCS11,
 			}
 		default:
-			return Config{}, fmt.Errorf("invalid backend type, should be either 'vault' or 'pkcs11'")
+			return Config{}, errors.New("invalid backend type, should be either 'vault' or 'pkcs11'")
 		}
 	} else {
-		return Config{}, fmt.Errorf("encryption_backend configuration is missing")
+		return Config{}, errors.New("encryption_backend configuration is missing")
 	}
 
 	config.Cert = cert

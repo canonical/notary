@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/canonical/notary/internal/encryption_backend"
 	"github.com/canonical/sqlair"
 	_ "github.com/mattn/go-sqlite3"
+	"go.uber.org/zap"
 )
 
 // Database is the object used to communicate with the established repository.
@@ -34,7 +36,7 @@ func (db *Database) Close() error {
 // stores the connection information and returns an object containing the information.
 // The database path must be a valid file path or ":memory:".
 // The table will be created if it doesn't exist in the format expected by the package.
-func NewDatabase(databasePath string) (*Database, error) {
+func NewDatabase(databasePath string, backend encryption_backend.EncryptionBackend, logger *zap.Logger) (*Database, error) {
 	sqlConnection, err := sql.Open("sqlite3", databasePath)
 	if err != nil {
 		return nil, err
@@ -67,7 +69,7 @@ func NewDatabase(databasePath string) (*Database, error) {
 	db.stmts = PrepareStatements(db.conn)
 	db.conn = sqlair.NewDB(sqlConnection)
 
-	db.EncryptionKey, err = setUpEncryptionKey(db)
+	db.EncryptionKey, err = setUpEncryptionKey(db, backend, logger)
 	if err != nil {
 		return nil, err
 	}

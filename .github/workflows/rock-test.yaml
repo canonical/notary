@@ -27,7 +27,7 @@ jobs:
           sudo snap install rockcraft --classic
       - name: Create files required by Notary
         run: |
-          printf 'key_path:  "/etc/notary/config/key.pem"\ncert_path: "/etc/notary/config/cert.pem"\ndb_path: "/var/lib/notary/database/notary.db"\nport: 3000\npebble_notifications: true\nlogging:\n  system:\n    level: "debug"\n    output: "stdout"\nencryption_backend: none\n' > config.yaml
+          printf 'key_path:  "/etc/notary/config/key.pem"\ncert_path: "/etc/notary/config/cert.pem"\ndb_path: "/var/lib/notary/database/notary.db"\nport: 3000\npebble_notifications: true\nlogging:\n  system:\n    level: "debug"\n    output: "stdout"\nencryption_backend: {}\n' > config.yaml
           openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 1 -out cert.pem -subj "/CN=githubaction.example"
       - name: Import the image to Docker registry
         run: |

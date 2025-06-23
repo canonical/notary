@@ -8,19 +8,20 @@ import (
 	"testing"
 
 	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/encryption_backend"
 	"github.com/canonical/notary/internal/server"
 	"go.uber.org/zap"
 )
 
 func setupServer(filepath string) (*httptest.Server, *server.HandlerConfig, error) {
-	testdb, err := db.NewDatabase(filepath)
-	if err != nil {
-		return nil, nil, err
-	}
-
 	logger, err := zap.NewDevelopment()
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't create logger: %w", err)
+	}
+	noneEncryptionBackend := encryption_backend.NoEncryptionBackend{}
+	testdb, err := db.NewDatabase(filepath, noneEncryptionBackend, logger)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	config := &server.HandlerConfig{

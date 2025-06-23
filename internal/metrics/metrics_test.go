@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/encryption_backend"
 	metrics "github.com/canonical/notary/internal/metrics"
 	"go.uber.org/zap"
 )
@@ -159,14 +160,15 @@ Uvcl7qdfypv0ccF7BmPH70z/T8SZOgJZaLWak9twiTsGSMcfCqW4Kw==
 
 // TestPrometheusHandler tests that the Prometheus metrics handler responds correctly to an HTTP request.
 func TestPrometheusHandler(t *testing.T) {
-	tempDir := t.TempDir()
-	db, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
-	if err != nil {
-		t.Fatal(err)
-	}
 	l, err := zap.NewDevelopment()
 	if err != nil {
 		t.Fatalf("cannot create logger: %s", err)
+	}
+	tempDir := t.TempDir()
+	noneEncryptionBackend := encryption_backend.NoEncryptionBackend{}
+	db, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), noneEncryptionBackend, l)
+	if err != nil {
+		t.Fatal(err)
 	}
 	m := metrics.NewMetricsSubsystem(db, l)
 	defer m.Close()
@@ -276,16 +278,17 @@ func initializeTestDBWithCaCerts(t *testing.T, database *db.Database) {
 
 // TestMetrics tests some of the metrics that we currently collect.
 func TestCertificateMetrics(t *testing.T) {
-	tempDir := t.TempDir()
-	db, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	initializeTestDBWithCerts(t, db)
 	l, err := zap.NewDevelopment()
 	if err != nil {
 		t.Fatalf("cannot create logger: %s", err)
 	}
+	tempDir := t.TempDir()
+	noneEncryptionBackend := encryption_backend.NoEncryptionBackend{}
+	db, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), noneEncryptionBackend, l)
+	if err != nil {
+		t.Fatal(err)
+	}
+	initializeTestDBWithCerts(t, db)
 	m := metrics.NewMetricsSubsystem(db, l)
 	defer m.Close()
 	csrs, _ := db.ListCertificateRequestWithCertificates()
@@ -378,16 +381,17 @@ func TestCertificateMetrics(t *testing.T) {
 }
 
 func TestCACertificateMetrics(t *testing.T) {
-	tempDir := t.TempDir()
-	db, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	initializeTestDBWithCaCerts(t, db)
 	l, err := zap.NewDevelopment()
 	if err != nil {
 		t.Fatalf("cannot create logger: %s", err)
 	}
+	tempDir := t.TempDir()
+	noneEncryptionBackend := encryption_backend.NoEncryptionBackend{}
+	db, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), noneEncryptionBackend, l)
+	if err != nil {
+		t.Fatal(err)
+	}
+	initializeTestDBWithCaCerts(t, db)
 	m := metrics.NewMetricsSubsystem(db, l)
 	defer m.Close()
 	cas, err := db.ListDenormalizedCertificateAuthorities()

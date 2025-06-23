@@ -7,3 +7,4 @@ logging:
   system:
     level: "info"
     output: "stdout"
+encryption_endpoint: {}

@@ -10,7 +10,7 @@ import (
 
 func TestEncryptionKeyEndToEnd(t *testing.T) {
 	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend, logger)
 	if err != nil {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}

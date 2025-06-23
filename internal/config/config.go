@@ -9,6 +9,39 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type BackendType string
+
+const (
+	Vault  BackendType = "vault"
+	PKCS11 BackendType = "pkcs11"
+	None   BackendType = "none"
+)
+
+// VaultBackendConfigYaml BackendConfig for Vault-specific fields.
+type VaultBackendConfigYaml struct {
+	Endpoint     string `yaml:"endpoint"`
+	Mount        string `yaml:"mount"`
+	KeyName      string `yaml:"key_name"`
+	RoleID       string `yaml:"role_id"`
+	RoleSecretID string `yaml:"role_secret_id"`
+	Token        string `yaml:"token"`
+}
+
+// PKCS11BackendConfigYaml BackendConfig for PKCS11-specific fields.
+type PKCS11BackendConfigYaml struct {
+	LibPath string  `yaml:"lib_path"`
+	KeyID   *uint16 `yaml:"aes_encryption_key_id"`
+	Pin     string  `yaml:"pin"`
+}
+
+// NamedBackendConfigYaml represents a single named backend configuration
+type NamedBackendConfigYaml struct {
+	PKCS11 *PKCS11BackendConfigYaml `yaml:"pkcs11,omitempty"`
+	Vault  *VaultBackendConfigYaml  `yaml:"vault,omitempty"`
+}
+
+type EncryptionBackendConfigYaml map[string]NamedBackendConfigYaml
+
 type SystemLoggingConfigYaml struct {
 	Level  string `yaml:"level"`
 	Output string `yaml:"output"`
@@ -19,13 +52,14 @@ type LoggingConfigYaml struct {
 }
 
 type ConfigYAML struct {
-	KeyPath             string            `yaml:"key_path"`
-	CertPath            string            `yaml:"cert_path"`
-	ExternalHostname    string            `yaml:"external_hostname"`
-	DBPath              string            `yaml:"db_path"`
-	Port                int               `yaml:"port"`
-	PebbleNotifications bool              `yaml:"pebble_notifications"`
-	Logging             LoggingConfigYaml `yaml:"logging"`
+	KeyPath             string                      `yaml:"key_path"`
+	CertPath            string                      `yaml:"cert_path"`
+	ExternalHostname    string                      `yaml:"external_hostname"`
+	DBPath              string                      `yaml:"db_path"`
+	Port                int                         `yaml:"port"`
+	PebbleNotifications bool                        `yaml:"pebble_notifications"`
+	Logging             LoggingConfigYaml           `yaml:"logging"`
+	EncryptionBackend   EncryptionBackendConfigYaml `yaml:"encryption_backend"`
 }
 
 type LoggingLevel string
@@ -48,6 +82,13 @@ type Logging struct {
 	System SystemLoggingConfig
 }
 
+// BackendConfig holds the configuration for an encryption backend
+type BackendConfig struct {
+	Type   BackendType
+	PKCS11 *PKCS11BackendConfigYaml
+	Vault  *VaultBackendConfigYaml
+}
+
 type Config struct {
 	Key                        []byte
 	Cert                       []byte
@@ -56,6 +97,7 @@ type Config struct {
 	Port                       int
 	PebbleNotificationsEnabled bool
 	Logging                    Logging
+	EncryptionBackend          BackendConfig
 }
 
 // Validate opens and processes the given yaml file, and catches errors in the process
@@ -108,15 +150,15 @@ func Validate(filePath string) (Config, error) {
 	}
 
 	if c.Logging == (LoggingConfigYaml{}) {
-		return Config{}, fmt.Errorf("`logging` is empty")
+		return Config{}, errors.New("`logging` is empty")
 	}
 
 	if c.Logging.System == (SystemLoggingConfigYaml{}) {
-		return Config{}, fmt.Errorf("`system` is empty in logging config")
+		return Config{}, errors.New("`system` is empty in logging config")
 	}
 
 	if c.Logging.System.Level == "" {
-		return Config{}, fmt.Errorf("`level` is empty in logging config")
+		return Config{}, errors.New("`level` is empty in logging config")
 	}
 
 	validLogLevels := []string{"debug", "info", "warn", "error", "fatal", "panic"}
@@ -132,7 +174,48 @@ func Validate(filePath string) (Config, error) {
 	}
 
 	if c.Logging.System.Output == "" {
-		return Config{}, fmt.Errorf("`output` is empty in logging config")
+		return Config{}, errors.New("`output` is empty in logging config")
+	}
+
+	var backendConfig BackendConfig
+
+	if c.EncryptionBackend == nil {
+		return Config{}, errors.New("`encryption_backend` config is missing, it must be a map with backends, empty map means no encryption")
+	}
+
+	if len(c.EncryptionBackend) == 0 {
+		backendConfig = BackendConfig{Type: None}
+	} else {
+		// For now we just take the first backend in the map.
+		var firstBackend NamedBackendConfigYaml
+		for _, v := range c.EncryptionBackend {
+			firstBackend = v
+			break
+		}
+
+		switch {
+		case firstBackend.Vault != nil:
+			backendConfig = BackendConfig{
+				Type:  Vault,
+				Vault: firstBackend.Vault,
+			}
+		case firstBackend.PKCS11 != nil:
+			if firstBackend.PKCS11.LibPath == "" {
+				return Config{}, errors.New("lib_path is missing")
+			}
+			if firstBackend.PKCS11.Pin == "" {
+				return Config{}, errors.New("pin is missing")
+			}
+			if firstBackend.PKCS11.KeyID == nil {
+				return Config{}, errors.New("aes_encryption_key_id is missing")
+			}
+			backendConfig = BackendConfig{
+				Type:   PKCS11,
+				PKCS11: firstBackend.PKCS11,
+			}
+		default:
+			return Config{}, fmt.Errorf("invalid encryption backend type; must be 'vault' or 'pkcs11'")
+		}
 	}
 
 	config.Cert = cert
@@ -143,5 +226,6 @@ func Validate(filePath string) (Config, error) {
 	config.PebbleNotificationsEnabled = c.PebbleNotifications
 	config.Logging.System.Level = LoggingLevel(c.Logging.System.Level)
 	config.Logging.System.Output = c.Logging.System.Output
+	config.EncryptionBackend = backendConfig
 	return config, nil
 }

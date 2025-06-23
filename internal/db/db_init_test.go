@@ -10,7 +10,7 @@ import (
 
 func TestConnect(t *testing.T) {
 	tempDir := t.TempDir()
-	db, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"))
+	db, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend, logger)
 	if err != nil {
 		t.Fatalf("Can't connect to SQLite: %s", err)
 	}
@@ -18,7 +18,7 @@ func TestConnect(t *testing.T) {
 }
 
 func Example() {
-	database, err := db.NewDatabase("./notary.db")
+	database, err := db.NewDatabase("./notary.db", NoneEncryptionBackend, logger)
 	if err != nil {
 		log.Fatalln(err)
 	}

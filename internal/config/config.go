@@ -40,37 +40,7 @@ type NamedBackendConfigYaml struct {
 	Vault  *VaultBackendConfigYaml  `yaml:"vault,omitempty"`
 }
 
-// EncryptionBackendConfigYaml can be either "none" or a map of named backends
-type EncryptionBackendConfigYaml struct {
-	IsNone   bool
-	Backends map[string]NamedBackendConfigYaml
-}
-
-// UnmarshalYAML implements custom YAML unmarshaling to handle both string and map formats
-// To handle the case of no encryption backend, we use a string value of "none"
-func (e *EncryptionBackendConfigYaml) UnmarshalYAML(node *yaml.Node) error {
-	var str string
-	if err := node.Decode(&str); err == nil {
-		if str == "none" {
-			e.IsNone = true
-			return nil
-		}
-		return fmt.Errorf("encryption_backend must be either 'none' or a map of named backend")
-	}
-
-	var backends map[string]NamedBackendConfigYaml
-	if err := node.Decode(&backends); err != nil {
-		return fmt.Errorf("encryption_backend must be either 'none' or a map of named backends")
-	}
-
-	if len(backends) == 0 {
-		return fmt.Errorf("encryption backend configuration is missing")
-	}
-
-	e.IsNone = false
-	e.Backends = backends
-	return nil
-}
+type EncryptionBackendConfigYaml map[string]NamedBackendConfigYaml
 
 type SystemLoggingConfigYaml struct {
 	Level  string `yaml:"level"`
@@ -209,40 +179,42 @@ func Validate(filePath string) (Config, error) {
 
 	var backendConfig BackendConfig
 
-	if c.EncryptionBackend.IsNone {
+	if c.EncryptionBackend == nil {
+		return Config{}, errors.New("`encryption_backend` config is missing, it must be a map with backends, empty map means no encryption")
+	}
+
+	if len(c.EncryptionBackend) == 0 {
 		backendConfig = BackendConfig{Type: None}
-	} else if len(c.EncryptionBackend.Backends) > 0 {
-		var selectedBackend NamedBackendConfigYaml
-		// Until we support multiple backends, we only use the first one
-		for _, selectedBackend = range c.EncryptionBackend.Backends {
+	} else {
+		var selected NamedBackendConfigYaml
+		for _, v := range c.EncryptionBackend {
+			selected = v
 			break
 		}
 
 		switch {
-		case selectedBackend.Vault != nil:
+		case selected.Vault != nil:
 			backendConfig = BackendConfig{
 				Type:  Vault,
-				Vault: selectedBackend.Vault,
+				Vault: selected.Vault,
 			}
-		case selectedBackend.PKCS11 != nil:
-			if selectedBackend.PKCS11.LibPath == "" {
+		case selected.PKCS11 != nil:
+			if selected.PKCS11.LibPath == "" {
 				return Config{}, errors.New("lib_path is missing")
 			}
-			if selectedBackend.PKCS11.Pin == "" {
+			if selected.PKCS11.Pin == "" {
 				return Config{}, errors.New("pin is missing")
 			}
-			if selectedBackend.PKCS11.KeyID == nil {
+			if selected.PKCS11.KeyID == nil {
 				return Config{}, errors.New("aes_encryption_key_id is missing")
 			}
 			backendConfig = BackendConfig{
 				Type:   PKCS11,
-				PKCS11: selectedBackend.PKCS11,
+				PKCS11: selected.PKCS11,
 			}
 		default:
-			return Config{}, errors.New("invalid backend type, should be either 'vault' or 'pkcs11'")
+			return Config{}, fmt.Errorf("invalid encryption backend type; must be 'vault' or 'pkcs11'")
 		}
-	} else {
-		return Config{}, errors.New("encryption_backend configuration is missing")
 	}
 
 	config.Cert = cert

@@ -17,7 +17,7 @@ Or If you are using the snap you can modify the config under `/var/snap/notary/c
   - `system` (object): Configuration for system logging.
     - `level` (string): The level of logging. Options are `debug`, `info`, `warn`, `error`, and `fatal`.
     - `output` (string): The output destination for logs. Options are `stdout`, `stderr`, or a file path.
-- `encryption_backend` (string or object): Configuration for the encryption backend. Can be either "none" for no encryption, or an object containing named backend configurations.
+- `encryption_backend` (object): Configuration for the encryption backend. Map of named backends, empty map means no encryption.
   - `backend_name` (object): User-defined name for the encryption backend (e.g., "yubihsm", "hsm1").
     - `pkcs11` (object): Configuration for PKCS#11 backend.
       - `lib_path` (string): Path to the PKCS#11 library needed to communicate with the backend.
@@ -26,7 +26,7 @@ Or If you are using the snap you can modify the config under `/var/snap/notary/c
 
 ## Examples
 
-### Default
+### Without an Encryption Backend
 ```yaml
 key_path: "/etc/notary/config/key.pem"
 cert_path: "/etc/notary/config/cert.pem"
@@ -37,7 +37,7 @@ logging:
   system:
     level: "info"
     output: "stdout"
-encryption_backend: none
+encryption_backend: {}
 ```
 
 ### With HSM as an Encryption Backend

@@ -186,31 +186,32 @@ func Validate(filePath string) (Config, error) {
 	if len(c.EncryptionBackend) == 0 {
 		backendConfig = BackendConfig{Type: None}
 	} else {
-		var selected NamedBackendConfigYaml
+		// For now we just take the first backend in the map.
+		var firstBackend NamedBackendConfigYaml
 		for _, v := range c.EncryptionBackend {
-			selected = v
+			firstBackend = v
 			break
 		}
 
 		switch {
-		case selected.Vault != nil:
+		case firstBackend.Vault != nil:
 			backendConfig = BackendConfig{
 				Type:  Vault,
-				Vault: selected.Vault,
+				Vault: firstBackend.Vault,
 			}
-		case selected.PKCS11 != nil:
-			if selected.PKCS11.LibPath == "" {
+		case firstBackend.PKCS11 != nil:
+			if firstBackend.PKCS11.LibPath == "" {
 				return Config{}, errors.New("lib_path is missing")
 			}
-			if selected.PKCS11.Pin == "" {
+			if firstBackend.PKCS11.Pin == "" {
 				return Config{}, errors.New("pin is missing")
 			}
-			if selected.PKCS11.KeyID == nil {
+			if firstBackend.PKCS11.KeyID == nil {
 				return Config{}, errors.New("aes_encryption_key_id is missing")
 			}
 			backendConfig = BackendConfig{
 				Type:   PKCS11,
-				PKCS11: selected.PKCS11,
+				PKCS11: firstBackend.PKCS11,
 			}
 		default:
 			return Config{}, fmt.Errorf("invalid encryption backend type; must be 'vault' or 'pkcs11'")

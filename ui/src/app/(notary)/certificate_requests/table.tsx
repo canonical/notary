@@ -168,6 +168,7 @@ export function CertificateRequestsTable({
         common_name: csrObj.commonName,
         csr_status: csr_status,
         cert_expiry_date: certObj?.notAfter || "",
+        username: csrEntry.username,
       },
       columns: [
         { content: id.toString() },
@@ -176,6 +177,9 @@ export function CertificateRequestsTable({
         {
           content: certObj?.notAfter || "",
           style: { backgroundColor: getExpiryColor(certObj?.notAfter) },
+        },
+        {
+          content: csrEntry.username,
         },
         {
           content: (
@@ -187,7 +191,7 @@ export function CertificateRequestsTable({
                 <span className="p-contextual-menu__group">
                   <Button
                     className="p-contextual-menu__link"
-                    onMouseDown={() => handleExpand(id, "CSR")}
+                    onClick={() => handleExpand(id, "CSR")}
                   >
                     {isCSRContentVisible
                       ? "Hide CSR Content"
@@ -195,13 +199,13 @@ export function CertificateRequestsTable({
                   </Button>
                   <Button
                     className="p-contextual-menu__link"
-                    onMouseDown={() => handleCopy(csr, id)}
+                    onClick={() => handleCopy(csr, id)}
                   >
                     Copy CSR to Clipboard
                   </Button>
                   <Button
                     className="p-contextual-menu__link"
-                    onMouseDown={() => handleDownload(csr, id, csrObj)}
+                    onClick={() => handleDownload(csr, id, csrObj)}
                   >
                     Download CSR
                   </Button>
@@ -210,7 +214,7 @@ export function CertificateRequestsTable({
                   <Button
                     className="p-contextual-menu__link"
                     disabled={csr_status != "Active"}
-                    onMouseDown={() => handleExpand(id, "Cert")}
+                    onClick={() => handleExpand(id, "Cert")}
                   >
                     {isCertContentVisible
                       ? "Hide Certificate Content"
@@ -219,13 +223,13 @@ export function CertificateRequestsTable({
                   <Button
                     className="p-contextual-menu__link"
                     disabled={!auth.activeCA}
-                    onMouseDown={() => handleSign(id)}
+                    onClick={() => handleSign(id)}
                   >
                     Sign CSR
                   </Button>
                   <Button
                     className="p-contextual-menu__link"
-                    onMouseDown={() => {
+                    onClick={() => {
                       setCertificateFormOpen(true);
                       setSelectedCSR(csrEntry);
                     }}
@@ -235,7 +239,7 @@ export function CertificateRequestsTable({
                   <Button
                     className="p-contextual-menu__link"
                     disabled={csr_status != "Active"}
-                    onMouseDown={() => handleRevoke(id)}
+                    onClick={() => handleRevoke(id)}
                   >
                     Revoke Certificate
                   </Button>
@@ -244,13 +248,13 @@ export function CertificateRequestsTable({
                   <Button
                     className="p-contextual-menu__link"
                     disabled={csr_status == "Rejected"}
-                    onMouseDown={() => handleReject(id)}
+                    onClick={() => handleReject(id)}
                   >
                     Reject Certificate Request
                   </Button>
                   <Button
                     className="p-contextual-menu__link"
-                    onMouseDown={() => handleDelete(id)}
+                    onClick={() => handleDelete(id)}
                   >
                     Delete Certificate Request
                   </Button>
@@ -359,6 +363,10 @@ export function CertificateRequestsTable({
           {
             content: "Certificate Expiry Date",
             sortKey: "cert_expiry_date",
+          },
+          {
+            content: "Username",
+            sortKey: "username",
           },
           {
             content: "Actions",

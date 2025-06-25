@@ -23,12 +23,12 @@ import (
 const nextUpdateYears = 1
 
 type CertificateAuthority struct {
-	ID             int64       `json:"id"`
-	Status         db.CAStatus `json:"status"`
-	PrivateKeyPEM  string      `json:"private_key,omitempty"`
-	CertificatePEM string      `json:"certificate"`
-	CSRPEM         string      `json:"csr"`
-	CRL            string      `json:"crl"`
+	ID             int64  `json:"id"`
+	Enabled        bool   `json:"enabled"`
+	PrivateKeyPEM  string `json:"private_key,omitempty"`
+	CertificatePEM string `json:"certificate"`
+	CSRPEM         string `json:"csr"`
+	CRL            string `json:"crl"`
 }
 
 type CRL struct {
@@ -49,7 +49,7 @@ type CreateCertificateAuthorityParams struct {
 }
 
 type UpdateCertificateAuthorityParams struct {
-	Status string `json:"status,omitempty"`
+	Enabled bool `json:"enabled,omitempty"`
 }
 
 type UploadCertificateToCertificateAuthorityParams struct {
@@ -79,16 +79,6 @@ func (params *CreateCertificateAuthorityParams) IsValid() (bool, error) {
 		if !notValidAfter.After(time.Now()) {
 			return false, errors.New("not_valid_after must be a future time")
 		}
-	}
-	return true, nil
-}
-
-func (updateCAParams *UpdateCertificateAuthorityParams) IsValid() (bool, error) {
-	if updateCAParams.Status == "" {
-		return false, errors.New("status is required")
-	}
-	if _, err := db.NewStatusFromString(updateCAParams.Status); err != nil {
-		return false, err
 	}
 	return true, nil
 }
@@ -239,7 +229,7 @@ func ListCertificateAuthorities(env *HandlerConfig) http.HandlerFunc {
 		for i, ca := range cas {
 			caResponse[i] = CertificateAuthority{
 				ID:             ca.CertificateAuthorityID,
-				Status:         ca.Status,
+				Enabled:        ca.Enabled,
 				PrivateKeyPEM:  "",
 				CSRPEM:         ca.CSRPEM,
 				CertificatePEM: ca.CertificateChain,
@@ -268,6 +258,11 @@ func CreateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.Logger)
 			return
 		}
+		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
+		if headerErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.Logger)
+			return
+		}
 		csrPEM, privPEM, crlPEM, certPEM, err := createCertificateAuthority(params)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Failed to create certificate authority", err, env.Logger)
@@ -275,9 +270,9 @@ func CreateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 		}
 		var newCAID int64
 		if certPEM != "" {
-			newCAID, err = env.DB.CreateCertificateAuthority(strings.TrimSpace(csrPEM), strings.TrimSpace(privPEM), strings.TrimSpace(crlPEM), strings.TrimSpace(certPEM+certPEM))
+			newCAID, err = env.DB.CreateCertificateAuthority(strings.TrimSpace(csrPEM), strings.TrimSpace(privPEM), strings.TrimSpace(crlPEM), strings.TrimSpace(certPEM+certPEM), claims.ID)
 		} else {
-			newCAID, err = env.DB.CreateCertificateAuthority(strings.TrimSpace(csrPEM), strings.TrimSpace(privPEM), "", "")
+			newCAID, err = env.DB.CreateCertificateAuthority(strings.TrimSpace(csrPEM), strings.TrimSpace(privPEM), "", "", claims.ID)
 		}
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Failed to create certificate authority", err, env.Logger)
@@ -315,7 +310,7 @@ func GetCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 		}
 		caResponse := CertificateAuthority{
 			ID:             ca.CertificateAuthorityID,
-			Status:         ca.Status,
+			Enabled:        ca.Enabled,
 			PrivateKeyPEM:  "",
 			CSRPEM:         ca.CSRPEM,
 			CertificatePEM: ca.CertificateChain,
@@ -345,17 +340,8 @@ func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format", err, env.Logger)
 			return
 		}
-		valid, err := params.IsValid()
-		if !valid {
-			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.Logger)
-			return
-		}
-		status, err := db.NewStatusFromString(params.Status)
-		if err != nil {
-			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.Logger)
-			return
-		}
-		err = env.DB.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(idNum), status)
+
+		err = env.DB.UpdateCertificateAuthorityEnabledStatus(db.ByCertificateAuthorityID(idNum), params.Enabled)
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found", err, env.Logger)
@@ -441,7 +427,7 @@ func PostCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
 	}
 }
 
-// SignCertificateAuthority handler receives the ID of an existing active certificate authority in Notary
+// SignCertificateAuthority handler receives the ID of an existing enabled certificate authority in Notary
 // to sign any pending intermediate certificate authority available in Notary.
 // It returns a 202 Accepted on success.
 func SignCertificateAuthority(env *HandlerConfig) http.HandlerFunc {

@@ -12,7 +12,10 @@ const (
 
 			csr TEXT NOT NULL UNIQUE,
 			certificate_id INTEGER,
+			user_id INTEGER,
 			status TEXT DEFAULT 'Outstanding',
+
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
 
 			CHECK (status IN ('Outstanding', 'Rejected', 'Revoked', 'Active')),
 			CHECK (NOT (certificate_id == NULL AND status == 'Active' )),
@@ -32,16 +35,11 @@ const (
 		    certificate_authority_id INTEGER PRIMARY KEY AUTOINCREMENT,
 
 			crl TEXT,
-			status TEXT DEFAULT 'Pending',
+			enabled INTEGER DEFAULT 0,
 
 			private_key_id INTEGER,
 			certificate_id INTEGER,
-			csr_id INTEGER NOT NULL UNIQUE,
-
-			CHECK (status IN ('active', 'expired', 'pending', 'legacy')),
-			CHECK (NOT (certificate_id == NULL AND status == 'active' )),
-			CHECK (NOT (certificate_id != NULL AND status == 'pending'))
-	        CHECK (NOT (certificate_id != NULL AND status == 'expired'))
+			csr_id INTEGER NOT NULL UNIQUE
 	)`
 	queryCreatePrivateKeysTable = `
 		CREATE TABLE IF NOT EXISTS private_keys (
@@ -80,7 +78,7 @@ const (
 	listCertificateRequestsWithoutCASStmt = "SELECT csrs.&CertificateRequest.csr_id, csrs.&CertificateRequest.csr, csrs.&CertificateRequest.status, csrs.&CertificateRequest.certificate_id FROM certificate_requests csrs LEFT JOIN certificate_authorities cas ON csrs.csr_id = cas.csr_id WHERE cas.certificate_authority_id IS NULL"
 	getCertificateRequestStmt             = "SELECT &CertificateRequest.* FROM certificate_requests WHERE csr_id==$CertificateRequest.csr_id or csr==$CertificateRequest.csr"
 	updateCertificateRequestStmt          = "UPDATE certificate_requests SET certificate_id=$CertificateRequest.certificate_id, status=$CertificateRequest.status WHERE csr_id==$CertificateRequest.csr_id or csr==$CertificateRequest.csr"
-	createCertificateRequestStmt          = "INSERT INTO certificate_requests (csr) VALUES ($CertificateRequest.csr)"
+	createCertificateRequestStmt          = "INSERT INTO certificate_requests (csr, user_id) VALUES ($CertificateRequest.csr, $CertificateRequest.user_id)"
 	deleteCertificateRequestStmt          = "DELETE FROM certificate_requests WHERE csr_id=$CertificateRequest.csr_id or csr=$CertificateRequest.csr"
 
 	listCertificateRequestsWithCertificatesStmt = `
@@ -89,6 +87,7 @@ WITH RECURSIVE certificate_chain AS (
         csr.csr_id,
         csr.csr,
 		csr.status,
+		csr.user_id,
         cert.certificate_id,
         cert.issuer_id,
         cert.certificate,
@@ -104,6 +103,7 @@ WITH RECURSIVE certificate_chain AS (
         cc.csr_id,
         cc.csr,
 		cc.status,
+		cc.user_id,
         cert.certificate_id,
         cert.issuer_id,
         cert.certificate,
@@ -124,7 +124,8 @@ WITH RECURSIVE certificate_chain AS (
     SELECT
         csr.csr_id,
         csr.csr,
-		csr.status,
+        csr.status,
+        csr.user_id,
         cert.certificate_id,
         cert.issuer_id,
         cert.certificate,
@@ -139,7 +140,8 @@ WITH RECURSIVE certificate_chain AS (
     SELECT
         cc.csr_id,
         cc.csr,
-		cc.status,
+        cc.status,
+        cc.user_id,
         cert.certificate_id,
         cert.issuer_id,
         cert.certificate,
@@ -152,6 +154,7 @@ SELECT
 	cc.&CertificateRequestWithChain.csr_id,
 	cc.&CertificateRequestWithChain.csr,
 	cc.&CertificateRequestWithChain.status,
+	cc.&CertificateRequestWithChain.user_id,
 	chain AS &CertificateRequestWithChain.certificate_chain
 FROM certificate_chain cc
 LEFT JOIN certificate_authorities cas ON cc.csr_id = cas.csr_id
@@ -163,6 +166,7 @@ WITH RECURSIVE certificate_chain AS (
         csr.csr_id,
         csr.csr,
 		csr.status,
+		csr.user_id,
         cert.certificate_id,
         cert.issuer_id,
         cert.certificate,
@@ -178,6 +182,7 @@ WITH RECURSIVE certificate_chain AS (
         cc.csr_id,
         cc.csr,
 		cc.status,
+		cc.user_id,
         cert.certificate_id,
         cert.issuer_id,
         cert.certificate,
@@ -190,6 +195,7 @@ SELECT
 	&CertificateRequestWithChain.csr_id,
 	&CertificateRequestWithChain.csr,
 	&CertificateRequestWithChain.status,
+	&CertificateRequestWithChain.user_id,
 	chain AS &CertificateRequestWithChain.certificate_chain
 FROM certificate_chain
 WHERE (csr_id = $CertificateRequestWithChain.csr_id OR csr = $CertificateRequestWithChain.csr) AND (chain = '' OR issuer_id = 0)`
@@ -223,10 +229,10 @@ SELECT &Certificate.* FROM cert_chain;`
 	// // // // // // // // // // // // // //
 	//  Certificate Authority SQL Strings  //
 	// // // // // // // // // // // // // //
-	createCertificateAuthorityStmt = "INSERT INTO certificate_authorities (crl, status, private_key_id, csr_id, certificate_id) VALUES ($CertificateAuthority.crl, $CertificateAuthority.status, $CertificateAuthority.private_key_id, $CertificateAuthority.csr_id, $CertificateAuthority.certificate_id)"
+	createCertificateAuthorityStmt = "INSERT INTO certificate_authorities (crl, enabled, private_key_id, csr_id, certificate_id) VALUES ($CertificateAuthority.crl, $CertificateAuthority.enabled, $CertificateAuthority.private_key_id, $CertificateAuthority.csr_id, $CertificateAuthority.certificate_id)"
 	getCertificateAuthorityStmt    = "SELECT &CertificateAuthority.* FROM certificate_authorities WHERE certificate_authority_id==$CertificateAuthority.certificate_authority_id or csr_id==$CertificateAuthority.csr_id or certificate_id==$CertificateAuthority.certificate_id"
 	listCertificateAuthoritiesStmt = "SELECT &CertificateAuthority.* FROM certificate_authorities"
-	updateCertificateAuthorityStmt = "UPDATE certificate_authorities SET crl=$CertificateAuthority.crl, status=$CertificateAuthority.status, certificate_id=$CertificateAuthority.certificate_id WHERE certificate_authority_id==$CertificateAuthority.certificate_authority_id or csr_id==$CertificateAuthority.csr_id"
+	updateCertificateAuthorityStmt = "UPDATE certificate_authorities SET crl=$CertificateAuthority.crl, enabled=$CertificateAuthority.enabled, certificate_id=$CertificateAuthority.certificate_id WHERE certificate_authority_id==$CertificateAuthority.certificate_authority_id or csr_id==$CertificateAuthority.csr_id"
 	deleteCertificateAuthorityStmt = "DELETE FROM certificate_authorities WHERE certificate_authority_id=$CertificateAuthority.certificate_authority_id or csr_id=$CertificateAuthority.csr_id"
 
 	listDenormalizedCertificateAuthoritiesStmt = `
@@ -235,7 +241,7 @@ WITH RECURSIVE cas_with_chain AS (
         cas.certificate_authority_id,
         cas.private_key_id,
 		cas.csr_id,
-        cas.status,
+        cas.enabled,
         cas.crl,
         certs.certificate_id,
         certs.issuer_id,
@@ -250,7 +256,7 @@ WITH RECURSIVE cas_with_chain AS (
         cc.certificate_authority_id,
 		cc.private_key_id,
 		cc.csr_id,
-        cc.status,
+        cc.enabled,
 		cc.crl,
         certs.certificate_id,
         certs.issuer_id,
@@ -262,7 +268,7 @@ WITH RECURSIVE cas_with_chain AS (
 	SELECT
 		cc.certificate_authority_id as &CertificateAuthorityDenormalized.certificate_authority_id,
 		cc.crl as &CertificateAuthorityDenormalized.crl,
-		cc.status as &CertificateAuthorityDenormalized.status,
+		cc.enabled as &CertificateAuthorityDenormalized.enabled,
 		cc.private_key_id AS &CertificateAuthorityDenormalized.private_key_id,
 		cc.chain AS &CertificateAuthorityDenormalized.certificate_chain,
 		csrs.csr AS &CertificateAuthorityDenormalized.csr
@@ -275,7 +281,7 @@ WITH RECURSIVE cas_with_chain AS (
         cas.certificate_authority_id,
         cas.private_key_id,
 		cas.csr_id,
-        cas.status,
+        cas.enabled,
         cas.crl,
         certs.certificate_id,
         certs.issuer_id,
@@ -290,7 +296,7 @@ WITH RECURSIVE cas_with_chain AS (
         cc.certificate_authority_id,
 		cc.private_key_id,
 		cc.csr_id,
-        cc.status,
+        cc.enabled,
 		cc.crl,
         certs.certificate_id,
         certs.issuer_id,
@@ -302,7 +308,7 @@ WITH RECURSIVE cas_with_chain AS (
 	SELECT
 		cc.certificate_authority_id as &CertificateAuthorityDenormalized.certificate_authority_id,
 		cc.crl as &CertificateAuthorityDenormalized.crl,
-		cc.status as &CertificateAuthorityDenormalized.status,
+		cc.enabled as &CertificateAuthorityDenormalized.enabled,
 		cc.private_key_id AS &CertificateAuthorityDenormalized.private_key_id,
 		cc.chain AS &CertificateAuthorityDenormalized.certificate_chain,
 		csrs.csr AS &CertificateAuthorityDenormalized.csr

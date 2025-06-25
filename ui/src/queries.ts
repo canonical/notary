@@ -419,14 +419,14 @@ export async function revokeCA(params: RequiredCAParams) {
   return respData.result;
 }
 
-export async function makeCALegacy(params: RequiredCAParams) {
+export async function disableCA(params: RequiredCAParams) {
   const response = await fetch("/api/v1/certificate_authorities/" + params.id, {
     method: "PUT",
     headers: {
       Authorization: "Bearer " + params.authToken,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ status: "legacy" }),
+    body: JSON.stringify({ enabled: false }),
   });
   const respData = await response.json();
   if (!response.ok) {

@@ -9,7 +9,7 @@ import (
 )
 
 func TestUsersEndToEnd(t *testing.T) {
-	database, err := db.NewDatabase(":memory:")
+	database, err := db.NewDatabase(":memory:", NoneEncryptionBackend, logger)
 	if err != nil {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}
@@ -85,7 +85,7 @@ func TestUsersEndToEnd(t *testing.T) {
 }
 
 func TestCreateUserFails(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:")
+	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend, logger)
 	defer database.Close()
 
 	_, err := database.CreateUser("admin", "pw123", 1)
@@ -150,7 +150,7 @@ func TestCreateUserFails(t *testing.T) {
 }
 
 func TestGetUserFails(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:")
+	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend, logger)
 	defer database.Close()
 
 	_, err := database.CreateUser("admin", "pw123", 1)
@@ -170,7 +170,7 @@ func TestGetUserFails(t *testing.T) {
 }
 
 func TestUpdateUserPasswordFails(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:")
+	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend, logger)
 	defer database.Close()
 	originalPassword := "pw123"
 	_, err := database.CreateUser("admin", originalPassword, 1)
@@ -214,7 +214,7 @@ func TestUpdateUserPasswordFails(t *testing.T) {
 }
 
 func TestDeleteUserFails(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:")
+	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend, logger)
 	defer database.Close()
 
 	_, err := database.CreateUser("admin", "pw123", 1)

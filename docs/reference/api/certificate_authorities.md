@@ -87,8 +87,8 @@ None
 
 This path returns a PEM formatted string of the CRL for the given certificate authority.
 
-| Method | Path                                   |
-| :----- | :------------------------------------- |
+| Method | Path                                       |
+| :----- | :----------------------------------------- |
 | `GET`  | `/api/v1/certificate_authorities/{id}/crl` |
 
 ### Parameters
@@ -127,7 +127,7 @@ This path updates the status of a certificate authority.
 
 ### Parameters
 
-- `status` (string): The status of the certificate authority.
+- `enabled` (bool): Whether the certificate authority can be used to sign certificates. You may disable a CA for maintenance, auditing, or policy reasons — even if the certificate is still valid.
 
 ### Sample Response
 
@@ -187,8 +187,8 @@ This path uploads a certificate for a certificate authority.
 
 This path signs any intermediate certificate authority with another active root or intermediate certificate authority.
 
-| Method | Path                                               |
-| :----- | :------------------------------------------------- |
+| Method | Path                                        |
+| :----- | :------------------------------------------ |
 | `POST` | `/api/v1/certificate_authorities/{id}/sign` |
 
 ### Parameters
@@ -210,9 +210,9 @@ This path signs any intermediate certificate authority with another active root 
 This path revokes a certificate authority. It will error if the certificate wasn't signed in notary.
 Revoking a certificate will place the certificate serial number in the CRL of the issuing CA and set its status back to pending.
 
-| Method  | Path                              |
-| :-----  | :-------------------------------- |
-| `POST`  | `/api/v1/certificate_authorities/{id}/revoke` |
+| Method | Path                                          |
+| :----- | :-------------------------------------------- |
+| `POST` | `/api/v1/certificate_authorities/{id}/revoke` |
 
 ### Parameters
 

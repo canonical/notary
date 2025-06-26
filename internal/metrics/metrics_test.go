@@ -264,7 +264,7 @@ func initializeTestDBWithCaCerts(t *testing.T, database *db.Database) {
 	if err != nil {
 		t.Fatalf("couldn't create test user: %s", err)
 	}
-	// create an active ca
+	// create an enabled ca
 	_, err = database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate, userID)
 	if err != nil {
 		t.Fatalf("couldn't create self signed ca: %s", err)
@@ -412,10 +412,9 @@ func TestCACertificateMetrics(t *testing.T) {
 	}
 
 	foundMetrics := map[string]bool{
-		"active_ca_certificates":  false,
-		"expired_ca_certificates": false,
-		"pending_ca_certificates": false,
-		"legacy_ca_certificates":  false,
+		"enabled_ca_certificates":  false,
+		"expired_ca_certificates":  false,
+		"disabled_ca_certificates": false,
 	}
 
 	for _, line := range strings.Split(recorder.Body.String(), "\n") {
@@ -424,25 +423,20 @@ func TestCACertificateMetrics(t *testing.T) {
 		}
 		trimmedLine := strings.TrimSpace(line)
 
-		if strings.HasPrefix(trimmedLine, "active_ca_certificates ") {
-			foundMetrics["active_ca_certificates"] = true
+		if strings.HasPrefix(trimmedLine, "enabled_ca_certificates ") {
+			foundMetrics["enabled_ca_certificates"] = true
 			if !strings.HasSuffix(line, "1") {
-				t.Errorf("Expected active_ca_certificates to be 1, got %s", line)
+				t.Errorf("Expected enabled_ca_certificates to be 1, got %s", line)
 			}
 		} else if strings.HasPrefix(trimmedLine, "expired_ca_certificates ") {
 			foundMetrics["expired_ca_certificates"] = true
 			if !strings.HasSuffix(line, "0") {
 				t.Errorf("Expected expired_ca_certificates to be 0, got %s", line)
 			}
-		} else if strings.HasPrefix(trimmedLine, "pending_ca_certificates ") {
-			foundMetrics["pending_ca_certificates"] = true
+		} else if strings.HasPrefix(trimmedLine, "disabled_ca_certificates ") {
+			foundMetrics["disabled_ca_certificates"] = true
 			if !strings.HasSuffix(line, "1") {
-				t.Errorf("Expected pending_ca_certificates to be 1, got %s", line)
-			}
-		} else if strings.HasPrefix(trimmedLine, "legacy_ca_certificates ") {
-			foundMetrics["legacy_ca_certificates"] = true
-			if !strings.HasSuffix(line, "0") {
-				t.Errorf("Expected legacy_ca_certificates to be 0, got %s", line)
+				t.Errorf("Expected disabled_ca_certificates to be 1, got %s", line)
 			}
 		}
 	}

@@ -1,46 +1,6 @@
 package db
 
-import (
-	"encoding/json"
-	"fmt"
-)
-
 const CAMaxExpiryYears = 1
-
-// CA Status Types and Conversions
-type CAStatus string
-
-func (ca CAStatus) String() string {
-	return string(ca)
-}
-
-func (ca CAStatus) MarshalJSON() ([]byte, error) {
-	return json.Marshal(ca.String())
-}
-
-const (
-	CAActive  CAStatus = "active"
-	CAExpired CAStatus = "expired"
-	CAPending CAStatus = "pending"
-	CALegacy  CAStatus = "legacy"
-)
-
-// NewStatusFromString creates a CAStatus from a string.
-func NewStatusFromString(s string) (CAStatus, error) {
-	statuses := map[CAStatus]struct{}{
-		CAActive:  {},
-		CAExpired: {},
-		CAPending: {},
-		CALegacy:  {},
-	}
-
-	status := CAStatus(s)
-	_, ok := statuses[status]
-	if !ok {
-		return "", fmt.Errorf("invalid status: status must be one of %s, %s, %s, %s", CAActive, CAExpired, CAPending, CALegacy)
-	}
-	return status, nil
-}
 
 // CertificateAuthority contains information about a CA, identified by the contents
 // of the CSR that it was created with. It has an assigned private key and optionally,
@@ -48,8 +8,8 @@ func NewStatusFromString(s string) (CAStatus, error) {
 type CertificateAuthority struct {
 	CertificateAuthorityID int64 `db:"certificate_authority_id"`
 
-	CRL    string   `db:"crl"`
-	Status CAStatus `db:"status"`
+	CRL     string `db:"crl"`
+	Enabled bool   `db:"enabled"`
 
 	PrivateKeyID  int64 `db:"private_key_id"`
 	CertificateID int64 `db:"certificate_id"`
@@ -60,12 +20,12 @@ type CertificateAuthority struct {
 // object, but this object contains the PEM encoded strings directly embedded to the struct
 // instead of an ID integer.
 type CertificateAuthorityDenormalized struct {
-	CertificateAuthorityID int64    `db:"certificate_authority_id"`
-	CRL                    string   `db:"crl"`
-	Status                 CAStatus `db:"status"`
-	PrivateKeyID           int64    `db:"private_key_id"`
-	CertificateChain       string   `db:"certificate_chain"`
-	CSRPEM                 string   `db:"csr"`
+	CertificateAuthorityID int64  `db:"certificate_authority_id"`
+	CRL                    string `db:"crl"`
+	Enabled                bool   `db:"enabled"`
+	PrivateKeyID           int64  `db:"private_key_id"`
+	CertificateChain       string `db:"certificate_chain"`
+	CSRPEM                 string `db:"csr"`
 }
 
 // Certificate contains information about a singular certificate in the database. Its IssuerID

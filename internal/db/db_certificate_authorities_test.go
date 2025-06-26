@@ -1,10 +1,18 @@
 package db_test
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"errors"
+	"fmt"
+	"math/big"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/canonical/notary/internal/db"
 )
@@ -50,11 +58,11 @@ func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
 	}
-	if ca.Status != "active" || ca.CertificateChain == "" {
-		t.Fatalf("Certificate authority is not active or missing certificate")
+	if !ca.Enabled || ca.CertificateChain == "" {
+		t.Fatalf("Certificate authority is not enabled or missing certificate")
 	}
 
-	err = database.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), db.CALegacy)
+	err = database.UpdateCertificateAuthorityEnabledStatus(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), false)
 	if err != nil {
 		t.Fatalf("Couldn't update certificate authority status: %s", err)
 	}
@@ -62,11 +70,11 @@ func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
 	}
-	if ca.Status != db.CALegacy {
-		t.Fatalf("Certificate authority status is not legacy")
+	if ca.Enabled {
+		t.Fatalf("Certificate authority is enabled")
 	}
 	if ca.CertificateChain == "" {
-		t.Fatalf("Certificate should not have been removed when updating status to legacy")
+		t.Fatalf("Certificate should not have been removed when updating status to disabled")
 	}
 
 	caRow, err := database.GetCertificateAuthority(db.ByCertificateAuthorityID(ca.CertificateAuthorityID))
@@ -89,6 +97,87 @@ func TestRootCertificateAuthorityEndToEnd(t *testing.T) {
 	_, err = database.GetDecryptedPrivateKey(db.ByPrivateKeyID(caRow.PrivateKeyID))
 	if !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("Expected PrivateKey to not be in the database: %s", err)
+	}
+}
+
+func TestCreateCertificateAuthorityExpired(t *testing.T) {
+	tempDir := t.TempDir()
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend, logger)
+	if err != nil {
+		t.Fatalf("Couldn't complete NewDatabase: %s", err)
+	}
+	defer database.Close()
+
+	userID, err := database.CreateUser("testuser", "whateverpassword", 0)
+	if err != nil {
+		t.Fatalf("Couldn't create user: %s", err)
+	}
+
+	expiredCACSR, expiredCAKey, expiredCACRL, expiredCACert, err := generateCACertificate(time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("Failed to generate expired CA data: %s", err)
+	}
+
+	caID, err := database.CreateCertificateAuthority(expiredCACSR, expiredCAKey, expiredCACRL, expiredCACert+"\n"+expiredCACert, userID)
+	if err != nil {
+		t.Fatalf("Couldn't create certificate authority: %s", err)
+	}
+	if caID != 1 {
+		t.Fatalf("Error creating certificate authority: expected CA id to be 1 but it was %d", caID)
+	}
+
+	csr, err := database.GetCertificateRequest(db.ByCSRPEM(expiredCACSR))
+	if err != nil {
+		t.Fatalf("Couldn't retrieve CSR: %s", err)
+	}
+	ca, err := database.GetDenormalizedCertificateAuthority(db.ByCertificateAuthorityDenormalizedCSRPEM(csr.CSR))
+	if err != nil {
+		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
+	}
+	if !ca.Enabled || ca.CertificateChain == "" {
+		t.Fatalf("Certificate authority is not enabled or missing certificate")
+	}
+	csrID, err := database.CreateCertificateRequest(AppleCSR, userID)
+	if err != nil {
+		t.Fatalf("Couldn't create CSR: %s", err)
+	}
+	err = database.SignCertificateRequest(db.ByCSRID(csrID), db.ByCertificateAuthorityDenormalizedID(caID), "example.com")
+	if err == nil {
+		t.Fatalf("Expected signing to fail for expired CA: %s", err)
+	}
+}
+
+func TestUpdateCertificateAuthorityEnabledStatusExpired(t *testing.T) {
+	tempDir := t.TempDir()
+	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend, logger)
+	if err != nil {
+		t.Fatalf("Couldn't complete NewDatabase: %s", err)
+	}
+	defer database.Close()
+
+	userID, err := database.CreateUser("testuser", "whateverpassword", 0)
+	if err != nil {
+		t.Fatalf("Couldn't create user: %s", err)
+	}
+
+	expiredCACSR, expiredCAKey, expiredCACRL, expiredCACert, err := generateCACertificate(time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("Failed to generate expired CA data: %s", err)
+	}
+
+	caID, err := database.CreateCertificateAuthority(expiredCACSR, expiredCAKey, expiredCACRL, expiredCACert+"\n"+expiredCACert, userID)
+	if err != nil {
+		t.Fatalf("Couldn't create certificate authority: %s", err)
+	}
+
+	err = database.UpdateCertificateAuthorityEnabledStatus(db.ByCertificateAuthorityID(caID), false)
+	if err != nil {
+		t.Fatalf("Expected updating status to disabled to succeed for expired CA: %s", err)
+	}
+
+	err = database.UpdateCertificateAuthorityEnabledStatus(db.ByCertificateAuthorityID(caID), true)
+	if err != nil {
+		t.Fatalf("Expected updating status to enabled to succeed for expired CA: %s", err)
 	}
 }
 
@@ -133,8 +222,8 @@ func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
 	}
-	if ca.Status != "pending" || ca.CertificateChain != "" {
-		t.Fatalf("Certificate authority is not pending or has a certificate")
+	if ca.Enabled || ca.CertificateChain != "" {
+		t.Fatalf("Certificate authority is enabled or has a certificate")
 	}
 
 	err = database.UpdateCertificateAuthorityCertificate(db.ByCertificateAuthorityDenormalizedID(ca.CertificateAuthorityID), IntermediateCACertificate+"\n"+RootCACertificate)
@@ -145,11 +234,11 @@ func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
 	}
-	if ca.Status != "active" || ca.CertificateChain != IntermediateCACertificate+"\n"+RootCACertificate {
-		t.Fatalf("Certificate authority is not active or has a certificate")
+	if !ca.Enabled || ca.CertificateChain != IntermediateCACertificate+"\n"+RootCACertificate {
+		t.Fatalf("Certificate authority is not enabled or has a certificate")
 	}
 
-	err = database.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), db.CALegacy)
+	err = database.UpdateCertificateAuthorityEnabledStatus(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), false)
 	if err != nil {
 		t.Fatalf("Couldn't update certificate authority status: %s", err)
 	}
@@ -157,14 +246,14 @@ func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
 	}
-	if ca.Status != "legacy" {
-		t.Fatalf("Certificate authority status is not legacy")
+	if ca.Enabled {
+		t.Fatalf("Certificate authority is enabled")
 	}
 	if ca.CertificateChain == "" {
-		t.Fatalf("Certificate should not have been removed when updating status to legacy")
+		t.Fatalf("Certificate should not have been removed when updating status to disabled")
 	}
 
-	err = database.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), db.CAActive)
+	err = database.UpdateCertificateAuthorityEnabledStatus(db.ByCertificateAuthorityID(ca.CertificateAuthorityID), true)
 	if err != nil {
 		t.Fatalf("Couldn't update certificate authority status: %s", err)
 	}
@@ -172,11 +261,11 @@ func TestIntermediateCertificateAuthorityEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't retrieve certificate authority: %s", err)
 	}
-	if ca.Status != "active" {
-		t.Fatalf("Certificate authority status is not active")
+	if !ca.Enabled {
+		t.Fatalf("Certificate authority is not enabled")
 	}
 	if ca.CertificateChain == "" {
-		t.Fatalf("Certificate should not have been removed when updating status to Active")
+		t.Fatalf("Certificate should not have been removed when updating status to Enabled")
 	}
 
 	err = database.DeleteCertificateAuthority(db.ByCertificateAuthorityID(ca.CertificateAuthorityID))
@@ -261,19 +350,6 @@ func TestCertificateAuthorityFails(t *testing.T) {
 		t.Fatalf("Should have failed to update certificate authority")
 	}
 	err = database.UpdateCertificateAuthorityCertificate(db.ByCertificateAuthorityDenormalizedID(1), "no")
-	if err == nil {
-		t.Fatalf("Should have failed to update certificate authority")
-	}
-
-	err = database.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(0), "Legacy")
-	if err == nil {
-		t.Fatalf("Should have failed to update certificate authority")
-	}
-	err = database.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(10), "Legacy")
-	if err == nil {
-		t.Fatalf("Should have failed to update certificate authority")
-	}
-	err = database.UpdateCertificateAuthorityStatus(db.ByCertificateAuthorityID(1), "No")
 	if err == nil {
 		t.Fatalf("Should have failed to update certificate authority")
 	}
@@ -700,4 +776,67 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 	if crl.RevokedCertificateEntries[1].SerialNumber.String() != IntermediateCACertSerial {
 		t.Fatalf("CRL should have serial %s, but has %s", IntermediateCACertSerial, crl.RevokedCertificateEntries[0].SerialNumber.String())
 	}
+}
+
+func generateCACertificate(notAfter time.Time) (csrPEM string, keyPEM string, crlPEM string, certPEM string, err error) {
+	caKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return "", "", "", "", fmt.Errorf("failed to generate CA key: %w", err)
+	}
+
+	csrTemplate := &x509.CertificateRequest{
+		Subject: pkix.Name{
+			CommonName: "Expired Root CA",
+		},
+	}
+	csrDER, err := x509.CreateCertificateRequest(rand.Reader, csrTemplate, caKey)
+	if err != nil {
+		return "", "", "", "", fmt.Errorf("failed to create CSR: %w", err)
+	}
+
+	caTemplate := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               csrTemplate.Subject,
+		NotBefore:             time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+		NotAfter:              notAfter,
+		IsCA:                  true,
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		BasicConstraintsValid: true,
+	}
+	caCertDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
+	if err != nil {
+		return "", "", "", "", fmt.Errorf("failed to create CA certificate: %w", err)
+	}
+
+	caCert, err := x509.ParseCertificate(caCertDER)
+	if err != nil {
+		return "", "", "", "", fmt.Errorf("failed to parse CA cert: %w", err)
+	}
+
+	now := time.Now()
+	crlTemplate := x509.RevocationList{
+		SignatureAlgorithm:  caCert.SignatureAlgorithm,
+		RevokedCertificates: []pkix.RevokedCertificate{},
+		ThisUpdate:          now.Add(-24 * time.Hour),
+		NextUpdate:          now.Add(30 * 24 * time.Hour),
+		Number:              big.NewInt(1),
+	}
+
+	crlDER, err := x509.CreateRevocationList(rand.Reader, &crlTemplate, caCert, caKey)
+	if err != nil {
+		return "", "", "", "", fmt.Errorf("failed to create CRL: %w", err)
+	}
+
+	keyPEM = encodePEM("RSA PRIVATE KEY", x509.MarshalPKCS1PrivateKey(caKey))
+	certPEM = encodePEM("CERTIFICATE", caCertDER)
+	csrPEM = encodePEM("CERTIFICATE REQUEST", csrDER)
+	crlPEM = encodePEM("X509 CRL", crlDER)
+
+	return csrPEM, keyPEM, crlPEM, certPEM, nil
+}
+
+func encodePEM(blockType string, derBytes []byte) string {
+	var b strings.Builder
+	_ = pem.Encode(&b, &pem.Block{Type: blockType, Bytes: derBytes})
+	return b.String()
 }

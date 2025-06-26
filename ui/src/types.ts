@@ -21,7 +21,7 @@ export type CertificateSigningRequest = {
 
 export type CertificateAuthorityEntry = {
   id: number;
-  status: "active" | "expired" | "pending" | "legacy";
+  enabled: boolean;
   certificate: string;
   csr: string;
   crl: string;

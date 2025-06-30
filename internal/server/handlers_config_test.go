@@ -63,7 +63,7 @@ func TestConfigEndToEnd(t *testing.T) {
 			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, statusCode)
 		}
 		if response.Error == "" {
-			t.Fatalf("expected error unauthorized: invalid or missing token, got %q", response.Error)
+			t.Fatalf("expected Unauthorized error when calling the config endpoint without authentication")
 		}
 	})
 

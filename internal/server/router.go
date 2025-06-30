@@ -38,6 +38,8 @@ func NewHandler(config *HandlerConfig) http.Handler {
 	apiV1Router.HandleFunc("DELETE /accounts/{id}", adminOnly(config.JWTSecret, DeleteAccount(config), config.Logger))
 	apiV1Router.HandleFunc("POST /accounts/{id}/change_password", adminOrMe(config.JWTSecret, ChangeAccountPassword(config), config.Logger))
 
+	apiV1Router.HandleFunc("GET /config", adminOrUser(config.JWTSecret, GetConfigContent(config), config.Logger))
+
 	m := metrics.NewMetricsSubsystem(config.DB, config.Logger)
 	frontendHandler, err := newFrontendFileServer()
 	if err != nil {

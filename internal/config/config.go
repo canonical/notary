@@ -229,3 +229,23 @@ func Validate(filePath string) (Config, error) {
 	config.EncryptionBackend = backendConfig
 	return config, nil
 }
+
+// PublicConfigData contains non-sensitive configuration fields that are safe to expose
+type PublicConfigData struct {
+	Port                  int
+	PebbleNotifications   bool
+	LoggingLevel          string
+	LoggingOutput         string
+	EncryptionBackendType string
+}
+
+// PublicConfig returns the non-sensitive configuration fields that are safe to expose via API
+func (c *Config) PublicConfig() PublicConfigData {
+	return PublicConfigData{
+		Port:                  c.Port,
+		PebbleNotifications:   c.PebbleNotificationsEnabled,
+		LoggingLevel:          string(c.Logging.System.Level),
+		LoggingOutput:         c.Logging.System.Output,
+		EncryptionBackendType: string(c.EncryptionBackend.Type),
+	}
+}

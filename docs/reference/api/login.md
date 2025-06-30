@@ -6,9 +6,9 @@ This section describes the RESTful API for system user authentication.
 
 This path returns a token that can be used to authenticate with Notary.
 
-| Method | Path            |
-| :----- | :-------------- |
-| `POST` | `/api/v1/login` |
+| Method | Path     |
+| :----- | :------- |
+| `POST` | `/login` |
 
 ### Parameters
 

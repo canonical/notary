@@ -2,52 +2,19 @@ package db
 
 import (
 	"bytes"
-	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"reflect"
 	"time"
 
-	"github.com/canonical/sqlair"
+	"github.com/canonical/notary/internal/encryption"
+	"github.com/canonical/notary/internal/encryption_backend"
+	"go.uber.org/zap"
 )
-
-// ListEntities retrieves all entities of a given type from the database.
-func ListEntities[T any](db *Database, query string) ([]T, error) {
-	stmt, err := sqlair.Prepare(query, *new(T))
-	if err != nil {
-		return nil, fmt.Errorf("%w: error compiling sql query", ErrInternal)
-	}
-
-	var entities []T
-	err = db.conn.Query(context.Background(), stmt).GetAll(&entities)
-	if err != nil && !errors.Is(err, sqlair.ErrNoRows) {
-		return nil, ErrInternal
-	}
-
-	return entities, nil
-}
-
-// GetOneEntity retrieves a single entity of a given type from the database.
-func GetOneEntity[T any](db *Database, query string, params T) (*T, error) {
-	stmt, err := sqlair.Prepare(query, *new(T))
-	if err != nil {
-		return nil, fmt.Errorf("%w: error compiling sql query", ErrInternal)
-	}
-
-	var result T
-	err = db.conn.Query(context.Background(), stmt, params).Get(&result)
-	if err != nil {
-		if errors.Is(err, sqlair.ErrNoRows) {
-			return nil, ErrNotFound
-		}
-		return nil, ErrInternal
-	}
-
-	return &result, nil
-}
 
 // ParseCertificateChain receives a PEM string chain and returns an x.509.Certificate list.
 func ParseCertificateChain(pemChain string) ([]*x509.Certificate, error) {
@@ -134,4 +101,43 @@ func AddCertificateToCRL(certChainPEM string, caPKPEM string, crlPEM string) (st
 		return "", err
 	}
 	return string(pem.EncodeToMemory(&pem.Block{Type: "X509 CRL", Bytes: crlBytes})), nil
+}
+
+func isSelfSigned(certBundle []string) bool {
+	return len(certBundle) == 2 && certBundle[0] == certBundle[1]
+}
+
+func getTypeName[T any]() string {
+	var t T
+	return reflect.TypeOf(t).Name()
+}
+
+func setUpEncryptionKey(database *Database, backend encryption_backend.EncryptionBackend, logger *zap.Logger) ([]byte, error) {
+	encryptionKeyFromDb, err := database.GetEncryptionKey()
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			encryptionKey, err := encryption.GenerateAES256GCMEncryptionKey()
+			if err != nil {
+				return nil, fmt.Errorf("failed to generate encryption key: %w", err)
+			}
+			logger.Info("Encryption key generated successfully")
+			encryptedEncryptionKey, err := backend.Encrypt(encryptionKey)
+			if err != nil {
+				return nil, fmt.Errorf("failed to encrypt encryption key: %w", err)
+			}
+			logger.Info("Encryption key encrypted successfully using the configured encryption backend")
+			err = database.CreateEncryptionKey(encryptedEncryptionKey)
+			if err != nil {
+				return nil, fmt.Errorf("failed to store encryption key: %w", err)
+			}
+			return encryptionKey, nil
+		}
+		return nil, err
+	}
+	logger.Info("Encryption key found in database")
+	decryptedEncryptionKey, err := backend.Decrypt(encryptionKeyFromDb)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt encryption key: %w", err)
+	}
+	return decryptedEncryptionKey, nil
 }

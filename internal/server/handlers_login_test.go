@@ -150,8 +150,8 @@ func TestLoginEndToEnd(t *testing.T) {
 			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, statusCode)
 		}
 
-		if loginResponse.Error != "The username or password is incorrect. Try again." {
-			t.Fatalf("expected error %q, got %q", "The username or password is incorrect. Try again.", loginResponse.Error)
+		if loginResponse.Error != "The username or password is incorrect" {
+			t.Fatalf("expected error %q, got %q", "The username or password is incorrect", loginResponse.Error)
 		}
 	})
 
@@ -168,8 +168,8 @@ func TestLoginEndToEnd(t *testing.T) {
 			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, statusCode)
 		}
 
-		if loginResponse.Error != "The username or password is incorrect. Try again." {
-			t.Fatalf("expected error %q, got %q", "The username or password is incorrect. Try again.", loginResponse.Error)
+		if loginResponse.Error != "The username or password is incorrect" {
+			t.Fatalf("expected error %q, got %q", "The username or password is incorrect", loginResponse.Error)
 		}
 	})
 }

@@ -10,10 +10,14 @@ import (
 	"time"
 
 	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/encryption_backend"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type HandlerConfig struct {
 	DB                      *db.Database
+	Logger                  *zap.Logger
 	ExternalHostname        string
 	JWTSecret               []byte
 	SendPebbleNotifications bool
@@ -45,6 +49,7 @@ func SendPebbleNotification(key NotificationKey, request_id int64) error {
 	return nil
 }
 
+// This secret should be generated once and stored in the database, encrypted.
 func generateJWTSecret() ([]byte, error) {
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {
@@ -54,30 +59,37 @@ func generateJWTSecret() ([]byte, error) {
 }
 
 // New creates an environment and an http server with handlers that Go can start listening to
-func New(port int, cert []byte, key []byte, dbPath string, externalHostname string, pebbleNotificationsEnabled bool) (*http.Server, error) {
+func New(port int, cert []byte, key []byte, dbPath string, externalHostname string, pebbleNotificationsEnabled bool, logger *zap.Logger, encryptionBackend encryption_backend.EncryptionBackend) (*http.Server, error) {
 	serverCerts, err := tls.X509KeyPair(cert, key)
 	if err != nil {
 		return nil, err
 	}
-	db, err := db.NewDatabase(dbPath)
+	database, err := db.NewDatabase(dbPath, encryptionBackend, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	jwtSecret, err := generateJWTSecret()
+	jwtSecret, err := setUpJWTSecret(database)
 	if err != nil {
 		return nil, err
 	}
+
 	env := &HandlerConfig{}
-	env.DB = db
+	env.DB = database
 	env.SendPebbleNotifications = pebbleNotificationsEnabled
 	env.JWTSecret = jwtSecret
 	env.ExternalHostname = externalHostname
+	env.Logger = logger
 	router := NewHandler(env)
 
-	s := &http.Server{
-		Addr: fmt.Sprintf(":%d", port),
+	stdErrLog, err := zap.NewStdLogAt(logger, zapcore.ErrorLevel)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create logger for http server: %w", err)
+	}
 
+	s := &http.Server{
+		Addr:           fmt.Sprintf(":%d", port),
+		ErrorLog:       stdErrLog,
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		Handler:        router,

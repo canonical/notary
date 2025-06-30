@@ -220,6 +220,9 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		if listCertRequestsResponse.Result[0].CertificateChain != "" {
 			t.Fatalf("expected empty string for certificate chain, got %s", listCertRequestsResponse.Result[0].CertificateChain)
 		}
+		if listCertRequestsResponse.Result[0].Username != "testadmin" {
+			t.Fatalf("expected username 'testadmin', got %s", listCertRequestsResponse.Result[0].Username)
+		}
 	})
 
 	t.Run("4. Get certificate request", func(t *testing.T) {
@@ -241,6 +244,9 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 		if getCertRequestResponse.Result.CertificateChain != "" {
 			t.Fatalf("expected no certificate, got %s", getCertRequestResponse.Result.CertificateChain)
+		}
+		if getCertRequestResponse.Result.Username != "testadmin" {
+			t.Fatalf("expected username 'testadmin', got %s", getCertRequestResponse.Result.Username)
 		}
 	})
 
@@ -328,6 +334,9 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 		if getCertRequestResponse.Result.CertificateChain != "" {
 			t.Fatalf("expected no certificate, got %s", getCertRequestResponse.Result.CertificateChain)
+		}
+		if getCertRequestResponse.Result.Username != "testadmin" {
+			t.Fatalf("expected username 'testadmin', got %s", getCertRequestResponse.Result.Username)
 		}
 	})
 

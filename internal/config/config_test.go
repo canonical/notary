@@ -16,33 +16,114 @@ const (
 cert_path: "./cert_test.pem"
 external_hostname: "example.com"
 db_path: "./notary.db"
-port: 8000`
+port: 8000
+logging:
+  system:
+    level: "debug"
+    output: "stdout"
+encryption_backend: {}`
 	noCertPathConfig = `key_path:  "./key_test.pem"
 external_hostname: "example.com"
 db_path: "./notary.db"
-port: 8000`
+port: 8000
+logging:
+  system:
+    level: "debug"
+    output: "stdout"
+encryption_backend: {}`
 	noKeyPathConfig = `cert_path: "./cert_test.pem"
 external_hostname: "example.com"
 db_path: "./notary.db"
-port: 8000`
+port: 8000
+logging:
+  system:
+    level: "debug"
+    output: "stdout"
+encryption_backend: {}`
 	noExternalHostnameConfig = `key_path:  "./key_test.pem"
 cert_path: "./cert_test.pem"
 db_path: "./notary.db"
-port: 8000`
+port: 8000
+logging:
+  system:
+    level: "debug"
+    output: "stdout"
+encryption_backend: {}`
 	noDBPathConfig = `key_path:  "./key_test.pem"
 external_hostname: "example.com"
 cert_path: "./cert_test.pem"
-port: 8000`
+port: 8000
+logging:
+  system:
+    level: "debug"
+    output: "stdout"
+encryption_backend: {}`
 	wrongCertPathConfig = `key_path:  "./key_test.pem"
 cert_path: "./cert_test_wrong.pem"
 external_hostname: "example.com"
 db_path: "./notary.db"
-port: 8000`
+port: 8000
+logging:
+  system:
+    level: "debug"
+    output: "stdout"`
 	wrongKeyPathConfig = `key_path:  "./key_test_wrong.pem"
 cert_path: "./cert_test.pem"
 external_hostname: "example.com"
 db_path: "./notary.db"
-port: 8000`
+port: 8000
+logging:
+  system:
+    level: "debug"
+    output: "stdout"
+encryption_backend: {}`
+	noLoggingConfig = `key_path:  "./key_test.pem"
+cert_path: "./cert_test.pem"
+external_hostname: "example.com"
+db_path: "./notary.db"
+port: 8000
+encryption_backend: {}`
+	invalidEncryptionBackendConfigType = `key_path:  "./key_test.pem"
+cert_path: "./cert_test.pem"
+external_hostname: "example.com"
+db_path: "./notary.db"
+port: 8000
+logging:
+  system:
+    level: "debug"
+    output: "stdout"
+encryption_backend:
+  yubihsm2:
+    invalid:
+      lib_path: "/usr/local/lib/pkcs11/yubihsm_pkcs11.so"
+      aes_encryption_key_id: 0x1234
+      pin: "0001password"`
+
+	noEncryptionBackendConfig = `key_path:  "./key_test.pem"
+cert_path: "./cert_test.pem"
+external_hostname: "example.com"
+db_path: "./notary.db"
+port: 8000
+logging:
+  system:
+    level: "debug"
+    output: "stdout"
+`
+	incompleteEncryptionBackendConfig = `key_path:  "./key_test.pem"
+cert_path: "./cert_test.pem"
+external_hostname: "example.com"
+db_path: "./notary.db"
+port: 8000
+logging:
+  system:
+    level: "debug"
+    output: "stdout"
+encryption_backend:
+  yubihsm2:
+    pkcs11:
+      lib_path: "/usr/local/lib/pkcs11/yubihsm_pkcs11.so"
+      aes_encryption_key_id: 0x1234
+`
 	invalidYAMLConfig = `just_an=invalid
 yaml.here`
 )
@@ -113,6 +194,10 @@ func TestBadConfigFail(t *testing.T) {
 		{"wrong cert path", wrongCertPathConfig, "no such file or directory"},
 		{"wrong key path", wrongKeyPathConfig, "no such file or directory"},
 		{"invalid yaml", invalidYAMLConfig, "unmarshal errors"},
+		{"no logging", noLoggingConfig, "`logging` is empty"},
+		{"No encryption backend", noEncryptionBackendConfig, "`encryption_backend` config is missing, it must be a map with backends, empty map means no encryption"},
+		{"Invalid encryption backend config", invalidEncryptionBackendConfigType, "invalid encryption backend type; must be 'vault' or 'pkcs11'"},
+		{"Incomplete encryption backend config", incompleteEncryptionBackendConfig, "pin is missing"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {

@@ -6,6 +6,9 @@ import (
 	"crypto/x509"
 	"encoding/asn1"
 	"errors"
+	"fmt"
+
+	"github.com/canonical/notary/internal/db"
 )
 
 // generateSKI generates the Subject Key Identifier (SKI) for the given private key.
@@ -27,4 +30,24 @@ func generateSKI(priv *rsa.PrivateKey) []byte {
 	}
 	hash := sha1.Sum(spki.SubjectPublicKey.Bytes)
 	return hash[:]
+}
+
+func setUpJWTSecret(database *db.Database) ([]byte, error) {
+	jwtSecret, err := database.GetJWTSecret()
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			// Generate new JWT secret if none exists
+			jwtSecret, err = generateJWTSecret()
+			if err != nil {
+				return nil, err
+			}
+			if err := database.CreateJWTSecret(jwtSecret); err != nil {
+				return nil, fmt.Errorf("failed to store JWT secret: %w", err)
+			}
+			return jwtSecret, nil
+		} else {
+			return nil, fmt.Errorf("failed to get JWT secret: %w", err)
+		}
+	}
+	return jwtSecret, nil
 }

@@ -7,14 +7,21 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/canonical/notary/internal/encryption_backend"
 	"github.com/canonical/notary/internal/server"
+	"go.uber.org/zap"
 )
 
 func TestNewSuccess(t *testing.T) {
 	tempDir := t.TempDir()
 	db_path := filepath.Join(tempDir, "db.sqlite3")
 
-	s, err := server.New(8000, []byte(cert), []byte(key), db_path, "example.com", false)
+	l, err := zap.NewDevelopment()
+	if err != nil {
+		t.Fatalf("cannot create logger: %s", err)
+	}
+	noneEncryptionBackend := encryption_backend.NoEncryptionBackend{}
+  s, err := server.New(8000, []byte(cert), []byte(key), db_path, "example.com", false, l, noneEncryptionBackend)
 	if err != nil {
 		t.Errorf("Error occurred: %s", err)
 	}
@@ -24,7 +31,12 @@ func TestNewSuccess(t *testing.T) {
 }
 
 func TestInvalidKeyFailure(t *testing.T) {
-	_, err := server.New(8000, []byte(cert), []byte{}, "notary.db", "example.com", false)
+	l, err := zap.NewDevelopment()
+	if err != nil {
+		t.Fatalf("cannot create logger: %s", err)
+	}
+	noneEncryptionBackend := encryption_backend.NoEncryptionBackend{}
+	_, err = server.New(8000, []byte(cert), []byte{}, "notary.db", "example.com", false, l, noneEncryptionBackend)
 	if err == nil {
 		t.Errorf("No error was thrown for invalid key")
 	}

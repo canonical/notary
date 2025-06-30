@@ -1,116 +1,44 @@
 package db
 
 import (
-	"context"
-	"errors"
 	"fmt"
-	"log"
 
-	"github.com/canonical/sqlair"
+	"github.com/canonical/notary/internal/encryption"
 )
 
-type PrivateKey struct {
-	PrivateKeyID int64 `db:"private_key_id"`
-
-	PrivateKeyPEM string `db:"private_key"`
-}
-
-const queryCreatePrivateKeysTable = `
-	CREATE TABLE IF NOT EXISTS private_keys (
-	    private_key_id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-		private_key TEXT NOT NULL UNIQUE
-)
-`
-
-const (
-	listPrivateKeysStmt  = "SELECT &PrivateKey.* FROM private_keys"
-	getPrivateKeyStmt    = "SELECT &PrivateKey.* FROM private_keys WHERE private_key_id==$PrivateKey.private_key_id or private_key==$PrivateKey.private_key"
-	createPrivateKeyStmt = "INSERT INTO private_keys (private_key) VALUES ($PrivateKey.private_key)"
-	deletePrivateKeyStmt = "DELETE FROM private_keys WHERE private_key_id==$PrivateKey.private_key_id or private_key==$PrivateKey.private_key"
-)
-
-// ListPrivateKeys gets every PrivateKey entry in the table.
-func (db *Database) ListPrivateKeys() ([]PrivateKey, error) {
-	privateKeys, err := ListEntities[PrivateKey](db, listPrivateKeysStmt)
+// GetDecryptedPrivateKey gets a private key row from the repository from a given ID or PEM.
+func (db *Database) GetDecryptedPrivateKey(filter PrivateKeyFilter) (*PrivateKey, error) {
+	pkRow := filter.AsPrivateKey()
+	pk, err := GetOneEntity[PrivateKey](db, db.stmts.GetPrivateKey, *pkRow)
 	if err != nil {
-		log.Println(err)
-		return nil, fmt.Errorf("%w: failed to list private keys", err)
+		return nil, err
 	}
-	return privateKeys, nil
-}
-
-// GetPrivateKey gets a private key row from the repository from a given ID or PEM.
-func (db *Database) GetPrivateKey(filter PrivateKeyFilter) (*PrivateKey, error) {
-	var pkRow PrivateKey
-
-	switch {
-	case filter.ID != nil:
-		pkRow = PrivateKey{PrivateKeyID: *filter.ID}
-	case filter.PEM != nil:
-		pkRow = PrivateKey{PrivateKeyPEM: *filter.PEM}
-	default:
-		return nil, fmt.Errorf("%w: private key - both ID and PEM are nil", ErrInvalidFilter)
-	}
-
-	pk, err := GetOneEntity[PrivateKey](db, getPrivateKeyStmt, pkRow)
+	decryptedPK, err := encryption.Decrypt(pk.PrivateKeyPEM, db.EncryptionKey)
 	if err != nil {
-		log.Println(err)
-		if errors.Is(err, sqlair.ErrNoRows) {
-			return nil, fmt.Errorf("%w: %s", ErrNotFound, "private key")
-		}
-		return nil, fmt.Errorf("%w: failed to get private key", err)
+		return nil, fmt.Errorf("%w: failed to decrypt private key", ErrInternal)
 	}
+	pk.PrivateKeyPEM = decryptedPK
 	return pk, nil
 }
 
 // CreatePrivateKey creates a new private key entry in the repository. The string must be a valid private key and unique.
 func (db *Database) CreatePrivateKey(pk string) (int64, error) {
 	if err := ValidatePrivateKey(pk); err != nil {
-		log.Println(err)
-		return 0, errors.New("Invalid private key: " + err.Error())
+		return 0, err
 	}
-	stmt, err := sqlair.Prepare(createPrivateKeyStmt, PrivateKey{})
+	encryptedPK, err := encryption.Encrypt(pk, db.EncryptionKey)
 	if err != nil {
-		log.Println(err)
-		return 0, fmt.Errorf("%w: failed to create private key due to sql compilation error", ErrInternal)
+		return 0, fmt.Errorf("%w: failed to encrypt private key", ErrInternal)
 	}
 	row := PrivateKey{
-		PrivateKeyPEM: pk,
+		PrivateKeyPEM: encryptedPK,
 	}
-	var outcome sqlair.Outcome
-	err = db.conn.Query(context.Background(), stmt, row).Get(&outcome)
-	if err != nil {
-		log.Println(err)
-		if IsConstraintError(err, "UNIQUE constraint failed") {
-			return 0, fmt.Errorf("%w: private key already exists", ErrAlreadyExists)
-		}
-		return 0, fmt.Errorf("%w: failed to create private key", ErrInternal)
-	}
-	insertedRowID, err := outcome.Result().LastInsertId()
-	if err != nil {
-		log.Println(err)
-		return 0, fmt.Errorf("%w: failed to create private key", ErrInternal)
-	}
-	return insertedRowID, nil
+
+	return CreateEntity(db, db.stmts.CreatePrivateKey, row)
 }
 
 // DeletePrivateKey deletes a private key from the database.
 func (db *Database) DeletePrivateKey(filter PrivateKeyFilter) error {
-	pkRow, err := db.GetPrivateKey(filter)
-	if err != nil {
-		return err
-	}
-
-	stmt, err := sqlair.Prepare(deletePrivateKeyStmt, PrivateKey{})
-	if err != nil {
-		log.Println(err)
-		return fmt.Errorf("%w: failed to delete private key due to sql compilation error", ErrInternal)
-	}
-	err = db.conn.Query(context.Background(), stmt, pkRow).Run()
-	if err != nil {
-		log.Println(err)
-		return fmt.Errorf("%w: failed to delete private key", ErrInternal)
-	}
-	return nil
+	pkRow := filter.AsPrivateKey()
+	return DeleteEntity(db, db.stmts.DeletePrivateKey, pkRow)
 }

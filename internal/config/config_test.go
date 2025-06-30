@@ -64,14 +64,14 @@ func TestValidConfig(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			err := os.WriteFile("config.yaml", []byte(tc.configYAML), 0o644)
 			if err != nil {
-				t.Fatalf("Error writing config file")
+				t.Errorf("Error writing config file")
 			}
 			gotCfg, err := config.ValidateConfig("config.yaml")
 			if err != nil {
-				t.Fatalf("ValidateConfig(%q) = %v, want nil", "config.yaml", err)
+				t.Errorf("ValidateConfig(%q) = %v, want nil", "config.yaml", err)
 			}
 			if !cmp.Equal(gotCfg, tc.wantCfg) {
-				t.Fatalf("ValidateConfig returned unexpected diff (-want+got):\n%v", cmp.Diff(tc.wantCfg, gotCfg))
+				t.Errorf("ValidateConfig returned unexpected diff (-want+got):\n%v", cmp.Diff(tc.wantCfg, gotCfg))
 			}
 		})
 	}

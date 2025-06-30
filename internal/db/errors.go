@@ -2,9 +2,6 @@ package db
 
 import (
 	"errors"
-	"strings"
-
-	"github.com/canonical/sqlair"
 )
 
 var (
@@ -19,24 +16,12 @@ var (
 	ErrInvalidUser               = errors.New("invalid user")
 )
 
-// IsConstraintError checks if the error is a constraint error
-func IsConstraintError(err error, constraint string) bool {
-	if err == nil {
-		return false
-	}
-
-	return strings.Contains(err.Error(), constraint)
-}
-
+// When a row doesn't exist, an ErrNotFound error is returned.
+// This function checks if the error is empty, which implies that ErrNotFound was returned.
 func rowFound(err error) bool {
 	return err == nil
 }
 
 func realError(err error) bool {
-	return err != nil && !errors.Is(err, sqlair.ErrNoRows) && !errors.Is(err, ErrNotFound)
-}
-
-func HandleDBCreateQueryError(err error, entity_name string) error {
-
-	return nil
+	return err != nil && !errors.Is(err, ErrNotFound)
 }

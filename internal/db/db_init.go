@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/canonical/notary/internal/encryption_backend"
 	"github.com/canonical/sqlair"
@@ -105,7 +106,7 @@ func CreateEntity[T any](db *Database, stmt *sqlair.Statement, new_entity T) (in
 	var outcome sqlair.Outcome
 	err := db.conn.Query(context.Background(), stmt, new_entity).Get(&outcome)
 	if err != nil {
-		if IsConstraintError(err, "UNIQUE constraint failed") {
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			return 0, fmt.Errorf("failed to create %s: %w", getTypeName[T](), ErrAlreadyExists)
 		}
 		return 0, fmt.Errorf("failed to create %s: %w", getTypeName[T](), ErrInternal)

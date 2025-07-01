@@ -22,7 +22,7 @@ func TestNewSuccess(t *testing.T) {
 		t.Fatalf("cannot create logger: %s", err)
 	}
 	noneEncryptionBackend := encryption_backend.NoEncryptionBackend{}
-	s, err := server.New(8000, []byte(tu.TestServerCertificate), []byte(tu.TestServerKey), db_path, "example.com", false, l, noneEncryptionBackend)
+	s, err := server.New(8000, []byte(tu.TestServerCertificate), []byte(tu.TestServerKey), db_path, "example.com", false, l, noneEncryptionBackend, tu.PublicConfig)
 	if err != nil {
 		t.Errorf("Error occurred: %s", err)
 	}
@@ -37,7 +37,7 @@ func TestInvalidKeyFailure(t *testing.T) {
 		t.Fatalf("cannot create logger: %s", err)
 	}
 	noneEncryptionBackend := encryption_backend.NoEncryptionBackend{}
-	_, err = server.New(8000, []byte(tu.TestServerCertificate), []byte{}, "notary.db", "example.com", false, l, noneEncryptionBackend)
+	_, err = server.New(8000, []byte(tu.TestServerCertificate), []byte{}, "notary.db", "example.com", false, l, noneEncryptionBackend, tu.PublicConfig)
 	if err == nil {
 		t.Errorf("No error was thrown for invalid key")
 	}

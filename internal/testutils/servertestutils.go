@@ -31,6 +31,7 @@ func MustPrepareServer(t *testing.T) *httptest.Server {
 		false,
 		logger,
 		NoneEncryptionBackend,
+		PublicConfig,
 	)
 	if err != nil {
 		t.Fatalf("Couldn't get server: %s", err)

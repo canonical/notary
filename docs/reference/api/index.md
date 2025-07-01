@@ -43,4 +43,5 @@ certificate_requests.md
 login.md
 metrics.md
 status.md
+config.md
 ```

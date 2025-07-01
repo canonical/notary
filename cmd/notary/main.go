@@ -35,7 +35,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Couldn't create encryption backend: %s", err)
 	}
-	srv, err := server.New(conf.Port, conf.Cert, conf.Key, conf.DBPath, conf.ExternalHostname, conf.PebbleNotificationsEnabled, logger, encryptionBackend)
+	publicConfig := conf.PublicConfig()
+	srv, err := server.New(conf.Port, conf.Cert, conf.Key, conf.DBPath, conf.ExternalHostname, conf.PebbleNotificationsEnabled, logger, encryptionBackend, publicConfig)
 	if err != nil {
 		logger.Fatal("Couldn't create server", zap.Error(err))
 	}

@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/canonical/notary/internal/config"
 	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/encryption_backend"
 	"go.uber.org/zap"
@@ -31,3 +32,11 @@ func MustPrepareMockDB(t *testing.T) {
 var NoneEncryptionBackend = encryption_backend.NoEncryptionBackend{}
 
 var logger, _ = zap.NewDevelopment()
+
+var PublicConfig = config.PublicConfigData{
+	Port:                  8000,
+	PebbleNotifications:   false,
+	LoggingLevel:          "debug",
+	LoggingOutput:         "stdout",
+	EncryptionBackendType: "none",
+}

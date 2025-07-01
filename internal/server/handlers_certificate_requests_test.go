@@ -1,177 +1,23 @@
 package server_test
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"path/filepath"
-	"strconv"
 	"testing"
 
-	"github.com/canonical/notary/internal/server"
+	tu "github.com/canonical/notary/internal/testutils"
 )
-
-type GetCertificateRequestResponse struct {
-	Result server.CertificateRequest `json:"result"`
-	Error  string                    `json:"error,omitempty"`
-}
-
-type ListCertificateRequestsResponse struct {
-	Error  string                      `json:"error,omitempty"`
-	Result []server.CertificateRequest `json:"result"`
-}
-
-type CreateCertificateRequestResponse struct {
-	ID    int    `json:"id"`
-	Error string `json:"error,omitempty"`
-}
-
-type CreateCertificateRequestParams struct {
-	CSR string `json:"csr"`
-}
-
-type CreateCertificateParams struct {
-	Certificate string `json:"certificate"`
-}
-
-type GetCertificateResponseResult struct {
-	Certificate string `json:"certificate"`
-}
-
-type GetCertificateResponse struct {
-	Result GetCertificateResponseResult `json:"result"`
-	Error  string                       `json:"error,omitempty"`
-}
-
-type CreateCertificateResponse struct {
-	ID    int    `json:"id"`
-	Error string `json:"error,omitempty"`
-}
-
-func listCertificateRequests(url string, client *http.Client, adminToken string) (int, *ListCertificateRequestsResponse, error) {
-	req, err := http.NewRequest("GET", url+"/api/v1/certificate_requests", nil)
-	if err != nil {
-		return 0, nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
-	res, err := client.Do(req)
-	if err != nil {
-		return 0, nil, err
-	}
-	var certificateRequestsResponse ListCertificateRequestsResponse
-	if err := json.NewDecoder(res.Body).Decode(&certificateRequestsResponse); err != nil {
-		return 0, nil, err
-	}
-	return res.StatusCode, &certificateRequestsResponse, nil
-}
-
-func getCertificateRequest(url string, client *http.Client, adminToken string, id int) (int, *GetCertificateRequestResponse, error) {
-	req, err := http.NewRequest("GET", url+"/api/v1/certificate_requests/"+strconv.Itoa(id), nil)
-	if err != nil {
-		return 0, nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
-	res, err := client.Do(req)
-	if err != nil {
-		return 0, nil, err
-	}
-	var getCertificateRequestResponse GetCertificateRequestResponse
-	if err := json.NewDecoder(res.Body).Decode(&getCertificateRequestResponse); err != nil {
-		return 0, nil, err
-	}
-	return res.StatusCode, &getCertificateRequestResponse, nil
-}
-
-func createCertificateRequest(url string, client *http.Client, adminToken string, certRequest CreateCertificateRequestParams) (int, *CreateCertificateRequestResponse, error) {
-	reqData, err := json.Marshal(certRequest)
-	if err != nil {
-		return 0, nil, err
-	}
-	req, err := http.NewRequest("POST", url+"/api/v1/certificate_requests", bytes.NewReader(reqData))
-	if err != nil {
-		return 0, nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
-	req.Header.Set("Content-Type", "application/json")
-	res, err := client.Do(req)
-	if err != nil {
-		return 0, nil, err
-	}
-	var createCertificateRequestResponse CreateCertificateRequestResponse
-	if err := json.NewDecoder(res.Body).Decode(&createCertificateRequestResponse); err != nil {
-		return 0, nil, err
-	}
-	return res.StatusCode, &createCertificateRequestResponse, nil
-}
-
-func deleteCertificateRequest(url string, client *http.Client, adminToken string, id int) (int, error) {
-	req, err := http.NewRequest("DELETE", url+"/api/v1/certificate_requests/"+strconv.Itoa(id), nil)
-	if err != nil {
-		return 0, err
-	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
-	res, err := client.Do(req)
-	if err != nil {
-		return 0, err
-	}
-	return res.StatusCode, nil
-}
-
-func createCertificate(url string, client *http.Client, adminToken string, cert CreateCertificateParams) (int, *CreateCertificateResponse, error) {
-	reqData, err := json.Marshal(cert)
-	if err != nil {
-		return 0, nil, err
-	}
-	req, err := http.NewRequest("POST", url+"/api/v1/certificate_requests/1/certificate", bytes.NewReader(reqData))
-	if err != nil {
-		return 0, nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
-	req.Header.Set("Content-Type", "application/json")
-	res, err := client.Do(req)
-	if err != nil {
-		return 0, nil, err
-	}
-	var createCertificateResponse CreateCertificateResponse
-	if err := json.NewDecoder(res.Body).Decode(&createCertificateResponse); err != nil {
-		return 0, nil, err
-	}
-	return res.StatusCode, &createCertificateResponse, nil
-}
-
-func rejectCertificate(url string, client *http.Client, adminToken string, id int) (int, error) {
-	req, err := http.NewRequest("POST", url+"/api/v1/certificate_requests/"+strconv.Itoa(id)+"/reject", nil)
-	if err != nil {
-		return 0, err
-	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
-	res, err := client.Do(req)
-	if err != nil {
-		return 0, err
-	}
-	return res.StatusCode, nil
-}
 
 // This is an end-to-end test for the certificate requests endpoint.
 // The order of the tests is important, as some tests depend on the
 // state of the server after previous tests.
 func TestCertificateRequestsEndToEnd(t *testing.T) {
-	tempDir := t.TempDir()
-	db_path := filepath.Join(tempDir, "db.sqlite3")
-	ts, _, err := setupServer(db_path)
-	if err != nil {
-		t.Fatalf("couldn't create test server: %s", err)
-	}
-	defer ts.Close()
+	ts := tu.MustPrepareServer(t)
+	adminToken := tu.MustPrepareAdminAccount(t, ts)
 	client := ts.Client()
 
-	var adminToken string
-	var nonAdminToken string
-	t.Run("prepare user accounts and tokens", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
-
 	t.Run("1. List certificate requests - no requests yet", func(t *testing.T) {
-		statusCode, listCertRequestsResponse, err := listCertificateRequests(ts.URL, client, adminToken)
+		statusCode, listCertRequestsResponse, err := tu.ListCertificateRequests(ts.URL, client, adminToken)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -188,10 +34,10 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 
 	t.Run("2. Create certificate request", func(t *testing.T) {
 
-		createCertificateRequestRequest := CreateCertificateRequestParams{
-			CSR: csr1,
+		createCertificateRequestRequest := tu.CreateCertificateRequestParams{
+			CSR: tu.AppleCSR,
 		}
-		statusCode, createCertResponse, err := createCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
+		statusCode, createCertResponse, err := tu.CreateCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -204,7 +50,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 	})
 
 	t.Run("3. List certificate requests - 1 Certificate", func(t *testing.T) {
-		statusCode, listCertRequestsResponse, err := listCertificateRequests(ts.URL, client, adminToken)
+		statusCode, listCertRequestsResponse, err := tu.ListCertificateRequests(ts.URL, client, adminToken)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -226,7 +72,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 	})
 
 	t.Run("4. Get certificate request", func(t *testing.T) {
-		statusCode, getCertRequestResponse, err := getCertificateRequest(ts.URL, client, adminToken, 1)
+		statusCode, getCertRequestResponse, err := tu.GetCertificateRequest(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -251,10 +97,10 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 	})
 
 	t.Run("5. Create identical certificate request", func(t *testing.T) {
-		createCertificateRequestRequest := CreateCertificateRequestParams{
-			CSR: csr1,
+		createCertificateRequestRequest := tu.CreateCertificateRequestParams{
+			CSR: tu.AppleCSR,
 		}
-		statusCode, createCertResponse, err := createCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
+		statusCode, createCertResponse, err := tu.CreateCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -267,7 +113,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 	})
 
 	t.Run("6. List certificate requests - 1 Certificate", func(t *testing.T) {
-		statusCode, listCertRequestsResponse, err := listCertificateRequests(ts.URL, client, adminToken)
+		statusCode, listCertRequestsResponse, err := tu.ListCertificateRequests(ts.URL, client, adminToken)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -283,11 +129,10 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 	})
 
 	t.Run("7. Create another certificate request", func(t *testing.T) {
-
-		createCertificateRequestRequest := CreateCertificateRequestParams{
-			CSR: csr2,
+		createCertificateRequestRequest := tu.CreateCertificateRequestParams{
+			CSR: tu.StrawberryCSR,
 		}
-		statusCode, createCertResponse, err := createCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
+		statusCode, createCertResponse, err := tu.CreateCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -300,7 +145,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 	})
 
 	t.Run("8. List certificate requests - 2 Certificates", func(t *testing.T) {
-		statusCode, listCertRequestsResponse, err := listCertificateRequests(ts.URL, client, adminToken)
+		statusCode, listCertRequestsResponse, err := tu.ListCertificateRequests(ts.URL, client, adminToken)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -316,7 +161,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 	})
 
 	t.Run("9. Get certificate request 2", func(t *testing.T) {
-		statusCode, getCertRequestResponse, err := getCertificateRequest(ts.URL, client, adminToken, 2)
+		statusCode, getCertRequestResponse, err := tu.GetCertificateRequest(ts.URL, client, adminToken, 2)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -341,7 +186,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 	})
 
 	t.Run("10. Delete certificate request 1", func(t *testing.T) {
-		statusCode, err := deleteCertificateRequest(ts.URL, client, adminToken, 1)
+		statusCode, err := tu.DeleteCertificateRequest(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -351,7 +196,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 	})
 
 	t.Run("11. List certificate requests - 1 Certificate", func(t *testing.T) {
-		statusCode, listCertRequestsResponse, err := listCertificateRequests(ts.URL, client, adminToken)
+		statusCode, listCertRequestsResponse, err := tu.ListCertificateRequests(ts.URL, client, adminToken)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -367,7 +212,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 	})
 
 	t.Run("12. Delete certificate request 2", func(t *testing.T) {
-		statusCode, err := deleteCertificateRequest(ts.URL, client, adminToken, 2)
+		statusCode, err := tu.DeleteCertificateRequest(ts.URL, client, adminToken, 2)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -381,23 +226,15 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 // The order of the tests is important, as some tests depend on the
 // state of the server after previous tests.
 func TestCertificatesEndToEnd(t *testing.T) {
-	tempDir := t.TempDir()
-	db_path := filepath.Join(tempDir, "db.sqlite3")
-	ts, _, err := setupServer(db_path)
-	if err != nil {
-		t.Fatalf("couldn't create test server: %s", err)
-	}
-	defer ts.Close()
+	ts := tu.MustPrepareServer(t)
+	adminToken := tu.MustPrepareAdminAccount(t, ts)
 	client := ts.Client()
 
-	var adminToken string
-	var nonAdminToken string
-	t.Run("prepare user accounts and tokens", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
 	t.Run("1. Create certificate request", func(t *testing.T) {
-		createCertificateRequestRequest := CreateCertificateRequestParams{
-			CSR: csr2,
+		createCertificateRequestRequest := tu.CreateCertificateRequestParams{
+			CSR: tu.ExampleCSR,
 		}
-		statusCode, createCertResponse, err := createCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
+		statusCode, createCertResponse, err := tu.CreateCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -410,11 +247,10 @@ func TestCertificatesEndToEnd(t *testing.T) {
 	})
 
 	t.Run("2. Create Certificate", func(t *testing.T) {
-		createCertificateRequest := CreateCertificateParams{
-			Certificate: fmt.Sprintf("%s\n%s", csr2_cert, issuer_cert),
+		createCertificateRequest := tu.CreateCertificateParams{
+			Certificate: fmt.Sprintf("%s\n%s", tu.ExampleCSRCertificate, tu.ExampleCSRIssuerCertificate),
 		}
-		fmt.Println(createCertificateRequest)
-		statusCode, createCertResponse, err := createCertificate(ts.URL, client, adminToken, createCertificateRequest)
+		statusCode, createCertResponse, err := tu.CreateCertificate(ts.URL, client, adminToken, createCertificateRequest)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -427,7 +263,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 	})
 
 	t.Run("3. Get Certificate", func(t *testing.T) {
-		statusCode, getCertResponse, err := getCertificateRequest(ts.URL, client, adminToken, 1)
+		statusCode, getCertResponse, err := tu.GetCertificateRequest(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -443,7 +279,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 	})
 
 	t.Run("4. Reject Certificate", func(t *testing.T) {
-		statusCode, err := rejectCertificate(ts.URL, client, adminToken, 1)
+		statusCode, err := tu.RejectCertificate(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -453,7 +289,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 	})
 
 	t.Run("5. Get Certificate", func(t *testing.T) {
-		statusCode, getCertResponse, err := getCertificateRequest(ts.URL, client, adminToken, 1)
+		statusCode, getCertResponse, err := tu.GetCertificateRequest(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -469,7 +305,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 	})
 
 	t.Run("6. Delete Certificate", func(t *testing.T) {
-		statusCode, err := deleteCertificateRequest(ts.URL, client, adminToken, 1)
+		statusCode, err := tu.DeleteCertificateRequest(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -479,7 +315,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 	})
 
 	t.Run("7. Get Certificate", func(t *testing.T) {
-		statusCode, getCertResponse, err := getCertificateRequest(ts.URL, client, adminToken, 1)
+		statusCode, getCertResponse, err := tu.GetCertificateRequest(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -494,18 +330,9 @@ func TestCertificatesEndToEnd(t *testing.T) {
 }
 
 func TestCreateCertificateRequestInvalidInputs(t *testing.T) {
-	tempDir := t.TempDir()
-	db_path := filepath.Join(tempDir, "db.sqlite3")
-	ts, _, err := setupServer(db_path)
-	if err != nil {
-		t.Fatalf("couldn't create test server: %s", err)
-	}
-	defer ts.Close()
+	ts := tu.MustPrepareServer(t)
+	adminToken := tu.MustPrepareAdminAccount(t, ts)
 	client := ts.Client()
-
-	var adminToken string
-	var nonAdminToken string
-	t.Run("prepare user accounts and tokens", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
 
 	tests := []struct {
 		testName string
@@ -540,10 +367,10 @@ MIIBVwIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAuQ==
 
 	for _, test := range tests {
 		t.Run(test.testName, func(t *testing.T) {
-			certRequest := CreateCertificateRequestParams{
+			certRequest := tu.CreateCertificateRequestParams{
 				CSR: test.csr,
 			}
-			statusCode, createCertResponse, err := createCertificateRequest(ts.URL, client, adminToken, certRequest)
+			statusCode, createCertResponse, err := tu.CreateCertificateRequest(ts.URL, client, adminToken, certRequest)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -558,18 +385,9 @@ MIIBVwIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAuQ==
 }
 
 func TestCreateCertificateInvalidInputs(t *testing.T) {
-	tempDir := t.TempDir()
-	db_path := filepath.Join(tempDir, "db.sqlite3")
-	ts, _, err := setupServer(db_path)
-	if err != nil {
-		t.Fatalf("couldn't create test server: %s", err)
-	}
-	defer ts.Close()
+	ts := tu.MustPrepareServer(t)
+	adminToken := tu.MustPrepareAdminAccount(t, ts)
 	client := ts.Client()
-
-	var adminToken string
-	var nonAdminToken string
-	t.Run("prepare user accounts and tokens", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
 
 	tests := []struct {
 		testName    string
@@ -604,10 +422,10 @@ MIICfjCCAeegAwIBAgIBADANBgkqhkiG9w0BAQ0FADBcMQswCQYDVQQGEwJjYTEL
 
 	for _, test := range tests {
 		t.Run(test.testName, func(t *testing.T) {
-			cert := CreateCertificateParams{
+			cert := tu.CreateCertificateParams{
 				Certificate: test.certificate,
 			}
-			statusCode, createCertResponse, err := createCertificate(ts.URL, client, adminToken, cert)
+			statusCode, createCertResponse, err := tu.CreateCertificate(ts.URL, client, adminToken, cert)
 			if err != nil {
 				t.Fatal(err)
 			}

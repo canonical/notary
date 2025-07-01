@@ -8,10 +8,19 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/canonical/notary/internal/config"
 	"github.com/canonical/notary/internal/encryption_backend"
 	"github.com/canonical/notary/internal/server"
 	"go.uber.org/zap"
 )
+
+var publicConfig = config.PublicConfigData{
+	Port:                  8000,
+	PebbleNotifications:   false,
+	LoggingLevel:          "debug",
+	LoggingOutput:         "stdout",
+	EncryptionBackendType: "none",
+}
 
 func TestNewSuccess(t *testing.T) {
 	tempDir := t.TempDir()
@@ -32,7 +41,7 @@ func TestNewSuccess(t *testing.T) {
 		t.Fatalf("cannot create logger: %s", err)
 	}
 	noneEncryptionBackend := encryption_backend.NoEncryptionBackend{}
-	s, err := server.New(8000, cert, key, db_path, "example.com", false, l, noneEncryptionBackend)
+	s, err := server.New(8000, cert, key, db_path, "example.com", false, l, noneEncryptionBackend, publicConfig)
 	if err != nil {
 		t.Errorf("Error occurred: %s", err)
 	}
@@ -52,7 +61,7 @@ func TestInvalidKeyFailure(t *testing.T) {
 		t.Fatalf("cannot create logger: %s", err)
 	}
 	noneEncryptionBackend := encryption_backend.NoEncryptionBackend{}
-	_, err = server.New(8000, cert, []byte{}, "notary.db", "example.com", false, l, noneEncryptionBackend)
+	_, err = server.New(8000, cert, []byte{}, "notary.db", "example.com", false, l, noneEncryptionBackend, publicConfig)
 	if err == nil {
 		t.Errorf("No error was thrown for invalid key")
 	}

@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/canonical/notary/internal/config"
 	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/encryption_backend"
 	"github.com/canonical/notary/internal/server"
@@ -24,10 +25,19 @@ func setupServer(filepath string) (*httptest.Server, *server.HandlerConfig, erro
 		return nil, nil, err
 	}
 
+	testPublicConfig := config.PublicConfigData{
+		Port:                  8080,
+		PebbleNotifications:   false,
+		LoggingLevel:          "debug",
+		LoggingOutput:         "stdout",
+		EncryptionBackendType: "none",
+	}
+
 	config := &server.HandlerConfig{
 		DB:               testdb,
 		ExternalHostname: "example.com",
 		Logger:           logger,
+		PublicConfig:     testPublicConfig,
 	}
 	ts := httptest.NewTLSServer(server.NewHandler(config))
 	return ts, config, nil

@@ -6,14 +6,11 @@ import (
 
 	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/hashing"
+	tu "github.com/canonical/notary/internal/testutils"
 )
 
 func TestUsersEndToEnd(t *testing.T) {
-	database, err := db.NewDatabase(":memory:", NoneEncryptionBackend, logger)
-	if err != nil {
-		t.Fatalf("Couldn't complete NewDatabase: %s", err)
-	}
-	defer database.Close()
+	database := tu.MustPrepareEmptyDB(t)
 
 	userID, err := database.CreateUser("admin", "pw123", 1)
 	if err != nil {
@@ -85,8 +82,7 @@ func TestUsersEndToEnd(t *testing.T) {
 }
 
 func TestCreateUserFails(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend, logger)
-	defer database.Close()
+	database := tu.MustPrepareEmptyDB(t)
 
 	_, err := database.CreateUser("admin", "pw123", 1)
 	if err != nil {
@@ -150,8 +146,7 @@ func TestCreateUserFails(t *testing.T) {
 }
 
 func TestGetUserFails(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend, logger)
-	defer database.Close()
+	database := tu.MustPrepareEmptyDB(t)
 
 	_, err := database.CreateUser("admin", "pw123", 1)
 	if err != nil {
@@ -170,8 +165,8 @@ func TestGetUserFails(t *testing.T) {
 }
 
 func TestUpdateUserPasswordFails(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend, logger)
-	defer database.Close()
+	database := tu.MustPrepareEmptyDB(t)
+
 	originalPassword := "pw123"
 	_, err := database.CreateUser("admin", originalPassword, 1)
 	if err != nil {
@@ -214,8 +209,7 @@ func TestUpdateUserPasswordFails(t *testing.T) {
 }
 
 func TestDeleteUserFails(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend, logger)
-	defer database.Close()
+	database := tu.MustPrepareEmptyDB(t)
 
 	_, err := database.CreateUser("admin", "pw123", 1)
 	if err != nil {

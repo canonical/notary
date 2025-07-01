@@ -6,11 +6,14 @@ import (
 	"testing"
 
 	"github.com/canonical/notary/internal/db"
+	eb "github.com/canonical/notary/internal/encryption_backend"
+	"go.uber.org/zap"
 )
 
 func TestConnect(t *testing.T) {
+	logger, _ := zap.NewDevelopment()
 	tempDir := t.TempDir()
-	db, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend, logger)
+	db, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), eb.NoEncryptionBackend{}, logger)
 	if err != nil {
 		t.Fatalf("Can't connect to SQLite: %s", err)
 	}
@@ -18,15 +21,16 @@ func TestConnect(t *testing.T) {
 }
 
 func Example() {
-	database, err := db.NewDatabase("./notary.db", NoneEncryptionBackend, logger)
+	logger, _ := zap.NewDevelopment()
+	database, err := db.NewDatabase("./notary.db", eb.NoEncryptionBackend{}, logger)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	csrID, err := database.CreateCertificateRequest(BananaCSR, 0)
+	csrID, err := database.CreateCertificateRequest("----- CERTIFICATE REQUEST -----...", 0)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	_, err = database.AddCertificateChainToCertificateRequest(db.ByCSRID(csrID), BananaCert)
+	_, err = database.AddCertificateChainToCertificateRequest(db.ByCSRID(csrID), "----- CERTIFICATE -----...")
 	if err != nil {
 		log.Fatalln(err)
 	}

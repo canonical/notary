@@ -7,10 +7,11 @@ import (
 	"testing"
 
 	"github.com/canonical/notary/internal/db"
+	tu "github.com/canonical/notary/internal/testutils"
 )
 
 func TestCSRValidationSuccess(t *testing.T) {
-	cases := []string{AppleCSR, BananaCSR, StrawberryCSR}
+	cases := []string{tu.AppleCSR, tu.BananaCSR, tu.StrawberryCSR}
 
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("ValidCSR%d", i), func(t *testing.T) {
@@ -24,11 +25,11 @@ func TestCSRValidationSuccess(t *testing.T) {
 func TestCSRValidationFail(t *testing.T) {
 	wrongString := "this is a real csr!!!"
 	wrongStringErr := errors.New("PEM Certificate Request string not found or malformed")
-	ValidCSRWithoutWhitespace := strings.ReplaceAll(AppleCSR, "\n", "")
+	ValidCSRWithoutWhitespace := strings.ReplaceAll(tu.AppleCSR, "\n", "")
 	ValidCSRWithoutWhitespaceErr := errors.New("PEM Certificate Request string not found or malformed")
-	wrongPemType := strings.ReplaceAll(AppleCSR, "CERTIFICATE REQUEST", "SOME RANDOM PEM TYPE")
+	wrongPemType := strings.ReplaceAll(tu.AppleCSR, "CERTIFICATE REQUEST", "SOME RANDOM PEM TYPE")
 	wrongPemTypeErr := errors.New("given PEM string not a certificate request")
-	InvalidCSR := strings.ReplaceAll(AppleCSR, "s", "p")
+	InvalidCSR := strings.ReplaceAll(tu.AppleCSR, "s", "p")
 	InvalidCSRErr := errors.New("asn1: syntax error: data truncated")
 
 	cases := []struct {
@@ -69,8 +70,8 @@ func TestCSRValidationFail(t *testing.T) {
 
 func TestCertValidationSuccess(t *testing.T) {
 	cases := []string{
-		fmt.Sprintf("%s\n%s", BananaCert, IntermediateCert),
-		fmt.Sprintf("%s\n%s\n%s", BananaCert, IntermediateCert, RootCert),
+		fmt.Sprintf("%s\n%s", tu.BananaCert, tu.IntermediateCert),
+		fmt.Sprintf("%s\n%s\n%s", tu.BananaCert, tu.IntermediateCert, tu.RootCert),
 	}
 
 	for i, c := range cases {
@@ -85,15 +86,15 @@ func TestCertValidationSuccess(t *testing.T) {
 func TestCertValidationFail(t *testing.T) {
 	wrongCertString := "this is a real cert!!!"
 	wrongCertStringErr := errors.New("less than 2 certificate PEM strings were found")
-	wrongPemType := strings.ReplaceAll(BananaCert, "CERTIFICATE", "SOME RANDOM PEM TYPE")
+	wrongPemType := strings.ReplaceAll(tu.BananaCert, "CERTIFICATE", "SOME RANDOM PEM TYPE")
 	wrongPemTypeErr := errors.New("a given PEM string was not a certificate")
-	InvalidCert := strings.ReplaceAll(BananaCert, "M", "i")
+	InvalidCert := strings.ReplaceAll(tu.BananaCert, "M", "i")
 	InvalidCertErr := errors.New("x509: malformed certificate")
-	singleCert := BananaCert
+	singleCert := tu.BananaCert
 	singleCertErr := errors.New("less than 2 certificate PEM strings were found")
-	issuerCertSubjectDoesNotMatch := fmt.Sprintf("%s\n%s", BananaCert, WrongSubjectIssuerCert)
+	issuerCertSubjectDoesNotMatch := fmt.Sprintf("%s\n%s", tu.BananaCert, tu.WrongSubjectIssuerCert)
 	issuerCertSubjectDoesNotMatchErr := errors.New("invalid certificate chain: certificate 0, certificate 1: subjects do not match")
-	issuerCertNotCA := fmt.Sprintf("%s\n%s", BananaCert, UnusedCert)
+	issuerCertNotCA := fmt.Sprintf("%s\n%s", tu.BananaCert, tu.UnusedCert)
 	issuerCertNotCaErr := errors.New("invalid certificate chain: certificate 1 is not a certificate authority")
 
 	cases := []struct {
@@ -146,8 +147,8 @@ func TestCertificateMatchesCSRSuccess(t *testing.T) {
 		inputCert string
 	}{
 		{
-			inputCSR:  BananaCSR,
-			inputCert: fmt.Sprintf("%s\n%s", BananaCert, IntermediateCert),
+			inputCSR:  tu.BananaCSR,
+			inputCert: fmt.Sprintf("%s\n%s", tu.BananaCert, tu.IntermediateCert),
 		},
 	}
 
@@ -170,8 +171,8 @@ func TestCertificateMatchesCSRFail(t *testing.T) {
 		expectedErr string
 	}{
 		{
-			inputCSR:    AppleCSR,
-			inputCert:   fmt.Sprintf("%s\n%s", BananaCert, IntermediateCert),
+			inputCSR:    tu.AppleCSR,
+			inputCert:   fmt.Sprintf("%s\n%s", tu.BananaCert, tu.IntermediateCert),
 			expectedErr: certificateDoesNotMatchErr,
 		},
 	}

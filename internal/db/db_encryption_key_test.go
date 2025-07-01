@@ -2,19 +2,14 @@ package db_test
 
 import (
 	"errors"
-	"path/filepath"
 	"testing"
 
 	"github.com/canonical/notary/internal/db"
+	tu "github.com/canonical/notary/internal/testutils"
 )
 
 func TestEncryptionKeyEndToEnd(t *testing.T) {
-	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend, logger)
-	if err != nil {
-		t.Fatalf("Couldn't complete NewDatabase: %s", err)
-	}
-	defer database.Close()
+	database := tu.MustPrepareEmptyDB(t)
 
 	encryptionKey, err := database.GetEncryptionKey()
 	if err != nil {

@@ -16,17 +16,17 @@ import (
 
 // Database is the object used to communicate with the established repository.
 type Database struct {
-	conn          *sqlair.DB
+	Conn          *sqlair.DB
 	stmts         *Statements
 	EncryptionKey []byte
 }
 
 // Close closes the connection to the repository cleanly.
 func (db *Database) Close() error {
-	if db.conn == nil {
+	if db.Conn == nil {
 		return nil
 	}
-	if err := db.conn.PlainDB().Close(); err != nil {
+	if err := db.Conn.PlainDB().Close(); err != nil {
 		return err
 	}
 	db.stmts = nil
@@ -67,8 +67,8 @@ func NewDatabase(databasePath string, backend encryption_backend.EncryptionBacke
 		return nil, err
 	}
 	db := new(Database)
-	db.stmts = PrepareStatements(db.conn)
-	db.conn = sqlair.NewDB(sqlConnection)
+	db.stmts = PrepareStatements(db.Conn)
+	db.Conn = sqlair.NewDB(sqlConnection)
 
 	db.EncryptionKey, err = setUpEncryptionKey(db, backend, logger)
 	if err != nil {
@@ -81,7 +81,7 @@ func NewDatabase(databasePath string, backend encryption_backend.EncryptionBacke
 // ListEntities retrieves all entities of a given type from the database.
 func ListEntities[T any](db *Database, stmt *sqlair.Statement, inputArgs ...any) ([]T, error) {
 	var entities []T
-	err := db.conn.Query(context.Background(), stmt, inputArgs...).GetAll(&entities)
+	err := db.Conn.Query(context.Background(), stmt, inputArgs...).GetAll(&entities)
 	if err != nil && !errors.Is(err, sqlair.ErrNoRows) {
 		return nil, fmt.Errorf("failed to list %s: %w", getTypeName[T](), ErrInternal)
 	}
@@ -91,7 +91,7 @@ func ListEntities[T any](db *Database, stmt *sqlair.Statement, inputArgs ...any)
 // GetOneEntity retrieves a single entity of a given type from the database.
 func GetOneEntity[T any](db *Database, stmt *sqlair.Statement, inputArgs ...any) (*T, error) {
 	var result T
-	err := db.conn.Query(context.Background(), stmt, inputArgs...).Get(&result)
+	err := db.Conn.Query(context.Background(), stmt, inputArgs...).Get(&result)
 	if err != nil {
 		if errors.Is(err, sqlair.ErrNoRows) {
 			return nil, fmt.Errorf("failed to get %s: %w", getTypeName[T](), ErrNotFound)
@@ -104,7 +104,7 @@ func GetOneEntity[T any](db *Database, stmt *sqlair.Statement, inputArgs ...any)
 
 func CreateEntity[T any](db *Database, stmt *sqlair.Statement, new_entity T) (int64, error) {
 	var outcome sqlair.Outcome
-	err := db.conn.Query(context.Background(), stmt, new_entity).Get(&outcome)
+	err := db.Conn.Query(context.Background(), stmt, new_entity).Get(&outcome)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			return 0, fmt.Errorf("failed to create %s: %w", getTypeName[T](), ErrAlreadyExists)
@@ -120,7 +120,7 @@ func CreateEntity[T any](db *Database, stmt *sqlair.Statement, new_entity T) (in
 
 func UpdateEntity[T any](db *Database, stmt *sqlair.Statement, updated_entity T) error {
 	var outcome sqlair.Outcome
-	err := db.conn.Query(context.Background(), stmt, updated_entity).Get(&outcome)
+	err := db.Conn.Query(context.Background(), stmt, updated_entity).Get(&outcome)
 	if err != nil {
 		return fmt.Errorf("failed to update %s: %w", getTypeName[T](), ErrInternal)
 	}
@@ -136,7 +136,7 @@ func UpdateEntity[T any](db *Database, stmt *sqlair.Statement, updated_entity T)
 
 func DeleteEntity[T any](db *Database, stmt *sqlair.Statement, entity_to_delete T) error {
 	var outcome sqlair.Outcome
-	err := db.conn.Query(context.Background(), stmt, entity_to_delete).Get(&outcome)
+	err := db.Conn.Query(context.Background(), stmt, entity_to_delete).Get(&outcome)
 	if err != nil {
 		return fmt.Errorf("failed to delete %s: %w", getTypeName[T](), ErrInternal)
 	}

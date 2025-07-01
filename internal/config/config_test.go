@@ -11,7 +11,7 @@ import (
 )
 
 func TestValidConfig(t *testing.T) {
-	mustPrepareConfigFiles(t)
+	mustPrepareCertificateFiles(t)
 
 	cases := []struct {
 		desc       string
@@ -78,7 +78,7 @@ func TestValidConfig(t *testing.T) {
 }
 
 func TestInvalidConfig(t *testing.T) {
-	mustPrepareConfigFiles(t)
+	mustPrepareCertificateFiles(t)
 
 	cases := []struct {
 		desc       string
@@ -109,7 +109,7 @@ func TestInvalidConfig(t *testing.T) {
 	}
 }
 
-func mustPrepareConfigFiles(t *testing.T) {
+func mustPrepareCertificateFiles(t *testing.T) {
 	t.Helper()
 	testfolder := t.TempDir()
 	err := os.WriteFile(testfolder+"/cert_test.pem", []byte(validCert), 0o644)
@@ -124,8 +124,8 @@ func mustPrepareConfigFiles(t *testing.T) {
 }
 
 const (
-	validCert          = `----- CERTIFICATE -----`
-	validPK            = `----- PRIVATE KEY -----`
+	validCert          = `----- CERTIFICATE -----...`
+	validPK            = `----- PRIVATE KEY -----...`
 	validMinimalConfig = `
 key_path:  "./key_test.pem"
 cert_path: "./cert_test.pem"

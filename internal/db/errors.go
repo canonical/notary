@@ -17,11 +17,16 @@ var (
 )
 
 // When a row doesn't exist, an ErrNotFound error is returned.
-// This function checks if the error is empty, which implies that ErrNotFound was returned.
+// Sometimes, we specifically get a row to check if it exists.
+// This function returns true if the row was found, which means ErrNotFound was not returned.
 func rowFound(err error) bool {
 	return err == nil
 }
 
+// When a row doesn't exists, an ErrNotFound error is returned.
+// Sometimes, we specifically get a row to check if it exists.
+// This function makes sure that the error we got was an actual error, and not ErrNotFound,
+// which is the expected error to be returned.
 func realError(err error) bool {
 	return err != nil && !errors.Is(err, ErrNotFound)
 }

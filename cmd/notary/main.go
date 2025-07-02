@@ -71,7 +71,15 @@ func createEncryptionBackend(backendConfig config.BackendConfig, logger *zap.Log
 		logger.Info("PKCS11 backend configured")
 		return backend, nil
 	case config.Vault:
-		return nil, errors.New("vault backend is not implemented")
+		vaultConfig := backendConfig.Vault
+		switch {
+		case vaultConfig.Token != "":
+			return encryption_backend.NewVaultTokenBackend(vaultConfig.Endpoint, vaultConfig.Mount, vaultConfig.KeyName, vaultConfig.Token, logger)
+		case vaultConfig.RoleID != "" && vaultConfig.RoleSecretID != "":
+			return encryption_backend.NewVaultRoleBackend(vaultConfig.Endpoint, vaultConfig.Mount, vaultConfig.KeyName, vaultConfig.RoleID, vaultConfig.RoleSecretID, logger)
+		default:
+			return nil, errors.New("vault backend requires either a token or role credentials")
+		}
 	case config.None:
 		return encryption_backend.NoEncryptionBackend{}, nil
 	}

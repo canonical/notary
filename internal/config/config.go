@@ -195,6 +195,18 @@ func Validate(filePath string) (Config, error) {
 
 		switch {
 		case firstBackend.Vault != nil:
+			if firstBackend.Vault.Endpoint == "" {
+				return Config{}, errors.New("endpoint is missing")
+			}
+			if firstBackend.Vault.Mount == "" {
+				return Config{}, errors.New("mount is missing")
+			}
+			if firstBackend.Vault.KeyName == "" {
+				return Config{}, errors.New("key_name is missing")
+			}
+			if (firstBackend.Vault.RoleID == "" || firstBackend.Vault.RoleSecretID == "") && firstBackend.Vault.Token == "" {
+				return Config{}, errors.New("either role_id and role_secret_id or token must be provided")
+			}
 			backendConfig = BackendConfig{
 				Type:  Vault,
 				Vault: firstBackend.Vault,

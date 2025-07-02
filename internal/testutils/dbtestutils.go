@@ -24,11 +24,6 @@ func MustPrepareEmptyDB(t *testing.T) *db.Database {
 	return database
 }
 
-func MustPrepareMockDB(t *testing.T) {
-	t.Helper()
-	// create a db with mock data
-}
-
 var NoneEncryptionBackend = encryption_backend.NoEncryptionBackend{}
 
 var logger, _ = zap.NewDevelopment()

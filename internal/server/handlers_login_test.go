@@ -41,7 +41,6 @@ func TestLoginEndToEnd(t *testing.T) {
 		if loginResponse.Result.Token == "" {
 			t.Fatalf("expected token, got empty string")
 		}
-		// TODO: consider better jwt options: RFC 7519, 7517, 7515
 		token, _, err := jwt.NewParser().ParseUnverified(loginResponse.Result.Token, jwt.MapClaims{})
 		if err != nil {
 			t.Fatalf("couldn't parse token: %s", err)

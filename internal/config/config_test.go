@@ -66,7 +66,7 @@ func TestValidConfig(t *testing.T) {
 			if err != nil {
 				t.Errorf("Error writing config file")
 			}
-			gotCfg, err := config.ValidateConfig("config.yaml")
+			gotCfg, err := config.Validate("config.yaml")
 			if err != nil {
 				t.Errorf("ValidateConfig(%q) = %v, want nil", "config.yaml", err)
 			}
@@ -101,7 +101,7 @@ func TestInvalidConfig(t *testing.T) {
 			if err != nil {
 				t.Errorf("Failed writing config file: %v", err)
 			}
-			_, err = config.ValidateConfig("config.yaml")
+			_, err = config.Validate("config.yaml")
 			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 				t.Errorf("config.Validate(%v) = %v, want %v", tc.configYAML, err, tc.wantErr)
 			}

@@ -101,8 +101,8 @@ type Config struct {
 	EncryptionBackend          EncryptionBackend
 }
 
-// ValidateConfig opens and processes the given yaml file, and catches errors in the process
-func ValidateConfig(filePath string) (Config, error) {
+// Validate opens and processes the given yaml file, and catches errors in the process
+func Validate(filePath string) (Config, error) {
 	config := Config{}
 	configYaml, err := os.ReadFile(filePath) // #nosec: G304
 	if err != nil {

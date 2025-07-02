@@ -23,7 +23,7 @@ func main() {
 	if *configFilePtr == "" {
 		log.Fatalf("Providing a config file is required.")
 	}
-	conf, err := config.ValidateConfig(*configFilePtr)
+	conf, err := config.Validate(*configFilePtr)
 	if err != nil {
 		log.Fatalf("Couldn't validate config file: %s", err)
 	}

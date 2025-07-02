@@ -32,3 +32,4 @@ HSM's
 SDK
 dylib
 config
+HashiCorp

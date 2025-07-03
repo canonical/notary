@@ -61,7 +61,7 @@ func main() {
 	<-idleConnsClosed
 }
 
-func createEncryptionBackend(backendConfig config.BackendConfig, logger *zap.Logger) (encryption_backend.EncryptionBackend, error) {
+func createEncryptionBackend(backendConfig config.EncryptionBackend, logger *zap.Logger) (encryption_backend.EncryptionBackend, error) {
 	switch backendConfig.Type {
 	case config.PKCS11:
 		backend, err := encryption_backend.NewPKCS11Backend(backendConfig.PKCS11.LibPath, backendConfig.PKCS11.Pin, *backendConfig.PKCS11.KeyID, logger)

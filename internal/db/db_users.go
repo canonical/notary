@@ -71,7 +71,7 @@ func (db *Database) DeleteUser(filter UserFilter) error {
 // NumUsers returns the number of users in the database.
 func (db *Database) NumUsers() (int, error) {
 	result := NumUsers{}
-	err := db.conn.Query(context.Background(), db.stmts.GetNumUsers).Get(&result)
+	err := db.Conn.Query(context.Background(), db.stmts.GetNumUsers).Get(&result)
 	if err != nil {
 		return 0, fmt.Errorf("%w: failed to get number of users", ErrInternal)
 	}

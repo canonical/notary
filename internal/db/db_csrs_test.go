@@ -2,41 +2,36 @@ package db_test
 
 import (
 	"errors"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/canonical/notary/internal/db"
+	tu "github.com/canonical/notary/internal/testutils"
 )
 
 func TestCSRsEndToEnd(t *testing.T) {
-	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend, logger)
-	if err != nil {
-		t.Fatalf("Couldn't complete NewDatabase: %s", err)
-	}
-	defer database.Close()
+	database := tu.MustPrepareEmptyDB(t)
 
 	userID, err := database.CreateUser("testuser", "testpassword", 0)
 	if err != nil {
 		t.Fatalf("Couldn't create user: %s", err)
 	}
 
-	csrID, err := database.CreateCertificateRequest(AppleCSR, userID)
+	csrID, err := database.CreateCertificateRequest(tu.AppleCSR, userID)
 	if err != nil {
 		t.Fatalf("Couldn't create CSR: %s", err)
 	}
 	if csrID != 1 {
 		t.Fatalf("Couldn't complete Create: expected user id 1, but got %d", csrID)
 	}
-	csrID, err = database.CreateCertificateRequest(BananaCSR, userID)
+	csrID, err = database.CreateCertificateRequest(tu.BananaCSR, userID)
 	if err != nil {
 		t.Fatalf("Couldn't create CSR: %s", err)
 	}
 	if csrID != 2 {
 		t.Fatalf("Couldn't complete Create: expected user id 2, but got %d", csrID)
 	}
-	csrID, err = database.CreateCertificateRequest(StrawberryCSR, userID)
+	csrID, err = database.CreateCertificateRequest(tu.StrawberryCSR, userID)
 	if err != nil {
 		t.Fatalf("Couldn't create CSR: %s", err)
 	}
@@ -54,17 +49,17 @@ func TestCSRsEndToEnd(t *testing.T) {
 	for _, csr := range res {
 		csrs[csr.CSR] = true
 	}
-	if !csrs[AppleCSR] || !csrs[BananaCSR] || !csrs[StrawberryCSR] {
+	if !csrs[tu.AppleCSR] || !csrs[tu.BananaCSR] || !csrs[tu.StrawberryCSR] {
 		t.Fatalf("One or more CSRs weren't found in DB")
 	}
-	appleCSR, err := database.GetCertificateRequest(db.ByCSRPEM(AppleCSR))
+	appleCSR, err := database.GetCertificateRequest(db.ByCSRPEM(tu.AppleCSR))
 	if err != nil {
 		t.Fatalf("Couldn't get CSR: %s", err)
 	}
-	if appleCSR.CSR != AppleCSR {
+	if appleCSR.CSR != tu.AppleCSR {
 		t.Fatalf("The CSR from the database doesn't match the CSR that was given")
 	}
-	if err = database.DeleteCertificateRequest(db.ByCSRPEM(AppleCSR)); err != nil {
+	if err = database.DeleteCertificateRequest(db.ByCSRPEM(tu.AppleCSR)); err != nil {
 		t.Fatalf("Couldn't complete Delete: %s", err)
 	}
 	res, _ = database.ListCertificateRequests()
@@ -72,15 +67,15 @@ func TestCSRsEndToEnd(t *testing.T) {
 		t.Fatalf("CSR's weren't deleted from the DB properly")
 	}
 	for _, csr := range res {
-		if csr.CSR == AppleCSR {
+		if csr.CSR == tu.AppleCSR {
 			t.Fatalf("CSR was not deleted from the DB")
 		}
 	}
-	_, err = database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(BananaCSR), BananaCert+IntermediateCert+RootCert)
+	_, err = database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(tu.BananaCSR), tu.BananaCert+tu.IntermediateCert+tu.RootCert)
 	if err != nil {
 		t.Fatalf("Couldn't add certificate chain to CSR: %s", err)
 	}
-	bananaCSR, err := database.GetCertificateRequest(db.ByCSRPEM(BananaCSR))
+	bananaCSR, err := database.GetCertificateRequest(db.ByCSRPEM(tu.BananaCSR))
 	if err != nil {
 		t.Fatalf("Couldn't get CSR: %s", err)
 	}
@@ -102,7 +97,7 @@ func TestCSRsEndToEnd(t *testing.T) {
 		t.Fatalf("CSR without chain wasn't found in DB")
 	}
 
-	bananaCSRWithChain, err := database.GetCertificateRequestAndChain(db.ByCSRPEM(BananaCSR))
+	bananaCSRWithChain, err := database.GetCertificateRequestAndChain(db.ByCSRPEM(tu.BananaCSR))
 	if err != nil {
 		t.Fatalf("Couldn't get CSR with chain: %s", err)
 	}
@@ -110,18 +105,18 @@ func TestCSRsEndToEnd(t *testing.T) {
 		t.Fatalf("Certificate chain was not added to CSR")
 	}
 
-	if err = database.RevokeCertificate(db.ByCSRPEM(BananaCSR)); !errors.Is(err, db.ErrInvalidInput) {
+	if err = database.RevokeCertificate(db.ByCSRPEM(tu.BananaCSR)); !errors.Is(err, db.ErrInvalidInput) {
 		t.Fatalf("Should have failed to revoke CSR.")
 	}
-	_, err = database.GetCertificateRequest(db.ByCSRPEM(BananaCSR))
+	_, err = database.GetCertificateRequest(db.ByCSRPEM(tu.BananaCSR))
 	if err != nil {
 		t.Fatalf("Couldn't get CSR: %s", err)
 	}
 
-	if err = database.RejectCertificateRequest(db.ByCSRPEM(StrawberryCSR)); err != nil {
+	if err = database.RejectCertificateRequest(db.ByCSRPEM(tu.StrawberryCSR)); err != nil {
 		t.Fatalf("Couldn't reject CSR: %s", err)
 	}
-	strawberryCSR, err := database.GetCertificateRequest(db.ByCSRPEM(StrawberryCSR))
+	strawberryCSR, err := database.GetCertificateRequest(db.ByCSRPEM(tu.StrawberryCSR))
 	if err != nil {
 		t.Fatalf("Couldn't get CSR: %s", err)
 	}
@@ -131,38 +126,36 @@ func TestCSRsEndToEnd(t *testing.T) {
 }
 
 func TestCreateCertificateRequestFails(t *testing.T) {
-	db, _ := db.NewDatabase(":memory:", NoneEncryptionBackend, logger)
-	defer db.Close()
-
-	userID, err := db.CreateUser("testuser", "testpassword", 0)
-	if err != nil {
-		t.Fatalf("Couldn't create user: %s", err)
-	}
-
-	InvalidCSR := strings.ReplaceAll(AppleCSR, "M", "i")
-	if _, err := db.CreateCertificateRequest(InvalidCSR, 0); err == nil {
-		t.Fatalf("Expected error due to invalid CSR")
-	}
-
-	_, err = db.CreateCertificateRequest(AppleCSR, userID)
-	if err != nil {
-		t.Fatalf("Failed to create CSR: %s", err)
-	}
-	if _, err := db.CreateCertificateRequest(AppleCSR, userID); err == nil {
-		t.Fatalf("Expected error due to duplicate CSR")
-	}
-}
-
-func TestGetCertificateRequestFails(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend, logger)
-	defer database.Close()
+	database := tu.MustPrepareEmptyDB(t)
 
 	userID, err := database.CreateUser("testuser", "testpassword", 0)
 	if err != nil {
 		t.Fatalf("Couldn't create user: %s", err)
 	}
 
-	_, err = database.CreateCertificateRequest(AppleCSR, userID)
+	InvalidCSR := strings.ReplaceAll(tu.AppleCSR, "M", "i")
+	if _, err := database.CreateCertificateRequest(InvalidCSR, 0); err == nil {
+		t.Fatalf("Expected error due to invalid CSR")
+	}
+
+	_, err = database.CreateCertificateRequest(tu.AppleCSR, userID)
+	if err != nil {
+		t.Fatalf("Failed to create CSR: %s", err)
+	}
+	if _, err := database.CreateCertificateRequest(tu.AppleCSR, userID); err == nil {
+		t.Fatalf("Expected error due to duplicate CSR")
+	}
+}
+
+func TestGetCertificateRequestFails(t *testing.T) {
+	database := tu.MustPrepareEmptyDB(t)
+
+	userID, err := database.CreateUser("testuser", "testpassword", 0)
+	if err != nil {
+		t.Fatalf("Couldn't create user: %s", err)
+	}
+
+	_, err = database.CreateCertificateRequest(tu.AppleCSR, userID)
 	if err != nil {
 		t.Fatalf("Failed to create CSR: %s", err)
 	}
@@ -173,7 +166,7 @@ func TestGetCertificateRequestFails(t *testing.T) {
 		t.Fatalf("Expected failure looking for nonexistent CSR")
 	}
 
-	_, err = database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(AppleCSR), AppleCert+IntermediateCert+RootCert)
+	_, err = database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(tu.AppleCSR), tu.AppleCert+tu.IntermediateCert+tu.RootCert)
 	if err != nil {
 		t.Fatalf("Failed to add certificate chain to CSR: %s", err)
 	}
@@ -186,15 +179,14 @@ func TestGetCertificateRequestFails(t *testing.T) {
 }
 
 func TestDeleteCertificateRequest(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend, logger)
-	defer database.Close()
+	database := tu.MustPrepareEmptyDB(t)
 
 	userID, err := database.CreateUser("testuser", "testpassword", 0)
 	if err != nil {
 		t.Fatalf("Couldn't create user: %s", err)
 	}
 
-	_, err = database.CreateCertificateRequest(AppleCSR, userID)
+	_, err = database.CreateCertificateRequest(tu.AppleCSR, userID)
 	if err != nil {
 		t.Fatalf("Failed to create CSR: %s", err)
 	}
@@ -212,25 +204,24 @@ func TestDeleteCertificateRequest(t *testing.T) {
 	if !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("Expected a not found error when deleting a nonexistent CSR, got %s", err)
 	}
-	csr, err := database.GetCertificateRequest(db.ByCSRPEM(AppleCSR))
+	csr, err := database.GetCertificateRequest(db.ByCSRPEM(tu.AppleCSR))
 	if err != nil {
 		t.Fatalf("Failed to get CSR: %s", err)
 	}
-	if csr.CSR != AppleCSR {
+	if csr.CSR != tu.AppleCSR {
 		t.Fatalf("CSR was deleted from the DB")
 	}
 }
 
 func TestRevokeCertificateRequestFails(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend, logger)
-	defer database.Close()
+	database := tu.MustPrepareEmptyDB(t)
 
 	userID, err := database.CreateUser("testuser", "testpassword", 0)
 	if err != nil {
 		t.Fatalf("Couldn't create user: %s", err)
 	}
 
-	_, err = database.CreateCertificateRequest(AppleCSR, userID)
+	_, err = database.CreateCertificateRequest(tu.AppleCSR, userID)
 	if err != nil {
 		t.Fatalf("Failed to create CSR: %s", err)
 	}
@@ -242,7 +233,7 @@ func TestRevokeCertificateRequestFails(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected failure revoking nonexistent CSR")
 	}
-	appleCSR, err := database.GetCertificateRequest(db.ByCSRPEM(AppleCSR))
+	appleCSR, err := database.GetCertificateRequest(db.ByCSRPEM(tu.AppleCSR))
 	if err != nil {
 		t.Fatalf("Failed to get CSR: %s", err)
 	}
@@ -252,15 +243,14 @@ func TestRevokeCertificateRequestFails(t *testing.T) {
 }
 
 func TestRejectCertificateRequestFails(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend, logger)
-	defer database.Close()
+	database := tu.MustPrepareEmptyDB(t)
 
 	userID, err := database.CreateUser("testuser", "testpassword", 0)
 	if err != nil {
 		t.Fatalf("Couldn't create user: %s", err)
 	}
 
-	_, err = database.CreateCertificateRequest(AppleCSR, userID)
+	_, err = database.CreateCertificateRequest(tu.AppleCSR, userID)
 	if err != nil {
 		t.Fatalf("Failed to create CSR: %s", err)
 	}
@@ -274,7 +264,7 @@ func TestRejectCertificateRequestFails(t *testing.T) {
 		t.Fatalf("Expected failure rejecting nonexistent CSR")
 	}
 
-	appleCSR, err := database.GetCertificateRequest(db.ByCSRPEM(AppleCSR))
+	appleCSR, err := database.GetCertificateRequest(db.ByCSRPEM(tu.AppleCSR))
 	if err != nil {
 		t.Fatalf("Failed to get CSR: %s", err)
 	}
@@ -284,27 +274,22 @@ func TestRejectCertificateRequestFails(t *testing.T) {
 }
 
 func TestCASNotShowingUpInCSRsTable(t *testing.T) {
-	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend, logger)
-	if err != nil {
-		t.Fatalf("Couldn't complete NewDatabase: %s", err)
-	}
-	defer database.Close()
+	database := tu.MustPrepareEmptyDB(t)
 
 	userID, err := database.CreateUser("testuser", "testpassword", 0)
 	if err != nil {
 		t.Fatalf("Couldn't create user: %s", err)
 	}
 
-	_, err = database.CreateCertificateAuthority(RootCACSR, RootCAPrivateKey, RootCACRL, RootCACertificate+"\n"+RootCACertificate, userID)
+	_, err = database.CreateCertificateAuthority(tu.RootCACSR, tu.RootCAPrivateKey, tu.RootCACRL, tu.RootCACertificate+"\n"+tu.RootCACertificate, userID)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
-	_, err = database.CreateCertificateAuthority(IntermediateCACSR, IntermediateCAPrivateKey, "", "", userID)
+	_, err = database.CreateCertificateAuthority(tu.IntermediateCACSR, tu.IntermediateCAPrivateKey, "", "", userID)
 	if err != nil {
 		t.Fatalf("Couldn't create certificate authority: %s", err)
 	}
-	_, err = database.CreateCertificateRequest(AppleCSR, userID)
+	_, err = database.CreateCertificateRequest(tu.AppleCSR, userID)
 	if err != nil {
 		t.Fatalf("Failed to create CSR: %s", err)
 	}

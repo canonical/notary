@@ -1,22 +1,17 @@
 package db_test
 
 import (
-	"database/sql"
 	"errors"
-	"path/filepath"
 	"testing"
 
 	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/encryption"
+	tu "github.com/canonical/notary/internal/testutils"
 )
 
 func TestJWTSecretEndToEnd(t *testing.T) {
-	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend, logger)
-	if err != nil {
-		t.Fatalf("Couldn't complete NewDatabase: %s", err)
-	}
-	defer database.Close()
+	database := tu.MustPrepareEmptyDB(t)
+
 	jwtSecret, err := database.GetJWTSecret()
 	if err == nil || !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("Expected ErrNotFound, got %s", err)
@@ -63,28 +58,16 @@ func TestJWTSecretEndToEnd(t *testing.T) {
 }
 
 func TestJWTSecretEncryption(t *testing.T) {
-	tempDir := t.TempDir()
-	databasePath := filepath.Join(tempDir, "db.sqlite3")
-	database, err := db.NewDatabase(databasePath, NoneEncryptionBackend, logger)
-	if err != nil {
-		t.Fatalf("Couldn't complete NewDatabase: %s", err)
-	}
-	defer database.Close()
+	database := tu.MustPrepareEmptyDB(t)
 
 	originalSecret := []byte("super-secret-jwt-key")
-	err = database.CreateJWTSecret(originalSecret)
+	err := database.CreateJWTSecret(originalSecret)
 	if err != nil {
 		t.Fatalf("Couldn't create JWT secret: %s", err)
 	}
 
 	jwtSecret := db.JWTSecret{ID: 1}
-	sqlConnection, err := sql.Open("sqlite3", databasePath)
-	if err != nil {
-		t.Fatalf("Couldn't open database: %s", err)
-	}
-	defer sqlConnection.Close()
-
-	row := sqlConnection.QueryRow("SELECT * FROM jwt_secret WHERE id = ?", jwtSecret.ID)
+	row := database.Conn.PlainDB().QueryRow("SELECT * FROM jwt_secret WHERE id = ?", jwtSecret.ID)
 	err = row.Scan(&jwtSecret.ID, &jwtSecret.EncryptedSecret)
 	if err != nil {
 		t.Fatalf("Couldn't query raw secret: %s", err)

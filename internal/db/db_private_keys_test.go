@@ -1,29 +1,23 @@
 package db_test
 
 import (
-	"database/sql"
 	"errors"
-	"path/filepath"
 	"testing"
 
 	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/encryption"
+	tu "github.com/canonical/notary/internal/testutils"
 )
 
 func TestPrivateKeysEndToEnd(t *testing.T) {
-	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend, logger)
-	if err != nil {
-		t.Fatalf("Couldn't complete NewDatabase: %s", err)
-	}
-	defer database.Close()
+	database := tu.MustPrepareEmptyDB(t)
 
-	_, err = database.GetDecryptedPrivateKey(db.ByPrivateKeyID(1))
+	_, err := database.GetDecryptedPrivateKey(db.ByPrivateKeyID(1))
 	if err == nil || !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("Expected ErrNotFound, got %s", err)
 	}
 
-	pkID, err := database.CreatePrivateKey(RootCAPrivateKey)
+	pkID, err := database.CreatePrivateKey(tu.RootCAPrivateKey)
 	if err != nil {
 		t.Fatalf("Couldn't create private key: %s", err)
 	}
@@ -35,7 +29,7 @@ func TestPrivateKeysEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't get private key: %s", err)
 	}
-	if pk.PrivateKeyPEM != RootCAPrivateKey {
+	if pk.PrivateKeyPEM != tu.RootCAPrivateKey {
 		t.Fatalf("Private key is not correct")
 	}
 
@@ -54,14 +48,9 @@ func TestPrivateKeysEndToEnd(t *testing.T) {
 }
 
 func TestPrivateKeyFails(t *testing.T) {
-	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend, logger)
-	if err != nil {
-		t.Fatalf("Couldn't complete NewDatabase: %s", err)
-	}
-	defer database.Close()
+	database := tu.MustPrepareEmptyDB(t)
 
-	_, err = database.CreatePrivateKey("")
+	_, err := database.CreatePrivateKey("")
 	if err == nil {
 		t.Fatalf("Should have failed to create private key")
 	}
@@ -81,32 +70,22 @@ func TestPrivateKeyFails(t *testing.T) {
 }
 
 func TestPrivateKeyEncryption(t *testing.T) {
-	tempDir := t.TempDir()
-	databasePath := filepath.Join(tempDir, "db.sqlite3")
-	database, err := db.NewDatabase(databasePath, NoneEncryptionBackend, logger)
-	if err != nil {
-		t.Fatalf("Couldn't complete NewDatabase: %s", err)
-	}
-	defer database.Close()
+	database := tu.MustPrepareEmptyDB(t)
 
-	pkID, err := database.CreatePrivateKey(RootCAPrivateKey)
+	pkID, err := database.CreatePrivateKey(tu.RootCAPrivateKey)
 	if err != nil {
 		t.Fatalf("Couldn't create private key: %s", err)
 	}
 
 	pk := db.PrivateKey{PrivateKeyID: pkID}
-	sqlConnection, err := sql.Open("sqlite3", databasePath)
-	if err != nil {
-		t.Fatalf("Couldn't open database: %s", err)
-	}
-	defer sqlConnection.Close()
-	row := sqlConnection.QueryRow("SELECT * FROM private_keys WHERE private_key_id = ?", pk.PrivateKeyID)
+
+	row := database.Conn.PlainDB().QueryRow("SELECT * FROM private_keys WHERE private_key_id = ?", pk.PrivateKeyID)
 	err = row.Scan(&pk.PrivateKeyID, &pk.PrivateKeyPEM)
 	if err != nil {
 		t.Fatalf("Couldn't query raw secret: %s", err)
 	}
 
-	if pk.PrivateKeyPEM == RootCAPrivateKey {
+	if pk.PrivateKeyPEM == tu.RootCAPrivateKey {
 		t.Fatal("Private key is stored in plaintext!")
 	}
 
@@ -114,17 +93,17 @@ func TestPrivateKeyEncryption(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't get private key: %s", err)
 	}
-	if decryptedPK.PrivateKeyPEM != RootCAPrivateKey {
+	if decryptedPK.PrivateKeyPEM != tu.RootCAPrivateKey {
 		t.Fatalf("Decrypted secret doesn't match original. Got %q, want %q",
-			decryptedPK.PrivateKeyPEM, RootCAPrivateKey)
+			decryptedPK.PrivateKeyPEM, tu.RootCAPrivateKey)
 	}
 
 	decryptedManually, err := encryption.Decrypt(pk.PrivateKeyPEM, database.EncryptionKey)
 	if err != nil {
 		t.Fatalf("Couldn't manually decrypt secret: %s", err)
 	}
-	if decryptedManually != RootCAPrivateKey {
+	if decryptedManually != tu.RootCAPrivateKey {
 		t.Fatalf("Manually decrypted secret doesn't match original. Got %q, want %q",
-			decryptedManually, RootCAPrivateKey)
+			decryptedManually, tu.RootCAPrivateKey)
 	}
 }

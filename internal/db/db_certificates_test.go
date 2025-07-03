@@ -2,45 +2,40 @@ package db_test
 
 import (
 	"errors"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/canonical/notary/internal/db"
+	tu "github.com/canonical/notary/internal/testutils"
 )
 
 func TestCertificatesEndToEnd(t *testing.T) {
-	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend, logger)
-	if err != nil {
-		t.Fatalf("Couldn't complete NewDatabase: %s", err)
-	}
-	defer database.Close()
+	database := tu.MustPrepareEmptyDB(t)
 
 	userID, err := database.CreateUser("testuser", "testpassword", 0)
 	if err != nil {
 		t.Fatalf("Couldn't complete CreateUser: %s", err)
 	}
 
-	csrID, err := database.CreateCertificateRequest(AppleCSR, userID)
+	csrID, err := database.CreateCertificateRequest(tu.AppleCSR, userID)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
 	if csrID != 1 {
 		t.Fatalf("Couldn't complete Create: wrong csr id. expected 1, got %d", csrID)
 	}
-	csrID, err = database.CreateCertificateRequest(BananaCSR, userID)
+	csrID, err = database.CreateCertificateRequest(tu.BananaCSR, userID)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
 	if csrID != 2 {
 		t.Fatalf("Couldn't complete Create: wrong csr id. expected 2, got %d", csrID)
 	}
-	_, err = database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(AppleCSR), AppleCert+IntermediateCert+RootCert)
+	_, err = database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(tu.AppleCSR), tu.AppleCert+tu.IntermediateCert+tu.RootCert)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
-	_, err = database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(BananaCSR), BananaCert+IntermediateCert+RootCert)
+	_, err = database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(tu.BananaCSR), tu.BananaCert+tu.IntermediateCert+tu.RootCert)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
@@ -55,55 +50,55 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		t.Fatalf("Certificate chains were not created correctly")
 	}
 
-	retrievedCSR, err := database.GetCertificateRequest(db.ByCSRPEM(AppleCSR))
+	retrievedCSR, err := database.GetCertificateRequest(db.ByCSRPEM(tu.AppleCSR))
 	if err != nil {
 		t.Fatalf("Couldn't complete Retrieve: %s", err)
 	}
-	if retrievedCSR.CSR != AppleCSR {
+	if retrievedCSR.CSR != tu.AppleCSR {
 		t.Fatalf("The CSR from the database doesn't match the CSR that was given")
 	}
 	if retrievedCSR.CertificateID != 3 {
 		t.Fatalf("The certificate chain from the database doesn't match the certificate chain that was given")
 	}
 
-	retrievedCSRWithCert, err := database.GetCertificateRequestAndChain(db.ByCSRPEM(AppleCSR))
+	retrievedCSRWithCert, err := database.GetCertificateRequestAndChain(db.ByCSRPEM(tu.AppleCSR))
 	if err != nil {
 		t.Fatalf("Couldn't complete Retrieve: %s", err)
 	}
-	if retrievedCSRWithCert.CertificateChain != AppleCert+"\n"+IntermediateCert+"\n"+RootCert {
+	if retrievedCSRWithCert.CertificateChain != tu.AppleCert+"\n"+tu.IntermediateCert+"\n"+tu.RootCert {
 		t.Fatalf("The certificate chain from the database doesn't match the certificate chain that was given")
 	}
 
-	_, err = database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(BananaCSR), BananaCert+IntermediateCert+RootCert)
+	_, err = database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(tu.BananaCSR), tu.BananaCert+tu.IntermediateCert+tu.RootCert)
 	if err != nil {
 		t.Fatalf("Couldn't complete Update: %s", err)
 	}
-	retrievedCSRWithCert, _ = database.GetCertificateRequestAndChain(db.ByCSRPEM(BananaCSR))
-	if retrievedCSRWithCert.CertificateChain != BananaCert+"\n"+IntermediateCert+"\n"+RootCert {
-		t.Fatalf("The certificate that was uploaded does not match the certificate that was given.\n Retrieved: %s\nGiven: %s", retrievedCSRWithCert.CertificateChain, BananaCert+IntermediateCert+RootCert)
+	retrievedCSRWithCert, _ = database.GetCertificateRequestAndChain(db.ByCSRPEM(tu.BananaCSR))
+	if retrievedCSRWithCert.CertificateChain != tu.BananaCert+"\n"+tu.IntermediateCert+"\n"+tu.RootCert {
+		t.Fatalf("The certificate that was uploaded does not match the certificate that was given.\n Retrieved: %s\nGiven: %s", retrievedCSRWithCert.CertificateChain, tu.BananaCert+tu.IntermediateCert+tu.RootCert)
 	}
-	err = database.RevokeCertificate(db.ByCSRPEM(BananaCSR))
+	err = database.RevokeCertificate(db.ByCSRPEM(tu.BananaCSR))
 	if !errors.Is(err, db.ErrInvalidInput) {
 		t.Fatalf("Should have failed to revoke CSR that was signed outside of notary.")
 	}
-	chain, err := database.GetCertificateChain(db.ByCertificatePEM(AppleCert))
+	chain, err := database.GetCertificateChain(db.ByCertificatePEM(tu.AppleCert))
 	if err != nil {
 		t.Fatalf("Couldn't get certificate chain: %s", err)
 	}
 	if len(chain) != 3 {
 		t.Fatalf("Expected 3 certificates in the chain, got %d", len(chain))
 	}
-	if chain[0].CertificatePEM != AppleCert ||
-		chain[1].CertificatePEM != IntermediateCert ||
-		chain[2].CertificatePEM != RootCert {
+	if chain[0].CertificatePEM != tu.AppleCert ||
+		chain[1].CertificatePEM != tu.IntermediateCert ||
+		chain[2].CertificatePEM != tu.RootCert {
 		t.Fatalf("Certificate chain order or content incorrect")
 	}
 
-	err = database.DeleteCertificate(db.ByCertificatePEM(AppleCert))
+	err = database.DeleteCertificate(db.ByCertificatePEM(tu.AppleCert))
 	if err != nil {
 		t.Fatalf("Couldn't delete certificate: %s", err)
 	}
-	_, err = database.GetCertificateChain(db.ByCertificatePEM(AppleCert))
+	_, err = database.GetCertificateChain(db.ByCertificatePEM(tu.AppleCert))
 	if err == nil {
 		t.Fatalf("Expected error when retrieving deleted certificate, got nil")
 	}
@@ -132,12 +127,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 }
 
 func TestCertificateRequestUserMappingEndToEnd(t *testing.T) {
-	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend, logger)
-	if err != nil {
-		t.Fatalf("Couldn't complete NewDatabase: %s", err)
-	}
-	defer database.Close()
+	database := tu.MustPrepareEmptyDB(t)
 
 	userID, err := database.CreateUser("testuser", "testpassword", 0)
 	if err != nil {
@@ -148,7 +138,7 @@ func TestCertificateRequestUserMappingEndToEnd(t *testing.T) {
 		t.Fatalf("CreateUser should return a valid user ID, got 0")
 	}
 
-	csrID, err := database.CreateCertificateRequest(AppleCSR, userID)
+	csrID, err := database.CreateCertificateRequest(tu.AppleCSR, userID)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
@@ -156,7 +146,7 @@ func TestCertificateRequestUserMappingEndToEnd(t *testing.T) {
 		t.Fatalf("Couldn't complete Create: wrong csr id. expected 1, got %d", csrID)
 	}
 
-	retrievedCSR, err := database.GetCertificateRequest(db.ByCSRPEM(AppleCSR))
+	retrievedCSR, err := database.GetCertificateRequest(db.ByCSRPEM(tu.AppleCSR))
 	if err != nil {
 		t.Fatalf("Couldn't complete Retrieve: %s", err)
 	}
@@ -169,7 +159,7 @@ func TestCertificateRequestUserMappingEndToEnd(t *testing.T) {
 		t.Fatalf("Couldn't complete DeleteUser: %s", err)
 	}
 
-	retrievedCSR, err = database.GetCertificateRequest(db.ByCSRPEM(AppleCSR))
+	retrievedCSR, err = database.GetCertificateRequest(db.ByCSRPEM(tu.AppleCSR))
 	if err != nil {
 		t.Fatalf("Couldn't complete Retrieve: %s", err)
 	}
@@ -177,32 +167,31 @@ func TestCertificateRequestUserMappingEndToEnd(t *testing.T) {
 		t.Fatalf("The User ID from the database should be set to 0 after deleting the user, got %d", retrievedCSR.UserID)
 	}
 
-	_, err = database.CreateCertificateRequest(BananaCSR, userID)
+	_, err = database.CreateCertificateRequest(tu.BananaCSR, userID)
 	if err == nil {
 		t.Fatalf("Creating a certificate request with a deleted user should return an error")
 	}
 }
 
 func TestGetCertificateFails(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend, logger)
-	defer database.Close()
+	database := tu.MustPrepareEmptyDB(t)
 
 	userID, err := database.CreateUser("testuser", "testpassword", 0)
 	if err != nil {
 		t.Fatalf("Couldn't complete CreateUser: %s", err)
 	}
 
-	database.CreateCertificateRequest(AppleCSR, userID)                                                                              //nolint:errcheck
-	database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(AppleCSR), AppleCert+IntermediateCert+"some extra string"+RootCert) //nolint:errcheck
+	database.CreateCertificateRequest(tu.AppleCSR, userID)                                                                                       //nolint:errcheck
+	database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(tu.AppleCSR), tu.AppleCert+tu.IntermediateCert+"some extra string"+tu.RootCert) //nolint:errcheck
 
-	cert, err := database.GetCertificate(db.ByCertificatePEM(AppleCert))
-	if err != nil || cert.CertificatePEM != AppleCert {
-		t.Fatalf("The certificate that was uploaded does not match the certificate that was given.\n Retrieved: %s\nGiven: %s", cert.CertificatePEM, AppleCert)
+	cert, err := database.GetCertificate(db.ByCertificatePEM(tu.AppleCert))
+	if err != nil || cert.CertificatePEM != tu.AppleCert {
+		t.Fatalf("The certificate that was uploaded does not match the certificate that was given.\n Retrieved: %s\nGiven: %s", cert.CertificatePEM, tu.AppleCert)
 	}
 
 	cert, err = database.GetCertificate(db.ByCertificateID(2))
-	if err != nil || cert.CertificatePEM != AppleCert {
-		t.Fatalf("The certificate that was uploaded does not match the certificate that was given.\n Retrieved: %s\nGiven: %s", cert.CertificatePEM, AppleCert)
+	if err != nil || cert.CertificatePEM != tu.AppleCert {
+		t.Fatalf("The certificate that was uploaded does not match the certificate that was given.\n Retrieved: %s\nGiven: %s", cert.CertificatePEM, tu.AppleCert)
 	}
 
 	_, err = database.GetCertificate(db.ByCertificatePEM("nonexistent cert"))
@@ -226,39 +215,38 @@ func TestGetCertificateFails(t *testing.T) {
 }
 
 func TestCertificateAddFails(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend, logger)
-	defer database.Close()
+	database := tu.MustPrepareEmptyDB(t)
 
 	userID, err := database.CreateUser("testuser", "testpassword", 0)
 	if err != nil {
 		t.Fatalf("Couldn't complete CreateUser: %s", err)
 	}
 
-	_, err = database.CreateCertificateRequest(AppleCSR, userID)
+	_, err = database.CreateCertificateRequest(tu.AppleCSR, userID)
 	if err != nil {
 		t.Fatalf("The certificate should have been uploaded successfully")
 	}
-	_, err = database.CreateCertificateRequest(BananaCSR, userID)
+	_, err = database.CreateCertificateRequest(tu.BananaCSR, userID)
 	if err != nil {
 		t.Fatalf("The certificate should have been uploaded successfully")
 	}
-	InvalidCert := strings.ReplaceAll(BananaCert, "/", "+")
-	if _, err := database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(BananaCSR), InvalidCert); err == nil {
+	InvalidCert := strings.ReplaceAll(tu.BananaCert, "/", "+")
+	if _, err := database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(tu.BananaCSR), InvalidCert); err == nil {
 		t.Fatalf("Expected adding certificate chain with invalid cert to fail")
 	}
-	if _, err := database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(AppleCSR), BananaCert); err == nil {
+	if _, err := database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(tu.AppleCSR), tu.BananaCert); err == nil {
 		t.Fatalf("Expected adding certificate chain with mismatched cert to fail")
 	}
-	if _, err := database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(AppleCSR), ""); err == nil {
+	if _, err := database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(tu.AppleCSR), ""); err == nil {
 		t.Fatalf("Expected adding certificate chain with empty string to fail")
 	}
-	if _, err := database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(AppleCSR), "random string"); err == nil {
+	if _, err := database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(tu.AppleCSR), "random string"); err == nil {
 		t.Fatalf("Expected adding certificate chain with random string to fail")
 	}
 	if _, err := database.AddCertificateChainToCertificateRequest(db.ByCSRID(1), InvalidCert); err == nil {
 		t.Fatalf("Expected adding certificate chain with invalid cert to fail")
 	}
-	if _, err := database.AddCertificateChainToCertificateRequest(db.ByCSRID(2), BananaCert); err == nil {
+	if _, err := database.AddCertificateChainToCertificateRequest(db.ByCSRID(2), tu.BananaCert); err == nil {
 		t.Fatalf("Expected adding certificate chain with mismatched cert to fail")
 	}
 	if _, err := database.AddCertificateChainToCertificateRequest(db.ByCSRID(2), ""); err == nil {
@@ -270,27 +258,26 @@ func TestCertificateAddFails(t *testing.T) {
 }
 
 func TestGetCertificateChainFails(t *testing.T) {
-	database, _ := db.NewDatabase(":memory:", NoneEncryptionBackend, logger)
-	defer database.Close()
+	database := tu.MustPrepareEmptyDB(t)
 
 	userID, err := database.CreateUser("testuser", "testpassword", 0)
 	if err != nil {
 		t.Fatalf("Couldn't complete CreateUser: %s", err)
 	}
 
-	_, err = database.CreateCertificateRequest(AppleCSR, userID)
+	_, err = database.CreateCertificateRequest(tu.AppleCSR, userID)
 	if err != nil {
 		t.Fatalf("The certificate should have been uploaded successfully")
 	}
-	_, err = database.CreateCertificateRequest(BananaCSR, userID)
+	_, err = database.CreateCertificateRequest(tu.BananaCSR, userID)
 	if err != nil {
 		t.Fatalf("The certificate should have been uploaded successfully")
 	}
-	_, err = database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(AppleCSR), AppleCert+IntermediateCert+RootCert)
+	_, err = database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(tu.AppleCSR), tu.AppleCert+tu.IntermediateCert+tu.RootCert)
 	if err != nil {
 		t.Fatalf("The certificate should have been uploaded successfully")
 	}
-	_, err = database.GetCertificateChain(db.ByCertificatePEM(AppleCert))
+	_, err = database.GetCertificateChain(db.ByCertificatePEM(tu.AppleCert))
 	if err != nil {
 		t.Fatalf("An error should not be returned when retrieving a certificate chain.")
 	}

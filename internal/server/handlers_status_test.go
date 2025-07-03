@@ -3,9 +3,62 @@ package server_test
 import (
 	"encoding/json"
 	"net/http"
-	"path/filepath"
 	"testing"
+
+	tu "github.com/canonical/notary/internal/testutils"
 )
+
+func TestStatus(t *testing.T) {
+	ts := tu.MustPrepareServer(t)
+	client := ts.Client()
+
+	t.Run("status not initialized", func(t *testing.T) {
+		statusCode, statusResponse, err := getStatus(ts.URL, client, "")
+		if err != nil {
+			t.Fatalf("couldn't get status: %s", err)
+		}
+
+		if statusCode != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+		}
+
+		if statusResponse.Error != "" {
+			t.Fatalf("expected error %q, got %q", "", statusResponse.Error)
+		}
+
+		if statusResponse.Result.Initialized {
+			t.Fatalf("expected initialized to be false")
+		}
+
+		if statusResponse.Result.Version == "" {
+			t.Fatalf("expected version to be set")
+		}
+	})
+	adminToken := tu.MustPrepareAdminAccount(t, ts)
+
+	t.Run("status initialized", func(t *testing.T) {
+		statusCode, statusResponse, err := getStatus(ts.URL, client, adminToken)
+		if err != nil {
+			t.Fatalf("couldn't get status: %s", err)
+		}
+
+		if statusCode != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+		}
+
+		if statusResponse.Error != "" {
+			t.Fatalf("expected error %q, got %q", "", statusResponse.Error)
+		}
+
+		if !statusResponse.Result.Initialized {
+			t.Fatalf("expected initialized to be true")
+		}
+
+		if statusResponse.Result.Version == "" {
+			t.Fatalf("expected version to be set")
+		}
+	})
+}
 
 type GetStatusResponseResult struct {
 	Initialized bool   `json:"initialized"`
@@ -33,65 +86,4 @@ func getStatus(url string, client *http.Client, adminToken string) (int, *GetSta
 		return 0, nil, err
 	}
 	return res.StatusCode, &statusResponse, nil
-}
-
-func TestStatus(t *testing.T) {
-	tempDir := t.TempDir()
-	db_path := filepath.Join(tempDir, "db.sqlite3")
-	ts, _, err := setupServer(db_path)
-	if err != nil {
-		t.Fatalf("couldn't create test server: %s", err)
-	}
-	defer ts.Close()
-	client := ts.Client()
-
-	t.Run("status not initialized", func(t *testing.T) {
-		statusCode, statusResponse, err := getStatus(ts.URL, client, "")
-		if err != nil {
-			t.Fatalf("couldn't get status: %s", err)
-		}
-
-		if statusCode != http.StatusOK {
-			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
-		}
-
-		if statusResponse.Error != "" {
-			t.Fatalf("expected error %q, got %q", "", statusResponse.Error)
-		}
-
-		if statusResponse.Result.Initialized {
-			t.Fatalf("expected initialized to be false")
-		}
-
-		if statusResponse.Result.Version == "" {
-			t.Fatalf("expected version to be set")
-		}
-	})
-
-	var adminToken string
-	var nonAdminToken string
-	t.Run("prepare accounts and tokens", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
-
-	t.Run("status initialized", func(t *testing.T) {
-		statusCode, statusResponse, err := getStatus(ts.URL, client, adminToken)
-		if err != nil {
-			t.Fatalf("couldn't get status: %s", err)
-		}
-
-		if statusCode != http.StatusOK {
-			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
-		}
-
-		if statusResponse.Error != "" {
-			t.Fatalf("expected error %q, got %q", "", statusResponse.Error)
-		}
-
-		if !statusResponse.Result.Initialized {
-			t.Fatalf("expected initialized to be true")
-		}
-
-		if statusResponse.Result.Version == "" {
-			t.Fatalf("expected version to be set")
-		}
-	})
 }

@@ -8,11 +8,7 @@ import (
 
 // ListCertificateRequests gets every CertificateRequest entry in the table.
 func (db *Database) ListCertificates() ([]Certificate, error) {
-	certs, err := ListEntities[Certificate](db, db.stmts.ListCertificates)
-	if err != nil {
-		return nil, err
-	}
-	return certs, nil
+	return ListEntities[Certificate](db, db.stmts.ListCertificates)
 }
 
 // GetCertificateByID gets a certificate row from the repository from a given ID.

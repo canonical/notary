@@ -2,20 +2,16 @@ package server_test
 
 import (
 	"net/http"
-	"path/filepath"
 	"strings"
 	"testing"
+
+	tu "github.com/canonical/notary/internal/testutils"
 )
 
 func TestAuthorizationNoAuth(t *testing.T) {
-	tempDir := t.TempDir()
-	db_path := filepath.Join(tempDir, "db.sqlite3")
-	ts, _, err := setupServer(db_path)
-	if err != nil {
-		t.Fatalf("couldn't create test server: %s", err)
-	}
-	defer ts.Close()
+	ts := tu.MustPrepareServer(t)
 	client := ts.Client()
+
 	testCases := []struct {
 		desc   string
 		method string
@@ -50,17 +46,10 @@ func TestAuthorizationNoAuth(t *testing.T) {
 }
 
 func TestAuthorizationNonAdminAuthorized(t *testing.T) {
-	tempDir := t.TempDir()
-	db_path := filepath.Join(tempDir, "db.sqlite3")
-	ts, _, err := setupServer(db_path)
-	if err != nil {
-		t.Fatalf("couldn't create test server: %s", err)
-	}
-	defer ts.Close()
+	ts := tu.MustPrepareServer(t)
+	adminToken := tu.MustPrepareAdminAccount(t, ts)
+	nonAdminToken := tu.MustPrepareNonAdminAccount(t, ts, adminToken)
 	client := ts.Client()
-	var adminToken string
-	var nonAdminToken string
-	t.Run("prepare user accounts and tokens", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
 
 	testCases := []struct {
 		desc   string
@@ -103,17 +92,10 @@ func TestAuthorizationNonAdminAuthorized(t *testing.T) {
 }
 
 func TestAuthorizationNonAdminUnauthorized(t *testing.T) {
-	tempDir := t.TempDir()
-	db_path := filepath.Join(tempDir, "db.sqlite3")
-	ts, _, err := setupServer(db_path)
-	if err != nil {
-		t.Fatalf("couldn't create test server: %s", err)
-	}
-	defer ts.Close()
+	ts := tu.MustPrepareServer(t)
+	adminToken := tu.MustPrepareAdminAccount(t, ts)
+	nonAdminToken := tu.MustPrepareNonAdminAccount(t, ts, adminToken)
 	client := ts.Client()
-	var adminToken string
-	var nonAdminToken string
-	t.Run("prepare user accounts and tokens", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
 
 	testCases := []struct {
 		desc   string
@@ -163,17 +145,10 @@ func TestAuthorizationNonAdminUnauthorized(t *testing.T) {
 }
 
 func TestAuthorizationAdminAuthorized(t *testing.T) {
-	tempDir := t.TempDir()
-	db_path := filepath.Join(tempDir, "db.sqlite3")
-	ts, _, err := setupServer(db_path)
-	if err != nil {
-		t.Fatalf("couldn't create test server: %s", err)
-	}
-	defer ts.Close()
+	ts := tu.MustPrepareServer(t)
+	adminToken := tu.MustPrepareAdminAccount(t, ts)
+	tu.MustPrepareNonAdminAccount(t, ts, adminToken)
 	client := ts.Client()
-	var adminToken string
-	var nonAdminToken string
-	t.Run("prepare user accounts and tokens", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
 
 	testCases := []struct {
 		desc   string
@@ -214,17 +189,10 @@ func TestAuthorizationAdminAuthorized(t *testing.T) {
 }
 
 func TestAuthorizationAdminUnAuthorized(t *testing.T) {
-	tempDir := t.TempDir()
-	db_path := filepath.Join(tempDir, "db.sqlite3")
-	ts, _, err := setupServer(db_path)
-	if err != nil {
-		t.Fatalf("couldn't create test server: %s", err)
-	}
-	defer ts.Close()
+	ts := tu.MustPrepareServer(t)
+	adminToken := tu.MustPrepareAdminAccount(t, ts)
+	nonAdminToken := tu.MustPrepareNonAdminAccount(t, ts, adminToken)
 	client := ts.Client()
-	var adminToken string
-	var nonAdminToken string
-	t.Run("prepare user accounts and tokens", prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken))
 
 	req, err := http.NewRequest("DELETE", ts.URL+"/api/v1/accounts/1", nil)
 	if err != nil {

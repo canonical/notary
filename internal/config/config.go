@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 
 	"gopkg.in/yaml.v3"
 )
 
-type BackendType string
+type EncryptionBackendType string
 
 const (
-	Vault  BackendType = "vault"
-	PKCS11 BackendType = "pkcs11"
-	None   BackendType = "none"
+	Vault  EncryptionBackendType = "vault"
+	PKCS11 EncryptionBackendType = "pkcs11"
+	None   EncryptionBackendType = "none"
 )
 
 // VaultBackendConfigYaml BackendConfig for Vault-specific fields.
@@ -82,9 +83,9 @@ type Logging struct {
 	System SystemLoggingConfig
 }
 
-// BackendConfig holds the configuration for an encryption backend
-type BackendConfig struct {
-	Type   BackendType
+// EncryptionBackend holds the configuration for an encryption backend
+type EncryptionBackend struct {
+	Type   EncryptionBackendType
 	PKCS11 *PKCS11BackendConfigYaml
 	Vault  *VaultBackendConfigYaml
 }
@@ -97,7 +98,7 @@ type Config struct {
 	Port                       int
 	PebbleNotificationsEnabled bool
 	Logging                    Logging
-	EncryptionBackend          BackendConfig
+	EncryptionBackend          EncryptionBackend
 }
 
 // Validate opens and processes the given yaml file, and catches errors in the process
@@ -148,9 +149,13 @@ func Validate(filePath string) (Config, error) {
 			return Config{}, fmt.Errorf("pebble binary not found: %w", err)
 		}
 	}
-
 	if c.Logging == (LoggingConfigYaml{}) {
-		return Config{}, errors.New("`logging` is empty")
+		c.Logging = LoggingConfigYaml{
+			System: SystemLoggingConfigYaml{
+				Level:  "debug",
+				Output: "stdout",
+			},
+		}
 	}
 
 	if c.Logging.System == (SystemLoggingConfigYaml{}) {
@@ -162,14 +167,7 @@ func Validate(filePath string) (Config, error) {
 	}
 
 	validLogLevels := []string{"debug", "info", "warn", "error", "fatal", "panic"}
-	valid := false
-	for _, level := range validLogLevels {
-		if c.Logging.System.Level == level {
-			valid = true
-			break
-		}
-	}
-	if !valid {
+	if !slices.Contains(validLogLevels, c.Logging.System.Level) {
 		return Config{}, fmt.Errorf("invalid log level: %s", c.Logging.System.Level)
 	}
 
@@ -177,14 +175,14 @@ func Validate(filePath string) (Config, error) {
 		return Config{}, errors.New("`output` is empty in logging config")
 	}
 
-	var backendConfig BackendConfig
+	var backendConfig EncryptionBackend
 
 	if c.EncryptionBackend == nil {
 		return Config{}, errors.New("`encryption_backend` config is missing, it must be a map with backends, empty map means no encryption")
 	}
 
 	if len(c.EncryptionBackend) == 0 {
-		backendConfig = BackendConfig{Type: None}
+		backendConfig = EncryptionBackend{Type: None}
 	} else {
 		// For now we just take the first backend in the map.
 		var firstBackend NamedBackendConfigYaml
@@ -195,7 +193,7 @@ func Validate(filePath string) (Config, error) {
 
 		switch {
 		case firstBackend.Vault != nil:
-			backendConfig = BackendConfig{
+			backendConfig = EncryptionBackend{
 				Type:  Vault,
 				Vault: firstBackend.Vault,
 			}
@@ -209,7 +207,7 @@ func Validate(filePath string) (Config, error) {
 			if firstBackend.PKCS11.KeyID == nil {
 				return Config{}, errors.New("aes_encryption_key_id is missing")
 			}
-			backendConfig = BackendConfig{
+			backendConfig = EncryptionBackend{
 				Type:   PKCS11,
 				PKCS11: firstBackend.PKCS11,
 			}

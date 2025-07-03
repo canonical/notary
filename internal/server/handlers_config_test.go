@@ -3,8 +3,9 @@ package server_test
 import (
 	"encoding/json"
 	"net/http"
-	"path/filepath"
 	"testing"
+
+	tu "github.com/canonical/notary/internal/testutils"
 )
 
 type GetConfigContentResponse struct {
@@ -41,18 +42,10 @@ func getConfig(url string, client *http.Client, token string) (int, *GetConfigRe
 }
 
 func TestConfigEndToEnd(t *testing.T) {
-	tempDir := t.TempDir()
-	db_path := filepath.Join(tempDir, "db.sqlite3")
-	ts, _, err := setupServer(db_path)
-	if err != nil {
-		t.Fatalf("couldn't create test server: %s", err)
-	}
-	defer ts.Close()
+	ts := tu.MustPrepareServer(t)
+	adminToken := tu.MustPrepareAdminAccount(t, ts)
+	nonAdminToken := tu.MustPrepareNonAdminAccount(t, ts, adminToken)
 	client := ts.Client()
-
-	var adminToken string
-	var nonAdminToken string
-	prepareAccounts(ts.URL, client, &adminToken, &nonAdminToken)(t)
 
 	t.Run("1. Get config - no authentication", func(t *testing.T) {
 		statusCode, response, err := getConfig(ts.URL, client, "")

@@ -44,9 +44,9 @@ func (params *ChangeAccountParams) IsValid() (bool, error) {
 }
 
 type GetAccountResponse struct {
-	ID          int64  `json:"id"`
-	Username    string `json:"username"`
-	Permissions int    `json:"permissions"`
+	ID       int64  `json:"id"`
+	Username string `json:"username"`
+	RoleID   RoleID `json:"role_id"`
 }
 
 func validatePassword(password string) bool {
@@ -77,9 +77,9 @@ func ListAccounts(env *HandlerConfig) http.HandlerFunc {
 		accountsResponse := make([]GetAccountResponse, len(accounts))
 		for i, account := range accounts {
 			accountsResponse[i] = GetAccountResponse{
-				ID:          account.ID,
-				Username:    account.Username,
-				Permissions: account.Permissions,
+				ID:       account.ID,
+				Username: account.Username,
+				RoleID:   RoleID(account.RoleID),
 			}
 		}
 		err = writeResponse(w, accountsResponse, http.StatusOK)
@@ -121,9 +121,9 @@ func GetAccount(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 		accountResponse := GetAccountResponse{
-			ID:          account.ID,
-			Username:    account.Username,
-			Permissions: account.Permissions,
+			ID:       account.ID,
+			Username: account.Username,
+			RoleID:   RoleID(account.RoleID),
 		}
 		err = writeResponse(w, accountResponse, http.StatusOK)
 		if err != nil {
@@ -161,11 +161,11 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Failed to retrieve accounts: ", err, env.Logger)
 			return
 		}
-		permission := UserPermission
+		roleID := db.RoleCertificateManager
 		if numUsers == 0 {
-			permission = AdminPermission
+			roleID = db.RoleAdmin
 		}
-		newUserID, err := env.DB.CreateUser(createAccountParams.Username, createAccountParams.Password, permission)
+		newUserID, err := env.DB.CreateUser(createAccountParams.Username, createAccountParams.Password, roleID)
 		if err != nil {
 			if errors.Is(err, db.ErrAlreadyExists) {
 				writeError(w, http.StatusBadRequest, "account with given username already exists", err, env.Logger)
@@ -202,7 +202,7 @@ func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
 			return
 		}
-		if account.Permissions == 1 {
+		if account.RoleID == db.RoleID(RoleAdmin) {
 			err = errors.New("deleting an Admin account is not allowed")
 			writeError(w, http.StatusBadRequest, "deleting an Admin account is not allowed.", err, env.Logger)
 			return
@@ -229,26 +229,54 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		var idNum int64
-		if id == "me" {
-			claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
-			if err != nil {
-				writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.Logger)
-				return
-			}
-			account, err := env.DB.GetUser(db.ByUsername(claims.Username))
-			if err != nil {
-				writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.Logger)
-				return
-			}
-			idNum = account.ID
-		} else {
-			idInt, err := strconv.ParseInt(id, 10, 64)
-			if err != nil {
-				writeError(w, http.StatusBadRequest, "Invalid ID", err, env.Logger)
-				return
-			}
-			idNum = idInt
+		idInt, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "Invalid ID", err, env.Logger)
+			return
 		}
+		idNum = idInt
+		var changeAccountParams ChangeAccountParams
+		if err := json.NewDecoder(r.Body).Decode(&changeAccountParams); err != nil {
+			writeError(w, http.StatusBadRequest, "Invalid JSON format", err, env.Logger)
+			return
+		}
+		valid, err := changeAccountParams.IsValid()
+		if !valid {
+			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.Logger)
+			return
+		}
+		err = env.DB.UpdateUserPassword(db.ByUserID(idNum), changeAccountParams.Password)
+		if err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				writeError(w, http.StatusNotFound, "Not Found", err, env.Logger)
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
+			return
+		}
+		successResponse := SuccessResponse{Message: "success"}
+		err = writeResponse(w, successResponse, http.StatusCreated)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error", err, env.Logger)
+			return
+		}
+	}
+}
+
+func ChangeMyPassword(env *HandlerConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var idNum int64
+		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.Logger)
+			return
+		}
+		account, err := env.DB.GetUser(db.ByUsername(claims.Username))
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.Logger)
+			return
+		}
+		idNum = account.ID
 		var changeAccountParams ChangeAccountParams
 		if err := json.NewDecoder(r.Body).Decode(&changeAccountParams); err != nil {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format", err, env.Logger)

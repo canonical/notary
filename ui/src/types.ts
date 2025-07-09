@@ -30,7 +30,7 @@ export type CertificateAuthorityEntry = {
 export type User = {
   exp: number;
   id: number;
-  permissions: number;
+  role_id: number;
   username: string;
   authToken: string;
 

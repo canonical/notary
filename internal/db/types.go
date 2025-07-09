@@ -70,14 +70,21 @@ type PrivateKey struct {
 	PrivateKeyPEM string `db:"private_key"`
 }
 
-// User contains information about a user of notary in the database. The permission can only be
-// 1 for admin or 0 for regular user.
+// RoleID represents the role of a user in Notary.
+type RoleID int
+
+const (
+	RoleAdmin              RoleID = 0
+	RoleCertificateManager RoleID = 1
+)
+
+// User contains information about a user of notary in the database.
 type User struct {
 	ID int64 `db:"id"`
 
 	Username       string `db:"username"`
 	HashedPassword string `db:"hashed_password"`
-	Permissions    int    `db:"permissions"`
+	RoleID         RoleID `db:"role_id"`
 }
 
 type NumUsers struct {

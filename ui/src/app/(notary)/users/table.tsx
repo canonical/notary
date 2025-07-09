@@ -43,7 +43,7 @@ export function UsersTable({ users, setAsideOpen, setFormData }: TableProps) {
     });
   };
   const handleChangePassword = (id: string, username: string) => {
-    setChangePasswordModalData({ id: id, username: username });
+    setChangePasswordModalData({ id: id, username: username, self: false });
   };
 
   return (
@@ -129,6 +129,7 @@ export function UsersTable({ users, setAsideOpen, setFormData }: TableProps) {
           id={changePasswordModalData.id}
           username={changePasswordModalData.username}
           setChangePasswordModalVisible={() => setChangePasswordModalData(null)}
+          self={false}
         />
       )}
     </Panel>

@@ -16,9 +16,9 @@ func expireAfter() time.Time {
 }
 
 type jwtNotaryClaims struct {
-	ID          int64  `json:"id"`
-	Username    string `json:"username"`
-	Permissions int    `json:"permissions"`
+	ID       int64  `json:"id"`
+	Username string `json:"username"`
+	RoleID   RoleID `json:"role_id"`
 	jwt.RegisteredClaims
 }
 
@@ -32,12 +32,12 @@ type LoginResponse struct {
 }
 
 // Helper function to generate a JWT
-func generateJWT(id int64, username string, jwtSecret []byte, permissions int) (string, error) {
+func generateJWT(id int64, username string, jwtSecret []byte, roleID RoleID) (string, error) {
 	expiresAt := jwt.NewNumericDate(expireAfter())
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtNotaryClaims{
-		ID:          id,
-		Username:    username,
-		Permissions: permissions,
+		ID:       id,
+		Username: username,
+		RoleID:   roleID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: expiresAt,
 		},
@@ -82,7 +82,7 @@ func Login(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusUnauthorized, "The username or password is incorrect", err, env.Logger)
 			return
 		}
-		jwt, err := generateJWT(userAccount.ID, userAccount.Username, env.JWTSecret, userAccount.Permissions)
+		jwt, err := generateJWT(userAccount.ID, userAccount.Username, env.JWTSecret, RoleID(userAccount.RoleID))
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
 			return

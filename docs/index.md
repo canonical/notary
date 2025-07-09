@@ -13,6 +13,7 @@ We designed Notary for Enterprise environments where users need to securely mana
 - **Extensive HTTP API**: Accomplish all the tasks you can do in the UI via the HTTP API.
 - **Metrics**: Monitor the state of your certificates and the health of your Notary instance with Prometheus metrics.
 - **HSM Support**: Secure Notary's private keys using a PKCS#11 compliant Hardware Security Module (HSM).
+- **Vault Support**: Use HashiCorp Vault to secure Notary's private keys and other sensitive data.
 
 
 ## In this documentation

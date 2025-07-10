@@ -1,4 +1,4 @@
-# Use Vault as Notary's Encryption Backend
+# Use Vault as the Encryption Backend
 
 In this guide we walk you through the required steps to configure and use Vault as an encryption backend for Notary.
 

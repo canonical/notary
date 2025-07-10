@@ -23,9 +23,9 @@ type VaultBackendConfigYaml struct {
 	Endpoint         string `yaml:"endpoint"`
 	Mount            string `yaml:"mount"`
 	KeyName          string `yaml:"key_name"`
-	RoleID           string `yaml:"role_id"`
-	RoleSecretID     string `yaml:"role_secret_id"`
 	Token            string `yaml:"token"`
+	AppRoleID        string `yaml:"approle_role_id"`
+	AppRoleSecretID  string `yaml:"approle_secret_id"`
 	TlsCaCertificate string `yaml:"tls_ca_cert,omitempty"`     // Optional path to a CA file for Vault TLS verification
 	TlsSkipVerify    bool   `yaml:"tls_skip_verify,omitempty"` // Optional flag to skip TLS verification
 }
@@ -204,8 +204,11 @@ func Validate(filePath string) (Config, error) {
 			if firstBackend.Vault.KeyName == "" {
 				return Config{}, errors.New("key_name is missing")
 			}
-			if (firstBackend.Vault.RoleID == "" || firstBackend.Vault.RoleSecretID == "") && firstBackend.Vault.Token == "" {
-				return Config{}, errors.New("either role_id and role_secret_id or token must be provided")
+			if (firstBackend.Vault.AppRoleID == "" || firstBackend.Vault.AppRoleSecretID == "") && firstBackend.Vault.Token == "" {
+				return Config{}, errors.New("either approle_role_id and approle_secret_id or token must be provided")
+			}
+			if (firstBackend.Vault.AppRoleID != "" || firstBackend.Vault.AppRoleSecretID != "") && firstBackend.Vault.Token != "" {
+				return Config{}, errors.New("provide either approle_role_id and approle_secret_id or token, not both")
 			}
 			backendConfig = EncryptionBackend{
 				Type:  Vault,

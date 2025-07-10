@@ -27,8 +27,8 @@ encryption_backend:
       mount: "transit"
       key_name: "notary-key"
       token: "s.xxxxxxx" # if you use a token for authentication
-      role_id: "xxxxxx" # if you use AppRole for authentication
-      role_secret_id: "xxxxxx" # if you use AppRole for authentication
+      approle_role_id: "xxxxxx" # if you use AppRole for authentication
+      approle_secret_id: "xxxxxx" # if you use AppRole for authentication
       tls_ca_cert: "/path/to/ca.crt" # optional, if your Vault server uses a CA not in your system's trust store.
       tls_skip_verify: false # optional (defaults to false), if you want to skip TLS certificate verification. It is strongly discouraged to set this to true outside of development environments.
 ```

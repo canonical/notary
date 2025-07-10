@@ -80,8 +80,8 @@ func createEncryptionBackend(backendConfig config.EncryptionBackend, logger *zap
 			}
 			logger.Info("Vault backend configured using token")
 			return backend, nil
-		case vaultConfig.RoleID != "" && vaultConfig.RoleSecretID != "":
-			backend, err := encryption_backend.NewVaultBackendWithAppRole(vaultConfig.Endpoint, vaultConfig.Mount, vaultConfig.KeyName, vaultConfig.RoleID, vaultConfig.RoleSecretID, vaultConfig.TlsCaCertificate, vaultConfig.TlsSkipVerify, logger)
+		case vaultConfig.AppRoleID != "" && vaultConfig.AppRoleSecretID != "":
+			backend, err := encryption_backend.NewVaultBackendWithAppRole(vaultConfig.Endpoint, vaultConfig.Mount, vaultConfig.KeyName, vaultConfig.AppRoleID, vaultConfig.AppRoleSecretID, vaultConfig.TlsCaCertificate, vaultConfig.TlsSkipVerify, logger)
 			if err != nil {
 				return nil, err
 			}

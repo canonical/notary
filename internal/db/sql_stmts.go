@@ -53,7 +53,7 @@ const (
 
 			username TEXT NOT NULL UNIQUE,
 			hashed_password TEXT NOT NULL,
-			role_id INTEGER CHECK (role_id IN (0,1)),
+			role_id INTEGER NOT NULL,
 
 			CHECK (trim(username) != ''),
 			CHECK (trim(hashed_password) != '')

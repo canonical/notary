@@ -27,10 +27,10 @@ Or If you are using the snap you can modify the config under `/var/snap/notary/c
       - `mount` (string): Mount path of the Transit secrets engine.
       - `key_name` (string): Name of the key to use for encryption.
       - `token` (string): Vault token for authentication.
-    - `role_id` (string): Role ID for role-based authentication.
-    - `role_secret_id` (string): Role Secret ID for role-based authentication.
-    - `tls_ca_cert` (string): Path to the CA certificate for TLS verification (optional).
-    - `tls_skip_verify` (boolean): Whether to skip TLS certificate verification (optional, defaults to `false`). It is strongly discouraged to set this to `true` outside of development environments
+      - `role_id` (string): Role ID for role-based authentication.
+      - `role_secret_id` (string): Role Secret ID for role-based authentication.
+      - `tls_ca_cert` (string): Path to the CA certificate for TLS verification (optional).
+      - `tls_skip_verify` (boolean): Whether to skip TLS certificate verification (optional, defaults to `false`). It is strongly discouraged to set this to `true` outside of development environments
 
 ## Examples
 

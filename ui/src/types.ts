@@ -27,13 +27,17 @@ export type CertificateAuthorityEntry = {
   crl: string;
 };
 
+export enum RoleID {
+  Admin = 0,
+  CertificateManager = 1,
+}
+
 export type User = {
   exp: number;
   id: number;
-  role_id: number;
+  role_id: RoleID;
   username: string;
   authToken: string;
-
   activeCA: number;
 };
 

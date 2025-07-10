@@ -8,7 +8,7 @@ Once Notary is initialized it must continue using the encryption backend configu
 
 ## Prerequisites
 
-* An Vault that has the Transit secrets engine enabled
+* A Vault that has the Transit secrets engine enabled
 
 ## 1. Configure Notary with your Vault Information
 

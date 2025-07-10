@@ -117,6 +117,7 @@ func NewVaultBackendWithToken(endpoint, mount, keyName, token, tlsCaCertificate 
 
 // NewVaultBackendWithAppRole creates a new VaultBackend using AppRole authentication.
 func NewVaultBackendWithAppRole(endpoint, mount, keyName, roleID, roleSecretID, tlsCaCertificate string, tlsSkipVerify bool, logger *zap.Logger) (VaultBackend, error) {
+	logger.Info("Creating Vault backend", zap.String("endpoint", endpoint), zap.String("mount", mount), zap.String("keyName", keyName), zap.Bool("tls_skip_verify", tlsSkipVerify), zap.String("tls_ca_certificate", tlsCaCertificate), zap.String("role_id", roleID))
 	client, err := vault.New(
 		vault.WithAddress(endpoint),
 		vault.WithTLS(vault.TLSConfiguration{

@@ -1,4 +1,4 @@
-# Use an HSM as Notary's Encryption Backend
+# Use an HSM as the Encryption Backend
 
 In this guide we walk you through the required steps to configure and use a Hardware Security Module (HSM) as an encryption backend for Notary.
 

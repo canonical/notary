@@ -22,12 +22,13 @@ In this guide we walk you through the required steps to configure and use Vault 
 ```yaml
 encryption_backend:
   vault-backend: # name of the backend
-    endpoint: "https://vault.example.com"
-    mount: "transit"
-    key_name: "notary-key"
-    token: "s.xxxxxxx"
-    tls_ca_cert: "/path/to/ca.crt" # optional, if your Vault server uses a CA not in your system's trust store.
-    tls_skip_verify: false # optional (defaults to false), if you want to skip TLS certificate verification. It is strongly discouraged to set this to true outside of development environments.
+    vault:
+      endpoint: "https://vault.example.com"
+      mount: "transit"
+      key_name: "notary-key"
+      token: "s.xxxxxxx"
+      tls_ca_cert: "/path/to/ca.crt" # optional, if your Vault server uses a CA not in your system's trust store.
+      tls_skip_verify: false # optional (defaults to false), if you want to skip TLS certificate verification. It is strongly discouraged to set this to true outside of development environments.
 ```
 
 ## 2. Start Notary

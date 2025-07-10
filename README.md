@@ -2,7 +2,7 @@
 
 Notary is an open-source TLS Certificate Management software. It provides a secure, reliable, and simple way to manage x.509 certificates for your applications and services.
 
-We designed Notary for Enterprise environments where users need to securely manage the lifecycle of a large number of certificates. 
+We designed Notary for Enterprise environments where users need to securely manage the lifecycle of a large number of certificates.
 
 [Get Started Now!](https://canonical-notary.readthedocs-hosted.com/en/latest/tutorials/getting_started/)
 

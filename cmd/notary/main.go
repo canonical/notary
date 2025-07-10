@@ -71,7 +71,25 @@ func createEncryptionBackend(backendConfig config.EncryptionBackend, logger *zap
 		logger.Info("PKCS11 backend configured")
 		return backend, nil
 	case config.Vault:
-		return nil, errors.New("vault backend is not implemented")
+		vaultConfig := backendConfig.Vault
+		switch {
+		case vaultConfig.Token != "":
+			backend, err := encryption_backend.NewVaultBackendWithToken(vaultConfig.Endpoint, vaultConfig.Mount, vaultConfig.KeyName, vaultConfig.Token, vaultConfig.TlsCaCertificate, vaultConfig.TlsSkipVerify, logger)
+			if err != nil {
+				return nil, err
+			}
+			logger.Info("Vault backend configured using token")
+			return backend, nil
+		case vaultConfig.AppRoleID != "" && vaultConfig.AppRoleSecretID != "":
+			backend, err := encryption_backend.NewVaultBackendWithAppRole(vaultConfig.Endpoint, vaultConfig.Mount, vaultConfig.KeyName, vaultConfig.AppRoleID, vaultConfig.AppRoleSecretID, vaultConfig.TlsCaCertificate, vaultConfig.TlsSkipVerify, logger)
+			if err != nil {
+				return nil, err
+			}
+			logger.Info("Vault backend configured using AppRole credentials")
+			return backend, nil
+		default:
+			return nil, errors.New("vault backend requires either a token or role credentials")
+		}
 	case config.None:
 		return encryption_backend.NoEncryptionBackend{}, nil
 	}

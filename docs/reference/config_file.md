@@ -5,7 +5,6 @@ Notary is configured using a YAML file.
 Start Notary with the `--config` flag to specify the path to the configuration file.
 Or If you are using the snap you can modify the config under `/var/snap/notary/common/notary.yaml`
 
-
 ## Parameters
 
 - `key_path` (string): Path to the private key for enabling HTTPS connections.
@@ -23,10 +22,20 @@ Or If you are using the snap you can modify the config under `/var/snap/notary/c
       - `lib_path` (string): Path to the PKCS#11 library needed to communicate with the backend.
       - `pin` (string): PIN for authenticating with the PKCS#11 device.
       - `aes_encryption_key_id` (integer): ID of the key to use on the PKCS#11 device.
+    - `vault` (object): Configuration for Vault backend.
+      - `endpoint` (string): URL of the Vault server.
+      - `mount` (string): Mount path of the Transit secrets engine.
+      - `key_name` (string): Name of the key to use for encryption.
+      - `token` (string): Vault token for authentication. Either this, or `approle_role_id` and `approle_secret_id` must be provided.
+      - `approle_role_id` (string): Role ID for AppRole authentication. Either `approle_role_id` and `approle_secret_id`, or `token` must be provided.
+      - `approle_secret_id` (string): Secret ID for AppRole authentication.
+      - `tls_ca_cert` (string): Path to the CA certificate for TLS verification (optional).
+      - `tls_skip_verify` (boolean): Whether to skip TLS certificate verification (optional, defaults to `false`). It is strongly discouraged to set this to `true` outside of development environments
 
 ## Examples
 
 ### Without an Encryption Backend
+
 ```yaml
 key_path: "/etc/notary/config/key.pem"
 cert_path: "/etc/notary/config/cert.pem"
@@ -41,6 +50,7 @@ encryption_backend: {}
 ```
 
 ### With HSM as an Encryption Backend
+
 ```yaml
 key_path: "/etc/notary/config/key.pem"
 cert_path: "/etc/notary/config/cert.pem"

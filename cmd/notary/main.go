@@ -85,7 +85,7 @@ func createEncryptionBackend(backendConfig config.EncryptionBackend, logger *zap
 			if err != nil {
 				return nil, err
 			}
-			logger.Info("Vault backend configured using role credentials")
+			logger.Info("Vault backend configured using AppRole credentials")
 			return backend, nil
 		default:
 			return nil, errors.New("vault backend requires either a token or role credentials")

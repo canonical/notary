@@ -17,7 +17,7 @@ In this guide we walk you through the required steps to configure and use Vault 
   * Endpoint of your Vault server
   * Mount path of the Transit secrets engine
   * Name of the key to use for encryption
-  * Either a Vault token or role credentials (Role ID and Role Secret ID)
+  * Either a Vault token or AppRole credentials (Role ID and Role Secret ID)
 
 ```yaml
 encryption_backend:
@@ -26,7 +26,9 @@ encryption_backend:
       endpoint: "https://vault.example.com"
       mount: "transit"
       key_name: "notary-key"
-      token: "s.xxxxxxx"
+      token: "s.xxxxxxx" # if you use a token for authentication
+      role_id: "xxxxxx" # if you use AppRole for authentication
+      role_secret_id: "xxxxxx" # if you use AppRole for authentication
       tls_ca_cert: "/path/to/ca.crt" # optional, if your Vault server uses a CA not in your system's trust store.
       tls_skip_verify: false # optional (defaults to false), if you want to skip TLS certificate verification. It is strongly discouraged to set this to true outside of development environments.
 ```

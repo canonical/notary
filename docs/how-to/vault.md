@@ -2,9 +2,9 @@
 
 In this guide we walk you through the required steps to configure and use Vault as an encryption backend for Notary.
 
-**Note**:
-
-* Once Notary is initialized it must continue using the encryption backend configured at the time of initialization, at the moment there is no way to switch backends.
+```{note}
+Once Notary is initialized it must continue using the encryption backend configured at the time of initialization, at the moment there is no way to switch backends.
+```
 
 ## Prerequisites
 

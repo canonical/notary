@@ -37,7 +37,7 @@ Notary supports TLS versions `1.2` and `1.3`.
 
 ## Authentication
 
-Notary implements token-based authentication for its API and web interface. Users must provide a valid authentication token in the `Authorization` header of their requests. Notary hashes passwords  using Argon2id before storage, ensuring that even if the database is compromised, user passwords remain secure.
+Notary implements token-based authentication for its API and web interface. Users must provide a valid authentication token in the `Authorization` header of their requests. Notary hashes passwords using Argon2id before storage, ensuring that even if the database is compromised, user passwords remain secure.
 
 ## Authorization
 

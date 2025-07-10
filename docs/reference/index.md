@@ -8,5 +8,4 @@ This section provides detailed reference material for Notary, from APIs to confi
 api/index.md
 config_file.md
 metrics.md
-tls.md
 ```

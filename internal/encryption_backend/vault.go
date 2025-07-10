@@ -137,7 +137,7 @@ func NewVaultBackendWithAppRole(endpoint, mount, keyName, roleID, roleSecretID, 
 		return VaultBackend{}, err
 	}
 	if err := client.SetToken(resp.Auth.ClientToken); err != nil {
-		logger.Warn("Error setting token", zap.Error(err))
+		return VaultBackend{}, err
 	}
 	backend := VaultBackend{
 		client:  VaultClient{Auth: &client.Auth, Secrets: &client.Secrets},

@@ -22,11 +22,11 @@ Or If you are using the snap you can modify the config under `/var/snap/notary/c
       - `lib_path` (string): Path to the PKCS#11 library needed to communicate with the backend.
       - `pin` (string): PIN for authenticating with the PKCS#11 device.
       - `aes_encryption_key_id` (integer): ID of the key to use on the PKCS#11 device.
-  - `vault` (object): Configuration for Vault backend.
-    - `endpoint` (string): URL of the Vault server.
-    - `mount` (string): Mount path of the Transit secrets engine.
-    - `key_name` (string): Name of the key to use for encryption.
-    - `token` (string): Vault token for authentication.
+    - `vault` (object): Configuration for Vault backend.
+      - `endpoint` (string): URL of the Vault server.
+      - `mount` (string): Mount path of the Transit secrets engine.
+      - `key_name` (string): Name of the key to use for encryption.
+      - `token` (string): Vault token for authentication.
     - `role_id` (string): Role ID for role-based authentication.
     - `role_secret_id` (string): Role Secret ID for role-based authentication.
     - `tls_ca_cert` (string): Path to the CA certificate for TLS verification (optional).

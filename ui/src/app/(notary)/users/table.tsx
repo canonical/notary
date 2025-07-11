@@ -91,7 +91,10 @@ export function UsersTable({ users, setAsideOpen, setFormData }: TableProps) {
                 content: user.username,
               },
               {
-                content: user.role_id === RoleID.Admin ? "Admin" : "Certificate Manager",
+                content:
+                  user.role_id === RoleID.Admin
+                    ? "Admin"
+                    : "Certificate Manager",
               },
               {
                 content: (

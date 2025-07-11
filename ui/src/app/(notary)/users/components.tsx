@@ -7,7 +7,7 @@ import {
 } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { changePassword } from "@/queries";
+import { changePassword, changeSelfPassword } from "@/queries";
 import { passwordIsValid } from "@/utils";
 import {
   ConfirmationModal,
@@ -31,6 +31,7 @@ interface ConfirmationModalProps {
 export type ChangePasswordModalData = {
   id: string;
   username: string;
+  self: boolean;
 } | null;
 
 interface ChangePasswordModalProps {
@@ -67,16 +68,19 @@ export function UsersConfirmationModal({
 export function ChangePasswordModal({
   id,
   username,
+  self,
   setChangePasswordModalVisible,
 }: {
   id: string;
   username: string;
+  self: boolean;
   setChangePasswordModalVisible: Dispatch<SetStateAction<boolean>>;
 }) {
   const auth = useAuth();
   const queryClient = useQueryClient();
+
   const mutation = useMutation({
-    mutationFn: changePassword,
+    mutationFn: self ? changeSelfPassword : changePassword,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["users"] });
       setErrorText("");
@@ -85,21 +89,24 @@ export function ChangePasswordModal({
       setErrorText(e.message);
     },
   });
+
   const [password1, setPassword1] = useState<string>("");
   const [password2, setPassword2] = useState<string>("");
+  const [, setErrorText] = useState<string>("");
+
   const passwordsMatch = password1 === password2;
   const password1Error =
     password1 && !passwordIsValid(password1) ? "Password is not valid" : "";
   const password2Error =
     password2 && !passwordsMatch ? "Passwords do not match" : "";
 
-  const [, setErrorText] = useState<string>("");
   const handlePassword1Change = (event: ChangeEvent<HTMLInputElement>) => {
     setPassword1(event.target.value);
   };
   const handlePassword2Change = (event: ChangeEvent<HTMLInputElement>) => {
     setPassword2(event.target.value);
   };
+
   return (
     <Modal
       title="Change Password"
@@ -115,7 +122,7 @@ export function ChangePasswordModal({
               event.preventDefault();
               mutation.mutate({
                 authToken: auth.user ? auth.user.authToken : "",
-                id: id,
+                id,
                 password: password1,
               });
             }}

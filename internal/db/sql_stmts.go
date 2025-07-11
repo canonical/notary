@@ -53,7 +53,7 @@ const (
 
 			username TEXT NOT NULL UNIQUE,
 			hashed_password TEXT NOT NULL,
-			permissions INTEGER CHECK (permissions IN (0,1)),
+			role_id INTEGER NOT NULL,
 
 			CHECK (trim(username) != ''),
 			CHECK (trim(hashed_password) != '')
@@ -330,7 +330,7 @@ WITH RECURSIVE cas_with_chain AS (
 	// // // // // // // // // //
 	listUsersStmt   = "SELECT &User.* from users"
 	getUserStmt     = "SELECT &User.* from users WHERE id==$User.id or username==$User.username"
-	createUserStmt  = "INSERT INTO users (username, hashed_password, permissions) VALUES ($User.username, $User.hashed_password, $User.permissions)"
+	createUserStmt  = "INSERT INTO users (username, hashed_password, role_id) VALUES ($User.username, $User.hashed_password, $User.role_id)"
 	updateUserStmt  = "UPDATE users SET hashed_password=$User.hashed_password WHERE id==$User.id or username==$User.username"
 	deleteUserStmt  = "DELETE FROM users WHERE id==$User.id"
 	getNumUsersStmt = "SELECT COUNT(*) AS &NumUsers.count FROM users"

@@ -13,17 +13,16 @@ func (db *Database) ListUsers() ([]User, error) {
 	return ListEntities[User](db, db.stmts.ListUsers)
 }
 
-// GetUser retrieves the name, password and the permission level of a user.
+// GetUser retrieves the name, password and the role ID of a user.
 func (db *Database) GetUser(filter UserFilter) (*User, error) {
 	userRow := filter.AsUser()
 	return GetOneEntity[User](db, db.stmts.GetUser, *userRow)
 }
 
-// CreateUser creates a new user from a given username, password and permission level.
-// The permission level 1 represents an admin, and a 0 represents a regular user.
+// CreateUser creates a new user from a given username, password and role ID.
 // The password passed in should be in plaintext. This function handles hashing and salting the password before storing it in the database.
-func (db *Database) CreateUser(username string, password string, permission int) (int64, error) {
-	err := ValidateUser(username, permission)
+func (db *Database) CreateUser(username string, password string, roleID RoleID) (int64, error) {
+	err := ValidateUser(username, roleID)
 	if err != nil {
 		return 0, err
 	}
@@ -38,7 +37,7 @@ func (db *Database) CreateUser(username string, password string, permission int)
 	row := User{
 		Username:       username,
 		HashedPassword: pw,
-		Permissions:    permission,
+		RoleID:         roleID,
 	}
 	insertedRowID, err := CreateEntity(db, db.stmts.CreateUser, row)
 	if err != nil {

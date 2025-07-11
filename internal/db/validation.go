@@ -119,12 +119,12 @@ func ValidatePrivateKey(pk string) error {
 	return nil
 }
 
-func ValidateUser(username string, permissions int) error {
+func ValidateUser(username string, roleID RoleID) error {
 	if username == "" {
 		return fmt.Errorf("%w: invalid username or password", ErrInvalidUser)
 	}
-	if permissions != 0 && permissions != 1 {
-		return fmt.Errorf("%w: invalid permissions", ErrInvalidUser)
+	if roleID != RoleAdmin && roleID != RoleCertificateManager {
+		return fmt.Errorf("%w: invalid role", ErrInvalidUser)
 	}
 	return nil
 }

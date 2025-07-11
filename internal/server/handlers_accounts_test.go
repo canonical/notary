@@ -33,8 +33,8 @@ func TestAccountsEndToEnd(t *testing.T) {
 		if response.Result.Username != "testadmin" {
 			t.Fatalf("expected username testadmin, got %s", response.Result.Username)
 		}
-		if response.Result.Permissions != 1 {
-			t.Fatalf("expected permissions 1, got %d", response.Result.Permissions)
+		if response.Result.RoleID != 0 {
+			t.Fatalf("expected role ID 0, got %d", response.Result.RoleID)
 		}
 	})
 
@@ -46,8 +46,8 @@ func TestAccountsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusForbidden {
 			t.Fatalf("expected status %d, got %d", http.StatusForbidden, statusCode)
 		}
-		if response.Error != "forbidden: admin access required" {
-			t.Fatalf("expected error %q, got %q", "forbidden: admin access required", response.Error)
+		if response.Error != "forbidden: insufficient permissions" {
+			t.Fatalf("expected error %q, got %q", "forbidden: insufficient permissions", response.Error)
 		}
 	})
 
@@ -85,8 +85,8 @@ func TestAccountsEndToEnd(t *testing.T) {
 		if response.Result.Username != "nopass" {
 			t.Fatalf("expected username nopass, got %s", response.Result.Username)
 		}
-		if response.Result.Permissions != 0 {
-			t.Fatalf("expected permissions 0, got %d", response.Result.Permissions)
+		if response.Result.RoleID != 1 {
+			t.Fatalf("expected role ID 1, got %d", response.Result.RoleID)
 		}
 	})
 
@@ -178,8 +178,8 @@ func TestAccountsEndToEnd(t *testing.T) {
 		if response.Result.Username != "testadmin" {
 			t.Fatalf("expected username testadmin, got %s", response.Result.Username)
 		}
-		if response.Result.Permissions != 1 {
-			t.Fatalf("expected permissions 1, got %d", response.Result.Permissions)
+		if response.Result.RoleID != 0 {
+			t.Fatalf("expected role ID 0, got %d", response.Result.RoleID)
 		}
 	})
 }

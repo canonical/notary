@@ -138,10 +138,10 @@ func TestCreateUserFails(t *testing.T) {
 	}
 	_, err = database.CreateUser("newUser", "pw456", 2)
 	if err == nil {
-		t.Fatalf("An error should have been returned when creating a user with an invalid permission level.")
+		t.Fatalf("An error should have been returned when creating a user with an invalid role ID.")
 	}
 	if !errors.Is(err, db.ErrInvalidUser) {
-		t.Fatalf("An ErrInvalidUser should have been returned when creating a user with an invalid permission level.")
+		t.Fatalf("An ErrInvalidUser should have been returned when creating a user with an invalid role ID.")
 	}
 }
 

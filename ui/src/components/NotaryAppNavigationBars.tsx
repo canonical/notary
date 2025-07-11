@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { AppNavigation } from "@canonical/react-components";
 import { AppNavigationBar } from "@canonical/react-components";
 import { ChangePasswordModal } from "@/app/(notary)/users/components";
+import { RoleID } from "../types";
 import { useCookies } from "react-cookie";
 
 type SidebarProps = {
@@ -75,7 +76,7 @@ export function SideBar({
                       </span>
                     </a>
                   </li>
-                  {auth.user?.permissions == 1 && (
+                  {auth.user?.role_id == RoleID.Admin && (
                     <li className="p-side-navigation__item">
                       <a
                         className="p-side-navigation__link"
@@ -96,7 +97,7 @@ export function SideBar({
                       </a>
                     </li>
                   )}
-                  {auth.user?.permissions == 1 && (
+                  {auth.user?.role_id == RoleID.Admin && (
                     <li className="p-side-navigation__item">
                       <a
                         className="p-side-navigation__link"
@@ -257,6 +258,7 @@ export default function NotaryAppNavigationBars() {
           id={auth.user.id.toString()}
           username={auth.user.username}
           setChangePasswordModalVisible={setChangePasswordModalVisible}
+          self={true} // Assuming the user can only change their own password
         />
       )}
     </>

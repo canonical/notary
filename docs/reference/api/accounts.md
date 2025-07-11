@@ -22,7 +22,7 @@ None
         {
             "id": 1,
             "username": "admin",
-            "permissions": 1
+            "role_id": 1
         }
     ]
 }
@@ -93,7 +93,7 @@ None
     "result": {
         "id": 2,
         "username": "pizza.com",
-        "permissions": 0
+        "role_id": 0
     }
 }
 ```

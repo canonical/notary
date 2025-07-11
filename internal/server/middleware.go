@@ -21,11 +21,6 @@ const (
 	MAX_KILOBYTES = 100
 )
 
-const (
-	UserPermission  = 0
-	AdminPermission = 1
-)
-
 type middleware func(http.Handler) http.Handler
 
 // The middlewareContext type helps middleware receive and pass along information through the middleware chain.
@@ -103,8 +98,7 @@ func loggingMiddleware(ctx *middlewareContext) middleware {
 	}
 }
 
-// The adminOnly middleware checks if the user has admin permissions before allowing access to the handler.
-func adminOnly(jwtSecret []byte, handler func(http.ResponseWriter, *http.Request), logger *zap.Logger) func(http.ResponseWriter, *http.Request) {
+func requirePermission(permission string, jwtSecret []byte, handler func(http.ResponseWriter, *http.Request), logger *zap.Logger) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
 		if err != nil {
@@ -112,9 +106,15 @@ func adminOnly(jwtSecret []byte, handler func(http.ResponseWriter, *http.Request
 			return
 		}
 
-		if claims.Permissions != AdminPermission {
-			err = errors.New("permissions not admin")
-			writeError(w, http.StatusForbidden, "forbidden: admin access required", err, logger)
+		roleID := claims.RoleID
+		permissions, ok := PermissionsByRole[roleID]
+		if !ok {
+			writeError(w, http.StatusForbidden, "forbidden: unknown role", errors.New("role not found"), logger)
+			return
+		}
+
+		if !hasPermission(permissions, permission) {
+			writeError(w, http.StatusForbidden, "forbidden: insufficient permissions", errors.New("missing permission"), logger)
 			return
 		}
 
@@ -122,48 +122,16 @@ func adminOnly(jwtSecret []byte, handler func(http.ResponseWriter, *http.Request
 	}
 }
 
-// The adminOrUser middleware checks if the user has admin or user permissions before allowing access to the handler.
-func adminOrUser(jwtSecret []byte, handler func(http.ResponseWriter, *http.Request), logger *zap.Logger) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
-		if err != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", err, logger)
-			return
+func hasPermission(userPermissions []string, required string) bool {
+	for _, p := range userPermissions {
+		if p == required || p == "*" {
+			return true
 		}
-
-		if claims.Permissions != AdminPermission && claims.Permissions != UserPermission {
-			err = errors.New("permissions not admin or user")
-			writeError(w, http.StatusForbidden, "forbidden: admin or user access required", err, logger)
-			return
-		}
-
-		handler(w, r)
 	}
+	return false
 }
 
-// The adminOrMe middleware checks if the user has admin permissions or if the user is the same user before allowing access to the handler.
-func adminOrMe(jwtSecret []byte, handler func(http.ResponseWriter, *http.Request), logger *zap.Logger) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
-		if err != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", err, logger)
-			return
-		}
-
-		if claims.Permissions != AdminPermission {
-			if r.PathValue("id") != "me" && strconv.FormatInt(claims.ID, 10) != r.PathValue("id") {
-				err = errors.New("permissions not admin and user id is not self")
-				writeError(w, http.StatusForbidden, "forbidden: admin access required", err, logger)
-				return
-			}
-		}
-
-		handler(w, r)
-	}
-}
-
-// The adminOrFirstUser middleware checks if the user has admin permissions or if the user is the first user before allowing access to the handler.
-func adminOrFirstUser(jwtSecret []byte, db *db.Database, handler func(http.ResponseWriter, *http.Request), logger *zap.Logger) func(http.ResponseWriter, *http.Request) {
+func requirePermissionOrFirstUser(permission string, jwtSecret []byte, db *db.Database, handler func(http.ResponseWriter, *http.Request), logger *zap.Logger) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		numUsers, err := db.NumUsers()
 		if err != nil {
@@ -171,19 +139,25 @@ func adminOrFirstUser(jwtSecret []byte, db *db.Database, handler func(http.Respo
 			return
 		}
 
-		if numUsers > 0 {
-			claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
-			if err != nil {
-				writeError(w, http.StatusUnauthorized, "Unauthorized", err, logger)
-				return
-			}
-
-			if claims.Permissions != AdminPermission && numUsers > 0 {
-				err = errors.New("permissions not admin and user is not first user")
-				writeError(w, http.StatusForbidden, "forbidden: admin access required", err, logger)
-				return
-			}
+		// If no users exist, allow the request through (initial setup case)
+		if numUsers == 0 {
+			handler(w, r)
+			return
 		}
+
+		// Otherwise validate permissions
+		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", err, logger)
+			return
+		}
+
+		permissions, ok := PermissionsByRole[claims.RoleID]
+		if !ok || !hasPermission(permissions, permission) {
+			writeError(w, http.StatusForbidden, "forbidden: insufficient permissions", errors.New("missing required permission"), logger)
+			return
+		}
+
 		handler(w, r)
 	}
 }

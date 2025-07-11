@@ -11,7 +11,7 @@ import {
   Select,
   Form,
 } from "@canonical/react-components";
-import { AsideFormData } from "@/types";
+import { AsideFormData, RoleID } from "@/types";
 
 type AsideProps = {
   setAsideOpen: Dispatch<SetStateAction<boolean>>;
@@ -53,7 +53,7 @@ function AddNewUserForm(asideProps: AsideProps) {
     },
   });
   const [username, setUsername] = useState<string>("");
-  const [role_id, setRoleID] = useState<number>(0);
+  const [role_id, setRoleID] = useState<number>(RoleID.Admin);
   const [password1, setPassword1] = useState<string>("");
   const [password2, setPassword2] = useState<string>("");
   const passwordsMatch = password1 === password2;
@@ -98,11 +98,11 @@ function AddNewUserForm(asideProps: AsideProps) {
             },
             {
               label: "Admin",
-              value: "0",
+              value: RoleID.Admin,
             },
             {
               label: "Certificate Manager",
-              value: "1",
+              value: RoleID.CertificateManager,
             },
           ]}
         />

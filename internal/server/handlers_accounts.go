@@ -24,7 +24,7 @@ func (params *CreateAccountParams) IsValid() (bool, error) {
 	if params.Password == "" {
 		return false, errors.New("password is required")
 	}
-	if params.RoleID != RoleAdmin && params.RoleID != RoleCertificateManager {
+	if !params.RoleID.IsValid() {
 		return false, fmt.Errorf("invalid role ID: %d", params.RoleID)
 	}
 	if !validatePassword(params.Password) {

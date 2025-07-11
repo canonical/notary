@@ -1,5 +1,5 @@
 import { useState, Dispatch, SetStateAction } from "react";
-import { AsideFormData, UserEntry } from "@/types";
+import { AsideFormData, UserEntry, RoleID } from "@/types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Button,
@@ -75,6 +75,9 @@ export function UsersTable({ users, setAsideOpen, setFormData }: TableProps) {
               content: "Username",
             },
             {
+              content: "Role",
+            },
+            {
               content: "Actions",
               className: "u-align--right has-overflow",
             },
@@ -86,6 +89,9 @@ export function UsersTable({ users, setAsideOpen, setFormData }: TableProps) {
               },
               {
                 content: user.username,
+              },
+              {
+                content: user.role_id === RoleID.Admin ? "Admin" : "Certificate Manager",
               },
               {
                 content: (

@@ -40,6 +40,9 @@ This path creates a new account. The first account can be created without authen
 
 - `username` (string): The username of the account. 
 - `password` (string): The password of the account.
+- `role_id` (integer): The role ID of the account. Valid values are:
+  - `0`: Admin
+  - `1`: Certificate Manager
 
 ### Sample Response
 

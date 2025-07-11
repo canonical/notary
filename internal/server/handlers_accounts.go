@@ -14,6 +14,7 @@ import (
 type CreateAccountParams struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+	RoleID   RoleID `json:"role_id"`
 }
 
 func (params *CreateAccountParams) IsValid() (bool, error) {
@@ -22,6 +23,9 @@ func (params *CreateAccountParams) IsValid() (bool, error) {
 	}
 	if params.Password == "" {
 		return false, errors.New("password is required")
+	}
+	if params.RoleID != RoleAdmin && params.RoleID != RoleCertificateManager {
+		return false, fmt.Errorf("invalid role ID: %d", params.RoleID)
 	}
 	if !validatePassword(params.Password) {
 		return false, errors.New("Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.")
@@ -146,26 +150,7 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.Logger)
 			return
 		}
-		if createAccountParams.Username == "" {
-			err = errors.New("username is required")
-			writeError(w, http.StatusBadRequest, "Username is required", err, env.Logger)
-			return
-		}
-		if createAccountParams.Password == "" {
-			err = errors.New("username is required")
-			writeError(w, http.StatusBadRequest, "Password is required", err, env.Logger)
-			return
-		}
-		numUsers, err := env.DB.NumUsers()
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Failed to retrieve accounts: ", err, env.Logger)
-			return
-		}
-		roleID := db.RoleCertificateManager
-		if numUsers == 0 {
-			roleID = db.RoleAdmin
-		}
-		newUserID, err := env.DB.CreateUser(createAccountParams.Username, createAccountParams.Password, roleID)
+		newUserID, err := env.DB.CreateUser(createAccountParams.Username, createAccountParams.Password, db.RoleID(createAccountParams.RoleID))
 		if err != nil {
 			if errors.Is(err, db.ErrAlreadyExists) {
 				writeError(w, http.StatusBadRequest, "account with given username already exists", err, env.Logger)

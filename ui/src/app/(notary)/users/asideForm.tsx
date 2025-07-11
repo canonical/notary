@@ -8,6 +8,7 @@ import {
   Button,
   Input,
   PasswordToggle,
+  Select,
   Form,
 } from "@canonical/react-components";
 import { AsideFormData } from "@/types";
@@ -52,6 +53,7 @@ function AddNewUserForm(asideProps: AsideProps) {
     },
   });
   const [username, setUsername] = useState<string>("");
+  const [role_id, setRoleID] = useState<number>(0);
   const [password1, setPassword1] = useState<string>("");
   const [password2, setPassword2] = useState<string>("");
   const passwordsMatch = password1 === password2;
@@ -63,6 +65,9 @@ function AddNewUserForm(asideProps: AsideProps) {
   const [, setErrorText] = useState<string>("");
   const handleUsernameChange = (event: ChangeEvent<HTMLInputElement>) => {
     setUsername(event.target.value);
+  };
+  const handleRoleChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    setRoleID(Number(event.target.value));
   };
   const handlePassword1Change = (event: ChangeEvent<HTMLInputElement>) => {
     setPassword1(event.target.value);
@@ -79,6 +84,27 @@ function AddNewUserForm(asideProps: AsideProps) {
           type="text"
           required={true}
           onChange={handleUsernameChange}
+        />
+        <Select
+          id="roleID"
+          label="Role"
+          value={role_id.toString()}
+          onChange={handleRoleChange}
+          options={[
+            {
+              disabled: true,
+              label: "Select an option",
+              value: "",
+            },
+            {
+              label: "Admin",
+              value: "0",
+            },
+            {
+              label: "Certificate Manager",
+              value: "1",
+            },
+          ]}
         />
         <PasswordToggle
           help="Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol."
@@ -104,6 +130,7 @@ function AddNewUserForm(asideProps: AsideProps) {
               authToken: auth.user ? auth.user.authToken : "",
               username: username,
               password: password1,
+              role_id: role_id,
             });
           }}
         >

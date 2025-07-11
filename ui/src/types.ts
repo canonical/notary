@@ -44,6 +44,7 @@ export type User = {
 export type UserEntry = {
   id: number;
   username: string;
+  role_id: RoleID;
 };
 
 export type AsideFormData = {

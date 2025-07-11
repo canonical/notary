@@ -49,6 +49,7 @@ func MustPrepareAdminAccount(t *testing.T, ts *httptest.Server) string {
 	adminAccountParams := &CreateAccountParams{
 		Username: "testadmin",
 		Password: "Admin123",
+		RoleID:   0,
 	}
 	statusCode, _, err := CreateAccount(ts.URL, ts.Client(), "", adminAccountParams)
 	if err != nil {
@@ -77,6 +78,7 @@ func MustPrepareNonAdminAccount(t *testing.T, ts *httptest.Server, adminToken st
 	nonAdminAccount := &CreateAccountParams{
 		Username: "testuser",
 		Password: "userPass!",
+		RoleID:   1,
 	}
 	statusCode, _, err := CreateAccount(ts.URL, ts.Client(), adminToken, nonAdminAccount)
 	if err != nil {
@@ -117,6 +119,7 @@ type GetAccountResponse struct {
 type CreateAccountParams struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+	RoleID   int    `json:"role_id"`
 }
 
 type CreateAccountResponseResult struct {

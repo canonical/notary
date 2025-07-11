@@ -14,6 +14,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState, ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useCookies } from "react-cookie";
+import { RoleID } from "@/types";
 
 export default function Initialize() {
   const router = useRouter();
@@ -115,6 +116,7 @@ export default function Initialize() {
                 postUserMutation.mutate({
                   username: username,
                   password: password1,
+                  role_id: RoleID.Admin,
                 });
               }
             }}

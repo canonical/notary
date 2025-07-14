@@ -77,19 +77,27 @@ export function SideBar({
                     </a>
                   </li>
                   {auth.user?.role_id !== undefined &&
-                    [RoleID.Admin, RoleID.CertificateManager, RoleID.ReadOnly].includes(auth.user.role_id) && (
+                    [
+                      RoleID.Admin,
+                      RoleID.CertificateManager,
+                      RoleID.ReadOnly,
+                    ].includes(auth.user.role_id) && (
                       <li className="p-side-navigation__item">
                         <a
                           className="p-side-navigation__link"
                           href="/certificate_authorities"
                           aria-current={
-                            path.startsWith("/certificate_authorities") ? "page" : "false"
+                            path.startsWith("/certificate_authorities")
+                              ? "page"
+                              : "false"
                           }
                           style={{ cursor: "pointer" }}
                         >
                           <i className="p-icon--copy-to-clipboard is-light p-side-navigation__icon"></i>
                           <span className="p-side-navigation__label">
-                            <span className="p-side-navigation__label">Certificate Authorities</span>
+                            <span className="p-side-navigation__label">
+                              Certificate Authorities
+                            </span>
                           </span>
                         </a>
                       </li>

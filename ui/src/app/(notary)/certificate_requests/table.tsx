@@ -39,14 +39,16 @@ export function CertificateRequestsTable({
     number | null
   >(null);
 
-  const canManageCSRs = [RoleID.Admin, RoleID.CertificateManager, RoleID.CertificateRequestor].includes(
-    auth.user?.role_id as RoleID
-  );
+  const canManageCSRs = [
+    RoleID.Admin,
+    RoleID.CertificateManager,
+    RoleID.CertificateRequestor,
+  ].includes(auth.user?.role_id as RoleID);
 
-
-  const canManageCertificates = [RoleID.Admin, RoleID.CertificateManager].includes(
-    auth.user?.role_id as RoleID
-  );
+  const canManageCertificates = [
+    RoleID.Admin,
+    RoleID.CertificateManager,
+  ].includes(auth.user?.role_id as RoleID);
 
   const handleCopy = (csr: string, id: number) => {
     void navigator.clipboard.writeText(csr).then(() => {
@@ -275,10 +277,8 @@ export function CertificateRequestsTable({
                     >
                       Upload New Certificate
                     </Button>
-
                   )}
                 </span>
-
               </ContextualMenu>
             </>
           ),
@@ -356,7 +356,8 @@ export function CertificateRequestsTable({
       title="Certificate Requests"
       className="u-fixed-width"
       controls={
-        rows.length > 0 && canManageCSRs && (
+        rows.length > 0 &&
+        canManageCSRs && (
           <Button appearance="positive" onClick={() => setAsideOpen(true)}>
             Add New Certificate Request
           </Button>
@@ -417,9 +418,11 @@ function CSREmptyState({
 }) {
   const auth = useAuth();
 
-  const canManageCSRs = [RoleID.Admin, RoleID.CertificateManager, RoleID.CertificateRequestor].includes(
-    auth.user?.role_id as RoleID
-  );
+  const canManageCSRs = [
+    RoleID.Admin,
+    RoleID.CertificateManager,
+    RoleID.CertificateRequestor,
+  ].includes(auth.user?.role_id as RoleID);
 
   return (
     <EmptyState image={""} title="No CSRs available yet.">

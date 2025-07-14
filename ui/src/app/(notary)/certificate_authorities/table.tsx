@@ -43,7 +43,7 @@ export function CertificateAuthoritiesTable({
   >(null);
 
   const canManageCAs = [RoleID.Admin, RoleID.CertificateManager].includes(
-    auth.user?.role_id as RoleID
+    auth.user?.role_id as RoleID,
   );
 
   const handleCopy = (csr: string, id: number) => {
@@ -386,7 +386,8 @@ export function CertificateAuthoritiesTable({
       title="Certificate Authorities"
       className="u-fixed-width"
       controls={
-        rows.length > 0 && canManageCAs && (
+        rows.length > 0 &&
+        canManageCAs && (
           <Button appearance="positive" onClick={() => setAsideOpen(true)}>
             Add New CA
           </Button>
@@ -447,7 +448,7 @@ function CAEmptyState({
 }) {
   const auth = useAuth();
   const canManageCAs = [RoleID.Admin, RoleID.CertificateManager].includes(
-    auth.user?.role_id as RoleID
+    auth.user?.role_id as RoleID,
   );
 
   return (

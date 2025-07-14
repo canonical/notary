@@ -55,6 +55,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 		createAccountParams := &tu.CreateAccountParams{
 			Username: "nopass",
 			Password: "myPassword123!",
+			RoleID:   1,
 		}
 		statusCode, response, err := tu.CreateAccount(ts.URL, client, adminToken, createAccountParams)
 		if err != nil {
@@ -193,25 +194,43 @@ func TestCreateAccountInvalidInputs(t *testing.T) {
 		testName string
 		username string
 		password string
+		roleID   int
 		error    string
 	}{
 		{
 			testName: "No username",
 			username: "",
 			password: "password",
+			roleID:   1,
 			error:    "Invalid request: username is required",
 		},
 		{
 			testName: "No password",
 			username: "username",
 			password: "",
+			roleID:   1,
 			error:    "Invalid request: password is required",
 		},
 		{
 			testName: "bad password",
 			username: "username",
 			password: "123",
+			roleID:   1,
 			error:    "Invalid request: Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
+		},
+		{
+			testName: "invalid role ID (negative)",
+			username: "username",
+			password: "Pizza123!",
+			roleID:   -1,
+			error:    "Invalid request: invalid role ID: -1",
+		},
+		{
+			testName: "invalid role ID (no matching role)",
+			username: "username",
+			password: "Pizza123!",
+			roleID:   999,
+			error:    "Invalid request: invalid role ID: 999",
 		},
 	}
 
@@ -220,6 +239,7 @@ func TestCreateAccountInvalidInputs(t *testing.T) {
 			createAccountParams := &tu.CreateAccountParams{
 				Username: test.username,
 				Password: test.password,
+				RoleID:   test.roleID,
 			}
 			statusCode, createCertResponse, err := tu.CreateAccount(ts.URL, client, adminToken, createAccountParams)
 			if err != nil {

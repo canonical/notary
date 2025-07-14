@@ -43,6 +43,15 @@ const (
 	RoleCertificateManager RoleID = 1
 )
 
+func (r RoleID) IsValid() bool {
+	switch r {
+	case RoleAdmin, RoleCertificateManager:
+		return true
+	default:
+		return false
+	}
+}
+
 var PermissionsByRole = map[RoleID][]string{
 	RoleAdmin: {"*"},
 

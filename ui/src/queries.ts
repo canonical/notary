@@ -286,12 +286,14 @@ export async function deleteUser(params: { authToken: string; id: string }) {
 export async function postFirstUser(userForm: {
   username: string;
   password: string;
+  role_id: number;
 }) {
   const response = await fetch("/api/v1/accounts", {
     method: "POST",
     body: JSON.stringify({
       username: userForm.username,
       password: userForm.password,
+      role_id: userForm.role_id,
     }),
   });
   const respData = await response.json();
@@ -307,12 +309,14 @@ export async function postUser(userForm: {
   authToken: string;
   username: string;
   password: string;
+  role_id: number;
 }) {
   const response = await fetch("/api/v1/accounts", {
     method: "POST",
     body: JSON.stringify({
       username: userForm.username,
       password: userForm.password,
+      role_id: userForm.role_id,
     }),
     headers: {
       Authorization: "Bearer " + userForm.authToken,

@@ -15,6 +15,7 @@ import {
   NotaryConfirmationModalData,
   NotaryConfirmationModal,
 } from "@/components/NotaryConfirmationModal";
+import { RoleID } from "@/types";
 
 type TableProps = {
   cas: CertificateAuthorityEntry[];
@@ -40,6 +41,10 @@ export function CertificateAuthoritiesTable({
   const [successNotificationId, setSuccessNotificationId] = useState<
     number | null
   >(null);
+
+  const canManageCAs = [RoleID.Admin, RoleID.CertificateManager].includes(
+    auth.user?.role_id as RoleID
+  );
 
   const handleCopy = (csr: string, id: number) => {
     void navigator.clipboard.writeText(csr).then(() => {
@@ -233,7 +238,7 @@ export function CertificateAuthoritiesTable({
                       ? "Hide Certificate Content"
                       : "Show Certificate Content"}
                   </Button>
-                  {!isSelfSigned && (
+                  {canManageCAs && !isSelfSigned && (
                     <Button
                       className="p-contextual-menu__link"
                       disabled={auth.activeCA == null}
@@ -242,7 +247,7 @@ export function CertificateAuthoritiesTable({
                       {caEntry.enabled === true ? "Re-sign CSR" : "Sign CSR"}
                     </Button>
                   )}
-                  {isSelfSigned && (
+                  {canManageCAs && isSelfSigned && (
                     <Button
                       className="p-contextual-menu__link"
                       onClick={() => handleSign(caEntry.id, caEntry.id)}
@@ -250,7 +255,7 @@ export function CertificateAuthoritiesTable({
                       Renew Certificate
                     </Button>
                   )}
-                  {!isSelfSigned && (
+                  {canManageCAs && !isSelfSigned && (
                     <Button
                       className="p-contextual-menu__link"
                       onClick={() => {
@@ -261,7 +266,8 @@ export function CertificateAuthoritiesTable({
                       Upload New Certificate
                     </Button>
                   )}
-                  {!isSelfSigned && (
+
+                  {canManageCAs && !isSelfSigned && (
                     <Button
                       className="p-contextual-menu__link"
                       disabled={caEntry.enabled == false}
@@ -286,7 +292,7 @@ export function CertificateAuthoritiesTable({
                       Set as default for signing CSRs
                     </Button>
                   )}
-                  {caEntry.enabled === true && (
+                  {canManageCAs && caEntry.enabled === true && (
                     <Button
                       className="p-contextual-menu__link"
                       onClick={() => handleDisableCA(caEntry.id)}
@@ -294,12 +300,14 @@ export function CertificateAuthoritiesTable({
                       Disable CA
                     </Button>
                   )}
-                  <Button
-                    className="p-contextual-menu__link"
-                    onClick={() => handleDelete(caEntry.id)}
-                  >
-                    Delete Certificate Authority
-                  </Button>
+                  {canManageCAs && (
+                    <Button
+                      className="p-contextual-menu__link"
+                      onClick={() => handleDelete(caEntry.id)}
+                    >
+                      Delete Certificate Authority
+                    </Button>
+                  )}
                 </span>
               </ContextualMenu>
             </>
@@ -378,7 +386,7 @@ export function CertificateAuthoritiesTable({
       title="Certificate Authorities"
       className="u-fixed-width"
       controls={
-        rows.length > 0 && (
+        rows.length > 0 && canManageCAs && (
           <Button appearance="positive" onClick={() => setAsideOpen(true)}>
             Add New CA
           </Button>
@@ -437,19 +445,26 @@ function CAEmptyState({
 }: {
   setAsideOpen: Dispatch<SetStateAction<boolean>>;
 }) {
+  const auth = useAuth();
+  const canManageCAs = [RoleID.Admin, RoleID.CertificateManager].includes(
+    auth.user?.role_id as RoleID
+  );
+
   return (
     <EmptyState image={""} title="No Certificate Authorities available yet.">
       <p>
         There are no Certificate Authorities in Notary. Create your first one to
         start signing certificates!
       </p>
-      <Button
-        appearance="positive"
-        aria-label="add-ca-button"
-        onClick={() => setAsideOpen(true)}
-      >
-        Add New Certificate Authority
-      </Button>
+      {canManageCAs && (
+        <Button
+          appearance="positive"
+          aria-label="add-ca-button"
+          onClick={() => setAsideOpen(true)}
+        >
+          Add New Certificate Authority
+        </Button>
+      )}
     </EmptyState>
   );
 }

@@ -85,7 +85,7 @@ var PermissionsByRole = map[RoleID][]string{
 		PermUpdateMyPassword,
 		PermCreateCertificateRequest,
 		PermReadCertificateRequest,
-		PermReadCertificateRequest,
+		PermListCertificateRequests,
 	},
 
 	RoleReadOnly: {

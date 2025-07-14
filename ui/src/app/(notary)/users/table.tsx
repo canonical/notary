@@ -22,6 +22,13 @@ type TableProps = {
   setFormData: Dispatch<SetStateAction<AsideFormData>>;
 };
 
+const roleLabels: Record<RoleID, string> = {
+  [RoleID.Admin]: "Admin",
+  [RoleID.CertificateManager]: "Certificate Manager",
+  [RoleID.CertificateRequestor]: "Certificate Requestor",
+  [RoleID.ReadOnly]: "Read Only",
+};
+
 export function UsersTable({ users, setAsideOpen, setFormData }: TableProps) {
   const auth = useAuth();
   const [confirmationModalData, setConfirmationModalData] =
@@ -91,10 +98,7 @@ export function UsersTable({ users, setAsideOpen, setFormData }: TableProps) {
                 content: user.username,
               },
               {
-                content:
-                  user.role_id === RoleID.Admin
-                    ? "Admin"
-                    : "Certificate Manager",
+                content: roleLabels[user.role_id],
               },
               {
                 content: (

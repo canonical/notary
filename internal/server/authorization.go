@@ -16,7 +16,7 @@ const (
 
 	// Certificate request permissions
 	PermListCertificateRequests             = "certificate_request:list"
-	PermCreateCertificateRequests           = "certificate_request:create"
+	PermCreateCertificateRequest            = "certificate_request:create"
 	PermReadCertificateRequest              = "certificate_request:read"
 	PermDeleteCertificateRequest            = "certificate_request:delete"
 	PermRejectCertificateRequest            = "certificate_request:reject"
@@ -62,7 +62,7 @@ var PermissionsByRole = map[RoleID][]string{
 		PermReadConfig,
 		PermUpdateMyPassword,
 		PermListCertificateRequests,
-		PermCreateCertificateRequests,
+		PermCreateCertificateRequest,
 		PermReadCertificateRequest,
 		PermDeleteCertificateRequest,
 		PermRejectCertificateRequest,
@@ -83,7 +83,7 @@ var PermissionsByRole = map[RoleID][]string{
 	RoleCertificateRequestor: {
 		PermReadMyUser,
 		PermUpdateMyPassword,
-		PermCreateCertificateRequests,
+		PermCreateCertificateRequest,
 		PermReadCertificateRequest,
 		PermReadCertificateRequest,
 	},

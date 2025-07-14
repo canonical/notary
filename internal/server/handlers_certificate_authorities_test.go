@@ -10,14 +10,13 @@ import (
 
 	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/server"
-	"github.com/canonical/notary/internal/testutils"
 	tu "github.com/canonical/notary/internal/testutils"
 )
 
 // The order of the tests is important, as some tests depend on the state of the server after previous tests.
 func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", testutils.RoleAdmin, "")
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
 	client := ts.Client()
 
 	t.Run("1. List certificate authorities", func(t *testing.T) {
@@ -254,7 +253,7 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 
 func TestCreateCertificateAuthorityInvalidInputs(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", testutils.RoleAdmin, "")
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
 	client := ts.Client()
 
 	tests := []struct {
@@ -343,7 +342,7 @@ func TestCreateCertificateAuthorityInvalidInputs(t *testing.T) {
 
 func TestUploadCertificateToCertificateAuthorityInvalidInputs(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", testutils.RoleAdmin, "")
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
 	client := ts.Client()
 
 	createCAParams := tu.CreateCertificateAuthorityParams{
@@ -417,7 +416,7 @@ invalid
 
 func TestSignCertificatesEndToEnd(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", testutils.RoleAdmin, "")
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
 	client := ts.Client()
 
 	t.Run("1. List certificate authorities", func(t *testing.T) {
@@ -690,7 +689,7 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 
 func TestUnsuccessfulRequestsMadeToCACSRs(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", testutils.RoleAdmin, "")
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
 	client := ts.Client()
 
 	t.Run("1. Create self signed certificate authority", func(t *testing.T) {
@@ -821,7 +820,7 @@ func TestUnsuccessfulRequestsMadeToCACSRs(t *testing.T) {
 
 func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", testutils.RoleAdmin, "")
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
 	client := ts.Client()
 
 	t.Run("1. Create self signed certificate authority", func(t *testing.T) {

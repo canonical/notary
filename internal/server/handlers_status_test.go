@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/canonical/notary/internal/testutils"
 	tu "github.com/canonical/notary/internal/testutils"
 )
 
@@ -35,7 +34,7 @@ func TestStatus(t *testing.T) {
 			t.Fatalf("expected version to be set")
 		}
 	})
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", testutils.RoleAdmin, "")
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
 
 	t.Run("status initialized", func(t *testing.T) {
 		statusCode, statusResponse, err := getStatus(ts.URL, client, adminToken)

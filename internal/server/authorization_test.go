@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/canonical/notary/internal/testutils"
 	tu "github.com/canonical/notary/internal/testutils"
 )
 
@@ -46,10 +45,10 @@ func TestAuthorizationNoAuth(t *testing.T) {
 	}
 }
 
-func TestAuthorizationNonAdminAuthorized(t *testing.T) {
+func TestAuthorizationCertificateManagerAuthorized(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", testutils.RoleAdmin, "")
-	nonAdminToken := tu.MustPrepareAccount(t, ts, "testuser", testutils.RoleCertificateManager, adminToken)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
+	certManagerToken := tu.MustPrepareAccount(t, ts, "testuser", tu.RoleCertificateManager, adminToken)
 	client := ts.Client()
 
 	testCases := []struct {
@@ -60,14 +59,14 @@ func TestAuthorizationNonAdminAuthorized(t *testing.T) {
 		status int
 	}{
 		{
-			desc:   "user can change self password with /me",
+			desc:   "certificate manager can change self password with /me",
 			method: "POST",
 			path:   "/api/v1/accounts/me/change_password",
 			data:   `{"password":"BetterPW1!"}`,
 			status: http.StatusCreated,
 		},
 		{
-			desc:   "user can login with new password",
+			desc:   "certificate manager can login with new password",
 			method: "POST",
 			path:   "/login",
 			data:   `{"username":"testuser","password":"BetterPW1!"}`,
@@ -80,7 +79,7 @@ func TestAuthorizationNonAdminAuthorized(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			req.Header.Add("Authorization", "Bearer "+nonAdminToken)
+			req.Header.Add("Authorization", "Bearer "+certManagerToken)
 			res, err := client.Do(req)
 			if err != nil {
 				t.Fatal(err)
@@ -92,10 +91,10 @@ func TestAuthorizationNonAdminAuthorized(t *testing.T) {
 	}
 }
 
-func TestAuthorizationNonAdminUnauthorized(t *testing.T) {
+func TestAuthorizationCertificateManagerUnauthorized(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", testutils.RoleAdmin, "")
-	nonAdminToken := tu.MustPrepareAccount(t, ts, "whatever", testutils.RoleCertificateManager, adminToken)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
+	certManagerToken := tu.MustPrepareAccount(t, ts, "whatever", tu.RoleCertificateManager, adminToken)
 	client := ts.Client()
 
 	testCases := []struct {
@@ -133,7 +132,7 @@ func TestAuthorizationNonAdminUnauthorized(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			req.Header.Add("Authorization", "Bearer "+nonAdminToken)
+			req.Header.Add("Authorization", "Bearer "+certManagerToken)
 			res, err := client.Do(req)
 			if err != nil {
 				t.Fatal(err)
@@ -147,8 +146,8 @@ func TestAuthorizationNonAdminUnauthorized(t *testing.T) {
 
 func TestAuthorizationAdminAuthorized(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", testutils.RoleAdmin, "")
-	tu.MustPrepareAccount(t, ts, "whatever", testutils.RoleCertificateManager, adminToken)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
+	tu.MustPrepareAccount(t, ts, "whatever", tu.RoleCertificateManager, adminToken)
 	client := ts.Client()
 
 	testCases := []struct {
@@ -191,8 +190,8 @@ func TestAuthorizationAdminAuthorized(t *testing.T) {
 
 func TestAuthorizationAdminUnAuthorized(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", testutils.RoleAdmin, "")
-	nonAdminToken := tu.MustPrepareAccount(t, ts, "whatever", testutils.RoleCertificateManager, adminToken)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
+	nonAdminToken := tu.MustPrepareAccount(t, ts, "whatever", tu.RoleCertificateManager, adminToken)
 	client := ts.Client()
 
 	req, err := http.NewRequest("DELETE", ts.URL+"/api/v1/accounts/1", nil)

@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/canonical/notary/internal/testutils"
 	tu "github.com/canonical/notary/internal/testutils"
 )
 
@@ -44,8 +43,8 @@ func getConfig(url string, client *http.Client, token string) (int, *GetConfigRe
 
 func TestConfigEndToEnd(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", testutils.RoleAdmin, "")
-	nonAdminToken := tu.MustPrepareAccount(t, ts, "whatever", testutils.RoleCertificateManager, adminToken)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
+	nonAdminToken := tu.MustPrepareAccount(t, ts, "whatever", tu.RoleCertificateManager, adminToken)
 	client := ts.Client()
 
 	t.Run("1. Get config - no authentication", func(t *testing.T) {

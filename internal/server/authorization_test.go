@@ -284,7 +284,13 @@ func TestAuthorizationCertificateRequestorAuthorized(t *testing.T) {
 			status: http.StatusCreated,
 		},
 		{
-			desc:   "certificate manager can read a certificate request",
+			desc:   "certificate requestor can list certificate requests",
+			method: "GET",
+			path:   "/api/v1/certificate_requests",
+			status: http.StatusOK,
+		},
+		{
+			desc:   "certificate requestor can read a certificate request it created",
 			method: "GET",
 			path:   "/api/v1/certificate_requests/2",
 			status: http.StatusOK,
@@ -325,6 +331,14 @@ func TestAuthorizationCertificateRequestorUnauthorized(t *testing.T) {
 
 	if statusCode != http.StatusCreated {
 		t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
+	}
+
+	csrParams := tu.CreateCertificateRequestParams{
+		CSR: tu.ExampleCSR,
+	}
+	statusCode, _, err = tu.CreateCertificateRequest(ts.URL, client, adminToken, csrParams)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	testCases := []struct {
@@ -390,6 +404,12 @@ func TestAuthorizationCertificateRequestorUnauthorized(t *testing.T) {
 			method: "POST",
 			path:   "/api/v1/certificate_requests/2/sign",
 			data:   `{"certificate_authority_id":"1"}`,
+			status: http.StatusForbidden,
+		},
+		{
+			desc:   "certificate requestor can't read a certificate request it didn't create",
+			method: "GET",
+			path:   "/api/v1/certificate_requests/1",
 			status: http.StatusForbidden,
 		},
 	}

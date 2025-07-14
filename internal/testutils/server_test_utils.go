@@ -46,12 +46,12 @@ func MustPrepareServer(t *testing.T) *httptest.Server {
 func MustPrepareAccount(t *testing.T, ts *httptest.Server, username string, roleID RoleID, token string) string {
 	t.Helper()
 
-	adminAccountParams := &CreateAccountParams{
+	accountParams := &CreateAccountParams{
 		Username: username,
 		Password: "Admin123",
 		RoleID:   roleID,
 	}
-	statusCode, _, err := CreateAccount(ts.URL, ts.Client(), token, adminAccountParams)
+	statusCode, _, err := CreateAccount(ts.URL, ts.Client(), token, accountParams)
 	if err != nil {
 		t.Fatalf("couldn't create admin account: %s", err)
 	}
@@ -59,8 +59,8 @@ func MustPrepareAccount(t *testing.T, ts *httptest.Server, username string, role
 		t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 	}
 	adminLoginParams := &LoginParams{
-		Username: adminAccountParams.Username,
-		Password: adminAccountParams.Password,
+		Username: accountParams.Username,
+		Password: accountParams.Password,
 	}
 	statusCode, loginResponse, err := Login(ts.URL, ts.Client(), adminLoginParams)
 	if err != nil {

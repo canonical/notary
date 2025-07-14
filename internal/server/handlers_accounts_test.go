@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/canonical/notary/internal/testutils"
 	tu "github.com/canonical/notary/internal/testutils"
 )
 
@@ -13,8 +14,8 @@ import (
 func TestAccountsEndToEnd(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
 	client := ts.Client()
-	adminToken := tu.MustPrepareAccount(t, ts, "testadmin", 0, "")
-	nonAdminToken := tu.MustPrepareAccount(t, ts, "whatever", 1, adminToken)
+	adminToken := tu.MustPrepareAccount(t, ts, "testadmin", testutils.RoleAdmin, "")
+	nonAdminToken := tu.MustPrepareAccount(t, ts, "whatever", testutils.RoleCertificateManager, adminToken)
 
 	t.Run("1. Get admin account - admin token", func(t *testing.T) {
 		statusCode, response, err := tu.GetAccount(ts.URL, client, adminToken, 1)
@@ -55,7 +56,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 		createAccountParams := &tu.CreateAccountParams{
 			Username: "nopass",
 			Password: "myPassword123!",
-			RoleID:   1,
+			RoleID:   testutils.RoleCertificateManager,
 		}
 		statusCode, response, err := tu.CreateAccount(ts.URL, client, adminToken, createAccountParams)
 		if err != nil {
@@ -188,34 +189,34 @@ func TestAccountsEndToEnd(t *testing.T) {
 func TestCreateAccountInvalidInputs(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
 	client := ts.Client()
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", 0, "")
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", testutils.RoleAdmin, "")
 
 	tests := []struct {
 		testName string
 		username string
 		password string
-		roleID   int
+		roleID   testutils.RoleID
 		error    string
 	}{
 		{
 			testName: "No username",
 			username: "",
 			password: "password",
-			roleID:   1,
+			roleID:   testutils.RoleCertificateManager,
 			error:    "Invalid request: username is required",
 		},
 		{
 			testName: "No password",
 			username: "username",
 			password: "",
-			roleID:   1,
+			roleID:   testutils.RoleCertificateManager,
 			error:    "Invalid request: password is required",
 		},
 		{
 			testName: "bad password",
 			username: "username",
 			password: "123",
-			roleID:   1,
+			roleID:   testutils.RoleCertificateManager,
 			error:    "Invalid request: Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
 		},
 		{
@@ -258,7 +259,7 @@ func TestCreateAccountInvalidInputs(t *testing.T) {
 func TestChangeAccountPasswordInvalidInputs(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
 	client := ts.Client()
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", 0, "")
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", testutils.RoleAdmin, "")
 
 	tests := []struct {
 		testName string

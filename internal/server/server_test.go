@@ -9,6 +9,7 @@ import (
 
 	"github.com/canonical/notary/internal/encryption_backend"
 	"github.com/canonical/notary/internal/server"
+	"github.com/canonical/notary/internal/testutils"
 	tu "github.com/canonical/notary/internal/testutils"
 	"go.uber.org/zap"
 )
@@ -46,7 +47,7 @@ func TestInvalidKeyFailure(t *testing.T) {
 func TestRequestOverload(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
 	client := ts.Client()
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", 0, "")
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", testutils.RoleAdmin, "")
 
 	t.Run("throw a valid size string", func(t *testing.T) {
 		createCertificateRequestRequest := tu.CreateCertificateRequestParams{CSR: generateRandomString(20)}

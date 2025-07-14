@@ -43,7 +43,7 @@ func MustPrepareServer(t *testing.T) *httptest.Server {
 	return testServer
 }
 
-func MustPrepareAccount(t *testing.T, ts *httptest.Server, username string, roleID int, token string) string {
+func MustPrepareAccount(t *testing.T, ts *httptest.Server, username string, roleID RoleID, token string) string {
 	t.Helper()
 
 	adminAccountParams := &CreateAccountParams{
@@ -87,10 +87,19 @@ type GetAccountResponse struct {
 	Error  string                   `json:"error,omitempty"`
 }
 
+type RoleID int
+
+const (
+	RoleAdmin                RoleID = 0
+	RoleCertificateManager   RoleID = 1
+	RoleCertificateRequestor RoleID = 2
+	RoleReadOnly             RoleID = 3
+)
+
 type CreateAccountParams struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
-	RoleID   int    `json:"role_id"`
+	RoleID   RoleID `json:"role_id"`
 }
 
 type CreateAccountResponseResult struct {

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/canonical/notary/internal/testutils"
 	tu "github.com/canonical/notary/internal/testutils"
 )
 
@@ -47,8 +48,8 @@ func TestAuthorizationNoAuth(t *testing.T) {
 
 func TestAuthorizationNonAdminAuthorized(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", 0, "")
-	nonAdminToken := tu.MustPrepareAccount(t, ts, "testuser", 1, adminToken)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", testutils.RoleAdmin, "")
+	nonAdminToken := tu.MustPrepareAccount(t, ts, "testuser", testutils.RoleCertificateManager, adminToken)
 	client := ts.Client()
 
 	testCases := []struct {
@@ -93,8 +94,8 @@ func TestAuthorizationNonAdminAuthorized(t *testing.T) {
 
 func TestAuthorizationNonAdminUnauthorized(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", 0, "")
-	nonAdminToken := tu.MustPrepareAccount(t, ts, "whatever", 1, adminToken)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", testutils.RoleAdmin, "")
+	nonAdminToken := tu.MustPrepareAccount(t, ts, "whatever", testutils.RoleCertificateManager, adminToken)
 	client := ts.Client()
 
 	testCases := []struct {
@@ -146,8 +147,8 @@ func TestAuthorizationNonAdminUnauthorized(t *testing.T) {
 
 func TestAuthorizationAdminAuthorized(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", 0, "")
-	tu.MustPrepareAccount(t, ts, "whatever", 1, adminToken)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", testutils.RoleAdmin, "")
+	tu.MustPrepareAccount(t, ts, "whatever", testutils.RoleCertificateManager, adminToken)
 	client := ts.Client()
 
 	testCases := []struct {
@@ -190,8 +191,8 @@ func TestAuthorizationAdminAuthorized(t *testing.T) {
 
 func TestAuthorizationAdminUnAuthorized(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", 0, "")
-	nonAdminToken := tu.MustPrepareAccount(t, ts, "whatever", 1, adminToken)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", testutils.RoleAdmin, "")
+	nonAdminToken := tu.MustPrepareAccount(t, ts, "whatever", testutils.RoleCertificateManager, adminToken)
 	client := ts.Client()
 
 	req, err := http.NewRequest("DELETE", ts.URL+"/api/v1/accounts/1", nil)

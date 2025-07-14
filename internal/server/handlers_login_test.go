@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/canonical/notary/internal/testutils"
 	tu "github.com/canonical/notary/internal/testutils"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -16,7 +17,7 @@ func TestLoginEndToEnd(t *testing.T) {
 		adminUser := &tu.CreateAccountParams{
 			Username: "testadmin",
 			Password: "Admin123",
-			RoleID:   0,
+			RoleID:   testutils.RoleAdmin,
 		}
 		statusCode, _, err := tu.CreateAccount(ts.URL, client, "", adminUser)
 		if err != nil {

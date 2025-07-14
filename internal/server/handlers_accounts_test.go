@@ -13,8 +13,8 @@ import (
 func TestAccountsEndToEnd(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
 	client := ts.Client()
-	adminToken := tu.MustPrepareAdminAccount(t, ts)
-	nonAdminToken := tu.MustPrepareNonAdminAccount(t, ts, adminToken)
+	adminToken := tu.MustPrepareAccount(t, ts, "testadmin", 0, "")
+	nonAdminToken := tu.MustPrepareAccount(t, ts, "whatever", 1, adminToken)
 
 	t.Run("1. Get admin account - admin token", func(t *testing.T) {
 		statusCode, response, err := tu.GetAccount(ts.URL, client, adminToken, 1)
@@ -188,7 +188,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 func TestCreateAccountInvalidInputs(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
 	client := ts.Client()
-	adminToken := tu.MustPrepareAdminAccount(t, ts)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", 0, "")
 
 	tests := []struct {
 		testName string
@@ -258,7 +258,7 @@ func TestCreateAccountInvalidInputs(t *testing.T) {
 func TestChangeAccountPasswordInvalidInputs(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
 	client := ts.Client()
-	adminToken := tu.MustPrepareAdminAccount(t, ts)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", 0, "")
 
 	tests := []struct {
 		testName string

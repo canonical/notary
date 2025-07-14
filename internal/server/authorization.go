@@ -39,13 +39,15 @@ const (
 type RoleID int
 
 const (
-	RoleAdmin              RoleID = 0
-	RoleCertificateManager RoleID = 1
+	RoleAdmin                RoleID = 0
+	RoleCertificateManager   RoleID = 1
+	RoleCertificateRequestor RoleID = 2
+	RoleReadOnly             RoleID = 3
 )
 
 func (r RoleID) IsValid() bool {
 	switch r {
-	case RoleAdmin, RoleCertificateManager:
+	case RoleAdmin, RoleCertificateManager, RoleCertificateRequestor, RoleReadOnly:
 		return true
 	default:
 		return false
@@ -76,5 +78,21 @@ var PermissionsByRole = map[RoleID][]string{
 		PermSignCertificateAuthorityCertificate,
 		PermCreateCertificateAuthorityCertificate,
 		PermRevokeCertificateAuthorityCertificate,
+	},
+
+	RoleCertificateRequestor: {
+		PermReadMyUser,
+		PermUpdateMyPassword,
+		PermCreateCertificateRequests,
+	},
+
+	RoleReadOnly: {
+		PermReadMyUser,
+		PermUpdateMyPassword,
+		PermListCertificateRequests,
+		PermReadCertificateRequest,
+		PermListCertificateAuthorities,
+		PermReadCertificateAuthority,
+		PermReadConfig,
 	},
 }

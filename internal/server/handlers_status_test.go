@@ -34,7 +34,7 @@ func TestStatus(t *testing.T) {
 			t.Fatalf("expected version to be set")
 		}
 	})
-	adminToken := tu.MustPrepareAdminAccount(t, ts)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", 0, "")
 
 	t.Run("status initialized", func(t *testing.T) {
 		statusCode, statusResponse, err := getStatus(ts.URL, client, adminToken)

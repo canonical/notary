@@ -13,7 +13,7 @@ import (
 // state of the server after previous tests.
 func TestCertificateRequestsEndToEnd(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAdminAccount(t, ts)
+	adminToken := tu.MustPrepareAccount(t, ts, "testadmin", 0, "")
 	client := ts.Client()
 
 	t.Run("1. List certificate requests - no requests yet", func(t *testing.T) {
@@ -227,7 +227,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 // state of the server after previous tests.
 func TestCertificatesEndToEnd(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAdminAccount(t, ts)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", 0, "")
 	client := ts.Client()
 
 	t.Run("1. Create certificate request", func(t *testing.T) {
@@ -331,7 +331,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 
 func TestCreateCertificateRequestInvalidInputs(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAdminAccount(t, ts)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", 0, "")
 	client := ts.Client()
 
 	tests := []struct {
@@ -386,7 +386,7 @@ MIIBVwIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAuQ==
 
 func TestCreateCertificateInvalidInputs(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAdminAccount(t, ts)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", 0, "")
 	client := ts.Client()
 
 	tests := []struct {

@@ -43,15 +43,15 @@ func MustPrepareServer(t *testing.T) *httptest.Server {
 	return testServer
 }
 
-func MustPrepareAdminAccount(t *testing.T, ts *httptest.Server) string {
+func MustPrepareAccount(t *testing.T, ts *httptest.Server, username string, roleID int, token string) string {
 	t.Helper()
 
 	adminAccountParams := &CreateAccountParams{
-		Username: "testadmin",
+		Username: username,
 		Password: "Admin123",
-		RoleID:   0,
+		RoleID:   roleID,
 	}
-	statusCode, _, err := CreateAccount(ts.URL, ts.Client(), "", adminAccountParams)
+	statusCode, _, err := CreateAccount(ts.URL, ts.Client(), token, adminAccountParams)
 	if err != nil {
 		t.Fatalf("couldn't create admin account: %s", err)
 	}
@@ -65,35 +65,6 @@ func MustPrepareAdminAccount(t *testing.T, ts *httptest.Server) string {
 	statusCode, loginResponse, err := Login(ts.URL, ts.Client(), adminLoginParams)
 	if err != nil {
 		t.Fatalf("couldn't login admin account: %s", err)
-	}
-	if statusCode != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
-	}
-	return loginResponse.Result.Token
-}
-
-func MustPrepareNonAdminAccount(t *testing.T, ts *httptest.Server, adminToken string) string {
-	t.Helper()
-
-	nonAdminAccount := &CreateAccountParams{
-		Username: "testuser",
-		Password: "userPass!",
-		RoleID:   1,
-	}
-	statusCode, _, err := CreateAccount(ts.URL, ts.Client(), adminToken, nonAdminAccount)
-	if err != nil {
-		t.Fatalf("couldn't create non-admin account: %s", err)
-	}
-	if statusCode != http.StatusCreated {
-		t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
-	}
-	nonAdminLoginParams := &LoginParams{
-		Username: nonAdminAccount.Username,
-		Password: nonAdminAccount.Password,
-	}
-	statusCode, loginResponse, err := Login(ts.URL, ts.Client(), nonAdminLoginParams)
-	if err != nil {
-		t.Fatalf("couldn't login non-admin account: %s", err)
 	}
 	if statusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)

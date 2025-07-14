@@ -341,6 +341,10 @@ func TestAuthorizationCertificateRequestorUnauthorized(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if statusCode != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
+	}
+
 	testCases := []struct {
 		desc   string
 		method string

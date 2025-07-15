@@ -79,13 +79,12 @@ func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 		var csrs []db.CertificateRequestWithChain
 		var err error
 
-		switch claims.RoleID {
-		case RoleCertificateRequestor:
-			csrs, err = env.DB.ListCertificateRequestWithCertificatesWithoutCASByUserID(claims.ID)
-		default:
-			csrs, err = env.DB.ListCertificateRequestWithCertificatesWithoutCAS()
+		filter := &db.CSRFilter{}
+		if claims.RoleID == RoleCertificateRequestor {
+			filter.UserID = &claims.ID
 		}
 
+		csrs, err = env.DB.ListCertificateRequestWithCertificatesWithoutCAS(filter)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
 			return

@@ -14,7 +14,7 @@ Prerequisites:
 Install Notary:
 
 ```shell
-sudo snap install notary --channel=latest/edge
+sudo snap install notary --channel=0.0/edge
 ```
 
 ````

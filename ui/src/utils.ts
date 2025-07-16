@@ -327,6 +327,11 @@ export const passwordIsValid = (pw: string) => {
   return false;
 };
 
+export function emailIsValid(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
 export const splitBundle = (bundle: string): string[] => {
   const pemPattern =
     /-----BEGIN CERTIFICATE-----(?:.|\n)*?-----END CERTIFICATE-----/g;

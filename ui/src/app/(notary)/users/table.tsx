@@ -113,10 +113,7 @@ export function UsersTable({ users, setAsideOpen, setFormData }: TableProps) {
                       {
                         children: "Change Password",
                         onClick: () =>
-                          handleChangePassword(
-                            user.id.toString(),
-                            user.email,
-                          ),
+                          handleChangePassword(user.id.toString(), user.email),
                       },
                     ]}
                     hasToggleIcon

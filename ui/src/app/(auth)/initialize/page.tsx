@@ -1,6 +1,6 @@
 "use client";
 
-import { passwordIsValid } from "@/utils";
+import { passwordIsValid, emailIsValid } from "@/utils";
 import { getStatus, login, postFirstUser } from "@/queries";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -58,6 +58,7 @@ export default function Initialize() {
   const [password1, setPassword1] = useState<string>("");
   const [password2, setPassword2] = useState<string>("");
   const passwordsMatch = password1 === password2;
+  const emailError = email && !emailIsValid(email) ? "Email is not valid" : "";
   const password1Error =
     password1 && !passwordIsValid(password1) ? "Password is not valid" : "";
   const password2Error =
@@ -91,6 +92,7 @@ export default function Initialize() {
             type="text"
             required={true}
             onChange={handleEmailChange}
+            error={emailError}
           />
           <PasswordToggle
             help="Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol."
@@ -109,7 +111,11 @@ export default function Initialize() {
           />
           <Button
             appearance="positive"
-            disabled={!passwordsMatch || !passwordIsValid(password1)}
+            disabled={
+              !passwordsMatch ||
+              !passwordIsValid(password1) ||
+              !emailIsValid(email)
+            }
             onClick={(event) => {
               event.preventDefault();
               if (passwordsMatch && passwordIsValid(password1)) {

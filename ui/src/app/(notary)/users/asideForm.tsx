@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { passwordIsValid } from "@/utils";
+import { passwordIsValid, emailIsValid } from "@/utils";
 import { changePassword, postUser } from "@/queries";
 import { ChangeEvent, Dispatch, SetStateAction, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -57,6 +57,7 @@ function AddNewUserForm(asideProps: AsideProps) {
   const [password1, setPassword1] = useState<string>("");
   const [password2, setPassword2] = useState<string>("");
   const passwordsMatch = password1 === password2;
+  const emailError = email && !emailIsValid(email) ? "Email is not valid" : "";
   const password1Error =
     password1 && !passwordIsValid(password1) ? "Password is not valid" : "";
   const password2Error =
@@ -84,6 +85,7 @@ function AddNewUserForm(asideProps: AsideProps) {
           type="text"
           required={true}
           onChange={handleEmailChange}
+          error={emailError}
         />
         <Select
           id="roleID"
@@ -131,7 +133,11 @@ function AddNewUserForm(asideProps: AsideProps) {
         />
         <Button
           appearance="positive"
-          disabled={!passwordsMatch || !passwordIsValid(password1)}
+          disabled={
+            !passwordsMatch ||
+            !passwordIsValid(password1) ||
+            !emailIsValid(email)
+          }
           onClick={(event) => {
             event.preventDefault();
             mutation.mutate({

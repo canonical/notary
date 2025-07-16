@@ -42,7 +42,7 @@ interface ChangePasswordModalProps {
 export const ChangePasswordModalContext =
   createContext<ChangePasswordModalProps>({
     modalData: null,
-    setModalData: () => { },
+    setModalData: () => {},
   });
 
 export function UsersConfirmationModal({

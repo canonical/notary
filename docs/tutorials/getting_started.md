@@ -11,7 +11,7 @@ In this tutorial, you will learn how to install Notary on a Linux machine and ac
 Install the snap:
 
 ```shell
-sudo snap install notary --channel=latest/edge
+sudo snap install notary --channel=0.0/edge
 ```
 
 Generate a certificate and private key to the following location:

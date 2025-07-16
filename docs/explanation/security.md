@@ -41,4 +41,5 @@ Notary implements token-based authentication for its API and web interface. User
 
 ## Authorization
 
-Notary uses role-based access control (RBAC) to manage user permissions. Each user is assigned a role that defines their permissions within the system.
+Notary uses role-based access control (RBAC) to manage user permissions. Each user is assigned a role that defines their permissions within the system. Roles are assigned to accounts when they are created, either via the API (see the [API account reference](../reference/api/accounts.md#create-an-account)) or the web interface. To view the role definitions, see the [Roles reference](../reference/roles.md).
+

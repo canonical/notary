@@ -303,7 +303,8 @@ func TestCASNotShowingUpInCSRsTable(t *testing.T) {
 	if csrs[0].Status != "Outstanding" {
 		t.Fatalf("Expected CSR to be in pending state, was %s", csrs[0].Status)
 	}
-	csrswithchain, err := database.ListCertificateRequestWithCertificatesWithoutCAS()
+	filter := &db.CSRFilter{}
+	csrswithchain, err := database.ListCertificateRequestWithCertificatesWithoutCAS(filter)
 	if err != nil {
 		t.Fatalf("err: %s", err.Error())
 	}

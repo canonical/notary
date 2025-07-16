@@ -136,7 +136,7 @@ func TestCreateUserFails(t *testing.T) {
 	if num != 1 {
 		t.Fatalf("The number of users should be 1.")
 	}
-	_, err = database.CreateUser("newUser", "pw456", 2)
+	_, err = database.CreateUser("newUser", "pw456", 32)
 	if err == nil {
 		t.Fatalf("An error should have been returned when creating a user with an invalid role ID.")
 	}

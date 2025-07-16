@@ -74,8 +74,10 @@ type PrivateKey struct {
 type RoleID int
 
 const (
-	RoleAdmin              RoleID = 0
-	RoleCertificateManager RoleID = 1
+	RoleAdmin                RoleID = 0
+	RoleCertificateManager   RoleID = 1
+	RoleCertificateRequestor RoleID = 2
+	RoleReadOnly             RoleID = 3
 )
 
 // User contains information about a user of notary in the database.

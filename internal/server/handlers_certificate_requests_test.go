@@ -13,7 +13,7 @@ import (
 // state of the server after previous tests.
 func TestCertificateRequestsEndToEnd(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAdminAccount(t, ts)
+	adminToken := tu.MustPrepareAccount(t, ts, "testadmin", tu.RoleAdmin, "")
 	client := ts.Client()
 
 	t.Run("1. List certificate requests - no requests yet", func(t *testing.T) {
@@ -222,12 +222,79 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 	})
 }
 
+// TestListCertificateRequestsRequestorRole tests that a certificate requestor can only view their own requests.
+func TestListCertificateRequestsRequestorRole(t *testing.T) {
+	ts := tu.MustPrepareServer(t)
+	adminToken := tu.MustPrepareAccount(t, ts, "testadmin", tu.RoleAdmin, "")
+	client := ts.Client()
+
+	// Create a certificate request as the admin
+	params1 := tu.CreateCertificateRequestParams{
+		CSR: tu.ExampleCSR,
+	}
+	statusCode, _, err := tu.CreateCertificateRequest(ts.URL, client, adminToken, params1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if statusCode != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
+	}
+
+	// Create a certificate requestor user
+	requestorToken := tu.MustPrepareAccount(t, ts, "requestor", tu.RoleCertificateRequestor, adminToken)
+
+	// Create a certificate request as the requestor
+	params2 := tu.CreateCertificateRequestParams{
+		CSR: tu.AppleCSR,
+	}
+	statusCode, _, err = tu.CreateCertificateRequest(ts.URL, client, requestorToken, params2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if statusCode != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
+	}
+
+	// Create a second certificate request as the requestor
+	params3 := tu.CreateCertificateRequestParams{
+		CSR: tu.StrawberryCSR,
+	}
+
+	statusCode, _, err = tu.CreateCertificateRequest(ts.URL, client, requestorToken, params3)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if statusCode != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
+	}
+
+	// List certificate requests as the requestor
+	statusCode, listCertRequestsResponse, err := tu.ListCertificateRequests(ts.URL, client, requestorToken)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if statusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+	}
+
+	if listCertRequestsResponse.Error != "" {
+		t.Fatalf("expected no error, got %s", listCertRequestsResponse.Error)
+	}
+
+	if len(listCertRequestsResponse.Result) != 2 {
+		t.Fatalf("expected 2 certificate requests, got %d", len(listCertRequestsResponse.Result))
+	}
+}
+
 // This is an end-to-end test for the certificates endpoint.
 // The order of the tests is important, as some tests depend on the
 // state of the server after previous tests.
 func TestCertificatesEndToEnd(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAdminAccount(t, ts)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
 	client := ts.Client()
 
 	t.Run("1. Create certificate request", func(t *testing.T) {
@@ -331,7 +398,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 
 func TestCreateCertificateRequestInvalidInputs(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAdminAccount(t, ts)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
 	client := ts.Client()
 
 	tests := []struct {
@@ -386,7 +453,7 @@ MIIBVwIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAuQ==
 
 func TestCreateCertificateInvalidInputs(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAdminAccount(t, ts)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
 	client := ts.Client()
 
 	tests := []struct {

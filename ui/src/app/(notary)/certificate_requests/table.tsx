@@ -15,6 +15,7 @@ import {
   NotaryConfirmationModalData,
 } from "@/components/NotaryConfirmationModal";
 import { useAuth } from "@/hooks/useAuth";
+import { RoleID } from "@/types";
 
 type TableProps = {
   csrs: CSREntry[];
@@ -37,6 +38,17 @@ export function CertificateRequestsTable({
   const [successNotificationId, setSuccessNotificationId] = useState<
     number | null
   >(null);
+
+  const canManageCSRs = [
+    RoleID.Admin,
+    RoleID.CertificateManager,
+    RoleID.CertificateRequestor,
+  ].includes(auth.user?.role_id as RoleID);
+
+  const canManageCertificates = [
+    RoleID.Admin,
+    RoleID.CertificateManager,
+  ].includes(auth.user?.role_id as RoleID);
 
   const handleCopy = (csr: string, id: number) => {
     void navigator.clipboard.writeText(csr).then(() => {
@@ -210,6 +222,23 @@ export function CertificateRequestsTable({
                     Download CSR
                   </Button>
                 </span>
+                {canManageCertificates && (
+                  <span className="p-contextual-menu__group">
+                    <Button
+                      className="p-contextual-menu__link"
+                      disabled={csr_status == "Rejected"}
+                      onClick={() => handleReject(id)}
+                    >
+                      Reject Certificate Request
+                    </Button>
+                    <Button
+                      className="p-contextual-menu__link"
+                      onClick={() => handleDelete(id)}
+                    >
+                      Delete Certificate Request
+                    </Button>
+                  </span>
+                )}
                 <span className="p-contextual-menu__group">
                   <Button
                     className="p-contextual-menu__link"
@@ -220,44 +249,35 @@ export function CertificateRequestsTable({
                       ? "Hide Certificate Content"
                       : "Show Certificate Content"}
                   </Button>
-                  <Button
-                    className="p-contextual-menu__link"
-                    disabled={!auth.activeCA}
-                    onClick={() => handleSign(id)}
-                  >
-                    Sign CSR
-                  </Button>
-                  <Button
-                    className="p-contextual-menu__link"
-                    onClick={() => {
-                      setCertificateFormOpen(true);
-                      setSelectedCSR(csrEntry);
-                    }}
-                  >
-                    Upload New Certificate
-                  </Button>
-                  <Button
-                    className="p-contextual-menu__link"
-                    disabled={csr_status != "Active"}
-                    onClick={() => handleRevoke(id)}
-                  >
-                    Revoke Certificate
-                  </Button>
-                </span>
-                <span className="p-contextual-menu__group">
-                  <Button
-                    className="p-contextual-menu__link"
-                    disabled={csr_status == "Rejected"}
-                    onClick={() => handleReject(id)}
-                  >
-                    Reject Certificate Request
-                  </Button>
-                  <Button
-                    className="p-contextual-menu__link"
-                    onClick={() => handleDelete(id)}
-                  >
-                    Delete Certificate Request
-                  </Button>
+                  {canManageCertificates && (
+                    <>
+                      <Button
+                        className="p-contextual-menu__link"
+                        disabled={!auth.activeCA}
+                        onClick={() => handleSign(id)}
+                      >
+                        Sign CSR
+                      </Button>
+                      <Button
+                        className="p-contextual-menu__link"
+                        disabled={csr_status != "Active"}
+                        onClick={() => handleRevoke(id)}
+                      >
+                        Revoke Certificate
+                      </Button>
+                    </>
+                  )}
+                  {canManageCertificates && (
+                    <Button
+                      className="p-contextual-menu__link"
+                      onClick={() => {
+                        setCertificateFormOpen(true);
+                        setSelectedCSR(csrEntry);
+                      }}
+                    >
+                      Upload New Certificate
+                    </Button>
+                  )}
                 </span>
               </ContextualMenu>
             </>
@@ -336,7 +356,8 @@ export function CertificateRequestsTable({
       title="Certificate Requests"
       className="u-fixed-width"
       controls={
-        rows.length > 0 && (
+        rows.length > 0 &&
+        canManageCSRs && (
           <Button appearance="positive" onClick={() => setAsideOpen(true)}>
             Add New Certificate Request
           </Button>
@@ -395,19 +416,29 @@ function CSREmptyState({
 }: {
   setAsideOpen: Dispatch<SetStateAction<boolean>>;
 }) {
+  const auth = useAuth();
+
+  const canManageCSRs = [
+    RoleID.Admin,
+    RoleID.CertificateManager,
+    RoleID.CertificateRequestor,
+  ].includes(auth.user?.role_id as RoleID);
+
   return (
     <EmptyState image={""} title="No CSRs available yet.">
       <p>
         There are no Certificate Requests in Notary. Request your first
         certificate!
       </p>
-      <Button
-        appearance="positive"
-        aria-label="add-csr-button"
-        onClick={() => setAsideOpen(true)}
-      >
-        Add New CSR
-      </Button>
+      {canManageCSRs && (
+        <Button
+          appearance="positive"
+          aria-label="add-csr-button"
+          onClick={() => setAsideOpen(true)}
+        >
+          Add New CSR
+        </Button>
+      )}
     </EmptyState>
   );
 }

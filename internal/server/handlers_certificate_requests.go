@@ -70,11 +70,26 @@ type CertificateRequest struct {
 // ListCertificateRequests returns all of the Certificate Requests
 func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		csrs, err := env.DB.ListCertificateRequestWithCertificatesWithoutCAS()
+		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
+		if headerErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.Logger)
+			return
+		}
+
+		var csrs []db.CertificateRequestWithChain
+		var err error
+
+		filter := &db.CSRFilter{}
+		if claims.RoleID == RoleCertificateRequestor {
+			filter.UserID = &claims.ID
+		}
+
+		csrs, err = env.DB.ListCertificateRequestWithCertificatesWithoutCAS(filter)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
 			return
 		}
+
 		certificateRequestsResponse := make([]CertificateRequest, len(csrs))
 		for i, csr := range csrs {
 			var username string
@@ -152,12 +167,19 @@ func CreateCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 // returns the corresponding Certificate Request
 func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
+		if headerErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.Logger)
+			return
+		}
+
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, "Invalid ID", err, env.Logger)
 			return
 		}
+
 		csr, err := env.DB.GetCertificateRequestAndChain(db.ByCSRID(idNum))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
@@ -167,6 +189,13 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
 			return
 		}
+
+		// Restrict access to certificate requestors' own requests
+		if claims.RoleID == RoleCertificateRequestor && claims.ID != csr.UserID {
+			writeError(w, http.StatusForbidden, "Access denied", fmt.Errorf("user does not have permission to access this certificate request"), env.Logger)
+			return
+		}
+
 		_, err = env.DB.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(csr.CSR_ID))
 		if rowFound(err) {
 			writeError(w, http.StatusNotFound, "Not Found", fmt.Errorf("not found"), env.Logger)
@@ -176,6 +205,7 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
 			return
 		}
+
 		var username string
 		user, err := env.DB.GetUser(db.ByUserID(csr.UserID))
 		if err != nil {
@@ -189,6 +219,7 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 		} else {
 			username = user.Username
 		}
+
 		certificateRequestResponse := CertificateRequest{
 			ID:               csr.CSR_ID,
 			CSR:              csr.CSR,
@@ -196,6 +227,7 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			Status:           csr.Status,
 			Username:         username,
 		}
+
 		err = writeResponse(w, certificateRequestResponse, http.StatusOK)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error", err, env.Logger)

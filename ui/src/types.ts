@@ -30,6 +30,8 @@ export type CertificateAuthorityEntry = {
 export enum RoleID {
   Admin = 0,
   CertificateManager = 1,
+  CertificateRequestor = 2,
+  ReadOnly = 3,
 }
 
 export type User = {

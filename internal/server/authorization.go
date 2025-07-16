@@ -16,7 +16,7 @@ const (
 
 	// Certificate request permissions
 	PermListCertificateRequests             = "certificate_request:list"
-	PermCreateCertificateRequests           = "certificate_request:create"
+	PermCreateCertificateRequest            = "certificate_request:create"
 	PermReadCertificateRequest              = "certificate_request:read"
 	PermDeleteCertificateRequest            = "certificate_request:delete"
 	PermRejectCertificateRequest            = "certificate_request:reject"
@@ -39,13 +39,15 @@ const (
 type RoleID int
 
 const (
-	RoleAdmin              RoleID = 0
-	RoleCertificateManager RoleID = 1
+	RoleAdmin                RoleID = 0
+	RoleCertificateManager   RoleID = 1
+	RoleCertificateRequestor RoleID = 2
+	RoleReadOnly             RoleID = 3
 )
 
 func (r RoleID) IsValid() bool {
 	switch r {
-	case RoleAdmin, RoleCertificateManager:
+	case RoleAdmin, RoleCertificateManager, RoleCertificateRequestor, RoleReadOnly:
 		return true
 	default:
 		return false
@@ -60,7 +62,7 @@ var PermissionsByRole = map[RoleID][]string{
 		PermReadConfig,
 		PermUpdateMyPassword,
 		PermListCertificateRequests,
-		PermCreateCertificateRequests,
+		PermCreateCertificateRequest,
 		PermReadCertificateRequest,
 		PermDeleteCertificateRequest,
 		PermRejectCertificateRequest,
@@ -76,5 +78,23 @@ var PermissionsByRole = map[RoleID][]string{
 		PermSignCertificateAuthorityCertificate,
 		PermCreateCertificateAuthorityCertificate,
 		PermRevokeCertificateAuthorityCertificate,
+	},
+
+	RoleCertificateRequestor: {
+		PermReadMyUser,
+		PermUpdateMyPassword,
+		PermCreateCertificateRequest,
+		PermReadCertificateRequest,
+		PermListCertificateRequests,
+	},
+
+	RoleReadOnly: {
+		PermReadMyUser,
+		PermUpdateMyPassword,
+		PermListCertificateRequests,
+		PermReadCertificateRequest,
+		PermListCertificateAuthorities,
+		PermReadCertificateAuthority,
+		PermReadConfig,
 	},
 }

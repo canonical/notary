@@ -16,7 +16,7 @@ func TestLoginEndToEnd(t *testing.T) {
 		adminUser := &tu.CreateAccountParams{
 			Username: "testadmin",
 			Password: "Admin123",
-			RoleID:   0,
+			RoleID:   tu.RoleAdmin,
 		}
 		statusCode, _, err := tu.CreateAccount(ts.URL, client, "", adminUser)
 		if err != nil {

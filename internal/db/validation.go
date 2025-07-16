@@ -123,8 +123,8 @@ func ValidateUser(username string, roleID RoleID) error {
 	if username == "" {
 		return fmt.Errorf("%w: invalid username or password", ErrInvalidUser)
 	}
-	if roleID != RoleAdmin && roleID != RoleCertificateManager {
-		return fmt.Errorf("%w: invalid role", ErrInvalidUser)
+	if roleID < 0 || roleID > 3 {
+		return fmt.Errorf("%w: invalid role ID: %d", ErrInvalidUser, roleID)
 	}
 	return nil
 }

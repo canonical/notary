@@ -104,6 +104,14 @@ function AddNewUserForm(asideProps: AsideProps) {
               label: "Certificate Manager",
               value: RoleID.CertificateManager,
             },
+            {
+              label: "Certificate Requestor",
+              value: RoleID.CertificateRequestor,
+            },
+            {
+              label: "Read Only",
+              value: RoleID.ReadOnly,
+            },
           ]}
         />
         <PasswordToggle

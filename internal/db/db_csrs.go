@@ -16,8 +16,12 @@ func (db *Database) ListCertificateRequestWithCertificates() ([]CertificateReque
 }
 
 // ListCertificateRequestWithCertificatesWithoutCAS gets every CertificateRequest entry in the table.
-func (db *Database) ListCertificateRequestWithCertificatesWithoutCAS() ([]CertificateRequestWithChain, error) {
-	return ListEntities[CertificateRequestWithChain](db, db.stmts.ListCertificateRequestsWithoutChain)
+func (db *Database) ListCertificateRequestWithCertificatesWithoutCAS(filter *CSRFilter) ([]CertificateRequestWithChain, error) {
+	if filter == nil || filter.UserID == nil {
+		return ListEntities[CertificateRequestWithChain](db, db.stmts.ListCertificateRequestsWithoutChain)
+	}
+	csrRow := filter.AsCertificateRequestWithChain()
+	return ListEntities[CertificateRequestWithChain](db, db.stmts.ListCertificateRequestsWithoutChainByUserID, *csrRow)
 }
 
 // GetCertificateRequestByID gets a CSR row from the repository from a given ID.

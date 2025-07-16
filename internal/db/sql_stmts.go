@@ -159,7 +159,46 @@ SELECT
 FROM certificate_chain cc
 LEFT JOIN certificate_authorities cas ON cc.csr_id = cas.csr_id
 WHERE cas.certificate_authority_id IS NULL AND (chain = '' OR issuer_id = 0)`
+	listCertificateRequestsWithCertificatesWithoutCASByUserIDStmt = `
+WITH RECURSIVE certificate_chain AS (
+    SELECT
+        csr.csr_id,
+        csr.csr,
+        csr.status,
+        csr.user_id,
+        cert.certificate_id,
+        cert.issuer_id,
+        cert.certificate,
+        COALESCE(cert.certificate, '') AS chain
+    FROM certificate_requests csr
+    LEFT JOIN certificates cert
+      ON csr.certificate_id = cert.certificate_id
+    WHERE csr.user_id = $CertificateRequestWithChain.user_id
 
+    UNION ALL
+
+    SELECT
+        cc.csr_id,
+        cc.csr,
+        cc.status,
+        cc.user_id,
+        cert.certificate_id,
+        cert.issuer_id,
+        cert.certificate,
+        cc.chain || CHAR(10) || cert.certificate AS chain
+    FROM certificates cert
+    JOIN certificate_chain cc
+      ON cert.certificate_id = cc.issuer_id
+)
+SELECT
+	cc.&CertificateRequestWithChain.csr_id,
+	cc.&CertificateRequestWithChain.csr,
+	cc.&CertificateRequestWithChain.status,
+	cc.&CertificateRequestWithChain.user_id,
+	chain AS &CertificateRequestWithChain.certificate_chain
+FROM certificate_chain cc
+LEFT JOIN certificate_authorities cas ON cc.csr_id = cas.csr_id
+WHERE cas.certificate_authority_id IS NULL AND (chain = '' OR issuer_id = 0)`
 	getCertificateRequestWithCertificateStmt = `
 WITH RECURSIVE certificate_chain AS (
     SELECT
@@ -353,15 +392,16 @@ WITH RECURSIVE cas_with_chain AS (
 // Statements contains all prepared SQL statements used by the database
 type Statements struct {
 	// Certificate Request statements
-	CreateCertificateRequest            *sqlair.Statement
-	GetCertificateRequest               *sqlair.Statement
-	GetCertificateRequestWithChain      *sqlair.Statement
-	UpdateCertificateRequest            *sqlair.Statement
-	ListCertificateRequests             *sqlair.Statement
-	ListCertificateRequestsWithoutCAS   *sqlair.Statement
-	ListCertificateRequestsWithChain    *sqlair.Statement
-	ListCertificateRequestsWithoutChain *sqlair.Statement
-	DeleteCertificateRequest            *sqlair.Statement
+	CreateCertificateRequest                    *sqlair.Statement
+	GetCertificateRequest                       *sqlair.Statement
+	GetCertificateRequestWithChain              *sqlair.Statement
+	UpdateCertificateRequest                    *sqlair.Statement
+	ListCertificateRequests                     *sqlair.Statement
+	ListCertificateRequestsWithoutCAS           *sqlair.Statement
+	ListCertificateRequestsWithChain            *sqlair.Statement
+	ListCertificateRequestsWithoutChain         *sqlair.Statement
+	ListCertificateRequestsWithoutChainByUserID *sqlair.Statement
+	DeleteCertificateRequest                    *sqlair.Statement
 
 	// Certificate statements
 	CreateCertificate   *sqlair.Statement
@@ -418,6 +458,7 @@ func PrepareStatements(db *sqlair.DB) *Statements {
 	stmts.ListCertificateRequestsWithoutCAS = sqlair.MustPrepare(listCertificateRequestsWithoutCASStmt, CertificateRequest{})
 	stmts.ListCertificateRequestsWithChain = sqlair.MustPrepare(listCertificateRequestsWithCertificatesStmt, CertificateRequestWithChain{})
 	stmts.ListCertificateRequestsWithoutChain = sqlair.MustPrepare(listCertificateRequestsWithCertificatesWithoutCASStmt, CertificateRequestWithChain{})
+	stmts.ListCertificateRequestsWithoutChainByUserID = sqlair.MustPrepare(listCertificateRequestsWithCertificatesWithoutCASByUserIDStmt, CertificateRequestWithChain{})
 	stmts.DeleteCertificateRequest = sqlair.MustPrepare(deleteCertificateRequestStmt, CertificateRequest{})
 
 	// Certificate statements

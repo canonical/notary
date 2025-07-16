@@ -13,8 +13,8 @@ import (
 func TestAccountsEndToEnd(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
 	client := ts.Client()
-	adminToken := tu.MustPrepareAdminAccount(t, ts)
-	nonAdminToken := tu.MustPrepareNonAdminAccount(t, ts, adminToken)
+	adminToken := tu.MustPrepareAccount(t, ts, "testadmin", tu.RoleAdmin, "")
+	nonAdminToken := tu.MustPrepareAccount(t, ts, "whatever", tu.RoleCertificateManager, adminToken)
 
 	t.Run("1. Get admin account - admin token", func(t *testing.T) {
 		statusCode, response, err := tu.GetAccount(ts.URL, client, adminToken, 1)
@@ -55,7 +55,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 		createAccountParams := &tu.CreateAccountParams{
 			Username: "nopass",
 			Password: "myPassword123!",
-			RoleID:   1,
+			RoleID:   tu.RoleCertificateManager,
 		}
 		statusCode, response, err := tu.CreateAccount(ts.URL, client, adminToken, createAccountParams)
 		if err != nil {
@@ -188,34 +188,34 @@ func TestAccountsEndToEnd(t *testing.T) {
 func TestCreateAccountInvalidInputs(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
 	client := ts.Client()
-	adminToken := tu.MustPrepareAdminAccount(t, ts)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
 
 	tests := []struct {
 		testName string
 		username string
 		password string
-		roleID   int
+		roleID   tu.RoleID
 		error    string
 	}{
 		{
 			testName: "No username",
 			username: "",
 			password: "password",
-			roleID:   1,
+			roleID:   tu.RoleCertificateManager,
 			error:    "Invalid request: username is required",
 		},
 		{
 			testName: "No password",
 			username: "username",
 			password: "",
-			roleID:   1,
+			roleID:   tu.RoleCertificateManager,
 			error:    "Invalid request: password is required",
 		},
 		{
 			testName: "bad password",
 			username: "username",
 			password: "123",
-			roleID:   1,
+			roleID:   tu.RoleCertificateManager,
 			error:    "Invalid request: Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
 		},
 		{
@@ -258,7 +258,7 @@ func TestCreateAccountInvalidInputs(t *testing.T) {
 func TestChangeAccountPasswordInvalidInputs(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
 	client := ts.Client()
-	adminToken := tu.MustPrepareAdminAccount(t, ts)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
 
 	tests := []struct {
 		testName string

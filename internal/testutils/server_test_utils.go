@@ -43,15 +43,15 @@ func MustPrepareServer(t *testing.T) *httptest.Server {
 	return testServer
 }
 
-func MustPrepareAdminAccount(t *testing.T, ts *httptest.Server) string {
+func MustPrepareAccount(t *testing.T, ts *httptest.Server, username string, roleID RoleID, token string) string {
 	t.Helper()
 
-	adminAccountParams := &CreateAccountParams{
-		Username: "testadmin",
+	accountParams := &CreateAccountParams{
+		Username: username,
 		Password: "Admin123",
-		RoleID:   0,
+		RoleID:   roleID,
 	}
-	statusCode, _, err := CreateAccount(ts.URL, ts.Client(), "", adminAccountParams)
+	statusCode, _, err := CreateAccount(ts.URL, ts.Client(), token, accountParams)
 	if err != nil {
 		t.Fatalf("couldn't create admin account: %s", err)
 	}
@@ -59,41 +59,12 @@ func MustPrepareAdminAccount(t *testing.T, ts *httptest.Server) string {
 		t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 	}
 	adminLoginParams := &LoginParams{
-		Username: adminAccountParams.Username,
-		Password: adminAccountParams.Password,
+		Username: accountParams.Username,
+		Password: accountParams.Password,
 	}
 	statusCode, loginResponse, err := Login(ts.URL, ts.Client(), adminLoginParams)
 	if err != nil {
 		t.Fatalf("couldn't login admin account: %s", err)
-	}
-	if statusCode != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
-	}
-	return loginResponse.Result.Token
-}
-
-func MustPrepareNonAdminAccount(t *testing.T, ts *httptest.Server, adminToken string) string {
-	t.Helper()
-
-	nonAdminAccount := &CreateAccountParams{
-		Username: "testuser",
-		Password: "userPass!",
-		RoleID:   1,
-	}
-	statusCode, _, err := CreateAccount(ts.URL, ts.Client(), adminToken, nonAdminAccount)
-	if err != nil {
-		t.Fatalf("couldn't create non-admin account: %s", err)
-	}
-	if statusCode != http.StatusCreated {
-		t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
-	}
-	nonAdminLoginParams := &LoginParams{
-		Username: nonAdminAccount.Username,
-		Password: nonAdminAccount.Password,
-	}
-	statusCode, loginResponse, err := Login(ts.URL, ts.Client(), nonAdminLoginParams)
-	if err != nil {
-		t.Fatalf("couldn't login non-admin account: %s", err)
 	}
 	if statusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
@@ -116,10 +87,19 @@ type GetAccountResponse struct {
 	Error  string                   `json:"error,omitempty"`
 }
 
+type RoleID int
+
+const (
+	RoleAdmin                RoleID = 0
+	RoleCertificateManager   RoleID = 1
+	RoleCertificateRequestor RoleID = 2
+	RoleReadOnly             RoleID = 3
+)
+
 type CreateAccountParams struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
-	RoleID   int    `json:"role_id"`
+	RoleID   RoleID `json:"role_id"`
 }
 
 type CreateAccountResponseResult struct {
@@ -153,12 +133,12 @@ type DeleteAccountResponse struct {
 	Error  string                      `json:"error,omitempty"`
 }
 
-func GetAccount(url string, client *http.Client, adminToken string, id int) (int, *GetAccountResponse, error) {
+func GetAccount(url string, client *http.Client, token string, id int) (int, *GetAccountResponse, error) {
 	req, err := http.NewRequest("GET", url+"/api/v1/accounts/"+strconv.Itoa(id), nil)
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -171,12 +151,12 @@ func GetAccount(url string, client *http.Client, adminToken string, id int) (int
 	return res.StatusCode, &accountResponse, nil
 }
 
-func GetMyAccount(url string, client *http.Client, adminToken string) (int, *GetAccountResponse, error) {
+func GetMyAccount(url string, client *http.Client, token string) (int, *GetAccountResponse, error) {
 	req, err := http.NewRequest("GET", url+"/api/v1/accounts/me", nil)
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -189,7 +169,7 @@ func GetMyAccount(url string, client *http.Client, adminToken string) (int, *Get
 	return res.StatusCode, &accountResponse, nil
 }
 
-func CreateAccount(url string, client *http.Client, adminToken string, data *CreateAccountParams) (int, *CreateAccountResponse, error) {
+func CreateAccount(url string, client *http.Client, token string, data *CreateAccountParams) (int, *CreateAccountResponse, error) {
 	body, err := json.Marshal(data)
 	if err != nil {
 		return 0, nil, err
@@ -198,7 +178,7 @@ func CreateAccount(url string, client *http.Client, adminToken string, data *Cre
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -211,7 +191,7 @@ func CreateAccount(url string, client *http.Client, adminToken string, data *Cre
 	return res.StatusCode, &createResponse, nil
 }
 
-func ChangeAccountPassword(url string, client *http.Client, adminToken string, id int, data *ChangeAccountPasswordParams) (int, *ChangeAccountPasswordResponse, error) {
+func ChangeAccountPassword(url string, client *http.Client, token string, id int, data *ChangeAccountPasswordParams) (int, *ChangeAccountPasswordResponse, error) {
 	body, err := json.Marshal(data)
 	if err != nil {
 		return 0, nil, err
@@ -220,7 +200,7 @@ func ChangeAccountPassword(url string, client *http.Client, adminToken string, i
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -233,12 +213,12 @@ func ChangeAccountPassword(url string, client *http.Client, adminToken string, i
 	return res.StatusCode, &changeResponse, nil
 }
 
-func DeleteAccount(url string, client *http.Client, adminToken string, id int) (int, *DeleteAccountResponse, error) {
+func DeleteAccount(url string, client *http.Client, token string, id int) (int, *DeleteAccountResponse, error) {
 	req, err := http.NewRequest("DELETE", url+"/api/v1/accounts/"+strconv.Itoa(id), nil)
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -261,12 +241,12 @@ type GetStatusResponse struct {
 	Result GetStatusResponseResult `json:"result"`
 }
 
-func GetStatus(url string, client *http.Client, adminToken string) (int, *GetStatusResponse, error) {
+func GetStatus(url string, client *http.Client, token string) (int, *GetStatusResponse, error) {
 	req, err := http.NewRequest("GET", url+"/status", nil)
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -351,12 +331,12 @@ type CreateCertificateResponse struct {
 	Error string `json:"error,omitempty"`
 }
 
-func ListCertificateRequests(url string, client *http.Client, adminToken string) (int, *ListCertificateRequestsResponse, error) {
+func ListCertificateRequests(url string, client *http.Client, token string) (int, *ListCertificateRequestsResponse, error) {
 	req, err := http.NewRequest("GET", url+"/api/v1/certificate_requests", nil)
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -368,12 +348,12 @@ func ListCertificateRequests(url string, client *http.Client, adminToken string)
 	return res.StatusCode, &certificateRequestsResponse, nil
 }
 
-func GetCertificateRequest(url string, client *http.Client, adminToken string, id int) (int, *GetCertificateRequestResponse, error) {
+func GetCertificateRequest(url string, client *http.Client, token string, id int) (int, *GetCertificateRequestResponse, error) {
 	req, err := http.NewRequest("GET", url+"/api/v1/certificate_requests/"+strconv.Itoa(id), nil)
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -385,7 +365,7 @@ func GetCertificateRequest(url string, client *http.Client, adminToken string, i
 	return res.StatusCode, &getCertificateRequestResponse, nil
 }
 
-func CreateCertificateRequest(url string, client *http.Client, adminToken string, certRequest CreateCertificateRequestParams) (int, *CreateCertificateRequestResponse, error) {
+func CreateCertificateRequest(url string, client *http.Client, token string, certRequest CreateCertificateRequestParams) (int, *CreateCertificateRequestResponse, error) {
 	reqData, err := json.Marshal(certRequest)
 	if err != nil {
 		return 0, nil, err
@@ -394,7 +374,7 @@ func CreateCertificateRequest(url string, client *http.Client, adminToken string
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 	res, err := client.Do(req)
 	if err != nil {
@@ -407,12 +387,12 @@ func CreateCertificateRequest(url string, client *http.Client, adminToken string
 	return res.StatusCode, &createCertificateRequestResponse, nil
 }
 
-func DeleteCertificateRequest(url string, client *http.Client, adminToken string, id int) (int, error) {
+func DeleteCertificateRequest(url string, client *http.Client, token string, id int) (int, error) {
 	req, err := http.NewRequest("DELETE", url+"/api/v1/certificate_requests/"+strconv.Itoa(id), nil)
 	if err != nil {
 		return 0, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, err
@@ -420,7 +400,7 @@ func DeleteCertificateRequest(url string, client *http.Client, adminToken string
 	return res.StatusCode, nil
 }
 
-func CreateCertificate(url string, client *http.Client, adminToken string, cert CreateCertificateParams) (int, *CreateCertificateResponse, error) {
+func CreateCertificate(url string, client *http.Client, token string, cert CreateCertificateParams) (int, *CreateCertificateResponse, error) {
 	reqData, err := json.Marshal(cert)
 	if err != nil {
 		return 0, nil, err
@@ -429,7 +409,7 @@ func CreateCertificate(url string, client *http.Client, adminToken string, cert 
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 	res, err := client.Do(req)
 	if err != nil {
@@ -442,12 +422,12 @@ func CreateCertificate(url string, client *http.Client, adminToken string, cert 
 	return res.StatusCode, &createCertificateResponse, nil
 }
 
-func RejectCertificate(url string, client *http.Client, adminToken string, id int) (int, error) {
+func RejectCertificate(url string, client *http.Client, token string, id int) (int, error) {
 	req, err := http.NewRequest("POST", url+"/api/v1/certificate_requests/"+strconv.Itoa(id)+"/reject", nil)
 	if err != nil {
 		return 0, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, err
@@ -473,7 +453,7 @@ type CreateCertificateAuthorityResponse struct {
 	Error  string          `json:"error,omitempty"`
 }
 
-func CreateCertificateAuthority(url string, client *http.Client, adminToken string, ca CreateCertificateAuthorityParams) (int, *CreateCertificateAuthorityResponse, error) {
+func CreateCertificateAuthority(url string, client *http.Client, token string, ca CreateCertificateAuthorityParams) (int, *CreateCertificateAuthorityResponse, error) {
 	reqData, err := json.Marshal(ca)
 	if err != nil {
 		return 0, nil, err
@@ -482,7 +462,7 @@ func CreateCertificateAuthority(url string, client *http.Client, adminToken stri
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 	res, err := client.Do(req)
 	if err != nil {
@@ -500,12 +480,12 @@ type ListCertificateAuthoritiesResponse struct {
 	Error  string                        `json:"error,omitempty"`
 }
 
-func ListCertificateAuthorities(url string, client *http.Client, adminToken string) (int, *ListCertificateAuthoritiesResponse, error) {
+func ListCertificateAuthorities(url string, client *http.Client, token string) (int, *ListCertificateAuthoritiesResponse, error) {
 	req, err := http.NewRequest("GET", url+"/api/v1/certificate_authorities", nil)
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -522,12 +502,12 @@ type GetCertificateAuthorityResponse struct {
 	Error  string                      `json:"error,omitempty"`
 }
 
-func GetCertificateAuthority(url string, client *http.Client, adminToken string, id int) (int, *GetCertificateAuthorityResponse, error) {
+func GetCertificateAuthority(url string, client *http.Client, token string, id int) (int, *GetCertificateAuthorityResponse, error) {
 	req, err := http.NewRequest("GET", url+"/api/v1/certificate_authorities/"+strconv.Itoa(id), nil)
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -548,7 +528,7 @@ type UpdateCertificateAuthorityResponse struct {
 	Error  string          `json:"error,omitempty"`
 }
 
-func UpdateCertificateAuthority(url string, client *http.Client, adminToken string, id int, status UpdateCertificateAuthorityParams) (int, *UpdateCertificateAuthorityResponse, error) {
+func UpdateCertificateAuthority(url string, client *http.Client, token string, id int, status UpdateCertificateAuthorityParams) (int, *UpdateCertificateAuthorityResponse, error) {
 	reqData, err := json.Marshal(status)
 	if err != nil {
 		return 0, nil, err
@@ -557,7 +537,7 @@ func UpdateCertificateAuthority(url string, client *http.Client, adminToken stri
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 	res, err := client.Do(req)
 	if err != nil {
@@ -570,12 +550,12 @@ func UpdateCertificateAuthority(url string, client *http.Client, adminToken stri
 	return res.StatusCode, &updateCertificateAuthorityResponse, nil
 }
 
-func DeleteCertificateAuthority(url string, client *http.Client, adminToken string, id int) (int, error) {
+func DeleteCertificateAuthority(url string, client *http.Client, token string, id int) (int, error) {
 	req, err := http.NewRequest("DELETE", url+"/api/v1/certificate_authorities/"+strconv.Itoa(id), nil)
 	if err != nil {
 		return 0, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, err
@@ -588,7 +568,7 @@ type UploadCertificateToCertificateAuthorityResponse struct {
 	Error  string          `json:"error,omitempty"`
 }
 
-func UploadCertificateToCertificateAuthority(url string, client *http.Client, adminToken string, id int, cert server.UploadCertificateToCertificateAuthorityParams) (int, *UploadCertificateToCertificateAuthorityResponse, error) {
+func UploadCertificateToCertificateAuthority(url string, client *http.Client, token string, id int, cert server.UploadCertificateToCertificateAuthorityParams) (int, *UploadCertificateToCertificateAuthorityResponse, error) {
 	reqData, err := json.Marshal(cert)
 	if err != nil {
 		return 0, nil, err
@@ -597,7 +577,7 @@ func UploadCertificateToCertificateAuthority(url string, client *http.Client, ad
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 	res, err := client.Do(req)
 	if err != nil {
@@ -615,7 +595,7 @@ type SignCertificateRequestResponse struct {
 	Error  string          `json:"error,omitempty"`
 }
 
-func SignCertificateRequest(url string, client *http.Client, adminToken string, id int, cert server.SignCertificateRequestParams) (int, *SignCertificateRequestResponse, error) {
+func SignCertificateRequest(url string, client *http.Client, token string, id int, cert server.SignCertificateRequestParams) (int, *SignCertificateRequestResponse, error) {
 	reqData, err := json.Marshal(cert)
 	if err != nil {
 		return 0, nil, err
@@ -624,7 +604,7 @@ func SignCertificateRequest(url string, client *http.Client, adminToken string, 
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 	res, err := client.Do(req)
 	if err != nil {
@@ -642,7 +622,7 @@ type SignCertificateAuthorityResponse struct {
 	Error  string          `json:"error,omitempty"`
 }
 
-func SignCertificateAuthority(url string, client *http.Client, adminToken string, id int, cert server.SignCertificateAuthorityParams) (int, *SignCertificateAuthorityResponse, error) {
+func SignCertificateAuthority(url string, client *http.Client, token string, id int, cert server.SignCertificateAuthorityParams) (int, *SignCertificateAuthorityResponse, error) {
 	reqData, err := json.Marshal(cert)
 	if err != nil {
 		return 0, nil, err
@@ -651,7 +631,7 @@ func SignCertificateAuthority(url string, client *http.Client, adminToken string
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 	res, err := client.Do(req)
 	if err != nil {
@@ -669,12 +649,12 @@ type RevokeCertificateAuthorityCertificateResponse struct {
 	Error  string          `json:"error,omitempty"`
 }
 
-func RevokeCertificateAuthority(url string, client *http.Client, adminToken string, id int) (int, *RevokeCertificateAuthorityCertificateResponse, error) {
+func RevokeCertificateAuthority(url string, client *http.Client, token string, id int) (int, *RevokeCertificateAuthorityCertificateResponse, error) {
 	req, err := http.NewRequest("POST", url+"/api/v1/certificate_authorities/"+strconv.Itoa(id)+"/revoke", nil)
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -691,12 +671,12 @@ type RevokeCertificateRequestResponse struct {
 	Error  string          `json:"error,omitempty"`
 }
 
-func RevokeCertificateRequest(url string, client *http.Client, adminToken string, id int) (int, *RevokeCertificateRequestResponse, error) {
+func RevokeCertificateRequest(url string, client *http.Client, token string, id int) (int, *RevokeCertificateRequestResponse, error) {
 	req, err := http.NewRequest("POST", url+"/api/v1/certificate_requests/"+strconv.Itoa(id)+"/certificate/revoke", nil)
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -713,12 +693,12 @@ type GetCRLResponse struct {
 	Error  string     `json:"error,omitempty"`
 }
 
-func GetCertificateAuthorityCRLRequest(url string, client *http.Client, adminToken string, id int) (int, *GetCRLResponse, error) {
+func GetCertificateAuthorityCRLRequest(url string, client *http.Client, token string, id int) (int, *GetCRLResponse, error) {
 	req, err := http.NewRequest("GET", url+"/api/v1/certificate_authorities/"+strconv.Itoa(id)+"/crl", nil)
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -764,7 +744,7 @@ func SignCSR(csr string) string {
 	return certPEM.String()
 }
 
-func CreateRequestBombWithCustomHeader(url string, client *http.Client, adminToken string, certRequest CreateCertificateRequestParams, contentLengthHeaderData string) (int, error) {
+func CreateRequestBombWithCustomHeader(url string, client *http.Client, token string, certRequest CreateCertificateRequestParams, contentLengthHeaderData string) (int, error) {
 	reqData, err := json.Marshal(certRequest)
 	if err != nil {
 		return 0, err
@@ -773,7 +753,7 @@ func CreateRequestBombWithCustomHeader(url string, client *http.Client, adminTok
 	if err != nil {
 		return 0, err
 	}
-	req.Header.Set("Authorization", "Bearer "+adminToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Length", contentLengthHeaderData)
 	res, err := client.Do(req)

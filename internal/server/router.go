@@ -13,7 +13,7 @@ import (
 func NewHandler(config *HandlerConfig) http.Handler {
 	apiV1Router := http.NewServeMux()
 	apiV1Router.HandleFunc("GET /certificate_requests", requirePermission(PermListCertificateRequests, config.JWTSecret, ListCertificateRequests(config), config.Logger))
-	apiV1Router.HandleFunc("POST /certificate_requests", requirePermission(PermCreateCertificateRequests, config.JWTSecret, CreateCertificateRequest(config), config.Logger))
+	apiV1Router.HandleFunc("POST /certificate_requests", requirePermission(PermCreateCertificateRequest, config.JWTSecret, CreateCertificateRequest(config), config.Logger))
 	apiV1Router.HandleFunc("GET /certificate_requests/{id}", requirePermission(PermReadCertificateRequest, config.JWTSecret, GetCertificateRequest(config), config.Logger))
 	apiV1Router.HandleFunc("DELETE /certificate_requests/{id}", requirePermission(PermDeleteCertificateRequest, config.JWTSecret, DeleteCertificateRequest(config), config.Logger))
 	apiV1Router.HandleFunc("POST /certificate_requests/{id}/reject", requirePermission(PermRejectCertificateRequest, config.JWTSecret, RejectCertificateRequest(config), config.Logger))

@@ -52,7 +52,7 @@ function AddNewUserForm(asideProps: AsideProps) {
       setErrorText(e.message);
     },
   });
-  const [username, setUsername] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
   const [role_id, setRoleID] = useState<number>(RoleID.Admin);
   const [password1, setPassword1] = useState<string>("");
   const [password2, setPassword2] = useState<string>("");
@@ -63,8 +63,8 @@ function AddNewUserForm(asideProps: AsideProps) {
     password2 && !passwordsMatch ? "Passwords do not match" : "";
 
   const [, setErrorText] = useState<string>("");
-  const handleUsernameChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setUsername(event.target.value);
+  const handleEmailChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setEmail(event.target.value);
   };
   const handleRoleChange = (event: ChangeEvent<HTMLSelectElement>) => {
     setRoleID(Number(event.target.value));
@@ -79,11 +79,11 @@ function AddNewUserForm(asideProps: AsideProps) {
     <Form>
       <div className="p-form__group row">
         <Input
-          id="InputUsername"
-          label="Username"
+          id="InputEmail"
+          label="Email"
           type="text"
           required={true}
-          onChange={handleUsernameChange}
+          onChange={handleEmailChange}
         />
         <Select
           id="roleID"
@@ -136,7 +136,7 @@ function AddNewUserForm(asideProps: AsideProps) {
             event.preventDefault();
             mutation.mutate({
               authToken: auth.user ? auth.user.authToken : "",
-              username: username,
+              email: email,
               password: password1,
               role_id: role_id,
             });
@@ -182,10 +182,10 @@ function ChangePasswordForm(asideProps: AsideProps) {
     <Form>
       <div className="p-form__group row">
         <Input
-          id="InputUsername"
-          label="Username"
+          id="InputEmail"
+          label="Email"
           type="text"
-          value={asideProps.formData.user?.username}
+          value={asideProps.formData.user?.email}
           disabled={true}
         />
         <PasswordToggle

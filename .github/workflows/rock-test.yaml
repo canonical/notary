@@ -59,8 +59,8 @@ jobs:
           CSR=$(cat request.csr | awk 'NF {sub(/\r/, ""); printf "%s\\n",$0;}')
           CERTIFICATE=$(cat certificate.pem ca_certificate.pem | awk 'NF {sub(/\r/, ""); printf "%s\\n",$0;}')
 
-          curl -XPOST -k -d '{"username":"admin", "password": "Admin1234"}' https://localhost:3000/api/v1/accounts
-          export ADMIN_TOKEN=$(curl -XPOST -k -d '{"username":"admin", "password": "Admin1234"}' https://localhost:3000/login | jq -r .result.token )
+          curl -XPOST -k -d '{"email":"admin@canonical.com", "password": "Admin1234"}' https://localhost:3000/api/v1/accounts
+          export ADMIN_TOKEN=$(curl -XPOST -k -d '{"email":"admin@canonical.com", "password": "Admin1234"}' https://localhost:3000/login | jq -r .result.token )
 
           curl -k --location 'https://localhost:3000/api/v1/certificate_requests' \
             --header "Authorization: Bearer $ADMIN_TOKEN" \

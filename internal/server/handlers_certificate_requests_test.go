@@ -13,7 +13,7 @@ import (
 // state of the server after previous tests.
 func TestCertificateRequestsEndToEnd(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "testadmin", tu.RoleAdmin, "")
+	adminToken := tu.MustPrepareAccount(t, ts, "testadmin@canonical.com", tu.RoleAdmin, "")
 	client := ts.Client()
 
 	t.Run("1. List certificate requests - no requests yet", func(t *testing.T) {
@@ -66,8 +66,8 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		if listCertRequestsResponse.Result[0].CertificateChain != "" {
 			t.Fatalf("expected empty string for certificate chain, got %s", listCertRequestsResponse.Result[0].CertificateChain)
 		}
-		if listCertRequestsResponse.Result[0].Username != "testadmin" {
-			t.Fatalf("expected username 'testadmin', got %s", listCertRequestsResponse.Result[0].Username)
+		if listCertRequestsResponse.Result[0].Email != "testadmin@canonical.com" {
+			t.Fatalf("expected email 'testadmin', got %s", listCertRequestsResponse.Result[0].Email)
 		}
 	})
 
@@ -91,8 +91,8 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		if getCertRequestResponse.Result.CertificateChain != "" {
 			t.Fatalf("expected no certificate, got %s", getCertRequestResponse.Result.CertificateChain)
 		}
-		if getCertRequestResponse.Result.Username != "testadmin" {
-			t.Fatalf("expected username 'testadmin', got %s", getCertRequestResponse.Result.Username)
+		if getCertRequestResponse.Result.Email != "testadmin@canonical.com" {
+			t.Fatalf("expected email 'testadmin', got %s", getCertRequestResponse.Result.Email)
 		}
 	})
 
@@ -180,8 +180,8 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		if getCertRequestResponse.Result.CertificateChain != "" {
 			t.Fatalf("expected no certificate, got %s", getCertRequestResponse.Result.CertificateChain)
 		}
-		if getCertRequestResponse.Result.Username != "testadmin" {
-			t.Fatalf("expected username 'testadmin', got %s", getCertRequestResponse.Result.Username)
+		if getCertRequestResponse.Result.Email != "testadmin@canonical.com" {
+			t.Fatalf("expected email 'testadmin', got %s", getCertRequestResponse.Result.Email)
 		}
 	})
 
@@ -225,7 +225,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 // TestListCertificateRequestsRequestorRole tests that a certificate requestor can only view their own requests.
 func TestListCertificateRequestsRequestorRole(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "testadmin", tu.RoleAdmin, "")
+	adminToken := tu.MustPrepareAccount(t, ts, "testadmin@canonical.com", tu.RoleAdmin, "")
 	client := ts.Client()
 
 	// Create a certificate request as the admin
@@ -242,7 +242,7 @@ func TestListCertificateRequestsRequestorRole(t *testing.T) {
 	}
 
 	// Create a certificate requestor user
-	requestorToken := tu.MustPrepareAccount(t, ts, "requestor", tu.RoleCertificateRequestor, adminToken)
+	requestorToken := tu.MustPrepareAccount(t, ts, "requestor@canonical.com", tu.RoleCertificateRequestor, adminToken)
 
 	// Create a certificate request as the requestor
 	params2 := tu.CreateCertificateRequestParams{
@@ -294,7 +294,7 @@ func TestListCertificateRequestsRequestorRole(t *testing.T) {
 // state of the server after previous tests.
 func TestCertificatesEndToEnd(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
+	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 	client := ts.Client()
 
 	t.Run("1. Create certificate request", func(t *testing.T) {
@@ -398,7 +398,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 
 func TestCreateCertificateRequestInvalidInputs(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
+	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 	client := ts.Client()
 
 	tests := []struct {
@@ -453,7 +453,7 @@ MIIBVwIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAuQ==
 
 func TestCreateCertificateInvalidInputs(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
+	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 	client := ts.Client()
 
 	tests := []struct {

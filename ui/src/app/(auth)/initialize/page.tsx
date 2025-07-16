@@ -48,13 +48,13 @@ export default function Initialize() {
     onSuccess: () => {
       setErrorText("");
       auth.setFirstUserCreated(true);
-      loginMutation.mutate({ username: username, password: password1 });
+      loginMutation.mutate({ email: email, password: password1 });
     },
     onError: (e: Error) => {
       setErrorText(e.message);
     },
   });
-  const [username, setUsername] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
   const [password1, setPassword1] = useState<string>("");
   const [password2, setPassword2] = useState<string>("");
   const passwordsMatch = password1 === password2;
@@ -64,8 +64,8 @@ export default function Initialize() {
     password2 && !passwordsMatch ? "Passwords do not match" : "";
 
   const [, setErrorText] = useState<string>("");
-  const handleUsernameChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setUsername(event.target.value);
+  const handleEmailChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setEmail(event.target.value);
   };
   const handlePassword1Change = (event: ChangeEvent<HTMLInputElement>) => {
     setPassword1(event.target.value);
@@ -86,11 +86,11 @@ export default function Initialize() {
         <Form>
           <h4>Create the initial admin user</h4>
           <Input
-            id="InputUsername"
-            label="Username"
+            id="InputEmail"
+            label="Email"
             type="text"
             required={true}
-            onChange={handleUsernameChange}
+            onChange={handleEmailChange}
           />
           <PasswordToggle
             help="Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol."
@@ -114,7 +114,7 @@ export default function Initialize() {
               event.preventDefault();
               if (passwordsMatch && passwordIsValid(password1)) {
                 postUserMutation.mutate({
-                  username: username,
+                  email: email,
                   password: password1,
                   role_id: RoleID.Admin,
                 });

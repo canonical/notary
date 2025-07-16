@@ -3,7 +3,7 @@ export type CSREntry = {
   csr: string;
   certificate_chain: string;
   status: "Outstanding" | "Active" | "Rejected" | "Revoked";
-  username: string;
+  email: string;
 };
 
 export type CertificateSigningRequest = {
@@ -38,14 +38,14 @@ export type User = {
   exp: number;
   id: number;
   role_id: RoleID;
-  username: string;
+  email: string;
   authToken: string;
   activeCA: number;
 };
 
 export type UserEntry = {
   id: number;
-  username: string;
+  email: string;
   role_id: RoleID;
 };
 
@@ -53,6 +53,6 @@ export type AsideFormData = {
   formTitle: string;
   user?: {
     id: string;
-    username: string;
+    email: string;
   };
 };

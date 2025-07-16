@@ -43,8 +43,8 @@ func getConfig(url string, client *http.Client, token string) (int, *GetConfigRe
 
 func TestConfigEndToEnd(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
-	nonAdminToken := tu.MustPrepareAccount(t, ts, "whatever", tu.RoleCertificateManager, adminToken)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+	nonAdminToken := tu.MustPrepareAccount(t, ts, "whatever@canonical.com", tu.RoleCertificateManager, adminToken)
 	client := ts.Client()
 
 	t.Run("1. Get config - no authentication", func(t *testing.T) {

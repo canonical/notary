@@ -64,7 +64,7 @@ type CertificateRequest struct {
 	CSR              string `json:"csr"`
 	CertificateChain string `json:"certificate_chain"`
 	Status           string `json:"status"`
-	Username         string `json:"username"`
+	Email            string `json:"email"`
 }
 
 // ListCertificateRequests returns all of the Certificate Requests
@@ -92,25 +92,25 @@ func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 
 		certificateRequestsResponse := make([]CertificateRequest, len(csrs))
 		for i, csr := range csrs {
-			var username string
+			var email string
 			user, err := env.DB.GetUser(db.ByUserID(csr.UserID))
 			if err != nil {
 				if errors.Is(err, db.ErrNotFound) {
 					env.Logger.Warn("user not found for certificate request", zap.Int64("user_id", csr.UserID))
-					username = "unknown"
+					email = "unknown"
 				} else {
 					writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
 					return
 				}
 			} else {
-				username = user.Username
+				email = user.Email
 			}
 			certificateRequestsResponse[i] = CertificateRequest{
 				ID:               csr.CSR_ID,
 				CSR:              csr.CSR,
 				Status:           csr.Status,
 				CertificateChain: csr.CertificateChain,
-				Username:         username,
+				Email:            email,
 			}
 		}
 		err = writeResponse(w, certificateRequestsResponse, http.StatusOK)
@@ -206,18 +206,18 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 
-		var username string
+		var email string
 		user, err := env.DB.GetUser(db.ByUserID(csr.UserID))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				env.Logger.Warn("user not found for certificate request", zap.Int64("user_id", csr.UserID))
-				username = "unknown"
+				email = "unknown"
 			} else {
 				writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
 				return
 			}
 		} else {
-			username = user.Username
+			email = user.Email
 		}
 
 		certificateRequestResponse := CertificateRequest{
@@ -225,7 +225,7 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			CSR:              csr.CSR,
 			CertificateChain: csr.CertificateChain,
 			Status:           csr.Status,
-			Username:         username,
+			Email:            email,
 		}
 
 		err = writeResponse(w, certificateRequestResponse, http.StatusOK)

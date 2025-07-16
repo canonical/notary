@@ -43,11 +43,11 @@ func MustPrepareServer(t *testing.T) *httptest.Server {
 	return testServer
 }
 
-func MustPrepareAccount(t *testing.T, ts *httptest.Server, username string, roleID RoleID, token string) string {
+func MustPrepareAccount(t *testing.T, ts *httptest.Server, email string, roleID RoleID, token string) string {
 	t.Helper()
 
 	accountParams := &CreateAccountParams{
-		Username: username,
+		Email:    email,
 		Password: "Admin123",
 		RoleID:   roleID,
 	}
@@ -59,7 +59,7 @@ func MustPrepareAccount(t *testing.T, ts *httptest.Server, username string, role
 		t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 	}
 	adminLoginParams := &LoginParams{
-		Username: accountParams.Username,
+		Email:    accountParams.Email,
 		Password: accountParams.Password,
 	}
 	statusCode, loginResponse, err := Login(ts.URL, ts.Client(), adminLoginParams)
@@ -77,9 +77,9 @@ type SuccessResponse struct {
 }
 
 type GetAccountResponseResult struct {
-	ID       int    `json:"id"`
-	Username string `json:"username"`
-	RoleID   int    `json:"role_id"`
+	ID     int    `json:"id"`
+	Email  string `json:"email"`
+	RoleID int    `json:"role_id"`
 }
 
 type GetAccountResponse struct {
@@ -97,7 +97,7 @@ const (
 )
 
 type CreateAccountParams struct {
-	Username string `json:"username"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
 	RoleID   RoleID `json:"role_id"`
 }
@@ -260,7 +260,7 @@ func GetStatus(url string, client *http.Client, token string) (int, *GetStatusRe
 }
 
 type LoginParams struct {
-	Username string `json:"username"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 

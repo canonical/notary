@@ -30,7 +30,7 @@ interface ConfirmationModalProps {
 
 export type ChangePasswordModalData = {
   id: string;
-  username: string;
+  email: string;
   self: boolean;
 } | null;
 
@@ -42,7 +42,7 @@ interface ChangePasswordModalProps {
 export const ChangePasswordModalContext =
   createContext<ChangePasswordModalProps>({
     modalData: null,
-    setModalData: () => {},
+    setModalData: () => { },
   });
 
 export function UsersConfirmationModal({
@@ -67,12 +67,12 @@ export function UsersConfirmationModal({
 
 export function ChangePasswordModal({
   id,
-  username,
+  email,
   self,
   setChangePasswordModalVisible,
 }: {
   id: string;
-  username: string;
+  email: string;
   self: boolean;
   setChangePasswordModalVisible: Dispatch<SetStateAction<boolean>>;
 }) {
@@ -134,12 +134,12 @@ export function ChangePasswordModal({
     >
       <Form>
         <Input
-          id="InputUsername"
-          label="Username"
+          id="InputEmail"
+          label="Email"
           type="text"
           required={true}
           disabled={true}
-          value={username}
+          value={email}
         />
         <PasswordToggle
           help="Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol."

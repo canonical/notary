@@ -51,11 +51,11 @@ const (
 		CREATE TABLE IF NOT EXISTS users (
 	 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-			username TEXT NOT NULL UNIQUE,
+			email TEXT NOT NULL UNIQUE,
 			hashed_password TEXT NOT NULL,
 			role_id INTEGER NOT NULL,
 
-			CHECK (trim(username) != ''),
+			CHECK (trim(email) != ''),
 			CHECK (trim(hashed_password) != '')
 	)`
 	queryCreateEncryptionKeysTable = `
@@ -368,9 +368,9 @@ WITH RECURSIVE cas_with_chain AS (
 	// Users Table SQL Strings //
 	// // // // // // // // // //
 	listUsersStmt   = "SELECT &User.* from users"
-	getUserStmt     = "SELECT &User.* from users WHERE id==$User.id or username==$User.username"
-	createUserStmt  = "INSERT INTO users (username, hashed_password, role_id) VALUES ($User.username, $User.hashed_password, $User.role_id)"
-	updateUserStmt  = "UPDATE users SET hashed_password=$User.hashed_password WHERE id==$User.id or username==$User.username"
+	getUserStmt     = "SELECT &User.* from users WHERE id==$User.id or email==$User.email"
+	createUserStmt  = "INSERT INTO users (email, hashed_password, role_id) VALUES ($User.email, $User.hashed_password, $User.role_id)"
+	updateUserStmt  = "UPDATE users SET hashed_password=$User.hashed_password WHERE id==$User.id or email==$User.email"
 	deleteUserStmt  = "DELETE FROM users WHERE id==$User.id"
 	getNumUsersStmt = "SELECT COUNT(*) AS &NumUsers.count FROM users"
 

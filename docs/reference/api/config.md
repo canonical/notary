@@ -1,5 +1,4 @@
-# Notary's Config
-
+# Config
 
 This section describes the RESTful API for getting the current config of Notary.
 
@@ -9,9 +8,9 @@ This section describes the RESTful API for getting the current config of Notary.
 This path returns the current configuration of Notary excluding sensitive fields.
 
 
-| Method | Path     |
-| :----- | :------- |
-| `GET` | `/api/v1/config` |
+| Method | Path             |
+| :----- | :--------------- |
+| `GET`  | `/api/v1/config` |
 
 
 ### Sample Response

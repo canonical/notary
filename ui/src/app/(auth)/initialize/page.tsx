@@ -1,6 +1,6 @@
 "use client";
 
-import { passwordIsValid, emailIsValid } from "@/utils";
+import { passwordIsValid } from "@/utils";
 import { getStatus, login, postFirstUser } from "@/queries";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -15,6 +15,7 @@ import { useState, ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useCookies } from "react-cookie";
 import { RoleID } from "@/types";
+import * as yup from "yup";
 
 export default function Initialize() {
   const router = useRouter();
@@ -58,7 +59,9 @@ export default function Initialize() {
   const [password1, setPassword1] = useState<string>("");
   const [password2, setPassword2] = useState<string>("");
   const passwordsMatch = password1 === password2;
-  const emailError = email && !emailIsValid(email) ? "Email is not valid" : "";
+  const emailSchema = yup.string().email().required();
+  const isEmailValid = emailSchema.isValidSync(email);
+  const emailError = email && !isEmailValid ? "Email is not valid" : "";
   const password1Error =
     password1 && !passwordIsValid(password1) ? "Password is not valid" : "";
   const password2Error =
@@ -112,9 +115,7 @@ export default function Initialize() {
           <Button
             appearance="positive"
             disabled={
-              !passwordsMatch ||
-              !passwordIsValid(password1) ||
-              !emailIsValid(email)
+              !passwordsMatch || !passwordIsValid(password1) || !isEmailValid
             }
             onClick={(event) => {
               event.preventDefault();

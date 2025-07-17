@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { passwordIsValid, emailIsValid } from "@/utils";
+import { passwordIsValid } from "@/utils";
 import { changePassword, postUser } from "@/queries";
 import { ChangeEvent, Dispatch, SetStateAction, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,6 +12,7 @@ import {
   Form,
 } from "@canonical/react-components";
 import { AsideFormData, RoleID } from "@/types";
+import * as yup from "yup";
 
 type AsideProps = {
   setAsideOpen: Dispatch<SetStateAction<boolean>>;
@@ -57,7 +58,9 @@ function AddNewUserForm(asideProps: AsideProps) {
   const [password1, setPassword1] = useState<string>("");
   const [password2, setPassword2] = useState<string>("");
   const passwordsMatch = password1 === password2;
-  const emailError = email && !emailIsValid(email) ? "Email is not valid" : "";
+  const emailSchema = yup.string().email().required();
+  const isEmailValid = emailSchema.isValidSync(email);
+  const emailError = email && !isEmailValid ? "Email is not valid" : "";
   const password1Error =
     password1 && !passwordIsValid(password1) ? "Password is not valid" : "";
   const password2Error =
@@ -134,9 +137,7 @@ function AddNewUserForm(asideProps: AsideProps) {
         <Button
           appearance="positive"
           disabled={
-            !passwordsMatch ||
-            !passwordIsValid(password1) ||
-            !emailIsValid(email)
+            !passwordsMatch || !passwordIsValid(password1) || !isEmailValid
           }
           onClick={(event) => {
             event.preventDefault();

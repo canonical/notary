@@ -19,10 +19,10 @@ func (db *Database) GetUser(filter UserFilter) (*User, error) {
 	return GetOneEntity[User](db, db.stmts.GetUser, *userRow)
 }
 
-// CreateUser creates a new user from a given username, password and role ID.
+// CreateUser creates a new user from a given email, password and role ID.
 // The password passed in should be in plaintext. This function handles hashing and salting the password before storing it in the database.
-func (db *Database) CreateUser(username string, password string, roleID RoleID) (int64, error) {
-	err := ValidateUser(username, roleID)
+func (db *Database) CreateUser(email string, password string, roleID RoleID) (int64, error) {
+	err := ValidateUser(email, roleID)
 	if err != nil {
 		return 0, err
 	}
@@ -35,7 +35,7 @@ func (db *Database) CreateUser(username string, password string, roleID RoleID) 
 	}
 
 	row := User{
-		Username:       username,
+		Email:          email,
 		HashedPassword: pw,
 		RoleID:         roleID,
 	}

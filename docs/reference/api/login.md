@@ -12,7 +12,7 @@ This path returns a token that can be used to authenticate with Notary.
 
 ### Parameters
 
-- `username` (string): The username to authenticate with.
+- `email` (string): The email to authenticate with.
 - `password` (string): The password to authenticate with.
 
 ### Sample Response

@@ -12,6 +12,7 @@ import {
   Form,
 } from "@canonical/react-components";
 import { AsideFormData, RoleID } from "@/types";
+import { z } from "zod";
 
 type AsideProps = {
   setAsideOpen: Dispatch<SetStateAction<boolean>>;
@@ -52,19 +53,22 @@ function AddNewUserForm(asideProps: AsideProps) {
       setErrorText(e.message);
     },
   });
-  const [username, setUsername] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
   const [role_id, setRoleID] = useState<number>(RoleID.Admin);
   const [password1, setPassword1] = useState<string>("");
   const [password2, setPassword2] = useState<string>("");
   const passwordsMatch = password1 === password2;
+  const emailSchema = z.string().email();
+  const isEmailValid = emailSchema.safeParse(email).success;
+  const emailError = email && !isEmailValid ? "Email is not valid" : "";
   const password1Error =
     password1 && !passwordIsValid(password1) ? "Password is not valid" : "";
   const password2Error =
     password2 && !passwordsMatch ? "Passwords do not match" : "";
 
   const [, setErrorText] = useState<string>("");
-  const handleUsernameChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setUsername(event.target.value);
+  const handleEmailChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setEmail(event.target.value);
   };
   const handleRoleChange = (event: ChangeEvent<HTMLSelectElement>) => {
     setRoleID(Number(event.target.value));
@@ -79,11 +83,12 @@ function AddNewUserForm(asideProps: AsideProps) {
     <Form>
       <div className="p-form__group row">
         <Input
-          id="InputUsername"
-          label="Username"
+          id="InputEmail"
+          label="Email"
           type="text"
           required={true}
-          onChange={handleUsernameChange}
+          onChange={handleEmailChange}
+          error={emailError}
         />
         <Select
           id="roleID"
@@ -131,12 +136,14 @@ function AddNewUserForm(asideProps: AsideProps) {
         />
         <Button
           appearance="positive"
-          disabled={!passwordsMatch || !passwordIsValid(password1)}
+          disabled={
+            !passwordsMatch || !passwordIsValid(password1) || !isEmailValid
+          }
           onClick={(event) => {
             event.preventDefault();
             mutation.mutate({
               authToken: auth.user ? auth.user.authToken : "",
-              username: username,
+              email: email,
               password: password1,
               role_id: role_id,
             });
@@ -182,10 +189,10 @@ function ChangePasswordForm(asideProps: AsideProps) {
     <Form>
       <div className="p-form__group row">
         <Input
-          id="InputUsername"
-          label="Username"
+          id="InputEmail"
+          label="Email"
           type="text"
-          value={asideProps.formData.user?.username}
+          value={asideProps.formData.user?.email}
           disabled={true}
         />
         <PasswordToggle

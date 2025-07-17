@@ -12,7 +12,7 @@ import (
 func TestUsersEndToEnd(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)
 
-	userID, err := database.CreateUser("admin", "pw123", 1)
+	userID, err := database.CreateUser("admin@canonical.com", "pw123", 1)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
@@ -44,11 +44,11 @@ func TestUsersEndToEnd(t *testing.T) {
 		t.Fatalf("NumUsers didn't return the correct number of users")
 	}
 
-	retrievedUser, err := database.GetUser(db.ByUsername("admin"))
+	retrievedUser, err := database.GetUser(db.ByEmail("admin@canonical.com"))
 	if err != nil {
 		t.Fatalf("Couldn't complete Retrieve: %s", err)
 	}
-	if retrievedUser.Username != "admin" {
+	if retrievedUser.Email != "admin@canonical.com" {
 		t.Fatalf("The user from the database doesn't match the user that was given")
 	}
 
@@ -56,7 +56,7 @@ func TestUsersEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete Retrieve: %s", err)
 	}
-	if retrievedUser.Username != "admin" {
+	if retrievedUser.Email != "admin@canonical.com" {
 		t.Fatalf("The user from the database doesn't match the user that was given")
 	}
 	if err := hashing.CompareHashAndPassword(retrievedUser.HashedPassword, "pw123"); err != nil {
@@ -75,7 +75,7 @@ func TestUsersEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete Update: %s", err)
 	}
-	retrievedUser, _ = database.GetUser(db.ByUsername("norman"))
+	retrievedUser, _ = database.GetUser(db.ByEmail("norman"))
 	if err := hashing.CompareHashAndPassword(retrievedUser.HashedPassword, "thebestpassword"); err != nil {
 		t.Fatalf("The new password that was given does not match the password that was stored.")
 	}
@@ -84,18 +84,18 @@ func TestUsersEndToEnd(t *testing.T) {
 func TestCreateUserFails(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)
 
-	_, err := database.CreateUser("admin", "pw123", 1)
+	_, err := database.CreateUser("admin@canonical.com", "pw123", 1)
 	if err != nil {
 		t.Fatalf("Couldn't complete CreateUser: %s", err)
 	}
-	_, err = database.CreateUser("admin", "pw456", 1)
+	_, err = database.CreateUser("admin@canonical.com", "pw456", 1)
 	if err == nil {
 		t.Fatalf(
-			"An error should have been returned when creating a user with a duplicate username.",
+			"An error should have been returned when creating a user with a duplicate email.",
 		)
 	}
 	if !errors.Is(err, db.ErrAlreadyExists) {
-		t.Fatalf("An error should have been returned when creating a user with a duplicate username.")
+		t.Fatalf("An error should have been returned when creating a user with a duplicate email.")
 	}
 	num, err := database.NumUsers()
 	if err != nil {
@@ -110,10 +110,10 @@ func TestCreateUserFails(t *testing.T) {
 	}
 	_, err = database.CreateUser("", "pw456", 0)
 	if err == nil {
-		t.Fatalf("An error should have been returned when creating a user with an empty username.")
+		t.Fatalf("An error should have been returned when creating a user with an empty email.")
 	}
 	if !errors.Is(err, db.ErrInvalidUser) {
-		t.Fatalf("An ErrInvalidUser should have been returned when creating a user with an empty username.")
+		t.Fatalf("An ErrInvalidUser should have been returned when creating a user with an empty email.")
 	}
 	num, err = database.NumUsers()
 	if err != nil {
@@ -148,7 +148,7 @@ func TestCreateUserFails(t *testing.T) {
 func TestGetUserFails(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)
 
-	_, err := database.CreateUser("admin", "pw123", 1)
+	_, err := database.CreateUser("admin@canonical.com", "pw123", 1)
 	if err != nil {
 		t.Fatalf("Couldn't complete CreateUser: %s", err)
 	}
@@ -158,7 +158,7 @@ func TestGetUserFails(t *testing.T) {
 		t.Fatalf("An error should have been returned when getting a non-existent user.")
 	}
 
-	_, err = database.GetUser(db.ByUsername("admin2"))
+	_, err = database.GetUser(db.ByEmail("admin2@canonical.com"))
 	if err == nil {
 		t.Fatalf("An error should have been returned when getting a non-existent user.")
 	}
@@ -168,7 +168,7 @@ func TestUpdateUserPasswordFails(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)
 
 	originalPassword := "pw123"
-	_, err := database.CreateUser("admin", originalPassword, 1)
+	_, err := database.CreateUser("admin@canonical.com", originalPassword, 1)
 	if err != nil {
 		t.Fatalf("Couldn't complete CreateUser: %s", err)
 	}
@@ -211,7 +211,7 @@ func TestUpdateUserPasswordFails(t *testing.T) {
 func TestDeleteUserFails(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)
 
-	_, err := database.CreateUser("admin", "pw123", 1)
+	_, err := database.CreateUser("admin@canonical.com", "pw123", 1)
 	if err != nil {
 		t.Fatalf("Couldn't complete CreateUser: %s", err)
 	}

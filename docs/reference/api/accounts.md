@@ -21,7 +21,7 @@ None
     "result": [
         {
             "id": 1,
-            "username": "admin",
+            "email": "admin@canonical.com",
             "role_id": 1
         }
     ]
@@ -38,7 +38,7 @@ This path creates a new account. The first account can be created without authen
 
 ### Parameters
 
-- `username` (string): The username of the account. 
+- `email` (string): The email of the account. 
 - `password` (string): The password of the account.
 - `role_id` (integer): The role ID of the account. Valid values are:
   - `0`: Admin
@@ -99,7 +99,7 @@ None
 {
     "result": {
         "id": 2,
-        "username": "pizza.com",
+        "email": "admin@canonical.com",
         "role_id": 0
     }
 }

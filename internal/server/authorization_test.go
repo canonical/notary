@@ -48,8 +48,8 @@ func TestAuthorizationNoAuth(t *testing.T) {
 
 func TestAuthorizationAdminAuthorized(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
-	tu.MustPrepareAccount(t, ts, "whatever", tu.RoleCertificateManager, adminToken)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+	tu.MustPrepareAccount(t, ts, "whatever@canonical.com", tu.RoleCertificateManager, adminToken)
 	client := ts.Client()
 
 	testCases := []struct {
@@ -92,8 +92,8 @@ func TestAuthorizationAdminAuthorized(t *testing.T) {
 
 func TestAuthorizationAdminUnAuthorized(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
-	nonAdminToken := tu.MustPrepareAccount(t, ts, "whatever", tu.RoleCertificateManager, adminToken)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+	nonAdminToken := tu.MustPrepareAccount(t, ts, "whatever@canonical.com", tu.RoleCertificateManager, adminToken)
 	client := ts.Client()
 
 	req, err := http.NewRequest("DELETE", ts.URL+"/api/v1/accounts/1", nil)
@@ -112,8 +112,8 @@ func TestAuthorizationAdminUnAuthorized(t *testing.T) {
 
 func TestAuthorizationCertificateManagerAuthorized(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
-	certManagerToken := tu.MustPrepareAccount(t, ts, "testuser", tu.RoleCertificateManager, adminToken)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+	certManagerToken := tu.MustPrepareAccount(t, ts, "testuser@canonical.com", tu.RoleCertificateManager, adminToken)
 	client := ts.Client()
 
 	testCases := []struct {
@@ -134,7 +134,7 @@ func TestAuthorizationCertificateManagerAuthorized(t *testing.T) {
 			desc:   "certificate manager can login with new password",
 			method: "POST",
 			path:   "/login",
-			data:   `{"username":"testuser","password":"BetterPW1!"}`,
+			data:   `{"email":"testuser@canonical.com","password":"BetterPW1!"}`,
 			status: http.StatusOK,
 		},
 		{
@@ -185,8 +185,8 @@ func TestAuthorizationCertificateManagerAuthorized(t *testing.T) {
 
 func TestAuthorizationCertificateManagerUnauthorized(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
-	certManagerToken := tu.MustPrepareAccount(t, ts, "whatever", tu.RoleCertificateManager, adminToken)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+	certManagerToken := tu.MustPrepareAccount(t, ts, "whatever@canonical.com", tu.RoleCertificateManager, adminToken)
 	client := ts.Client()
 
 	testCases := []struct {
@@ -238,8 +238,8 @@ func TestAuthorizationCertificateManagerUnauthorized(t *testing.T) {
 
 func TestAuthorizationCertificateRequestorAuthorized(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
-	certRequestorToken := tu.MustPrepareAccount(t, ts, "testuser", tu.RoleCertificateRequestor, adminToken)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+	certRequestorToken := tu.MustPrepareAccount(t, ts, "testuser@canonical.com", tu.RoleCertificateRequestor, adminToken)
 	client := ts.Client()
 
 	params := tu.CreateCertificateAuthorityParams{
@@ -273,7 +273,7 @@ func TestAuthorizationCertificateRequestorAuthorized(t *testing.T) {
 			desc:   "certificate requestor can login with new password",
 			method: "POST",
 			path:   "/login",
-			data:   `{"username":"testuser","password":"BetterPW1!"}`,
+			data:   `{"email":"testuser@canonical.com","password":"BetterPW1!"}`,
 			status: http.StatusOK,
 		},
 		{
@@ -316,8 +316,8 @@ func TestAuthorizationCertificateRequestorAuthorized(t *testing.T) {
 
 func TestAuthorizationCertificateRequestorUnauthorized(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
-	certRequestorToken := tu.MustPrepareAccount(t, ts, "testuser", tu.RoleCertificateRequestor, adminToken)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+	certRequestorToken := tu.MustPrepareAccount(t, ts, "testuser@canonical.com", tu.RoleCertificateRequestor, adminToken)
 	client := ts.Client()
 
 	params := tu.CreateCertificateAuthorityParams{
@@ -375,7 +375,7 @@ func TestAuthorizationCertificateRequestorUnauthorized(t *testing.T) {
 			desc:   "certificate requestor can't create account",
 			method: "POST",
 			path:   "/api/v1/accounts",
-			data:   `{"username":"testuser2","password":"BetterPW1!","role_id":2}`,
+			data:   `{"email":"testuser2@canonical.com","password":"BetterPW1!","role_id":2}`,
 			status: http.StatusForbidden,
 		},
 		{
@@ -437,8 +437,8 @@ func TestAuthorizationCertificateRequestorUnauthorized(t *testing.T) {
 
 func TestAuthorizationReadOnlyAuthorized(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
-	readOnlyToken := tu.MustPrepareAccount(t, ts, "testuser", tu.RoleReadOnly, adminToken)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+	readOnlyToken := tu.MustPrepareAccount(t, ts, "testuser@canonical.com", tu.RoleReadOnly, adminToken)
 	client := ts.Client()
 
 	caParams := tu.CreateCertificateAuthorityParams{
@@ -484,7 +484,7 @@ func TestAuthorizationReadOnlyAuthorized(t *testing.T) {
 			desc:   "certificate requestor can login with new password",
 			method: "POST",
 			path:   "/login",
-			data:   `{"username":"testuser","password":"BetterPW1!"}`,
+			data:   `{"email":"testuser@canonical.com","password":"BetterPW1!"}`,
 			status: http.StatusOK,
 		},
 		{
@@ -532,8 +532,8 @@ func TestAuthorizationReadOnlyAuthorized(t *testing.T) {
 
 func TestAuthorizationReadOnlyUnauthorized(t *testing.T) {
 	ts := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin", tu.RoleAdmin, "")
-	readOnlyToken := tu.MustPrepareAccount(t, ts, "testuser", tu.RoleReadOnly, adminToken)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+	readOnlyToken := tu.MustPrepareAccount(t, ts, "testuser@canonical.com", tu.RoleReadOnly, adminToken)
 	client := ts.Client()
 
 	caParams := tu.CreateCertificateAuthorityParams{
@@ -591,7 +591,7 @@ func TestAuthorizationReadOnlyUnauthorized(t *testing.T) {
 			desc:   "read only user can't create account",
 			method: "POST",
 			path:   "/api/v1/accounts",
-			data:   `{"username":"testuser2","password":"BetterPW1!","role_id":2}`,
+			data:   `{"email":"testuser2@canonical.com","password":"BetterPW1!","role_id":2}`,
 			status: http.StatusForbidden,
 		},
 		{

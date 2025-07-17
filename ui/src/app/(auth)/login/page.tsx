@@ -46,11 +46,11 @@ export default function LoginPage() {
     },
   });
 
-  const [username, setUsername] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [errorText, setErrorText] = useState<string>("");
-  const handleUsernameChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setUsername(event.target.value);
+  const handleEmailChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setEmail(event.target.value);
   };
   const handlePasswordChange = (event: ChangeEvent<HTMLInputElement>) => {
     setPassword(event.target.value);
@@ -67,11 +67,11 @@ export default function LoginPage() {
       >
         <Form>
           <Input
-            id="InputUsername"
-            label="Username"
+            id="InputEmail"
+            label="Email"
             type="text"
             required={true}
-            onChange={handleUsernameChange}
+            onChange={handleEmailChange}
           />
           <PasswordToggle
             id="InputPassword"
@@ -86,10 +86,10 @@ export default function LoginPage() {
           )}
           <Button
             appearance="positive"
-            disabled={password.length == 0 || username.length == 0}
+            disabled={password.length == 0 || email.length == 0}
             onClick={(event) => {
               event.preventDefault();
-              mutation.mutate({ username: username, password: password });
+              mutation.mutate({ email: email, password: password });
             }}
           >
             Log In

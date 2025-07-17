@@ -40,17 +40,17 @@ export function UsersTable({ users, setAsideOpen, setFormData }: TableProps) {
     mutationFn: deleteUser,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
   });
-  const handleDelete = (id: string, username: string) => {
+  const handleDelete = (id: string, email: string) => {
     setConfirmationModalData({
-      warningText: `Deleting user: "${username}". This action cannot be undone.`,
+      warningText: `Deleting user: "${email}". This action cannot be undone.`,
       onMouseDownFunc: () => {
         const authToken = auth.user ? auth.user.authToken : "";
         deleteMutation.mutate({ id: id, authToken });
       },
     });
   };
-  const handleChangePassword = (id: string, username: string) => {
-    setChangePasswordModalData({ id: id, username: username, self: false });
+  const handleChangePassword = (id: string, email: string) => {
+    setChangePasswordModalData({ id: id, email: email, self: false });
   };
 
   return (
@@ -79,7 +79,7 @@ export function UsersTable({ users, setAsideOpen, setFormData }: TableProps) {
               content: "ID",
             },
             {
-              content: "Username",
+              content: "Email",
             },
             {
               content: "Role",
@@ -95,7 +95,7 @@ export function UsersTable({ users, setAsideOpen, setFormData }: TableProps) {
                 content: user.id.toString(),
               },
               {
-                content: user.username,
+                content: user.email,
               },
               {
                 content: roleLabels[user.role_id],
@@ -108,15 +108,12 @@ export function UsersTable({ users, setAsideOpen, setFormData }: TableProps) {
                         children: "Delete User",
                         disabled: user.id === 1,
                         onClick: () =>
-                          handleDelete(user.id.toString(), user.username),
+                          handleDelete(user.id.toString(), user.email),
                       },
                       {
                         children: "Change Password",
                         onClick: () =>
-                          handleChangePassword(
-                            user.id.toString(),
-                            user.username,
-                          ),
+                          handleChangePassword(user.id.toString(), user.email),
                       },
                     ]}
                     hasToggleIcon
@@ -140,7 +137,7 @@ export function UsersTable({ users, setAsideOpen, setFormData }: TableProps) {
       {changePasswordModalData && (
         <ChangePasswordModal
           id={changePasswordModalData.id}
-          username={changePasswordModalData.username}
+          email={changePasswordModalData.email}
           setChangePasswordModalVisible={() => setChangePasswordModalData(null)}
           self={false}
         />

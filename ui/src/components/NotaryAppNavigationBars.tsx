@@ -142,7 +142,7 @@ export function SideBar({
                           <i className="p-icon--user is-light p-side-navigation__icon"></i>
                           <span className="p-side-navigation__label">
                             <span className="p-side-navigation__label">
-                              {auth.user.username}
+                              {auth.user.email}
                             </span>
                           </span>
                           <div className="p-side-navigation__status">
@@ -261,7 +261,7 @@ export default function NotaryAppNavigationBars() {
       {changePasswordModalVisible && auth.user && (
         <ChangePasswordModal
           id={auth.user.id.toString()}
-          username={auth.user.username}
+          email={auth.user.email}
           setChangePasswordModalVisible={setChangePasswordModalVisible}
           self={true} // Assuming the user can only change their own password
         />

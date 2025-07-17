@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/mail"
 	"regexp"
 	"strconv"
 
@@ -12,14 +13,17 @@ import (
 )
 
 type CreateAccountParams struct {
-	Username string `json:"username"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
 	RoleID   RoleID `json:"role_id"`
 }
 
 func (params *CreateAccountParams) IsValid() (bool, error) {
-	if params.Username == "" {
-		return false, errors.New("username is required")
+	if params.Email == "" {
+		return false, errors.New("email is required")
+	}
+	if !validateEmail(params.Email) {
+		return false, errors.New("invalid email format")
 	}
 	if params.Password == "" {
 		return false, errors.New("password is required")
@@ -48,9 +52,9 @@ func (params *ChangeAccountParams) IsValid() (bool, error) {
 }
 
 type GetAccountResponse struct {
-	ID       int64  `json:"id"`
-	Username string `json:"username"`
-	RoleID   RoleID `json:"role_id"`
+	ID     int64  `json:"id"`
+	Email  string `json:"email"`
+	RoleID RoleID `json:"role_id"`
 }
 
 func validatePassword(password string) bool {
@@ -70,6 +74,11 @@ func validatePassword(password string) bool {
 	return hasNumberOrSymbol
 }
 
+func validateEmail(email string) bool {
+	_, err := mail.ParseAddress(email)
+	return err == nil
+}
+
 // ListAccounts returns all accounts from the database
 func ListAccounts(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -81,9 +90,9 @@ func ListAccounts(env *HandlerConfig) http.HandlerFunc {
 		accountsResponse := make([]GetAccountResponse, len(accounts))
 		for i, account := range accounts {
 			accountsResponse[i] = GetAccountResponse{
-				ID:       account.ID,
-				Username: account.Username,
-				RoleID:   RoleID(account.RoleID),
+				ID:     account.ID,
+				Email:  account.Email,
+				RoleID: RoleID(account.RoleID),
 			}
 		}
 		err = writeResponse(w, accountsResponse, http.StatusOK)
@@ -106,7 +115,7 @@ func GetAccount(env *HandlerConfig) http.HandlerFunc {
 			if headerErr != nil {
 				writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.Logger)
 			}
-			account, err = env.DB.GetUser(db.ByUsername(claims.Username))
+			account, err = env.DB.GetUser(db.ByEmail(claims.Email))
 		} else {
 			var idNum int64
 			idNum, err = strconv.ParseInt(id, 10, 64)
@@ -125,9 +134,9 @@ func GetAccount(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 		accountResponse := GetAccountResponse{
-			ID:       account.ID,
-			Username: account.Username,
-			RoleID:   RoleID(account.RoleID),
+			ID:     account.ID,
+			Email:  account.Email,
+			RoleID: RoleID(account.RoleID),
 		}
 		err = writeResponse(w, accountResponse, http.StatusOK)
 		if err != nil {
@@ -150,10 +159,10 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.Logger)
 			return
 		}
-		newUserID, err := env.DB.CreateUser(createAccountParams.Username, createAccountParams.Password, db.RoleID(createAccountParams.RoleID))
+		newUserID, err := env.DB.CreateUser(createAccountParams.Email, createAccountParams.Password, db.RoleID(createAccountParams.RoleID))
 		if err != nil {
 			if errors.Is(err, db.ErrAlreadyExists) {
-				writeError(w, http.StatusBadRequest, "account with given username already exists", err, env.Logger)
+				writeError(w, http.StatusBadRequest, "account with given email already exists", err, env.Logger)
 				return
 			}
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
@@ -256,7 +265,7 @@ func ChangeMyPassword(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.Logger)
 			return
 		}
-		account, err := env.DB.GetUser(db.ByUsername(claims.Username))
+		account, err := env.DB.GetUser(db.ByEmail(claims.Email))
 		if err != nil {
 			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.Logger)
 			return

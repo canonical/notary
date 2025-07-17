@@ -188,14 +188,14 @@ export async function revokeCertificate(params: RequiredCSRParams) {
 }
 
 export async function login(userForm: {
-  username: string;
+  email: string;
   password: string;
 }): Promise<{ token: string }> {
   const response = await fetch("/login", {
     method: "POST",
 
     body: JSON.stringify({
-      username: userForm.username,
+      email: userForm.email,
       password: userForm.password,
     }),
   });
@@ -284,14 +284,14 @@ export async function deleteUser(params: { authToken: string; id: string }) {
 }
 
 export async function postFirstUser(userForm: {
-  username: string;
+  email: string;
   password: string;
   role_id: number;
 }) {
   const response = await fetch("/api/v1/accounts", {
     method: "POST",
     body: JSON.stringify({
-      username: userForm.username,
+      email: userForm.email,
       password: userForm.password,
       role_id: userForm.role_id,
     }),
@@ -307,14 +307,14 @@ export async function postFirstUser(userForm: {
 
 export async function postUser(userForm: {
   authToken: string;
-  username: string;
+  email: string;
   password: string;
   role_id: number;
 }) {
   const response = await fetch("/api/v1/accounts", {
     method: "POST",
     body: JSON.stringify({
-      username: userForm.username,
+      email: userForm.email,
       password: userForm.password,
       role_id: userForm.role_id,
     }),

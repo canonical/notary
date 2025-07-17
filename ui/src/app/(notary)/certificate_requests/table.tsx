@@ -180,7 +180,7 @@ export function CertificateRequestsTable({
         common_name: csrObj.commonName,
         csr_status: csr_status,
         cert_expiry_date: certObj?.notAfter || "",
-        username: csrEntry.username,
+        email: csrEntry.email,
       },
       columns: [
         { content: id.toString() },
@@ -191,7 +191,7 @@ export function CertificateRequestsTable({
           style: { backgroundColor: getExpiryColor(certObj?.notAfter) },
         },
         {
-          content: csrEntry.username,
+          content: csrEntry.email,
         },
         {
           content: (
@@ -386,8 +386,8 @@ export function CertificateRequestsTable({
             sortKey: "cert_expiry_date",
           },
           {
-            content: "Username",
-            sortKey: "username",
+            content: "Email",
+            sortKey: "email",
           },
           {
             content: "Actions",

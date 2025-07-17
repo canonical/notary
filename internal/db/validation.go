@@ -119,9 +119,9 @@ func ValidatePrivateKey(pk string) error {
 	return nil
 }
 
-func ValidateUser(username string, roleID RoleID) error {
-	if username == "" {
-		return fmt.Errorf("%w: invalid username or password", ErrInvalidUser)
+func ValidateUser(email string, roleID RoleID) error {
+	if email == "" {
+		return fmt.Errorf("%w: invalid email or password", ErrInvalidUser)
 	}
 	if roleID < 0 || roleID > 3 {
 		return fmt.Errorf("%w: invalid role ID: %d", ErrInvalidUser, roleID)

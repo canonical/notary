@@ -42,7 +42,7 @@ You should be prompted to initialize Notary.
 
 Create the initial user:
 
-- **Username**: `admin`
+- **Email**: `admin@canonical.com`
 - **Password**: `NotaryAdmin123!`
 
 Click on "Submit".

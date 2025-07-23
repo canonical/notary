@@ -52,6 +52,22 @@ Build the Go binary:
 go build -o notary cmd/notary/main.go
 ```
 
+Enable CGo:
+
+```bash
+go env -w CGO_ENABLED=1
+```
+
+Add dqlite header and library files:
+
+```bash
+go env -w CGO_CFLAGS="-I$HOME/go/deps/dqlite/include/"\
+ CGO_LDFLAGS="-L$HOME/go/deps/dqlite/.libs/"\
+ CGO_LDFLAGS_ALLOW="(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
+
+export LD_LIBRARY_PATH="$HOME/go/deps/dqlite/.libs/"
+```
+
 ### Run Notary
 
 Create a certificate and private key:

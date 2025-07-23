@@ -11,7 +11,6 @@ import (
 
 	"github.com/canonical/notary/internal/config"
 	"github.com/canonical/notary/internal/db"
-	"github.com/canonical/notary/internal/encryption_backend"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -61,12 +60,12 @@ func generateJWTSecret() ([]byte, error) {
 }
 
 // New creates an environment and an http server with handlers that Go can start listening to
-func New(port int, cert []byte, key []byte, dbPath string, externalHostname string, pebbleNotificationsEnabled bool, logger *zap.Logger, encryptionBackend encryption_backend.EncryptionBackend, publicConfig config.PublicConfigData) (*http.Server, error) {
-	serverCerts, err := tls.X509KeyPair(cert, key)
+func New(opts *ServerOpts) (*http.Server, error) {
+	serverCerts, err := tls.X509KeyPair(opts.Cert, opts.Key)
 	if err != nil {
 		return nil, err
 	}
-	database, err := db.NewDatabase(dbPath, encryptionBackend, logger)
+	database, err := db.NewDatabase(opts.DBPath, opts.EncryptionBackend, opts.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -78,20 +77,20 @@ func New(port int, cert []byte, key []byte, dbPath string, externalHostname stri
 
 	env := &HandlerConfig{}
 	env.DB = database
-	env.SendPebbleNotifications = pebbleNotificationsEnabled
+	env.SendPebbleNotifications = opts.PebbleNotificationsEnabled
 	env.JWTSecret = jwtSecret
-	env.ExternalHostname = externalHostname
-	env.Logger = logger
-	env.PublicConfig = publicConfig
+	env.ExternalHostname = opts.ExternalHostname
+	env.Logger = opts.Logger
+	env.PublicConfig = opts.PublicConfig
 	router := NewHandler(env)
 
-	stdErrLog, err := zap.NewStdLogAt(logger, zapcore.ErrorLevel)
+	stdErrLog, err := zap.NewStdLogAt(opts.Logger, zapcore.ErrorLevel)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create logger for http server: %w", err)
 	}
 
 	s := &http.Server{
-		Addr:           fmt.Sprintf(":%d", port),
+		Addr:           fmt.Sprintf(":%d", opts.Port),
 		ErrorLog:       stdErrLog,
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,

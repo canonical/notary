@@ -22,17 +22,18 @@ func MustPrepareServer(t *testing.T) *httptest.Server {
 	t.Helper()
 
 	tempDir := t.TempDir()
-	notaryServer, err := server.New(
-		8000,
-		[]byte(TestServerCertificate),
-		[]byte(TestServerKey),
-		filepath.Join(tempDir, "db.sqlite3"),
-		"example.com",
-		false,
-		logger,
-		NoneEncryptionBackend,
-		PublicConfig,
-	)
+
+	notaryServer, err := server.New(&server.ServerOpts{
+		Port:                       8000,
+		Cert:                       []byte(TestServerCertificate),
+		Key:                        []byte(TestServerKey),
+		DBPath:                     filepath.Join(tempDir, "db.sqlite3"),
+		ExternalHostname:           "example.com",
+		PebbleNotificationsEnabled: false,
+		Logger:                     logger,
+		EncryptionBackend:          NoneEncryptionBackend,
+		PublicConfig:               PublicConfig,
+	})
 	if err != nil {
 		t.Fatalf("Couldn't get server: %s", err)
 	}

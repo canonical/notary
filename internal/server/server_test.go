@@ -22,7 +22,17 @@ func TestNewSuccess(t *testing.T) {
 		t.Fatalf("cannot create logger: %s", err)
 	}
 	noneEncryptionBackend := encryption_backend.NoEncryptionBackend{}
-	s, err := server.New(8000, []byte(tu.TestServerCertificate), []byte(tu.TestServerKey), db_path, "example.com", false, l, noneEncryptionBackend, tu.PublicConfig)
+	s, err := server.New(&server.ServerOpts{
+		Port:                       8000,
+		Cert:                       []byte(tu.TestServerCertificate),
+		Key:                        []byte(tu.TestServerKey),
+		DBPath:                     db_path,
+		ExternalHostname:           "example.com",
+		PebbleNotificationsEnabled: false,
+		Logger:                     l,
+		EncryptionBackend:          noneEncryptionBackend,
+		PublicConfig:               tu.PublicConfig,
+	})
 	if err != nil {
 		t.Errorf("Error occurred: %s", err)
 	}
@@ -37,7 +47,17 @@ func TestInvalidKeyFailure(t *testing.T) {
 		t.Fatalf("cannot create logger: %s", err)
 	}
 	noneEncryptionBackend := encryption_backend.NoEncryptionBackend{}
-	_, err = server.New(8000, []byte(tu.TestServerCertificate), []byte{}, "notary.db", "example.com", false, l, noneEncryptionBackend, tu.PublicConfig)
+	_, err = server.New(&server.ServerOpts{
+		Port:                       8000,
+		Cert:                       []byte(tu.TestServerCertificate),
+		Key:                        []byte{},
+		DBPath:                     "notary.db",
+		ExternalHostname:           "example.com",
+		PebbleNotificationsEnabled: false,
+		Logger:                     l,
+		EncryptionBackend:          noneEncryptionBackend,
+		PublicConfig:               tu.PublicConfig,
+	})
 	if err == nil {
 		t.Errorf("No error was thrown for invalid key")
 	}

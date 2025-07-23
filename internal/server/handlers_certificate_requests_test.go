@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/canonical/notary/internal/db"
 	tu "github.com/canonical/notary/internal/testutils"
 )
 
@@ -230,7 +231,7 @@ func TestListCertificateRequestsRequestorRole(t *testing.T) {
 
 	// Create a certificate request as the admin
 	params1 := tu.CreateCertificateRequestParams{
-		CSR: tu.ExampleCSR,
+		CSR: tu.AppleCSR,
 	}
 	statusCode, _, err := tu.CreateCertificateRequest(ts.URL, client, adminToken, params1)
 	if err != nil {
@@ -246,7 +247,7 @@ func TestListCertificateRequestsRequestorRole(t *testing.T) {
 
 	// Create a certificate request as the requestor
 	params2 := tu.CreateCertificateRequestParams{
-		CSR: tu.AppleCSR,
+		CSR: tu.BananaCSR,
 	}
 	statusCode, _, err = tu.CreateCertificateRequest(ts.URL, client, requestorToken, params2)
 	if err != nil {
@@ -299,7 +300,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 
 	t.Run("1. Create certificate request", func(t *testing.T) {
 		createCertificateRequestRequest := tu.CreateCertificateRequestParams{
-			CSR: tu.ExampleCSR,
+			CSR: tu.AppleCSR,
 		}
 		statusCode, createCertResponse, err := tu.CreateCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
 		if err != nil {
@@ -315,7 +316,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 
 	t.Run("2. Create Certificate", func(t *testing.T) {
 		createCertificateRequest := tu.CreateCertificateParams{
-			Certificate: fmt.Sprintf("%s\n%s", tu.ExampleCSRCertificate, tu.ExampleCSRIssuerCertificate),
+			Certificate: fmt.Sprintf("%s\n%s\n%s", tu.AppleCertificate, tu.IntermediateCACertificate, tu.RootCACertificate),
 		}
 		statusCode, createCertResponse, err := tu.CreateCertificate(ts.URL, client, adminToken, createCertificateRequest)
 		if err != nil {
@@ -366,8 +367,8 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		if getCertResponse.Error != "" {
 			t.Fatalf("expected no error, got %s", getCertResponse.Error)
 		}
-		if getCertResponse.Result.Status != "Rejected" {
-			t.Fatalf("expected `Rejected` status, got %s", getCertResponse.Result.Status)
+		if getCertResponse.Result.Status != db.CSRStatusRejected {
+			t.Fatalf("expected `rejected` status, got %s", getCertResponse.Result.Status)
 		}
 	})
 

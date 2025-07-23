@@ -141,3 +141,9 @@ func setUpEncryptionKey(database *Database, backend encryption_backend.Encryptio
 	}
 	return decryptedEncryptionKey, nil
 }
+
+func certificateExpiryDate(certString string) time.Time {
+	certBlock, _ := pem.Decode([]byte(certString))
+	cert, _ := x509.ParseCertificate(certBlock.Bytes)
+	return cert.NotAfter
+}

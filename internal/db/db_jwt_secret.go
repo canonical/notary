@@ -6,11 +6,6 @@ import (
 	"github.com/canonical/notary/internal/encryption"
 )
 
-type JWTSecret struct {
-	ID              int64  `db:"id"`
-	EncryptedSecret string `db:"encrypted_secret"`
-}
-
 // CreateJWTSecret encrypts and stores the JWT secret in the database, there can only be one JWT secret.
 func (db *Database) CreateJWTSecret(secret []byte) error {
 	encryptedSecret, err := encryption.Encrypt(string(secret), db.EncryptionKey)

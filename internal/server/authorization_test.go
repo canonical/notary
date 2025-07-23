@@ -148,7 +148,7 @@ func TestAuthorizationCertificateManagerAuthorized(t *testing.T) {
 			desc:   "certificate manager can create a certificate request",
 			method: "POST",
 			path:   "/api/v1/certificate_requests",
-			data:   fmt.Sprintf(`{"csr":%q}`, tu.ExampleCSR),
+			data:   fmt.Sprintf(`{"csr":%q}`, tu.AppleCSR),
 			status: http.StatusCreated,
 		},
 		{
@@ -280,7 +280,7 @@ func TestAuthorizationCertificateRequestorAuthorized(t *testing.T) {
 			desc:   "certificate requestor can create a certificate request",
 			method: "POST",
 			path:   "/api/v1/certificate_requests",
-			data:   fmt.Sprintf(`{"csr":%q}`, tu.ExampleCSR),
+			data:   fmt.Sprintf(`{"csr":%q}`, tu.AppleCSR),
 			status: http.StatusCreated,
 		},
 		{
@@ -334,7 +334,7 @@ func TestAuthorizationCertificateRequestorUnauthorized(t *testing.T) {
 	}
 
 	csrParams := tu.CreateCertificateRequestParams{
-		CSR: tu.ExampleCSR,
+		CSR: tu.AppleCSR,
 	}
 	statusCode, _, err = tu.CreateCertificateRequest(ts.URL, client, adminToken, csrParams)
 	if err != nil {
@@ -455,7 +455,7 @@ func TestAuthorizationReadOnlyAuthorized(t *testing.T) {
 	}
 
 	certRequestParams := tu.CreateCertificateRequestParams{
-		CSR: tu.ExampleCSR,
+		CSR: tu.AppleCSR,
 	}
 	statusCode, _, err = tu.CreateCertificateRequest(ts.URL, client, adminToken, certRequestParams)
 	if err != nil {
@@ -550,7 +550,7 @@ func TestAuthorizationReadOnlyUnauthorized(t *testing.T) {
 	}
 
 	certRequestParams := tu.CreateCertificateRequestParams{
-		CSR: tu.ExampleCSR,
+		CSR: tu.AppleCSR,
 	}
 	statusCode, _, err = tu.CreateCertificateRequest(ts.URL, client, adminToken, certRequestParams)
 	if err != nil {
@@ -617,7 +617,7 @@ func TestAuthorizationReadOnlyUnauthorized(t *testing.T) {
 			desc:   "read only user can't create a certificate request",
 			method: "POST",
 			path:   "/api/v1/certificate_requests",
-			data:   fmt.Sprintf(`{"csr":%q}`, tu.ExampleCSR),
+			data:   fmt.Sprintf(`{"csr":%q}`, tu.AppleCSR),
 			status: http.StatusForbidden,
 		},
 		{

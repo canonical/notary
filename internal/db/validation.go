@@ -2,11 +2,11 @@ package db
 
 import (
 	"bytes"
-	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"reflect"
 )
 
 // ValidateCertificateRequest validates the given CSR string to the following:
@@ -79,6 +79,7 @@ func ValidateCertificate(cert string) error {
 // The given CSR and Cert must pass their respective validation functions
 // The given CSR and Cert must share the same public key
 func CertificateMatchesCSR(cert string, csr string) error {
+
 	if err := ValidateCertificateRequest(csr); err != nil {
 		return err
 	}
@@ -88,10 +89,8 @@ func CertificateMatchesCSR(cert string, csr string) error {
 	csrBlock, _ := pem.Decode([]byte(csr))
 	parsedCSR, _ := x509.ParseCertificateRequest(csrBlock.Bytes)
 	certBlock, _ := pem.Decode([]byte(cert))
-	parsedCERT, _ := x509.ParseCertificate(certBlock.Bytes)
-	certKey := parsedCERT.PublicKey.(*rsa.PublicKey)
-	csrKey := parsedCSR.PublicKey.(*rsa.PublicKey)
-	if !csrKey.Equal(certKey) {
+	parsedCertificate, _ := x509.ParseCertificate(certBlock.Bytes)
+	if !reflect.DeepEqual(parsedCertificate.PublicKey, parsedCSR.PublicKey) {
 		return errors.New("certificate does not match CSR")
 	}
 	return nil

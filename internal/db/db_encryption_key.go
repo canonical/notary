@@ -5,11 +5,6 @@ import (
 	"fmt"
 )
 
-type AES256GCMEncryptionKey struct {
-	EncryptionKeyID int64  `db:"encryption_key_id"`
-	EncryptionKey   string `db:"encryption_key"`
-}
-
 // GetEncryptionKey retrieves the only encryption key from the database.
 func (db *Database) GetEncryptionKey() ([]byte, error) {
 	encryptionKeyRow := AES256GCMEncryptionKey{

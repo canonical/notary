@@ -70,8 +70,8 @@ func TestCSRValidationFail(t *testing.T) {
 
 func TestCertValidationSuccess(t *testing.T) {
 	cases := []string{
-		fmt.Sprintf("%s\n%s", tu.BananaCert, tu.IntermediateCert),
-		fmt.Sprintf("%s\n%s\n%s", tu.BananaCert, tu.IntermediateCert, tu.RootCert),
+		fmt.Sprintf("%s\n%s", tu.BananaCertificate, tu.IntermediateCACertificate),
+		fmt.Sprintf("%s\n%s\n%s", tu.BananaCertificate, tu.IntermediateCACertificate, tu.RootCACertificate),
 	}
 
 	for i, c := range cases {
@@ -86,15 +86,15 @@ func TestCertValidationSuccess(t *testing.T) {
 func TestCertValidationFail(t *testing.T) {
 	wrongCertString := "this is a real cert!!!"
 	wrongCertStringErr := errors.New("less than 2 certificate PEM strings were found")
-	wrongPemType := strings.ReplaceAll(tu.BananaCert, "CERTIFICATE", "SOME RANDOM PEM TYPE")
+	wrongPemType := strings.ReplaceAll(tu.BananaCertificate, "CERTIFICATE", "SOME RANDOM PEM TYPE")
 	wrongPemTypeErr := errors.New("a given PEM string was not a certificate")
-	InvalidCert := strings.ReplaceAll(tu.BananaCert, "M", "i")
+	InvalidCert := strings.ReplaceAll(tu.BananaCertificate, "M", "i")
 	InvalidCertErr := errors.New("x509: malformed certificate")
-	singleCert := tu.BananaCert
+	singleCert := tu.BananaCertificate
 	singleCertErr := errors.New("less than 2 certificate PEM strings were found")
-	issuerCertSubjectDoesNotMatch := fmt.Sprintf("%s\n%s", tu.BananaCert, tu.WrongSubjectIssuerCert)
+	issuerCertSubjectDoesNotMatch := fmt.Sprintf("%s\n%s", tu.BananaCertificate, tu.WrongSubjectIssuerCert)
 	issuerCertSubjectDoesNotMatchErr := errors.New("invalid certificate chain: certificate 0, certificate 1: subjects do not match")
-	issuerCertNotCA := fmt.Sprintf("%s\n%s", tu.BananaCert, tu.UnusedCert)
+	issuerCertNotCA := fmt.Sprintf("%s\n%s", tu.BananaCertificate, tu.UnusedCert)
 	issuerCertNotCaErr := errors.New("invalid certificate chain: certificate 1 is not a certificate authority")
 
 	cases := []struct {
@@ -148,7 +148,7 @@ func TestCertificateMatchesCSRSuccess(t *testing.T) {
 	}{
 		{
 			inputCSR:  tu.BananaCSR,
-			inputCert: fmt.Sprintf("%s\n%s", tu.BananaCert, tu.IntermediateCert),
+			inputCert: fmt.Sprintf("%s\n%s", tu.BananaCertificate, tu.IntermediateCACertificate),
 		},
 	}
 
@@ -172,7 +172,7 @@ func TestCertificateMatchesCSRFail(t *testing.T) {
 	}{
 		{
 			inputCSR:    tu.AppleCSR,
-			inputCert:   fmt.Sprintf("%s\n%s", tu.BananaCert, tu.IntermediateCert),
+			inputCert:   fmt.Sprintf("%s\n%s", tu.BananaCertificate, tu.IntermediateCACertificate),
 			expectedErr: certificateDoesNotMatchErr,
 		},
 	}

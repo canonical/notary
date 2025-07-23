@@ -70,7 +70,7 @@ func NewMetricsSubsystem(db *db.Database, logger *zap.Logger) *PrometheusMetrics
 
 // Helper function to collect metrics and handle errors properly
 func collectMetrics(db *db.Database, metrics *PrometheusMetrics) error {
-	csrs, err := db.ListCertificateRequestWithCertificates()
+	csrs, err := db.ListCertificateRequestsWithCertificates()
 	if err != nil {
 		return fmt.Errorf("collecting certificate metrics: %w", err)
 	}

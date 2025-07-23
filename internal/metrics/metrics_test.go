@@ -75,7 +75,7 @@ func TestCertificateMetrics(t *testing.T) {
 	initializeTestDBWithCerts(t, db)
 	m := metrics.NewMetricsSubsystem(db, l)
 	defer m.Close()
-	csrs, _ := db.ListCertificateRequestWithCertificates()
+	csrs, _ := db.ListCertificateRequestsWithCertificates()
 	m.GenerateCertificateMetrics(csrs)
 
 	request, _ := http.NewRequest("GET", "/", nil)

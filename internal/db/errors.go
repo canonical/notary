@@ -9,6 +9,7 @@ var (
 	ErrInternal                  = errors.New("internal error")
 	ErrInvalidFilter             = errors.New("invalid filter")
 	ErrAlreadyExists             = errors.New("resource already exists")
+	ErrForeignKey                = errors.New("foreign key constraint failed")
 	ErrInvalidInput              = errors.New("invalid input")
 	ErrInvalidCertificate        = errors.New("invalid certificate")
 	ErrInvalidCertificateRequest = errors.New("invalid certificate request")

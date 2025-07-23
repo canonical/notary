@@ -712,12 +712,12 @@ func GetCertificateAuthorityCRLRequest(url string, client *http.Client, token st
 
 // sign a csr with a self signed ca
 func SignCSR(csr string) string {
-	csrDER, _ := pem.Decode([]byte(csr))                             //nolint: errcheck
-	csrTemplate, _ := x509.ParseCertificateRequest(csrDER.Bytes)     //nolint: errcheck
-	signingCertDER, _ := pem.Decode([]byte(SelfSignedCACertificate)) //nolint: errcheck
-	signingCert, _ := x509.ParseCertificate(signingCertDER.Bytes)    //nolint: errcheck
-	pkDER, _ := pem.Decode([]byte(SelfSignedCACertificatePK))        //nolint: errcheck
-	pk, _ := x509.ParsePKCS1PrivateKey(pkDER.Bytes)                  //nolint: errcheck
+	csrDER, _ := pem.Decode([]byte(csr))                          //nolint: errcheck
+	csrTemplate, _ := x509.ParseCertificateRequest(csrDER.Bytes)  //nolint: errcheck
+	signingCertDER, _ := pem.Decode([]byte(RootCACertificate))    //nolint: errcheck
+	signingCert, _ := x509.ParseCertificate(signingCertDER.Bytes) //nolint: errcheck
+	pkDER, _ := pem.Decode([]byte(RootCAPrivateKey))              //nolint: errcheck
+	pk, _ := x509.ParsePKCS1PrivateKey(pkDER.Bytes)               //nolint: errcheck
 
 	certTemplate := x509.Certificate{
 		SerialNumber:          big.NewInt(time.Now().UnixNano()),

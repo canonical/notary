@@ -30,17 +30,17 @@ func (filter *CertificateFilter) AsCertificate() *Certificate {
 }
 
 type CSRFilter struct {
-	UserID *int64
-	ID     *int64
-	PEM    *string
+	OwnerID *int64
+	ID      *int64
+	PEM     *string
 }
 
-func ByCSRID(id int64) CSRFilter {
-	return CSRFilter{ID: &id}
+func ByCSRID(id int64) *CSRFilter {
+	return &CSRFilter{ID: &id}
 }
 
-func ByCSRPEM(pem string) CSRFilter {
-	return CSRFilter{PEM: &pem}
+func ByCSRPEM(pem string) *CSRFilter {
+	return &CSRFilter{PEM: &pem}
 }
 
 func (filter *CSRFilter) AsCertificateRequest() *CertificateRequest {
@@ -51,8 +51,8 @@ func (filter *CSRFilter) AsCertificateRequest() *CertificateRequest {
 		csrRow = CertificateRequest{CSR_ID: *filter.ID}
 	case filter.PEM != nil:
 		csrRow = CertificateRequest{CSR: *filter.PEM}
-	case filter.UserID != nil:
-		csrRow = CertificateRequest{UserID: *filter.UserID}
+	case filter.OwnerID != nil:
+		csrRow = CertificateRequest{OwnerID: *filter.OwnerID}
 	default:
 		panic(fmt.Errorf("%w: only CSR ID, PEM, and UserID are supported", ErrInvalidFilter))
 	}
@@ -67,8 +67,8 @@ func (filter *CSRFilter) AsCertificateRequestWithChain() *CertificateRequestWith
 		csrRow = CertificateRequestWithChain{CSR_ID: *filter.ID}
 	case filter.PEM != nil:
 		csrRow = CertificateRequestWithChain{CSR: *filter.PEM}
-	case filter.UserID != nil:
-		csrRow = CertificateRequestWithChain{UserID: *filter.UserID}
+	case filter.OwnerID != nil:
+		csrRow = CertificateRequestWithChain{OwnerID: *filter.OwnerID}
 	default:
 		panic(fmt.Errorf("%w: only CSR ID, PEM and UserID are supported", ErrInvalidFilter))
 	}

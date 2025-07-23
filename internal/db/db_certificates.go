@@ -24,7 +24,7 @@ func (db *Database) DeleteCertificate(filter CertificateFilter) error {
 }
 
 // AddCertificateChainToCertificateRequestByCSR adds a new certificate chain to a row for a given CSR string.
-func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter, certPEM string) (int64, error) {
+func (db *Database) AddCertificateChainToCertificateRequest(csrFilter *CSRFilter, certPEM string) (int64, error) {
 	csr, err := db.GetCertificateRequest(csrFilter)
 	if err != nil {
 		return 0, err
@@ -79,7 +79,7 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 	newRow := CertificateRequest{
 		CSR:           csr.CSR,
 		CertificateID: parentID,
-		Status:        "Active",
+		Status:        CSRStatusActive,
 	}
 	err = UpdateEntity(db, db.stmts.UpdateCertificateRequest, newRow)
 	if err != nil {

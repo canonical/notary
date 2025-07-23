@@ -106,8 +106,12 @@ func CreateEntity[T any](db *Database, stmt *sqlair.Statement, new_entity T) (in
 	var outcome sqlair.Outcome
 	err := db.Conn.Query(context.Background(), stmt, new_entity).Get(&outcome)
 	if err != nil {
+		fmt.Print(err)
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			return 0, fmt.Errorf("failed to create %s: %w", getTypeName[T](), ErrAlreadyExists)
+		}
+		if strings.Contains(err.Error(), "FOREIGN KEY constraint failed") {
+			return 0, fmt.Errorf("failed to create %s: %w", getTypeName[T](), ErrForeignKey)
 		}
 		return 0, fmt.Errorf("failed to create %s: %w", getTypeName[T](), ErrInternal)
 	}

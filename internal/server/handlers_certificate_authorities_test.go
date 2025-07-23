@@ -157,7 +157,7 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 
 	t.Run("7. Sign the intermediate CA's CSR", func(t *testing.T) {
 		signedCert := tu.SignCSR(IntermediateCACSR)
-		statusCode, uploadCertificateResponse, err := tu.UploadCertificateToCertificateAuthority(ts.URL, client, adminToken, 2, server.UploadCertificateToCertificateAuthorityParams{CertificateChain: signedCert + tu.SelfSignedCACertificate})
+		statusCode, uploadCertificateResponse, err := tu.UploadCertificateToCertificateAuthority(ts.URL, client, adminToken, 2, server.UploadCertificateToCertificateAuthorityParams{CertificateChain: signedCert + tu.RootCACertificate})
 		if err != nil {
 			t.Fatal("expected no error, got: ", err)
 		}
@@ -672,13 +672,13 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if len(listCSRsResponse.Result) != 2 {
 			t.Fatalf("expected 2 certificates, got %d", len(listCSRsResponse.Result))
 		}
-		if listCSRsResponse.Result[0].Status != "Active" {
+		if listCSRsResponse.Result[0].Status != db.CSRStatusActive {
 			t.Fatalf("expected first csr to be active, got %s", listCSRsResponse.Result[3].Status)
 		}
 		if strings.Count(listCSRsResponse.Result[0].CertificateChain, "BEGIN CERTIFICATE") != 2 {
 			t.Fatalf("expected first csr to have a chain with 2 certificates")
 		}
-		if listCSRsResponse.Result[1].Status != "Active" {
+		if listCSRsResponse.Result[1].Status != db.CSRStatusActive {
 			t.Fatalf("expected second csr to be active")
 		}
 		if strings.Count(listCSRsResponse.Result[1].CertificateChain, "BEGIN CERTIFICATE") != 3 {

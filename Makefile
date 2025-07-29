@@ -12,7 +12,7 @@ ROCK_ARTIFACT_NAME := notary.rock
 $(shell mkdir -p $(ARTIFACT_FOLDER))
 
 .PHONY: notary
-notary: $(ARTIFACT_FOLDER)/$(NOTARY_ARTIFACT_NAME)
+notary: $(ARTIFACT_FOLDER)/$(NOTARY_ARTIFACT_NAME) $(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE) $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY)
 	@echo "Built notary"
 
 .PHONY: config-files
@@ -80,16 +80,16 @@ clean-vm:
 	-lxc delete notary
 
 $(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE):
-	@echo 'key_path: "/config/key.pem"'    >> $@;\
-     echo 'cert_path: "/config/cert.pem"'  >> $@;\
-     echo 'db_path: "/config/notary.db"'   >> $@;\
-     echo 'port: 2111'                     >> $@;\
-	 echo 'pebble_notifications: true'     >> $@;\
-	 echo 'logging:'                       >> $@;\
-	 echo '  system:'                      >> $@;\
-	 echo '    level: "debug"'             >> $@;\
-	 echo '    output: "file"'             >> $@;\
-	 echo '    path: "/config/notary.log"' >> $@;\
+	@echo 'key_path: "artifacts/key.pem"'      >> $@;\
+     echo 'cert_path: "artifacts/cert.pem"'    >> $@;\
+     echo 'db_path: "artifacts/notary.db"'     >> $@;\
+     echo 'port: 2111'                         >> $@;\
+	 echo 'pebble_notifications: false'        >> $@;\
+	 echo 'logging:'                           >> $@;\
+	 echo '  system:'                          >> $@;\
+	 echo '    level: "debug"'                 >> $@;\
+	 echo '    output: "artifacts/notary.log"' >> $@;\
+	 echo 'encryption_backend: {}'             >> $@;\
 
 $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY):
 	openssl req -newkey rsa:2048 -nodes -keyout $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY) -x509 -days 1 -out $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) -subj "/CN=example.com"

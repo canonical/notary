@@ -14,7 +14,11 @@ func MustPrepareEmptyDB(t *testing.T) *db.Database {
 	t.Helper()
 
 	tempDir := t.TempDir()
-	database, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), NoneEncryptionBackend, logger)
+	database, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: filepath.Join(tempDir, "db.sqlite3"),
+		Backend:      NoneEncryptionBackend,
+		Logger:       logger,
+	})
 	if err != nil {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}

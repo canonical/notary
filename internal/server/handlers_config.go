@@ -19,7 +19,7 @@ func GetConfigContent(env *HandlerConfig) http.HandlerFunc {
 			PebbleNotifications:   env.PublicConfig.PebbleNotifications,
 			LoggingLevel:          env.PublicConfig.LoggingLevel,
 			LoggingOutput:         env.PublicConfig.LoggingOutput,
-			EncryptionBackendType: env.PublicConfig.EncryptionBackendType,
+			EncryptionBackendType: string(env.PublicConfig.EncryptionBackendType),
 		}
 		err := writeResponse(w, configContent, http.StatusOK)
 		if err != nil {

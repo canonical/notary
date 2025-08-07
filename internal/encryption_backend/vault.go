@@ -90,8 +90,7 @@ func (v VaultBackend) Encrypt(plaintext []byte) ([]byte, error) {
 }
 
 // NewVaultBackendWithToken creates a new VaultBackend using token authentication.
-func NewVaultBackendWithToken(endpoint, mount, keyName, token, tlsCaCertificate string, tlsSkipVerify bool, logger *zap.Logger) (VaultBackend, error) {
-	logger.Debug("Creating Vault backend", zap.String("endpoint", endpoint), zap.String("mount", mount), zap.String("keyName", keyName), zap.Bool("tls_skip_verify", tlsSkipVerify), zap.String("tls_ca_certificate", tlsCaCertificate))
+func NewVaultBackendWithToken(endpoint, mount, keyName, token, tlsCaCertificate string, tlsSkipVerify bool) (VaultBackend, error) {
 	client, err := vault.New(
 		vault.WithAddress(endpoint),
 		vault.WithTLS(vault.TLSConfiguration{
@@ -110,14 +109,12 @@ func NewVaultBackendWithToken(endpoint, mount, keyName, token, tlsCaCertificate 
 		client:  VaultClient{Auth: &client.Auth, Secrets: &client.Secrets},
 		mount:   mount,
 		keyName: keyName,
-		logger:  logger,
 	}
 	return backend, nil
 }
 
 // NewVaultBackendWithAppRole creates a new VaultBackend using AppRole authentication.
-func NewVaultBackendWithAppRole(endpoint, mount, keyName, roleID, roleSecretID, tlsCaCertificate string, tlsSkipVerify bool, logger *zap.Logger) (VaultBackend, error) {
-	logger.Debug("Creating Vault backend", zap.String("endpoint", endpoint), zap.String("mount", mount), zap.String("keyName", keyName), zap.Bool("tls_skip_verify", tlsSkipVerify), zap.String("tls_ca_certificate", tlsCaCertificate), zap.String("role_id", roleID))
+func NewVaultBackendWithAppRole(endpoint, mount, keyName, roleID, roleSecretID, tlsCaCertificate string, tlsSkipVerify bool) (VaultBackend, error) {
 	client, err := vault.New(
 		vault.WithAddress(endpoint),
 		vault.WithTLS(vault.TLSConfiguration{
@@ -143,7 +140,6 @@ func NewVaultBackendWithAppRole(endpoint, mount, keyName, roleID, roleSecretID, 
 		client:  VaultClient{Auth: &client.Auth, Secrets: &client.Secrets},
 		mount:   mount,
 		keyName: keyName,
-		logger:  logger,
 	}
 	return backend, nil
 }

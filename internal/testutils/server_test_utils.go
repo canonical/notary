@@ -9,7 +9,6 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -21,23 +20,21 @@ import (
 func MustPrepareServer(t *testing.T) *httptest.Server {
 	t.Helper()
 
-	tempDir := t.TempDir()
-
-	notaryServer, err := server.New(&server.ServerOpts{
-		Port:                       8000,
-		Cert:                       []byte(TestServerCertificate),
-		Key:                        []byte(TestServerKey),
-		DBPath:                     filepath.Join(tempDir, "db.sqlite3"),
-		ExternalHostname:           "example.com",
-		PebbleNotificationsEnabled: false,
-		Logger:                     logger,
-		EncryptionBackend:          NoneEncryptionBackend,
-		PublicConfig:               PublicConfig,
+	db := MustPrepareEmptyDB(t)
+	srv, err := server.New(&server.ServerOpts{
+		Port:                      8000,
+		TLSCertificate:            []byte(TestServerCertificate),
+		TLSPrivateKey:             []byte(TestServerKey),
+		Database:                  db,
+		ExternalHostname:          "example.com",
+		EnablePebbleNotifications: false,
+		Logger:                    logger,
+		PublicConfig:              &PublicConfig,
 	})
 	if err != nil {
 		t.Fatalf("Couldn't get server: %s", err)
 	}
-	testServer := httptest.NewTLSServer(notaryServer.Handler)
+	testServer := httptest.NewTLSServer(srv.Handler)
 	t.Cleanup(func() {
 		testServer.Close()
 	})

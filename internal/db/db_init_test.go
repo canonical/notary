@@ -13,7 +13,11 @@ import (
 func TestConnect(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	tempDir := t.TempDir()
-	db, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), eb.NoEncryptionBackend{}, logger)
+	db, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: filepath.Join(tempDir, "db.sqlite3"),
+		Backend:      &eb.NoEncryptionBackend{},
+		Logger:       logger,
+	})
 	if err != nil {
 		t.Fatalf("Can't connect to SQLite: %s", err)
 	}
@@ -22,7 +26,11 @@ func TestConnect(t *testing.T) {
 
 func Example() {
 	logger, _ := zap.NewDevelopment()
-	database, err := db.NewDatabase("./notary.db", eb.NoEncryptionBackend{}, logger)
+	database, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: "./notary.db",
+		Backend:      &eb.NoEncryptionBackend{},
+		Logger:       logger,
+	})
 	if err != nil {
 		log.Fatalln(err)
 	}

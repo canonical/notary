@@ -21,7 +21,6 @@ const (
 	MAX_KILOBYTES = 100
 )
 
-type middleware func(http.Handler) http.Handler
 
 // The middlewareContext type helps middleware receive and pass along information through the middleware chain.
 type middlewareContext struct {
@@ -98,7 +97,7 @@ func loggingMiddleware(ctx *middlewareContext) middleware {
 	}
 }
 
-func requirePermission(permission string, jwtSecret []byte, handler func(http.ResponseWriter, *http.Request), logger *zap.Logger) func(http.ResponseWriter, *http.Request) {
+func requirePermission(permission string, jwtSecret []byte, handler http.HandlerFunc, logger *zap.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
 		if err != nil {
@@ -131,7 +130,7 @@ func hasPermission(userPermissions []string, required string) bool {
 	return false
 }
 
-func requirePermissionOrFirstUser(permission string, jwtSecret []byte, db *db.Database, handler func(http.ResponseWriter, *http.Request), logger *zap.Logger) func(http.ResponseWriter, *http.Request) {
+func requirePermissionOrFirstUser(permission string, jwtSecret []byte, db *db.Database, handler http.HandlerFunc, logger *zap.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		numUsers, err := db.NumUsers()
 		if err != nil {

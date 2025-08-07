@@ -7,9 +7,31 @@ import (
 	"encoding/asn1"
 	"errors"
 	"fmt"
-
-	"github.com/canonical/notary/internal/db"
+	"os/exec"
 )
+const (
+	CertificateUpdate NotificationKey = 1
+)
+
+func (key NotificationKey) String() (string, error) {
+	if key == CertificateUpdate {
+		return "canonical.com/notary/certificate/update", nil
+	}
+	return "", fmt.Errorf("unknown notification key: %d", key)
+}
+
+func SendPebbleNotification(key NotificationKey, request_id int64) error {
+	keyStr, err := key.String()
+	if err != nil {
+		return fmt.Errorf("couldn't get a string representation of the notification key: %w", err)
+	}
+	cmd := exec.Command("pebble", "notify", keyStr, fmt.Sprintf("request_id=%v", request_id)) // #nosec: G204
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("couldn't execute a pebble notify: %w", err)
+	}
+	return nil
+}
 
 // generateSKI generates the Subject Key Identifier (SKI) for the given private key.
 // The SKI is the SHA-1 hash of the public key.
@@ -32,22 +54,3 @@ func generateSKI(priv *rsa.PrivateKey) []byte {
 	return hash[:]
 }
 
-func setUpJWTSecret(database *db.Database) ([]byte, error) {
-	jwtSecret, err := database.GetJWTSecret()
-	if err != nil {
-		if errors.Is(err, db.ErrNotFound) {
-			// Generate new JWT secret if none exists
-			jwtSecret, err = generateJWTSecret()
-			if err != nil {
-				return nil, err
-			}
-			if err := database.CreateJWTSecret(jwtSecret); err != nil {
-				return nil, fmt.Errorf("failed to store JWT secret: %w", err)
-			}
-			return jwtSecret, nil
-		} else {
-			return nil, fmt.Errorf("failed to get JWT secret: %w", err)
-		}
-	}
-	return jwtSecret, nil
-}

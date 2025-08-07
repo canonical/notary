@@ -7,7 +7,9 @@ import (
 	"testing"
 
 	"github.com/canonical/notary/internal/config"
+	"github.com/canonical/notary/internal/encryption_backend"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestValidConfig(t *testing.T) {
@@ -16,48 +18,65 @@ func TestValidConfig(t *testing.T) {
 	cases := []struct {
 		desc       string
 		configYAML string
-		wantCfg    config.Config
+		wantCfg    *config.NotaryAppContext
 	}{
-		{"minimal config", validMinimalConfig, config.Config{
-			Cert:                       []byte(validCert),
-			Key:                        []byte(validPK),
+		{"minimal config", validMinimalConfig, &config.NotaryAppContext{
+			Config: &config.ConfigYAML{
+				KeyPath:          "./key_test.pem",
+				CertPath:         "./cert_test.pem",
+				ExternalHostname: "localhost",
+				DBPath:           "./notary.db",
+				Port:             8000,
+				Logging: config.LoggingConfigYaml{System: config.SystemLoggingConfigYaml{
+					Level:  "debug",
+					Output: "stdout",
+				}},
+				EncryptionBackend: config.EncryptionBackendConfigYaml{},
+			},
+			PublicConfig: &config.PublicConfigData{
+				Port:                  8000,
+				LoggingLevel:          "debug",
+				LoggingOutput:         "stdout",
+				EncryptionBackendType: "none",
+			},
+			TLSCertificate:             []byte(validCert),
+			TLSPrivateKey:              []byte(validPK),
 			ExternalHostname:           "localhost",
 			DBPath:                     "./notary.db",
 			Port:                       8000,
 			PebbleNotificationsEnabled: false,
-			Logging: config.Logging{
-				System: config.SystemLoggingConfig{
-					Level:  "debug",
-					Output: "stdout",
-				},
-			},
-			EncryptionBackend: config.EncryptionBackend{
-				Type:   config.None,
-				PKCS11: nil,
-				Vault:  nil,
-			},
+			Logger:                     nil,
+			EncryptionBackend:          encryption_backend.NoEncryptionBackend{},
+			EncryptionBackendType:      config.EncryptionBackendTypeNone,
 		}}, // This case tests the expected default values for missing fields are filled correctly
-		{"full config", validFullConfig, config.Config{
-			Cert:                       []byte(validCert),
-			Key:                        []byte(validPK),
+		{"full config", validFullConfig, &config.NotaryAppContext{
+			Config: &config.ConfigYAML{
+				KeyPath:          "./key_test.pem",
+				CertPath:         "./cert_test.pem",
+				ExternalHostname: "example.com",
+				DBPath:           "./notary.db",
+				Port:             8000,
+				Logging: config.LoggingConfigYaml{System: config.SystemLoggingConfigYaml{
+					Level:  "info",
+					Output: "stdout",
+				}},
+				EncryptionBackend: config.EncryptionBackendConfigYaml{},
+			},
+			PublicConfig: &config.PublicConfigData{
+				Port:                  8000,
+				LoggingLevel:          "info",
+				LoggingOutput:         "stdout",
+				EncryptionBackendType: "none",
+			},
+			TLSCertificate:             []byte(validCert),
+			TLSPrivateKey:              []byte(validPK),
 			ExternalHostname:           "example.com",
 			DBPath:                     "./notary.db",
 			Port:                       8000,
 			PebbleNotificationsEnabled: false,
-			Logging: config.Logging{
-				System: config.SystemLoggingConfig{
-					Level:  "info",
-					Output: "some/file",
-				},
-			},
-			EncryptionBackend: config.EncryptionBackend{
-				Type: config.PKCS11,
-				PKCS11: &config.PKCS11BackendConfigYaml{
-					LibPath: "path/to/lib",
-					KeyID:   func() *uint16 { v := uint16(16); return &v }(),
-					Pin:     "0001password",
-				},
-			},
+			Logger:                     nil,
+			EncryptionBackend:          encryption_backend.NoEncryptionBackend{},
+			EncryptionBackendType:      config.EncryptionBackendTypeNone,
 		}}, // This case tests that the variables from the yaml are correctly copied to the final config
 	}
 	for _, tc := range cases {
@@ -66,11 +85,12 @@ func TestValidConfig(t *testing.T) {
 			if err != nil {
 				t.Errorf("Error writing config file")
 			}
-			gotCfg, err := config.Validate("config.yaml")
+			gotCfg, err := config.CreateAppContext("config.yaml")
 			if err != nil {
 				t.Errorf("ValidateConfig(%q) = %v, want nil", "config.yaml", err)
+				return
 			}
-			if !cmp.Equal(gotCfg, tc.wantCfg) {
+			if !cmp.Equal(gotCfg, tc.wantCfg, cmpopts.IgnoreFields(config.NotaryAppContext{}, "Logger")) {
 				t.Errorf("ValidateConfig returned unexpected diff (-want+got):\n%v", cmp.Diff(tc.wantCfg, gotCfg))
 			}
 		})
@@ -101,7 +121,7 @@ func TestInvalidConfig(t *testing.T) {
 			if err != nil {
 				t.Errorf("Failed writing config file: %v", err)
 			}
-			_, err = config.Validate("config.yaml")
+			_, err = config.CreateAppContext("config.yaml")
 			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 				t.Errorf("config.Validate(%v) = %v, want %v", tc.configYAML, err, tc.wantErr)
 			}
@@ -143,13 +163,8 @@ port: 8000
 logging:
  system:
   level: "info"
-  output: "some/file"
-encryption_backend:
- yubihsm:
-  pkcs11:
-   lib_path: "path/to/lib"
-   aes_encryption_key_id: 16
-   pin: "0001password"
+  output: "stdout"
+encryption_backend: {}
 `
 )
 

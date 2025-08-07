@@ -6,7 +6,7 @@ import (
 
 const (
 	// Table definition SQL Strings
-	queryCreateCertificateRequestsTable = `
+	QueryCreateCertificateRequestsTable = `
 		CREATE TABLE IF NOT EXISTS certificate_requests (
 		    csr_id INTEGER PRIMARY KEY AUTOINCREMENT,
 
@@ -23,14 +23,14 @@ const (
 	        CHECK (NOT (certificate_id != NULL AND status == 'Rejected'))
 	        CHECK (NOT (certificate_id != NULL AND status == 'Revoked'))
     )`
-	queryCreateCertificatesTable = `
+	QueryCreateCertificatesTable = `
 		CREATE TABLE IF NOT EXISTS certificates (
 		    certificate_id INTEGER PRIMARY KEY AUTOINCREMENT,
 			issuer_id INTEGER,
 
 			certificate TEXT NOT NULL UNIQUE
 	)`
-	queryCreateCertificateAuthoritiesTable = `
+	QueryCreateCertificateAuthoritiesTable = `
 		CREATE TABLE IF NOT EXISTS certificate_authorities (
 		    certificate_authority_id INTEGER PRIMARY KEY AUTOINCREMENT,
 
@@ -41,13 +41,13 @@ const (
 			certificate_id INTEGER,
 			csr_id INTEGER NOT NULL UNIQUE
 	)`
-	queryCreatePrivateKeysTable = `
+	QueryCreatePrivateKeysTable = `
 		CREATE TABLE IF NOT EXISTS private_keys (
 		    private_key_id INTEGER PRIMARY KEY AUTOINCREMENT,
 
 			private_key TEXT NOT NULL UNIQUE
 	)`
-	queryCreateUsersTable = `
+	QueryCreateUsersTable = `
 		CREATE TABLE IF NOT EXISTS users (
 	 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 
@@ -58,12 +58,12 @@ const (
 			CHECK (trim(email) != ''),
 			CHECK (trim(hashed_password) != '')
 	)`
-	queryCreateEncryptionKeysTable = `
+	QueryCreateEncryptionKeysTable = `
 		CREATE TABLE IF NOT EXISTS encryption_keys (
 		    encryption_key_id INTEGER PRIMARY KEY AUTOINCREMENT,
 			encryption_key TEXT NOT NULL UNIQUE
 	)`
-	queryCreateJWTSecretTable = `
+	QueryCreateJWTSecretTable = `
 		CREATE TABLE IF NOT EXISTS jwt_secret (
 			id INTEGER PRIMARY KEY CHECK (id = 1), -- Ensures only one row
 			encrypted_secret TEXT NOT NULL

@@ -8,18 +8,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/canonical/notary/internal/encryption_backend"
 	"github.com/canonical/sqlair"
 	_ "github.com/mattn/go-sqlite3"
-	"go.uber.org/zap"
 )
-
-// Database is the object used to communicate with the established repository.
-type Database struct {
-	Conn          *sqlair.DB
-	stmts         *Statements
-	EncryptionKey []byte
-}
 
 // Close closes the connection to the repository cleanly.
 func (db *Database) Close() error {
@@ -37,42 +28,46 @@ func (db *Database) Close() error {
 // stores the connection information and returns an object containing the information.
 // The database path must be a valid file path or ":memory:".
 // The table will be created if it doesn't exist in the format expected by the package.
-func NewDatabase(databasePath string, backend encryption_backend.EncryptionBackend, logger *zap.Logger) (*Database, error) {
-	sqlConnection, err := sql.Open("sqlite3", databasePath)
+func NewDatabase(dbOpts *DatabaseOpts) (*Database, error) {
+	sqlConnection, err := sql.Open("sqlite3", dbOpts.DatabasePath)
 	if err != nil {
 		return nil, err
 	}
 	if _, err := sqlConnection.Exec("PRAGMA foreign_keys = ON;"); err != nil {
 		return nil, err
 	}
-	if _, err := sqlConnection.Exec(queryCreateCertificateRequestsTable); err != nil {
+	if _, err := sqlConnection.Exec(QueryCreateCertificateRequestsTable); err != nil {
 		return nil, err
 	}
-	if _, err := sqlConnection.Exec(queryCreateCertificatesTable); err != nil {
+	if _, err := sqlConnection.Exec(QueryCreateCertificatesTable); err != nil {
 		return nil, err
 	}
-	if _, err := sqlConnection.Exec(queryCreateUsersTable); err != nil {
+	if _, err := sqlConnection.Exec(QueryCreateUsersTable); err != nil {
 		return nil, err
 	}
-	if _, err := sqlConnection.Exec(queryCreatePrivateKeysTable); err != nil {
+	if _, err := sqlConnection.Exec(QueryCreatePrivateKeysTable); err != nil {
 		return nil, err
 	}
-	if _, err := sqlConnection.Exec(queryCreateCertificateAuthoritiesTable); err != nil {
+	if _, err := sqlConnection.Exec(QueryCreateCertificateAuthoritiesTable); err != nil {
 		return nil, err
 	}
-	if _, err := sqlConnection.Exec(queryCreateEncryptionKeysTable); err != nil {
+	if _, err := sqlConnection.Exec(QueryCreateEncryptionKeysTable); err != nil {
 		return nil, err
 	}
-	if _, err := sqlConnection.Exec(queryCreateJWTSecretTable); err != nil {
+	if _, err := sqlConnection.Exec(QueryCreateJWTSecretTable); err != nil {
 		return nil, err
 	}
 	db := new(Database)
 	db.stmts = PrepareStatements(db.Conn)
 	db.Conn = sqlair.NewDB(sqlConnection)
 
-	db.EncryptionKey, err = setUpEncryptionKey(db, backend, logger)
+	db.EncryptionKey, err = setUpEncryptionKey(db, dbOpts.Backend, dbOpts.Logger)
 	if err != nil {
 		return nil, err
+	}
+	db.JWTSecret, err = setUpJWTSecret(db)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set up JWT secret: %w", err)
 	}
 
 	return db, nil

@@ -58,7 +58,7 @@ func NewDatabase(dbOpts *DatabaseOpts) (*Database, error) {
 		return nil, err
 	}
 	db := new(Database)
-	db.stmts = PrepareStatements(db.Conn)
+	db.stmts = PrepareStatements()
 	db.Conn = sqlair.NewDB(sqlConnection)
 
 	db.EncryptionKey, err = setUpEncryptionKey(db, dbOpts.Backend, dbOpts.Logger)

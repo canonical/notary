@@ -36,7 +36,7 @@ func TestPrometheusHandler(t *testing.T) {
 	}
 
 	recorder := httptest.NewRecorder()
-	m.Handler.ServeHTTP(recorder, request)
+	m.ServeHTTP(recorder, request)
 
 	if status := recorder.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
@@ -68,7 +68,7 @@ func TestCertificateMetrics(t *testing.T) {
 
 	request, _ := http.NewRequest("GET", "/", nil)
 	recorder := httptest.NewRecorder()
-	m.Handler.ServeHTTP(recorder, request)
+	m.ServeHTTP(recorder, request)
 
 	if status := recorder.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
@@ -169,7 +169,7 @@ func TestCACertificateMetrics(t *testing.T) {
 
 	request, _ := http.NewRequest("GET", "/", nil)
 	recorder := httptest.NewRecorder()
-	m.Handler.ServeHTTP(recorder, request)
+	m.ServeHTTP(recorder, request)
 
 	if status := recorder.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)

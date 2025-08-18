@@ -23,7 +23,10 @@ func MustPrepareEmptyDB(t *testing.T) *db.Database {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)
 	}
 	t.Cleanup(func() {
-		database.Close()
+		err := database.Close()
+		if err != nil {
+			t.Fatalf("Couldn't close database: %s", err)
+		}
 	})
 	return database
 }

@@ -32,7 +32,7 @@ func (params *CreateAccountParams) IsValid() (bool, error) {
 		return false, fmt.Errorf("invalid role ID: %d", params.RoleID)
 	}
 	if !validatePassword(params.Password) {
-		return false, errors.New("Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.")
+		return false, errors.New("password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol")
 	}
 	return true, nil
 }
@@ -46,7 +46,7 @@ func (params *ChangeAccountParams) IsValid() (bool, error) {
 		return false, errors.New("password is required")
 	}
 	if !validatePassword(params.Password) {
-		return false, errors.New("Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.")
+		return false, errors.New("password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol")
 	}
 	return true, nil
 }

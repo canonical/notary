@@ -33,7 +33,7 @@ func getConfig(url string, client *http.Client, token string) (int, *GetConfigRe
 	if err != nil {
 		return 0, nil, err
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() // nolint: errcheck
 	var configResponse GetConfigResponse
 	if err := json.NewDecoder(res.Body).Decode(&configResponse); err != nil {
 		return 0, nil, err

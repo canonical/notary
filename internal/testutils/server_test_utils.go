@@ -141,7 +141,7 @@ func GetAccount(url string, client *http.Client, token string, id int) (int, *Ge
 	if err != nil {
 		return 0, nil, err
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() // nolint: errcheck
 	var accountResponse GetAccountResponse
 	if err := json.NewDecoder(res.Body).Decode(&accountResponse); err != nil {
 		return 0, nil, err
@@ -159,7 +159,7 @@ func GetMyAccount(url string, client *http.Client, token string) (int, *GetAccou
 	if err != nil {
 		return 0, nil, err
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() // nolint: errcheck
 	var accountResponse GetAccountResponse
 	if err := json.NewDecoder(res.Body).Decode(&accountResponse); err != nil {
 		return 0, nil, err
@@ -181,7 +181,7 @@ func CreateAccount(url string, client *http.Client, token string, data *CreateAc
 	if err != nil {
 		return 0, nil, err
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() // nolint: errcheck
 	var createResponse CreateAccountResponse
 	if err := json.NewDecoder(res.Body).Decode(&createResponse); err != nil {
 		return 0, nil, err
@@ -203,7 +203,7 @@ func ChangeAccountPassword(url string, client *http.Client, token string, id int
 	if err != nil {
 		return 0, nil, err
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() // nolint: errcheck
 	var changeResponse ChangeAccountPasswordResponse
 	if err := json.NewDecoder(res.Body).Decode(&changeResponse); err != nil {
 		return 0, nil, err
@@ -221,7 +221,7 @@ func DeleteAccount(url string, client *http.Client, token string, id int) (int, 
 	if err != nil {
 		return 0, nil, err
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() // nolint: errcheck
 	var deleteResponse DeleteAccountResponse
 	if err := json.NewDecoder(res.Body).Decode(&deleteResponse); err != nil {
 		return 0, nil, err
@@ -249,7 +249,7 @@ func GetStatus(url string, client *http.Client, token string) (int, *GetStatusRe
 	if err != nil {
 		return 0, nil, err
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() // nolint: errcheck
 	var statusResponse GetStatusResponse
 	if err := json.NewDecoder(res.Body).Decode(&statusResponse); err != nil {
 		return 0, nil, err
@@ -284,7 +284,7 @@ func Login(url string, client *http.Client, data *LoginParams) (int, *LoginRespo
 	if err != nil {
 		return 0, nil, err
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() // nolint: errcheck
 	var loginResponse LoginResponse
 	if err := json.NewDecoder(res.Body).Decode(&loginResponse); err != nil {
 		return 0, nil, err

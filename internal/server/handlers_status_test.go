@@ -80,7 +80,7 @@ func getStatus(url string, client *http.Client, adminToken string) (int, *GetSta
 	if err != nil {
 		return 0, nil, err
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() // nolint: errcheck
 	var statusResponse GetStatusResponse
 	if err := json.NewDecoder(res.Body).Decode(&statusResponse); err != nil {
 		return 0, nil, err

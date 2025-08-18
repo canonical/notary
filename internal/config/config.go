@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"slices"
 
-	"github.com/canonical/notary/internal/encryption_backend"
 	eb "github.com/canonical/notary/internal/encryption_backend"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -78,7 +77,7 @@ func CreateAppContext(filePath string) (*NotaryAppContext, error) {
 	}
 
 	// initialize encryption backend
-	backendType, backend, err := initializeEncryptionBackend(&c.EncryptionBackend)
+	backendType, backend, err := initializeEncryptionBackend(&c.EncryptionBackend, appContext.Logger)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't initialize encryption backend: %w", err)
 	}
@@ -103,7 +102,7 @@ func CreateAppContext(filePath string) (*NotaryAppContext, error) {
 	return &appContext, nil
 }
 
-func initializeEncryptionBackend(cfg *EncryptionBackendConfigYaml) (EncryptionBackendType, eb.EncryptionBackend, error) {
+func initializeEncryptionBackend(cfg *EncryptionBackendConfigYaml, logger *zap.Logger) (EncryptionBackendType, eb.EncryptionBackend, error) {
 	// Encryption Backend is nil if the map is empty
 	if len(*cfg) == 0 {
 		return EncryptionBackendTypeNone, eb.NoEncryptionBackend{}, nil
@@ -130,7 +129,7 @@ func initializeEncryptionBackend(cfg *EncryptionBackendConfigYaml) (EncryptionBa
 			return "", nil, errors.New("provide either approle_role_id and approle_secret_id or token, not both")
 		}
 		if firstBackend.Vault.AppRoleID != "" && firstBackend.Vault.AppRoleSecretID != "" {
-			backend, err := encryption_backend.NewVaultBackendWithAppRole(
+			backend, err := eb.NewVaultBackendWithAppRole(
 				firstBackend.Vault.Endpoint,
 				firstBackend.Vault.Mount,
 				firstBackend.Vault.KeyName,
@@ -138,19 +137,21 @@ func initializeEncryptionBackend(cfg *EncryptionBackendConfigYaml) (EncryptionBa
 				firstBackend.Vault.AppRoleSecretID,
 				firstBackend.Vault.TlsCaCertificate,
 				firstBackend.Vault.TlsSkipVerify,
+				logger,
 			)
 			if err != nil {
 				return "", nil, fmt.Errorf("failed to create Vault encryption backend: %w", err)
 			}
 			return EncryptionBackendTypeVault, backend, err
 		} else if firstBackend.Vault.Token != "" {
-			backend, err := encryption_backend.NewVaultBackendWithToken(
+			backend, err := eb.NewVaultBackendWithToken(
 				firstBackend.Vault.Endpoint,
 				firstBackend.Vault.Mount,
 				firstBackend.Vault.KeyName,
 				firstBackend.Vault.Token,
 				firstBackend.Vault.TlsCaCertificate,
 				firstBackend.Vault.TlsSkipVerify,
+				logger,
 			)
 			if err != nil {
 				return "", nil, fmt.Errorf("failed to create Vault encryption backend: %w", err)
@@ -169,7 +170,7 @@ func initializeEncryptionBackend(cfg *EncryptionBackendConfigYaml) (EncryptionBa
 		if firstBackend.PKCS11.KeyID == 0 {
 			return "", nil, errors.New("aes_encryption_key_id is missing")
 		}
-		backend, err := encryption_backend.NewPKCS11Backend(firstBackend.PKCS11.LibPath, firstBackend.PKCS11.Pin, firstBackend.PKCS11.KeyID)
+		backend, err := eb.NewPKCS11Backend(firstBackend.PKCS11.LibPath, firstBackend.PKCS11.Pin, firstBackend.PKCS11.KeyID)
 		if err != nil {
 			return "", nil, fmt.Errorf("failed to create PKCS11 backend: %w", err)
 		}

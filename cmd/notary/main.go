@@ -26,6 +26,9 @@ func main() {
 		Backend:      appContext.EncryptionBackend,
 		Logger:       appContext.Logger,
 	})
+	if err != nil {
+		l.Fatal("couldn't initialize database", zap.Error(err))
+	}
 
 	// Initialize and run the API and webserver
 	srv, err := server.New(&server.ServerOpts{
@@ -38,6 +41,9 @@ func main() {
 		Logger:                    appContext.Logger,
 		PublicConfig:              appContext.PublicConfig,
 	})
+	if err != nil {
+		l.Fatal("couldn't initialize server", zap.Error(err))
+	}
 	l.Info("Starting server at", zap.String("url", srv.Addr))
 	if err := srv.ListenAndServeTLS("", ""); err != http.ErrServerClosed {
 		l.Fatal("HTTP server ListenAndServe", zap.Error(err))

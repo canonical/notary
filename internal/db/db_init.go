@@ -36,25 +36,25 @@ func NewDatabase(dbOpts *DatabaseOpts) (*Database, error) {
 	if _, err := sqlConnection.Exec("PRAGMA foreign_keys = ON;"); err != nil {
 		return nil, err
 	}
-	if _, err := sqlConnection.Exec(QueryCreateCertificateRequestsTable); err != nil {
+	if _, err := sqlConnection.Exec(queryCreateCertificateRequestsTable); err != nil {
 		return nil, err
 	}
-	if _, err := sqlConnection.Exec(QueryCreateCertificatesTable); err != nil {
+	if _, err := sqlConnection.Exec(queryCreateCertificatesTable); err != nil {
 		return nil, err
 	}
-	if _, err := sqlConnection.Exec(QueryCreateUsersTable); err != nil {
+	if _, err := sqlConnection.Exec(queryCreateUsersTable); err != nil {
 		return nil, err
 	}
-	if _, err := sqlConnection.Exec(QueryCreatePrivateKeysTable); err != nil {
+	if _, err := sqlConnection.Exec(queryCreatePrivateKeysTable); err != nil {
 		return nil, err
 	}
-	if _, err := sqlConnection.Exec(QueryCreateCertificateAuthoritiesTable); err != nil {
+	if _, err := sqlConnection.Exec(queryCreateCertificateAuthoritiesTable); err != nil {
 		return nil, err
 	}
-	if _, err := sqlConnection.Exec(QueryCreateEncryptionKeysTable); err != nil {
+	if _, err := sqlConnection.Exec(queryCreateEncryptionKeysTable); err != nil {
 		return nil, err
 	}
-	if _, err := sqlConnection.Exec(QueryCreateJWTSecretTable); err != nil {
+	if _, err := sqlConnection.Exec(queryCreateJWTSecretTable); err != nil {
 		return nil, err
 	}
 	db := new(Database)

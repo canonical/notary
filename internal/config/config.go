@@ -170,7 +170,12 @@ func initializeEncryptionBackend(cfg *EncryptionBackendConfigYaml, logger *zap.L
 		if firstBackend.PKCS11.KeyID == 0 {
 			return "", nil, errors.New("aes_encryption_key_id is missing")
 		}
-		backend, err := eb.NewPKCS11Backend(firstBackend.PKCS11.LibPath, firstBackend.PKCS11.Pin, firstBackend.PKCS11.KeyID)
+		backend, err := eb.NewPKCS11Backend(
+			firstBackend.PKCS11.LibPath,
+			firstBackend.PKCS11.Pin,
+			firstBackend.PKCS11.KeyID,
+			logger,
+		)
 		if err != nil {
 			return "", nil, fmt.Errorf("failed to create PKCS11 backend: %w", err)
 		}

@@ -105,12 +105,12 @@ func NewVaultBackendWithToken(endpoint, mount, keyName, token, tlsCaCertificate 
 	if err != nil {
 		return VaultBackend{}, err
 	}
-	logger.Debug("Creating Vault backend", zap.String("endpoint", endpoint), zap.String("mount", mount), zap.String("keyName", keyName), zap.Bool("tls_skip_verify", tlsSkipVerify), zap.String("tls_ca_certificate", tlsCaCertificate))
+	logger.Debug("created Vault backend", zap.String("endpoint", endpoint), zap.String("mount", mount), zap.String("keyName", keyName), zap.Bool("tls_skip_verify", tlsSkipVerify), zap.String("tls_ca_certificate", tlsCaCertificate))
 	backend := VaultBackend{
 		client:  VaultClient{Auth: &client.Auth, Secrets: &client.Secrets},
 		mount:   mount,
 		keyName: keyName,
-		logger: logger,
+		logger:  logger,
 	}
 	return backend, nil
 }
@@ -143,7 +143,7 @@ func NewVaultBackendWithAppRole(endpoint, mount, keyName, roleID, roleSecretID, 
 		client:  VaultClient{Auth: &client.Auth, Secrets: &client.Secrets},
 		mount:   mount,
 		keyName: keyName,
-		logger: logger,
+		logger:  logger,
 	}
 	return backend, nil
 }

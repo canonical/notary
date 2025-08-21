@@ -77,7 +77,7 @@ func CreateAppContext(filePath string) (*NotaryAppContext, error) {
 	}
 
 	// initialize encryption backend
-	backendType, backend, err := initializeEncryptionBackend(&c.EncryptionBackend, appContext.Logger)
+	backendType, backend, err := initializeEncryptionBackend(&c.EncryptionBackend, logger)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't initialize encryption backend: %w", err)
 	}

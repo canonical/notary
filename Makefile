@@ -64,7 +64,7 @@ deploy: $(ARTIFACT_FOLDER)/$(ROCK_ARTIFACT_NAME)
 		-v /root:/config \
 		--network host \
 		-p 2111:2111 \
-		notary:latest --args notary -config /config/config.yaml;
+		notary:latest --args notary start --config /config/config.yaml;
 	@echo "You can access notary at $$(lxc info notary | grep enp5s0 -A 15 | grep inet: | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'):2111"
 
 logs:
@@ -100,7 +100,7 @@ ui/out: $(NOTARY_UI_FILES)
 	@npm install --prefix ui && npm run build --prefix ui
 
 $(ARTIFACT_FOLDER)/$(NOTARY_ARTIFACT_NAME): $(NOTARY_BACKEND_FILES) ui/out
-	go build -o $(ARTIFACT_FOLDER)/$(NOTARY_ARTIFACT_NAME) ./cmd/notary/main.go
+	go build -o $(ARTIFACT_FOLDER)/$(NOTARY_ARTIFACT_NAME)
 
 $(ARTIFACT_FOLDER)/$(ROCK_ARTIFACT_NAME): $(ARTIFACT_FOLDER)/$(NOTARY_ARTIFACT_NAME) rockcraft.yaml
 	-rockcraft pack

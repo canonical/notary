@@ -12,7 +12,7 @@ platforms:
 
 services:
   notary:
-    command: notary [ -config /etc/notary/config/config.yaml ]
+    command: notary start [ --config /etc/notary/config/config.yaml ]
     override: replace
     startup: enabled
 

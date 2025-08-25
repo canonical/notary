@@ -56,20 +56,19 @@ func generateJWTSecret() ([]byte, error) {
 // setUpJWTSecret checks if a JWT secret exists in the database, if not, it generates a new one and stores it.
 func setUpJWTSecret(database *Database) ([]byte, error) {
 	jwtSecret, err := database.getJWTSecret()
-	if err != nil {
+	if err != nil && errors.Is(err, ErrNotFound) {
 		// Generate new JWT secret if none exists
-		if errors.Is(err, ErrNotFound) {
-			jwtSecret, err = generateJWTSecret()
-			if err != nil {
-				return nil, err
-			}
-			if err := database.createJWTSecret(jwtSecret); err != nil {
-				return nil, fmt.Errorf("failed to store JWT secret: %w", err)
-			}
-			return jwtSecret, nil
-		} else {
-			return nil, fmt.Errorf("failed to get JWT secret: %w", err)
+		jwtSecret, err = generateJWTSecret()
+		if err != nil {
+			return nil, err
 		}
+		if err := database.createJWTSecret(jwtSecret); err != nil {
+			return nil, fmt.Errorf("failed to store JWT secret: %w", err)
+		}
+		return jwtSecret, nil
+	}
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		return nil, fmt.Errorf("failed to get JWT secret: %w", err)
 	}
 	return jwtSecret, nil
 }

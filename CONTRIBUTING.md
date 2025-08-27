@@ -51,7 +51,7 @@ This will create an artifacts folder with a basic TLS certificate and key pair, 
 ### Run Notary
 
 ```bash
-artifacts/notary -config artifacts/config.yaml
+artifacts/notary start --config artifacts/config.yaml
 ```
 
 Access the Notary UI at `https://localhost:2111`.

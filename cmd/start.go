@@ -79,5 +79,8 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 func init() {
 	rootCmd.AddCommand(startCmd)
 	startCmd.Flags().StringVarP(&configFilePath, "config", "c", "", "path to the configuration file")
-	startCmd.MarkFlagRequired("config")
+	err := startCmd.MarkFlagRequired("config")
+	if err != nil {
+		log.Fatalf("couldn't mark flag required: %s", err)
+	}
 }

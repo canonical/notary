@@ -446,7 +446,7 @@ type Statements struct {
 // PrepareStatements prepares all SQL statements used by the database.
 // This function runs once during initialization and prepares all SQL statements.
 // It panics if any of the statements fail to prepare.
-func PrepareStatements(db *sqlair.DB) *Statements {
+func PrepareStatements() *Statements {
 	stmts := &Statements{}
 
 	// Certificate Request statements

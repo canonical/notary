@@ -7,10 +7,10 @@ import (
 	"go.uber.org/zap"
 )
 
-// NewHandler takes in a config struct, passes it along to any handlers that will need
+// NewRouter takes in a config struct, passes it along to any handlers that will need
 // access to it, and takes an http.Handler that will be used to handle metrics.
 // then builds and returns it for a server to consume
-func NewHandler(config *HandlerConfig) http.Handler {
+func NewRouter(config *HandlerConfig) http.Handler {
 	apiV1Router := http.NewServeMux()
 	apiV1Router.HandleFunc("GET /certificate_requests", requirePermission(PermListCertificateRequests, config.JWTSecret, ListCertificateRequests(config), config.Logger))
 	apiV1Router.HandleFunc("POST /certificate_requests", requirePermission(PermCreateCertificateRequest, config.JWTSecret, CreateCertificateRequest(config), config.Logger))

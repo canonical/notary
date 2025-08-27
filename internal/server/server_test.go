@@ -4,25 +4,29 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
-	"path/filepath"
 	"testing"
 
-	"github.com/canonical/notary/internal/encryption_backend"
 	"github.com/canonical/notary/internal/server"
 	tu "github.com/canonical/notary/internal/testutils"
 	"go.uber.org/zap"
 )
 
 func TestNewSuccess(t *testing.T) {
-	tempDir := t.TempDir()
-	db_path := filepath.Join(tempDir, "db.sqlite3")
-
+	db := tu.MustPrepareEmptyDB(t)
 	l, err := zap.NewDevelopment()
 	if err != nil {
 		t.Fatalf("cannot create logger: %s", err)
 	}
-	noneEncryptionBackend := encryption_backend.NoEncryptionBackend{}
-	s, err := server.New(8000, []byte(tu.TestServerCertificate), []byte(tu.TestServerKey), db_path, "example.com", false, l, noneEncryptionBackend, tu.PublicConfig)
+	s, err := server.New(&server.ServerOpts{
+		Port:                      8000,
+		TLSCertificate:            []byte(tu.TestServerCertificate),
+		TLSPrivateKey:             []byte(tu.TestServerKey),
+		Database:                  db,
+		ExternalHostname:          "example.com",
+		EnablePebbleNotifications: false,
+		Logger:                    l,
+		PublicConfig:              &tu.PublicConfig,
+	})
 	if err != nil {
 		t.Errorf("Error occurred: %s", err)
 	}
@@ -32,12 +36,21 @@ func TestNewSuccess(t *testing.T) {
 }
 
 func TestInvalidKeyFailure(t *testing.T) {
+	db := tu.MustPrepareEmptyDB(t)
 	l, err := zap.NewDevelopment()
 	if err != nil {
 		t.Fatalf("cannot create logger: %s", err)
 	}
-	noneEncryptionBackend := encryption_backend.NoEncryptionBackend{}
-	_, err = server.New(8000, []byte(tu.TestServerCertificate), []byte{}, "notary.db", "example.com", false, l, noneEncryptionBackend, tu.PublicConfig)
+	_, err = server.New(&server.ServerOpts{
+		Port:                      8000,
+		Database:                  db,
+		TLSCertificate:            []byte(tu.TestServerCertificate),
+		TLSPrivateKey:             []byte{},
+		ExternalHostname:          "example.com",
+		EnablePebbleNotifications: false,
+		Logger:                    l,
+		PublicConfig:              &tu.PublicConfig,
+	})
 	if err == nil {
 		t.Errorf("No error was thrown for invalid key")
 	}

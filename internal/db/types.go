@@ -1,5 +1,26 @@
 package db
 
+import (
+	"github.com/canonical/notary/internal/encryption_backend"
+	"github.com/canonical/sqlair"
+	"go.uber.org/zap"
+)
+
+type DatabaseOpts struct {
+	DatabasePath string
+	Backend      encryption_backend.EncryptionBackend
+	Logger       *zap.Logger
+}
+
+// Database is the object used to communicate with the established repository.
+type Database struct {
+	Conn          *sqlair.DB
+	stmts         *Statements
+
+	EncryptionKey []byte
+	JWTSecret	 []byte
+}
+
 const CAMaxExpiryYears = 1
 
 // CertificateAuthority contains information about a CA, identified by the contents

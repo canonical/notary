@@ -136,7 +136,7 @@ func newPrometheusMetrics() *PrometheusMetrics {
 // GenerateCertificateMetrics receives the live list of csrs to calculate the most recent values for the metrics
 // defined for prometheus
 func (pm *PrometheusMetrics) GenerateCertificateMetrics(csrs []db.CertificateRequestWithChain) {
-	var csrCount float64 = float64(len(csrs))
+	var csrCount = float64(len(csrs))
 	var outstandingCSRCount float64
 	var certCount float64
 	var expiredCertCount float64

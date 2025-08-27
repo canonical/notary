@@ -252,7 +252,7 @@ func TestCreateAccountInvalidInputs(t *testing.T) {
 			email:    "test@canonical.com",
 			password: "123",
 			roleID:   tu.RoleCertificateManager,
-			error:    "Invalid request: Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
+			error:    "Invalid request: password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol",
 		},
 		{
 			testName: "invalid role ID (negative)",
@@ -309,7 +309,7 @@ func TestChangeAccountPasswordInvalidInputs(t *testing.T) {
 		{
 			testName: "bad password",
 			password: "123",
-			error:    "Invalid request: Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol.",
+			error:    "Invalid request: password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol",
 		},
 	}
 

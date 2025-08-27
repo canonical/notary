@@ -2,16 +2,13 @@
 package server
 
 import (
-	"crypto/rand"
 	"crypto/tls"
 	"fmt"
 	"net/http"
-	"os/exec"
 	"time"
 
 	"github.com/canonical/notary/internal/config"
 	"github.com/canonical/notary/internal/db"
-	"github.com/canonical/notary/internal/encryption_backend"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -25,73 +22,28 @@ type HandlerConfig struct {
 	PublicConfig            config.PublicConfigData
 }
 
-type NotificationKey int
-
-const (
-	CertificateUpdate NotificationKey = 1
-)
-
-func (key NotificationKey) String() (string, error) {
-	if key == CertificateUpdate {
-		return "canonical.com/notary/certificate/update", nil
-	}
-	return "", fmt.Errorf("unknown notification key: %d", key)
-}
-
-func SendPebbleNotification(key NotificationKey, request_id int64) error {
-	keyStr, err := key.String()
-	if err != nil {
-		return fmt.Errorf("couldn't get a string representation of the notification key: %w", err)
-	}
-	cmd := exec.Command("pebble", "notify", keyStr, fmt.Sprintf("request_id=%v", request_id)) // #nosec: G204
-	err = cmd.Run()
-	if err != nil {
-		return fmt.Errorf("couldn't execute a pebble notify: %w", err)
-	}
-	return nil
-}
-
-// This secret should be generated once and stored in the database, encrypted.
-func generateJWTSecret() ([]byte, error) {
-	bytes := make([]byte, 32)
-	if _, err := rand.Read(bytes); err != nil {
-		return bytes, fmt.Errorf("failed to generate JWT secret: %w", err)
-	}
-	return bytes, nil
-}
-
 // New creates an environment and an http server with handlers that Go can start listening to
-func New(port int, cert []byte, key []byte, dbPath string, externalHostname string, pebbleNotificationsEnabled bool, logger *zap.Logger, encryptionBackend encryption_backend.EncryptionBackend, publicConfig config.PublicConfigData) (*http.Server, error) {
-	serverCerts, err := tls.X509KeyPair(cert, key)
+func New(opts *ServerOpts) (*Server, error) {
+	serverCerts, err := tls.X509KeyPair(opts.TLSCertificate, opts.TLSPrivateKey)
 	if err != nil {
 		return nil, err
 	}
-	database, err := db.NewDatabase(dbPath, encryptionBackend, logger)
-	if err != nil {
-		return nil, err
-	}
-
-	jwtSecret, err := setUpJWTSecret(database)
-	if err != nil {
-		return nil, err
-	}
-
-	env := &HandlerConfig{}
-	env.DB = database
-	env.SendPebbleNotifications = pebbleNotificationsEnabled
-	env.JWTSecret = jwtSecret
-	env.ExternalHostname = externalHostname
-	env.Logger = logger
-	env.PublicConfig = publicConfig
-	router := NewHandler(env)
-
-	stdErrLog, err := zap.NewStdLogAt(logger, zapcore.ErrorLevel)
+	stdErrLog, err := zap.NewStdLogAt(opts.Logger, zapcore.ErrorLevel)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create logger for http server: %w", err)
 	}
+	
+	cfg := &HandlerConfig{}
+	cfg.SendPebbleNotifications = opts.EnablePebbleNotifications
+	cfg.JWTSecret = opts.Database.JWTSecret
+	cfg.ExternalHostname = opts.ExternalHostname
+	cfg.Logger = opts.Logger
+	cfg.PublicConfig = *opts.PublicConfig
+	cfg.DB = opts.Database
 
+	router := NewRouter(cfg)
 	s := &http.Server{
-		Addr:           fmt.Sprintf(":%d", port),
+		Addr:           fmt.Sprintf(":%d", opts.Port),
 		ErrorLog:       stdErrLog,
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
@@ -102,6 +54,11 @@ func New(port int, cert []byte, key []byte, dbPath string, externalHostname stri
 			Certificates: []tls.Certificate{serverCerts},
 		},
 	}
+	return &Server{
+		Server: s,
+	}, err
+}
 
-	return s, nil
+func (s *Server) Start() error {
+	return s.ListenAndServeTLS("", "")
 }

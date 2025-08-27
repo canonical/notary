@@ -85,7 +85,6 @@ func NewPKCS11Backend(libPath string, pin string, keyID uint16, logger *zap.Logg
 	if pkcs11Provider == nil {
 		return nil, fmt.Errorf("failed to load PKCS#11 library at %s", libPath)
 	}
-
 	return &PKCS11Backend{
 		pkcs11Provider: &realPKCS11Provider{ctx: pkcs11Provider},
 		pin:            pin,

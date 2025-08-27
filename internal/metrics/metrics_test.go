@@ -10,14 +10,12 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/canonical/notary/internal/db"
-	"github.com/canonical/notary/internal/encryption_backend"
-	metrics "github.com/canonical/notary/internal/metrics"
+	"github.com/canonical/notary/internal/metrics"
 	tu "github.com/canonical/notary/internal/testutils"
 	"go.uber.org/zap"
 )
@@ -28,12 +26,7 @@ func TestPrometheusHandler(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot create logger: %s", err)
 	}
-	tempDir := t.TempDir()
-	noneEncryptionBackend := encryption_backend.NoEncryptionBackend{}
-	db, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), noneEncryptionBackend, l)
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := tu.MustPrepareEmptyDB(t)
 	m := metrics.NewMetricsSubsystem(db, l)
 	defer m.Close()
 
@@ -43,7 +36,7 @@ func TestPrometheusHandler(t *testing.T) {
 	}
 
 	recorder := httptest.NewRecorder()
-	m.Handler.ServeHTTP(recorder, request)
+	m.ServeHTTP(recorder, request)
 
 	if status := recorder.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
@@ -66,12 +59,7 @@ func TestCertificateMetrics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot create logger: %s", err)
 	}
-	tempDir := t.TempDir()
-	noneEncryptionBackend := encryption_backend.NoEncryptionBackend{}
-	db, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), noneEncryptionBackend, l)
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := tu.MustPrepareEmptyDB(t)
 	initializeTestDBWithCerts(t, db)
 	m := metrics.NewMetricsSubsystem(db, l)
 	defer m.Close()
@@ -80,7 +68,7 @@ func TestCertificateMetrics(t *testing.T) {
 
 	request, _ := http.NewRequest("GET", "/", nil)
 	recorder := httptest.NewRecorder()
-	m.Handler.ServeHTTP(recorder, request)
+	m.ServeHTTP(recorder, request)
 
 	if status := recorder.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
@@ -169,12 +157,7 @@ func TestCACertificateMetrics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot create logger: %s", err)
 	}
-	tempDir := t.TempDir()
-	noneEncryptionBackend := encryption_backend.NoEncryptionBackend{}
-	db, err := db.NewDatabase(filepath.Join(tempDir, "db.sqlite3"), noneEncryptionBackend, l)
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := tu.MustPrepareEmptyDB(t)
 	initializeTestDBWithCaCerts(t, db)
 	m := metrics.NewMetricsSubsystem(db, l)
 	defer m.Close()
@@ -186,7 +169,7 @@ func TestCACertificateMetrics(t *testing.T) {
 
 	request, _ := http.NewRequest("GET", "/", nil)
 	recorder := httptest.NewRecorder()
-	m.Handler.ServeHTTP(recorder, request)
+	m.ServeHTTP(recorder, request)
 
 	if status := recorder.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)

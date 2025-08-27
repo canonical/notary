@@ -16,6 +16,12 @@ Install Go:
 sudo snap install go --classic
 ```
 
+Enable CGo:
+
+```bash
+go env -w CGO_ENABLED=1
+```
+
 Install NodeJS:
 
 ```bash
@@ -34,54 +40,21 @@ git@github.com:canonical/notary.git
 
 ### Build Notary
 
-Install the npm dependencies:
+Use the makefile to make notary
 
 ```bash
-npm install --prefix ui
+make notary
 ```
 
-Build the frontend:
-
-```bash
-npm run build --prefix ui
-```
-
-Build the Go binary:
-
-```bash
-go build -o notary cmd/notary/main.go
-```
+This will create an artifacts folder with a basic TLS certificate and key pair, a working config file and the notary binary.
 
 ### Run Notary
 
-Create a certificate and private key:
-
 ```bash
-openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 1 -out cert.pem -subj "/CN=example.com"
+artifacts/notary -config artifacts/config.yaml
 ```
 
-Create a `notary.yaml` file with the following content:
-
-```yaml
-key_path: "key.pem"
-cert_path: "cert.pem"
-db_path: "notary.db"
-port: 3000
-pebble_notifications: false
-logging:
-  system:
-    level: "info"
-    output: "stdout"
-encryption_backend: {}
-```
-
-Run Notary:
-
-```bash
-./notary -config notary.yaml
-```
-
-Access the Notary UI at `https://localhost:3000`.
+Access the Notary UI at `https://localhost:2111`.
 
 ## How-to Guides
 

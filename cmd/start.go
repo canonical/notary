@@ -33,6 +33,7 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 		// Initialize the database connection
 		db, err := db.NewDatabase(&db.DatabaseOpts{
 			DatabasePath: appContext.DBPath,
+			ApplyMigrations: appContext.ApplyMigrations,
 			Backend:      appContext.EncryptionBackend,
 			Logger:       appContext.Logger,
 		})
@@ -78,7 +79,10 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 
 func init() {
 	rootCmd.AddCommand(startCmd)
+
 	startCmd.Flags().StringVarP(&configFilePath, "config", "c", "", "path to the configuration file")
+	startCmd.Flags().BoolP("migrate-database", "m", false, "automatically apply database migrations if needed (use with caution)")
+	
 	err := startCmd.MarkFlagRequired("config")
 	if err != nil {
 		log.Fatalf("couldn't mark flag required: %s", err)

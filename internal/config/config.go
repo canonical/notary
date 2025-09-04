@@ -50,6 +50,7 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 	appContext.Port = cfg.GetInt("port")
 	appContext.ExternalHostname = cfg.GetString("external_hostname")
 	appContext.DBPath = cfg.GetString("db_path")
+	appContext.ApplyMigrations = cfg.GetBool("migrate-database")
 	appContext.PebbleNotificationsEnabled = cfg.GetBool("pebble_notifications")
 
 	appContext.TLSCertificate = cert

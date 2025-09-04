@@ -35,7 +35,7 @@ jobs:
           sudo rockcraft.skopeo --insecure-policy copy oci-archive:rock-path/$ROCK_FILE_NAME docker-daemon:notary:latest
       - name: Run the image
         run: |
-          docker run -d -p 3000:3000 --name notary notary:latest
+          docker run -d -p 3000:3000 --name notary --entrypoint "notary start -m --config /etc/notary/config/config.yaml" notary:latest
       - name: Load config
         run: |
           docker exec notary /usr/bin/pebble mkdir -p /etc/notary/config

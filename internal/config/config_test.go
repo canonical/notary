@@ -10,6 +10,7 @@ import (
 	"github.com/canonical/notary/internal/encryption_backend"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/spf13/pflag"
 )
 
 func TestValidConfig(t *testing.T) {
@@ -21,18 +22,6 @@ func TestValidConfig(t *testing.T) {
 		wantCfg    *config.NotaryAppContext
 	}{
 		{"minimal config", validMinimalConfig, &config.NotaryAppContext{
-			Config: &config.ConfigYAML{
-				KeyPath:          "./key_test.pem",
-				CertPath:         "./cert_test.pem",
-				ExternalHostname: "localhost",
-				DBPath:           "./notary.db",
-				Port:             8000,
-				Logging: config.LoggingConfigYaml{System: config.SystemLoggingConfigYaml{
-					Level:  "debug",
-					Output: "stdout",
-				}},
-				EncryptionBackend: config.EncryptionBackendConfigYaml{},
-			},
 			PublicConfig: &config.PublicConfigData{
 				Port:                  8000,
 				LoggingLevel:          "debug",
@@ -50,18 +39,6 @@ func TestValidConfig(t *testing.T) {
 			EncryptionBackendType:      config.EncryptionBackendTypeNone,
 		}}, // This case tests the expected default values for missing fields are filled correctly
 		{"full config", validFullConfig, &config.NotaryAppContext{
-			Config: &config.ConfigYAML{
-				KeyPath:          "./key_test.pem",
-				CertPath:         "./cert_test.pem",
-				ExternalHostname: "example.com",
-				DBPath:           "./notary.db",
-				Port:             8000,
-				Logging: config.LoggingConfigYaml{System: config.SystemLoggingConfigYaml{
-					Level:  "info",
-					Output: "stdout",
-				}},
-				EncryptionBackend: config.EncryptionBackendConfigYaml{},
-			},
 			PublicConfig: &config.PublicConfigData{
 				Port:                  8000,
 				LoggingLevel:          "info",
@@ -85,7 +62,7 @@ func TestValidConfig(t *testing.T) {
 			if err != nil {
 				t.Errorf("Error writing config file")
 			}
-			gotCfg, err := config.CreateAppContext("config.yaml")
+			gotCfg, err := config.CreateAppContext(&pflag.FlagSet{}, "config.yaml")
 			if err != nil {
 				t.Errorf("ValidateConfig(%q) = %v, want nil", "config.yaml", err)
 				return
@@ -111,8 +88,8 @@ func TestInvalidConfig(t *testing.T) {
 		{"wrong cert path", wrongCertPathConfig, "no such file or directory"},
 		{"wrong key path", wrongKeyPathConfig, "no such file or directory"},
 		{"invalid yaml", invalidYAMLConfig, "unmarshal errors"},
-		{"no encryption backend", noEncryptionBackendConfig, "`encryption_backend` config is missing, it must be a map with backends, empty map means no encryption"},
-		{"invalid pkcs11 encryption backend config", invalidEncryptionBackendConfigType, "invalid encryption backend type; must be 'vault' or 'pkcs11'"},
+		{"no encryption backend", noEncryptionBackendConfig, "`encryption_backend` is empty"},
+		{"invalid pkcs11 encryption backend config", invalidEncryptionBackendConfigType, "invalid encryption backend type; must be 'none', 'vault' or 'pkcs11'"},
 		{"incomplete pkcs11 encryption backend config", incompleteEncryptionBackendConfig, "pin is missing"},
 	}
 	for _, tc := range cases {
@@ -121,7 +98,7 @@ func TestInvalidConfig(t *testing.T) {
 			if err != nil {
 				t.Errorf("Failed writing config file: %v", err)
 			}
-			_, err = config.CreateAppContext("config.yaml")
+			_, err = config.CreateAppContext(&pflag.FlagSet{}, "config.yaml")
 			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 				t.Errorf("config.Validate(%v) = %v, want %v", tc.configYAML, err, tc.wantErr)
 			}
@@ -151,7 +128,8 @@ key_path:  "./key_test.pem"
 cert_path: "./cert_test.pem"
 db_path: "./notary.db"
 port: 8000
-encryption_backend: {}
+encryption_backend:
+  type: "none"
 `
 	validFullConfig = `
 key_path:  "./key_test.pem"
@@ -164,7 +142,8 @@ logging:
  system:
   level: "info"
   output: "stdout"
-encryption_backend: {}
+encryption_backend:
+  type: "none"
 `
 )
 
@@ -178,7 +157,8 @@ logging:
   system:
     level: "debug"
     output: "stdout"
-encryption_backend: {}
+encryption_backend:
+  type: "none"
 `
 	noKeyPathConfig = `
 cert_path: "./cert_test.pem"
@@ -189,7 +169,8 @@ logging:
   system:
     level: "debug"
     output: "stdout"
-encryption_backend: {}
+encryption_backend:
+  type: "none"
 `
 	noExternalHostnameConfig = `
 key_path:  "./key_test.pem"
@@ -200,7 +181,8 @@ logging:
   system:
     level: "debug"
     output: "stdout"
-encryption_backend: {}
+encryption_backend:
+  type: "none"
 `
 	noDBPathConfig = `
 key_path:  "./key_test.pem"
@@ -211,7 +193,8 @@ logging:
   system:
     level: "debug"
     output: "stdout"
-encryption_backend: {}
+encryption_backend:
+  type: "none"
 `
 	wrongCertPathConfig = `
 key_path:  "./key_test.pem"
@@ -223,7 +206,8 @@ logging:
   system:
     level: "debug"
     output: "stdout"
-encryption_backend: {}
+encryption_backend:
+  type: "none"
 `
 	wrongKeyPathConfig = `
 key_path:  "./key_test_wrong.pem"
@@ -235,7 +219,8 @@ logging:
   system:
     level: "debug"
     output: "stdout"
-encryption_backend: {}
+encryption_backend:
+  type: "none"
 `
 	invalidEncryptionBackendConfigType = `
 key_path:  "./key_test.pem"
@@ -248,11 +233,10 @@ logging:
     level: "debug"
     output: "stdout"
 encryption_backend:
-  yubihsm2:
-    invalid:
-      lib_path: "/usr/local/lib/pkcs11/yubihsm_pkcs11.so"
-      aes_encryption_key_id: 0x1234
-      pin: "0001password"
+  type: "invalid"
+  lib_path: "/usr/local/lib/pkcs11/yubihsm_pkcs11.so"
+  aes_encryption_key_id: 0x1234
+  pin: "0001password"
 `
 	noEncryptionBackendConfig = `
 key_path:  "./key_test.pem"
@@ -276,10 +260,9 @@ logging:
     level: "debug"
     output: "stdout"
 encryption_backend:
-  yubihsm2:
-    pkcs11:
-      lib_path: "/usr/local/lib/pkcs11/yubihsm_pkcs11.so"
-      aes_encryption_key_id: 0x1234
+  type: "pkcs11"
+  lib_path: "/usr/local/lib/pkcs11/yubihsm_pkcs11.so"
+  aes_encryption_key_id: 0x1234
 `
 	invalidYAMLConfig = `just_an=invalid
 yaml.here`

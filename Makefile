@@ -89,7 +89,8 @@ $(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE):
 	 echo '  system:'                          >> $@;\
 	 echo '    level: "debug"'                 >> $@;\
 	 echo '    output: "artifacts/notary.log"' >> $@;\
-	 echo 'encryption_backend: {}'             >> $@;\
+	 echo 'encryption_backend:'             >> $@;\
+	 echo '  type: "none"'                   >> $@;\
 
 $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY):
 	openssl req -newkey rsa:2048 -nodes -keyout $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY) -x509 -days 1 -out $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) -subj "/CN=example.com"

@@ -24,7 +24,7 @@ Read more about what's required in the config file at
 https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/`,
 
 	Run: func(cmd *cobra.Command, args []string) {
-		appContext, err := config.CreateAppContext(configFilePath)
+		appContext, err := config.CreateAppContext(cmd.Flags(), configFilePath)
 		if err != nil {
 			log.Fatalf("couldn't create app context: %s", err)
 		}

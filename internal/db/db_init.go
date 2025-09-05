@@ -10,6 +10,7 @@ import (
 
 	"github.com/canonical/sqlair"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/pressly/goose/v3"
 )
 
 // Close closes the connection to the repository cleanly.
@@ -36,26 +37,12 @@ func NewDatabase(dbOpts *DatabaseOpts) (*Database, error) {
 	if _, err := sqlConnection.Exec("PRAGMA foreign_keys = ON;"); err != nil {
 		return nil, err
 	}
-	if _, err := sqlConnection.Exec(queryCreateCertificateRequestsTable); err != nil {
+	version, err := goose.EnsureDBVersion(sqlConnection)
+	if err != nil {
 		return nil, err
 	}
-	if _, err := sqlConnection.Exec(queryCreateCertificatesTable); err != nil {
-		return nil, err
-	}
-	if _, err := sqlConnection.Exec(queryCreateUsersTable); err != nil {
-		return nil, err
-	}
-	if _, err := sqlConnection.Exec(queryCreatePrivateKeysTable); err != nil {
-		return nil, err
-	}
-	if _, err := sqlConnection.Exec(queryCreateCertificateAuthoritiesTable); err != nil {
-		return nil, err
-	}
-	if _, err := sqlConnection.Exec(queryCreateEncryptionKeysTable); err != nil {
-		return nil, err
-	}
-	if _, err := sqlConnection.Exec(queryCreateJWTSecretTable); err != nil {
-		return nil, err
+	if version < 1 {
+		return nil, errors.New("database migrations not applied. please migrate database using `notary migrate up`.")
 	}
 	db := new(Database)
 	db.stmts = PrepareStatements()

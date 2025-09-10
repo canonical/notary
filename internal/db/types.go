@@ -8,6 +8,7 @@ import (
 
 type DatabaseOpts struct {
 	DatabasePath string
+	ApplyMigrations bool
 	Backend      encryption_backend.EncryptionBackend
 	Logger       *zap.Logger
 }

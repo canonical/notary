@@ -105,6 +105,8 @@ type NotaryAppContext struct {
 
 	// Path to store the database
 	DBPath string
+	// Whether to apply database migrations automatically on startup if the database is outdated
+	ApplyMigrations bool
 
 	// Send pebble notifications if enabled. Read more at github.com/canonical/pebble
 	PebbleNotificationsEnabled bool

@@ -29,21 +29,16 @@ jobs:
         run: |
           printf 'key_path:  "/etc/notary/config/key.pem"\ncert_path: "/etc/notary/config/cert.pem"\ndb_path: "/var/lib/notary/database/notary.db"\nport: 3000\npebble_notifications: true\nlogging:\n  system:\n    level: "debug"\n    output: "stdout"\nencryption_backend:\n  type: "none"' > config.yaml
           openssl req -newkey rsa:2048 -nodes -keyout key.pem -x509 -days 1 -out cert.pem -subj "/CN=githubaction.example"
+          
+          mkdir config data
+          mv key.pem cert.pem config.yaml config/
       - name: Import the image to Docker registry
         run: |
           ROCK_FILE_NAME=$(ls ./rock-path)
           sudo rockcraft.skopeo --insecure-policy copy oci-archive:rock-path/$ROCK_FILE_NAME docker-daemon:notary:latest
       - name: Run the image
         run: |
-          docker run -d -p 3000:3000 --name notary notary:latest
-      - name: Load config
-        run: |
-          docker exec notary /usr/bin/pebble mkdir -p /etc/notary/config
-          docker exec notary /usr/bin/pebble mkdir -p /var/lib/notary/database
-          docker cp key.pem notary:/etc/notary/config/key.pem
-          docker cp cert.pem notary:/etc/notary/config/cert.pem
-          docker cp config.yaml notary:/etc/notary/config/config.yaml
-          docker restart notary
+          docker run -d -p 3000:3000 -v ./config:/etc/notary/config -v ./data:/var/lib/notary/database --name notary notary:latest --args notary -m --config /etc/notary/config/config.yaml
       - name: Check if Notary frontend is loaded
         run: |
           sleep 30
@@ -74,4 +69,3 @@ jobs:
           
           docker exec notary /usr/bin/pebble notices
           docker exec notary /usr/bin/pebble notices | grep canonical\\.com
-          docker exec notary /usr/bin/pebble notice 3

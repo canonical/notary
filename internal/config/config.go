@@ -36,13 +36,28 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 		return nil, err
 	}
 
-	// initialize logger
-	logger, err := initializeLogger(cfg.Sub("logging"))
+	// initialize system logger
+	systemLogger, err := initializeLogger(
+		cfg.GetString("logging.system.level"),
+		cfg.GetString("logging.system.output"),
+		cfg.GetString("logging.system.path"),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't initialize logger: %w", err)
+		return nil, fmt.Errorf("couldn't initialize system logger: %w", err)
+	}
+
+	// initialize audit logger
+	// Audit logs are always at INFO level
+	auditLogger, err := initializeLogger(
+		"info",
+		cfg.GetString("logging.audit.output"),
+		cfg.GetString("logging.audit.path"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't initialize audit logger: %w", err)
 	}
 	// initialize encryption backend
-	backendType, backend, err := initializeEncryptionBackend(cfg.Sub("encryption_backend"), logger)
+	backendType, backend, err := initializeEncryptionBackend(cfg.Sub("encryption_backend"), systemLogger)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't initialize encryption backend: %w", err)
 	}
@@ -55,7 +70,8 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 
 	appContext.TLSCertificate = cert
 	appContext.TLSPrivateKey = key
-	appContext.Logger = logger
+	appContext.SystemLogger = systemLogger
+	appContext.AuditLogger = auditLogger
 	appContext.EncryptionBackend = backend
 	appContext.EncryptionBackendType = backendType
 	appContext.PublicConfig = &PublicConfigData{
@@ -85,6 +101,7 @@ func initializeServerConfig(cmdFlags *pflag.FlagSet, configFilePath string) (*vi
 	v.SetDefault("external_hostname", "localhost")
 	v.SetDefault("logging.system.level", "debug")
 	v.SetDefault("logging.system.output", "stdout")
+	v.SetDefault("logging.audit.output", "stdout")
 
 	if configFilePath == "" {
 		return nil, errors.New("config file path not provided")
@@ -209,17 +226,27 @@ func initializeEncryptionBackend(encryptionCfg *viper.Viper, logger *zap.Logger)
 	}
 }
 
-// initializeLogger creates and configures a logger based on the configuration.
-func initializeLogger(cfg *viper.Viper) (*zap.Logger, error) {
+// initializeLogger creates and configures a logger based on the provided parameters.
+// output can be "stdout", "stderr", or "file"
+// path is required when output is "file"
+func initializeLogger(level, output, path string) (*zap.Logger, error) {
 	zapConfig := zap.NewProductionConfig()
 
-	logLevel, err := zapcore.ParseLevel(cfg.GetString("system.level"))
+	logLevel, err := zapcore.ParseLevel(level)
 	if err != nil {
 		return nil, fmt.Errorf("invalid log level: %w", err)
 	}
-
-	zapConfig.OutputPaths = []string{cfg.GetString("system.output")}
 	zapConfig.Level.SetLevel(logLevel)
+
+	if output == "file" {
+		if path == "" {
+			return nil, fmt.Errorf("path is required when output is 'file'")
+		}
+		zapConfig.OutputPaths = []string{path}
+	} else {
+		zapConfig.OutputPaths = []string{output}
+	}
+
 	zapConfig.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 
 	logger, err := zapConfig.Build()

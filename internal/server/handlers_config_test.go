@@ -42,7 +42,7 @@ func getConfig(url string, client *http.Client, token string) (int, *GetConfigRe
 }
 
 func TestConfigEndToEnd(t *testing.T) {
-	ts := tu.MustPrepareServer(t)
+    ts, logs := tu.MustPrepareServer(t)
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 	nonAdminToken := tu.MustPrepareAccount(t, ts, "whatever@canonical.com", tu.RoleCertificateManager, adminToken)
 	client := ts.Client()
@@ -60,7 +60,8 @@ func TestConfigEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("2. Get config - admin token", func(t *testing.T) {
+    t.Run("2. Get config - admin token", func(t *testing.T) {
+        _ = logs.TakeAll()
 		statusCode, response, err := getConfig(ts.URL, client, adminToken)
 		if err != nil {
 			t.Fatalf("couldn't get config: %s", err)
@@ -84,6 +85,19 @@ func TestConfigEndToEnd(t *testing.T) {
 		if response.Result.EncryptionBackendType == "" {
 			t.Fatalf("expected encryption backend type to be set, got %q", response.Result.EncryptionBackendType)
 		}
+
+        entries := logs.TakeAll()
+        var haveAPISuccess bool
+        for _, e := range entries {
+            if e.LoggerName != "audit" { continue }
+            if findStringField(e, "event") == "api_action" && findStringField(e, "action") == "GET config" {
+                haveAPISuccess = true
+                break
+            }
+        }
+        if !haveAPISuccess {
+            t.Fatalf("expected APIAction success audit entry for GET config")
+        }
 	})
 
 	t.Run("3. Get config - non-admin token", func(t *testing.T) {

@@ -24,7 +24,8 @@ type ServerOpts struct {
 	// Database object to run SQL queries on
 	Database *db.Database
 
-	Logger *zap.Logger
+	SystemLogger *zap.Logger // For operational/system logs
+	AuditLogger  *zap.Logger // For audit/compliance logs
 }
 
 type Server struct {

@@ -15,7 +15,8 @@ import (
 
 type HandlerConfig struct {
 	DB                      *db.Database
-	Logger                  *zap.Logger
+	SystemLogger            *zap.Logger
+	AuditLogger             *AuditLogger
 	ExternalHostname        string
 	JWTSecret               []byte
 	SendPebbleNotifications bool
@@ -28,7 +29,7 @@ func New(opts *ServerOpts) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	stdErrLog, err := zap.NewStdLogAt(opts.Logger, zapcore.ErrorLevel)
+	stdErrLog, err := zap.NewStdLogAt(opts.SystemLogger, zapcore.ErrorLevel)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create logger for http server: %w", err)
 	}
@@ -37,7 +38,8 @@ func New(opts *ServerOpts) (*Server, error) {
 	cfg.SendPebbleNotifications = opts.EnablePebbleNotifications
 	cfg.JWTSecret = opts.Database.JWTSecret
 	cfg.ExternalHostname = opts.ExternalHostname
-	cfg.Logger = opts.Logger
+	cfg.SystemLogger = opts.SystemLogger
+	cfg.AuditLogger = NewAuditLogger(opts.AuditLogger)
 	cfg.PublicConfig = *opts.PublicConfig
 	cfg.DB = opts.Database
 

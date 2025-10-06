@@ -84,7 +84,7 @@ func ListAccounts(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		accounts, err := env.DB.ListUsers()
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
+			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
 		}
 		accountsResponse := make([]GetAccountResponse, len(accounts))
@@ -97,7 +97,7 @@ func ListAccounts(env *HandlerConfig) http.HandlerFunc {
 		}
 		err = writeResponse(w, accountsResponse, http.StatusOK)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.Logger)
+			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
 			return
 		}
 	}
@@ -113,24 +113,24 @@ func GetAccount(env *HandlerConfig) http.HandlerFunc {
 		if id == "me" {
 			claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
 			if headerErr != nil {
-				writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.Logger)
+				writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.SystemLogger)
 			}
 			account, err = env.DB.GetUser(db.ByEmail(claims.Email))
 		} else {
 			var idNum int64
 			idNum, err = strconv.ParseInt(id, 10, 64)
 			if err != nil {
-				writeError(w, http.StatusBadRequest, "Invalid ID", err, env.Logger)
+				writeError(w, http.StatusBadRequest, "Invalid ID", err, env.SystemLogger)
 				return
 			}
 			account, err = env.DB.GetUser(db.ByUserID(idNum))
 		}
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
-				writeError(w, http.StatusNotFound, "Not Found", err, env.Logger)
+				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
+			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
 		}
 		accountResponse := GetAccountResponse{
@@ -140,7 +140,7 @@ func GetAccount(env *HandlerConfig) http.HandlerFunc {
 		}
 		err = writeResponse(w, accountResponse, http.StatusOK)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.Logger)
+			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
 			return
 		}
 	}
@@ -151,27 +151,40 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var createAccountParams CreateAccountParams
 		if err := json.NewDecoder(r.Body).Decode(&createAccountParams); err != nil {
-			writeError(w, http.StatusBadRequest, "Invalid JSON format", err, env.Logger)
+			writeError(w, http.StatusBadRequest, "Invalid JSON format", err, env.SystemLogger)
 			return
 		}
 		valid, err := createAccountParams.IsValid()
 		if !valid {
-			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.Logger)
+			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.SystemLogger)
 			return
 		}
 		newUserID, err := env.DB.CreateUser(createAccountParams.Email, createAccountParams.Password, db.RoleID(createAccountParams.RoleID))
 		if err != nil {
 			if errors.Is(err, db.ErrAlreadyExists) {
-				writeError(w, http.StatusBadRequest, "account with given email already exists", err, env.Logger)
+				writeError(w, http.StatusBadRequest, "account with given email already exists", err, env.SystemLogger)
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
+			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
 		}
+
+		var actor string
+		claims, claimsErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
+		if claimsErr == nil {
+			actor = claims.Email
+		}
+		
+		opts := []AuditOption{WithRequest(r)}
+		if actor != "" {
+			opts = append(opts, WithActor(actor))
+		}
+		env.AuditLogger.UserCreated(createAccountParams.Email, int(createAccountParams.RoleID), opts...)
+		
 		successResponse := CreateSuccessResponse{Message: "success", ID: newUserID}
 		err = writeResponse(w, successResponse, http.StatusCreated)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.Logger)
+			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
 			return
 		}
 	}
@@ -184,36 +197,49 @@ func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
 		id := r.PathValue("id")
 		idInt, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, "Invalid ID", err, env.Logger)
+			writeError(w, http.StatusBadRequest, "Invalid ID", err, env.SystemLogger)
 			return
 		}
 		account, err := env.DB.GetUser(db.ByUserID(idInt))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
-				writeError(w, http.StatusNotFound, "Not Found", err, env.Logger)
+				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
+			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
 		}
 		if account.RoleID == db.RoleID(RoleAdmin) {
 			err = errors.New("deleting an Admin account is not allowed")
-			writeError(w, http.StatusBadRequest, "deleting an Admin account is not allowed.", err, env.Logger)
+			writeError(w, http.StatusBadRequest, "deleting an Admin account is not allowed.", err, env.SystemLogger)
 			return
 		}
+
+		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.SystemLogger)
+			return
+		}
+
 		err = env.DB.DeleteUser(db.ByUserID(idInt))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
-				writeError(w, http.StatusNotFound, "Not Found", err, env.Logger)
+				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
+			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
 		}
+
+		env.AuditLogger.UserDeleted(account.Email,
+			WithActor(claims.Email),
+			WithRequest(r),
+		)
+
 		successResponse := SuccessResponse{Message: "success"}
 		err = writeResponse(w, successResponse, http.StatusAccepted)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.Logger)
+			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
 			return
 		}
 	}
@@ -225,33 +251,75 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 		var idNum int64
 		idInt, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, "Invalid ID", err, env.Logger)
+			writeError(w, http.StatusBadRequest, "Invalid ID", err, env.SystemLogger)
 			return
 		}
 		idNum = idInt
+
+		targetAccount, err := env.DB.GetUser(db.ByUserID(idNum))
+		if err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			return
+		}
+
+		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.SystemLogger)
+			return
+		}
+
 		var changeAccountParams ChangeAccountParams
 		if err := json.NewDecoder(r.Body).Decode(&changeAccountParams); err != nil {
-			writeError(w, http.StatusBadRequest, "Invalid JSON format", err, env.Logger)
+			writeError(w, http.StatusBadRequest, "Invalid JSON format", err, env.SystemLogger)
 			return
 		}
 		valid, err := changeAccountParams.IsValid()
 		if !valid {
-			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.Logger)
+			env.AuditLogger.PasswordChangeFailed(targetAccount.Email,
+				WithActor(claims.Email),
+				WithRequest(r),
+				WithReason(err.Error()),
+			)
+			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.SystemLogger)
 			return
 		}
 		err = env.DB.UpdateUserPassword(db.ByUserID(idNum), changeAccountParams.Password)
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
-				writeError(w, http.StatusNotFound, "Not Found", err, env.Logger)
+				env.AuditLogger.PasswordChangeFailed(targetAccount.Email,
+					WithActor(claims.Email),
+					WithRequest(r),
+					WithReason("user not found"),
+				)
+				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
+			env.AuditLogger.PasswordChangeFailed(targetAccount.Email,
+				WithActor(claims.Email),
+				WithRequest(r),
+				WithReason("database error"),
+			)
+			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
 		}
+
+		env.AuditLogger.PasswordChanged(targetAccount.Email,
+			WithActor(claims.Email),
+			WithRequest(r),
+		)
+		env.AuditLogger.UserUpdated(targetAccount.Email, "password_change",
+			WithActor(claims.Email),
+			WithRequest(r),
+		)
+
 		successResponse := SuccessResponse{Message: "success"}
 		err = writeResponse(w, successResponse, http.StatusCreated)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.Logger)
+			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
 			return
 		}
 	}
@@ -262,38 +330,54 @@ func ChangeMyPassword(env *HandlerConfig) http.HandlerFunc {
 		var idNum int64
 		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
 		if err != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.Logger)
+			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.SystemLogger)
 			return
 		}
 		account, err := env.DB.GetUser(db.ByEmail(claims.Email))
 		if err != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.Logger)
+			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.SystemLogger)
 			return
 		}
 		idNum = account.ID
 		var changeAccountParams ChangeAccountParams
 		if err := json.NewDecoder(r.Body).Decode(&changeAccountParams); err != nil {
-			writeError(w, http.StatusBadRequest, "Invalid JSON format", err, env.Logger)
+			writeError(w, http.StatusBadRequest, "Invalid JSON format", err, env.SystemLogger)
 			return
 		}
 		valid, err := changeAccountParams.IsValid()
 		if !valid {
-			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.Logger)
+			env.AuditLogger.PasswordChangeFailed(account.Email,
+				WithRequest(r),
+				WithReason(err.Error()),
+			)
+			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.SystemLogger)
 			return
 		}
 		err = env.DB.UpdateUserPassword(db.ByUserID(idNum), changeAccountParams.Password)
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
-				writeError(w, http.StatusNotFound, "Not Found", err, env.Logger)
+				env.AuditLogger.PasswordChangeFailed(account.Email,
+					WithRequest(r),
+					WithReason("user not found"),
+				)
+				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
+			env.AuditLogger.PasswordChangeFailed(account.Email,
+				WithRequest(r),
+				WithReason("database error"),
+			)
+			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
 		}
+
+		env.AuditLogger.PasswordChanged(account.Email, WithRequest(r))
+		env.AuditLogger.UserUpdated(account.Email, "password_change", WithRequest(r))
+		
 		successResponse := SuccessResponse{Message: "success"}
 		err = writeResponse(w, successResponse, http.StatusCreated)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.Logger)
+			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
 			return
 		}
 	}

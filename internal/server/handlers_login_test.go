@@ -9,8 +9,8 @@ import (
 )
 
 func TestLoginEndToEnd(t *testing.T) {
-	ts := tu.MustPrepareServer(t)
-	client := ts.Client()
+    ts, logs := tu.MustPrepareServer(t)
+    client := ts.Client()
 
 	t.Run("Create admin user", func(t *testing.T) {
 		adminUser := &tu.CreateAccountParams{
@@ -27,7 +27,8 @@ func TestLoginEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("Login success", func(t *testing.T) {
+    t.Run("Login success", func(t *testing.T) {
+        _ = logs.TakeAll()
 		adminUser := &tu.LoginParams{
 			Email:    "testadmin@canonical.com",
 			Password: "Admin123",
@@ -46,11 +47,31 @@ func TestLoginEndToEnd(t *testing.T) {
 		if err != nil {
 			t.Fatalf("couldn't parse token: %s", err)
 		}
-		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+        if claims, ok := token.Claims.(jwt.MapClaims); ok {
 			if claims["email"] != "testadmin@canonical.com" {
 				t.Fatalf("expected email %q, got %q", "testadmin@canonical.com", claims["email"])
 			}
 		}
+
+        entries := logs.TakeAll()
+        var haveLoginSuccess, haveTokenCreated bool
+        for _, e := range entries {
+            if e.LoggerName != "audit" {
+                continue
+            }
+            switch findStringField(e, "event") {
+            case "authn_login_success:testadmin@canonical.com":
+                haveLoginSuccess = true
+            case "authn_token_created:testadmin@canonical.com":
+                haveTokenCreated = true
+            }
+        }
+        if !haveLoginSuccess {
+            t.Fatalf("expected LoginSuccess audit entry")
+        }
+        if !haveTokenCreated {
+            t.Fatalf("expected TokenCreated audit entry")
+        }
 	})
 
 	t.Run("Login failure missing email", func(t *testing.T) {
@@ -87,23 +108,37 @@ func TestLoginEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("Login failure invalid password", func(t *testing.T) {
-		invalidUser := &tu.LoginParams{
-			Email:    "testadmin@canonical.com",
-			Password: "a-wrong-password",
-		}
-		statusCode, loginResponse, err := tu.Login(ts.URL, client, invalidUser)
-		if err != nil {
-			t.Fatalf("couldn't login admin user: %s", err)
-		}
-		if statusCode != http.StatusUnauthorized {
-			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, statusCode)
-		}
-
-		if loginResponse.Error != "The email or password is incorrect" {
-			t.Fatalf("expected error %q, got %q", "The email or password is incorrect", loginResponse.Error)
-		}
-	})
+    t.Run("Login failure invalid password (with audit)", func(t *testing.T) {
+        _ = logs.TakeAll()
+        invalidUser := &tu.LoginParams{
+            Email:    "testadmin@canonical.com",
+            Password: "a-wrong-password",
+        }
+        statusCode, loginResponse, err := tu.Login(ts.URL, client, invalidUser)
+        if err != nil {
+            t.Fatalf("couldn't login admin user: %s", err)
+        }
+        if statusCode != http.StatusUnauthorized {
+            t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, statusCode)
+        }
+        if loginResponse.Error != "The email or password is incorrect" {
+            t.Fatalf("expected error %q, got %q", "The email or password is incorrect", loginResponse.Error)
+        }
+        entries := logs.TakeAll()
+        var haveLoginFailed bool
+        for _, e := range entries {
+            if e.LoggerName != "audit" {
+                continue
+            }
+            if findStringField(e, "event") == "authn_login_fail:testadmin@canonical.com" && findStringField(e, "reason") == "invalid credentials" {
+                haveLoginFailed = true
+                break
+            }
+        }
+        if !haveLoginFailed {
+            t.Fatalf("expected LoginFailed audit entry with reason 'invalid credentials'")
+        }
+    })
 
 	t.Run("Login failure invalid email", func(t *testing.T) {
 		invalidUser := &tu.LoginParams{

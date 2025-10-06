@@ -23,7 +23,7 @@ func GetConfigContent(env *HandlerConfig) http.HandlerFunc {
 		}
 		err := writeResponse(w, configContent, http.StatusOK)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.Logger)
+			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
 			return
 		}
 	}

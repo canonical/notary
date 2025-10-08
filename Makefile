@@ -5,6 +5,7 @@ NOTARY_UI_FILES := $(shell find ui/src/ -type f) ui/package.json ui/package-lock
 
 NOTARY_ARTIFACT_NAME := notary
 NOTARY_CONFIG_FILE := config.yaml
+NOTARY_DOCKER_CONFIG_FILE := config-docker.yaml
 NOTARY_TLS_CERT := cert.pem
 NOTARY_TLS_KEY := key.pem
 ROCK_ARTIFACT_NAME := notary.rock
@@ -30,7 +31,7 @@ hotswap:
 	lxc exec notary -- docker cp ./notary notary:/bin/notary
 	lxc exec notary -- docker exec notary pebble restart notary
 
-deploy: $(ARTIFACT_FOLDER)/$(ROCK_ARTIFACT_NAME)
+deploy: $(ARTIFACT_FOLDER)/$(ROCK_ARTIFACT_NAME) $(ARTIFACT_FOLDER)/$(NOTARY_DOCKER_CONFIG_FILE) $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY)
 	@# Start notary container if it's not available
 	@if [ "$$(lxc list 2> /dev/null | grep notary > /dev/null; echo $$?)" = 1 ]; then \
 		echo "creating new notary VM instance in LXD"; \
@@ -45,10 +46,30 @@ deploy: $(ARTIFACT_FOLDER)/$(ROCK_ARTIFACT_NAME)
 	    lxc exec notary -- snap install rockcraft --classic ;\
 		\
 		echo "pushing config files"; \
-		lxc file push $(ARTIFACT_FOLDER)/$(ROCK_ARTIFACT_NAME) notary/root/$(ROCK_ARTIFACT_NAME); \
-		lxc file push $(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE) notary/root/$(NOTARY_CONFIG_FILE); \
-		lxc file push $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) notary/root/$(NOTARY_TLS_CERT); \
-		lxc file push $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY) notary/root/$(NOTARY_TLS_KEY); \
+		lxc file push -p $(ARTIFACT_FOLDER)/$(ROCK_ARTIFACT_NAME) notary/root/$(ROCK_ARTIFACT_NAME); \
+		lxc file push -p $(ARTIFACT_FOLDER)/$(NOTARY_DOCKER_CONFIG_FILE) notary/root/$(NOTARY_DOCKER_CONFIG_FILE); \
+		lxc file push -p $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) notary/root/$(NOTARY_TLS_CERT); \
+		lxc file push -p $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY) notary/root/$(NOTARY_TLS_KEY); \
+	fi
+
+	@# Deploy Jaeger if it hasn't been deployed yet
+	@if [ "$$(lxc exec notary -- docker ps 2> /dev/null | grep jaeger > /dev/null; echo $$?)" = 1 ]; then \
+	    echo "creating and running jaeger in Docker"; \
+		# The forwarded ports are, in order: \
+        # HTTP, /api/v3/*, OTLP-based JSON over HTTP (GUI) \
+        # gRPC, ExportTraceServiceRequest, OTLP Protobuf \
+		# HTTP, /v1/traces, OTLP Protobuf or OTLP JSON \
+		# HTTP, /sampling, sampling.proto_via Protobuf-to-JSON mapping_ \
+		# HTTP, /api/v2/spans, Zipkin v2 JSON or Protobuf \
+		lxc exec notary -- docker run -d --name jaeger \
+			--network host \
+            -p 16686:16686 \
+		    -p 4317:4317   \
+		    -p 4318:4318   \
+		    -p 5778:5778   \
+		    -p 9411:9411   \
+		    jaegertracing/jaeger:2.6.0; \
+		sleep 10; \
 	fi
 
 	@# Remove the old notary if it was still there
@@ -64,7 +85,7 @@ deploy: $(ARTIFACT_FOLDER)/$(ROCK_ARTIFACT_NAME)
 		-v /root:/config \
 		--network host \
 		-p 2111:2111 \
-		notary:latest --args notary start --config /config/config.yaml;
+		notary:latest --args notary start -m --config /config/$(NOTARY_DOCKER_CONFIG_FILE);
 	@echo "You can access notary at $$(lxc info notary | grep enp5s0 -A 15 | grep inet: | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'):2111"
 
 logs:
@@ -85,12 +106,25 @@ $(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE):
      echo 'db_path: "artifacts/notary.db"'     >> $@;\
      echo 'port: 2111'                         >> $@;\
 	 echo 'pebble_notifications: false'        >> $@;\
+	 echo 'encryption_backend:'                >> $@;\
+	 echo '  type: "none"'                     >> $@;\
+
+$(ARTIFACT_FOLDER)/$(NOTARY_DOCKER_CONFIG_FILE):
+	@echo 'key_path: "/config/key.pem"'        >> $@;\
+     echo 'cert_path: "/config/cert.pem"'      >> $@;\
+     echo 'db_path: "/config/notary.db"'       >> $@;\
+     echo 'port: 2111'                         >> $@;\
+	 echo 'pebble_notifications: false'        >> $@;\
 	 echo 'logging:'                           >> $@;\
 	 echo '  system:'                          >> $@;\
 	 echo '    level: "debug"'                 >> $@;\
-	 echo '    output: "artifacts/notary.log"' >> $@;\
-	 echo 'encryption_backend:'             >> $@;\
-	 echo '  type: "none"'                   >> $@;\
+	 echo '    output: "/config/notary.log"'   >> $@;\
+	 echo 'encryption_backend:'                >> $@;\
+	 echo '  type: "none"'                     >> $@;\
+	 echo 'tracing:'                           >> $@;\
+	 echo '  service_name: "notary"'           >> $@;\
+	 echo '  endpoint: "127.0.0.1:4317"'       >> $@;\
+	 echo '  sampling_rate: "100%"'            >> $@
 
 $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY):
 	openssl req -newkey rsa:2048 -nodes -keyout $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY) -x509 -days 1 -out $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) -subj "/CN=example.com"

@@ -25,6 +25,7 @@ type ServerOpts struct {
 	Database *db.Database
 
 	Logger *zap.Logger
+	Tracer *config.Tracer
 }
 
 type Server struct {
@@ -34,3 +35,15 @@ type Server struct {
 type middleware func(http.Handler) http.Handler
 
 type NotificationKey int
+
+// HandlerConfig holds the dependencies to be injected into the HTTP handlers for use during
+// request processing.
+type HandlerConfig struct {
+	DB                      *db.Database
+	Logger                  *zap.Logger
+	Tracer                  *config.Tracer
+	ExternalHostname        string
+	JWTSecret               []byte
+	SendPebbleNotifications bool
+	PublicConfig            config.PublicConfigData
+}

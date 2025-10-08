@@ -9,4 +9,5 @@ api/index.md
 config_file.md
 metrics.md
 roles.md
+tracing.md
 ```

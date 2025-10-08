@@ -50,6 +50,7 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 			ExternalHostname:          appContext.ExternalHostname,
 			EnablePebbleNotifications: appContext.PebbleNotificationsEnabled,
 			Logger:                    appContext.Logger,
+			Tracer: 				   appContext.Tracer,
 			PublicConfig:              appContext.PublicConfig,
 		})
 		if err != nil {

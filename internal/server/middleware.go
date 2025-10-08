@@ -10,11 +10,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/canonical/notary/internal/config"
 	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/logging"
 	"github.com/canonical/notary/internal/metrics"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -28,6 +32,7 @@ type middlewareContext struct {
 	jwtSecret          []byte
 	systemLogger       *zap.Logger
 	auditLogger        *logging.AuditLogger
+	tracer             *config.Tracer
 }
 
 // createMiddlewareStack chains the given middleware functions to wrap the api.
@@ -45,6 +50,7 @@ func createMiddlewareStack(middleware ...middleware) middleware {
 	}
 }
 
+// limitRequestSize is a middleware that limits the size of the request body to maxKilobytes.
 func limitRequestSize(maxKilobytes int64, logger *zap.Logger) middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -77,6 +83,45 @@ func metricsMiddleware(metrics *metrics.PrometheusMetrics) middleware {
 				),
 			)
 			base.ServeHTTP(w, r)
+		})
+	}
+}
+
+// tracingMiddleware adds OpenTelemetry span creation and propagation to each request
+func tracingMiddleware(ctx *middlewareContext) middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasPrefix(r.URL.Path, "/_next") || r.URL.Path == "/metrics" {
+				next.ServeHTTP(w, r)
+				return
+			}
+			if ctx.tracer == nil {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			spanName := fmt.Sprintf("%s %s", r.Method, r.URL.Path)
+			spanCtx, span := ctx.tracer.Tracer.Start(
+				r.Context(),
+				spanName,
+				trace.WithAttributes(
+					attribute.String("http.method", r.Method),
+					attribute.String("http.url", r.URL.String()),
+					attribute.String("http.host", r.Host),
+					attribute.String("http.user_agent", r.UserAgent()),
+				),
+			)
+			defer span.End()
+
+			clonedWriter := newResponseWriter(w)
+			r = r.WithContext(spanCtx)
+			next.ServeHTTP(clonedWriter, r)
+			span.SetAttributes(
+				attribute.Int("http.status_code", clonedWriter.statusCode),
+			)
+			if clonedWriter.statusCode >= 400 {
+				span.SetStatus(codes.Error, http.StatusText(clonedWriter.statusCode))
+			}
 		})
 	}
 }

@@ -7,22 +7,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/canonical/notary/internal/config"
-	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/logging"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
-
-type HandlerConfig struct {
-	DB                      *db.Database
-	SystemLogger            *zap.Logger
-	AuditLogger             *logging.AuditLogger
-	ExternalHostname        string
-	JWTSecret               []byte
-	SendPebbleNotifications bool
-	PublicConfig            config.PublicConfigData
-}
 
 // New creates an environment and an http server with handlers that Go can start listening to
 func New(opts *ServerOpts) (*Server, error) {
@@ -41,10 +30,21 @@ func New(opts *ServerOpts) (*Server, error) {
 	cfg.ExternalHostname = opts.ExternalHostname
 	cfg.SystemLogger = opts.SystemLogger
 	cfg.AuditLogger = logging.NewAuditLogger(opts.AuditLogger)
+	cfg.Tracer = opts.Tracer
 	cfg.PublicConfig = *opts.PublicConfig
 	cfg.DB = opts.Database
 
 	router := NewRouter(cfg)
+	if cfg.Tracer != nil {
+		router = otelhttp.NewHandler(
+			router,
+			"http_server",
+			otelhttp.WithMessageEvents(otelhttp.ReadEvents, otelhttp.WriteEvents),
+			otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
+				return fmt.Sprintf("%s %s", r.Method, r.URL.Path)
+			}),
+		)
+	}
 	s := &http.Server{
 		Addr:           fmt.Sprintf(":%d", opts.Port),
 		ErrorLog:       stdErrLog,

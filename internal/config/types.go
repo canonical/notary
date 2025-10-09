@@ -43,10 +43,17 @@ type EncryptionBackendConfigYaml map[string]NamedBackendConfigYaml
 type SystemLoggingConfigYaml struct {
 	Level  string `yaml:"level"`
 	Output string `yaml:"output"`
+	Path   string `yaml:"path"`
+}
+
+type AuditLoggingConfigYaml struct {
+	Output string `yaml:"output"`
+	Path   string `yaml:"path"`
 }
 
 type LoggingConfigYaml struct {
 	System SystemLoggingConfigYaml `yaml:"system"`
+	Audit  AuditLoggingConfigYaml  `yaml:"audit"`
 }
 
 type ConfigYAML struct {
@@ -111,8 +118,9 @@ type NotaryAppContext struct {
 	// Send pebble notifications if enabled. Read more at github.com/canonical/pebble
 	PebbleNotificationsEnabled bool
 
-	// Options for the logger
-	Logger *zap.Logger
+	// Options for the loggers
+	SystemLogger *zap.Logger
+	AuditLogger  *zap.Logger
 
 	// Encryption backend to be used for encrypting and decrypting sensitive data
 	EncryptionBackendType

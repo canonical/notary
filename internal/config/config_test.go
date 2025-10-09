@@ -34,7 +34,8 @@ func TestValidConfig(t *testing.T) {
 			DBPath:                     "./notary.db",
 			Port:                       8000,
 			PebbleNotificationsEnabled: false,
-			Logger:                     nil,
+            SystemLogger:               nil,
+            AuditLogger:                nil,
 			EncryptionBackend:          encryption_backend.NoEncryptionBackend{},
 			EncryptionBackendType:      config.EncryptionBackendTypeNone,
 		}}, // This case tests the expected default values for missing fields are filled correctly
@@ -51,7 +52,8 @@ func TestValidConfig(t *testing.T) {
 			DBPath:                     "./notary.db",
 			Port:                       8000,
 			PebbleNotificationsEnabled: false,
-			Logger:                     nil,
+            SystemLogger:               nil,
+            AuditLogger:                nil,
 			EncryptionBackend:          encryption_backend.NoEncryptionBackend{},
 			EncryptionBackendType:      config.EncryptionBackendTypeNone,
 		}}, // This case tests that the variables from the yaml are correctly copied to the final config
@@ -67,7 +69,7 @@ func TestValidConfig(t *testing.T) {
 				t.Errorf("ValidateConfig(%q) = %v, want nil", "config.yaml", err)
 				return
 			}
-			if !cmp.Equal(gotCfg, tc.wantCfg, cmpopts.IgnoreFields(config.NotaryAppContext{}, "Logger")) {
+            if !cmp.Equal(gotCfg, tc.wantCfg, cmpopts.IgnoreFields(config.NotaryAppContext{}, "SystemLogger", "AuditLogger")) {
 				t.Errorf("ValidateConfig returned unexpected diff (-want+got):\n%v", cmp.Diff(tc.wantCfg, gotCfg))
 			}
 		})

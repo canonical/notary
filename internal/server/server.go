@@ -9,6 +9,7 @@ import (
 
 	"github.com/canonical/notary/internal/config"
 	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/logging"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -16,7 +17,7 @@ import (
 type HandlerConfig struct {
 	DB                      *db.Database
 	SystemLogger            *zap.Logger
-	AuditLogger             *AuditLogger
+	AuditLogger             *logging.AuditLogger
 	ExternalHostname        string
 	JWTSecret               []byte
 	SendPebbleNotifications bool
@@ -39,7 +40,7 @@ func New(opts *ServerOpts) (*Server, error) {
 	cfg.JWTSecret = opts.Database.JWTSecret
 	cfg.ExternalHostname = opts.ExternalHostname
 	cfg.SystemLogger = opts.SystemLogger
-	cfg.AuditLogger = NewAuditLogger(opts.AuditLogger)
+	cfg.AuditLogger = logging.NewAuditLogger(opts.AuditLogger)
 	cfg.PublicConfig = *opts.PublicConfig
 	cfg.DB = opts.Database
 

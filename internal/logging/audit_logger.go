@@ -1,4 +1,4 @@
-package server
+package logging
 
 import (
 	"fmt"
@@ -419,3 +419,4 @@ func (a *AuditLogger) CertificateRevoked(csrID string, opts ...AuditOption) {
 
     a.logger.Warn("Certificate revoked", fields...)
 }
+

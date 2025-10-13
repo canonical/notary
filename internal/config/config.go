@@ -37,22 +37,14 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 	}
 
 	// initialize system logger
-	systemLogger, err := initializeLogger(
-		cfg.GetString("logging.system.level"),
-		cfg.GetString("logging.system.output"),
-		cfg.GetString("logging.system.path"),
-	)
+	systemLogger, err := initializeLogger(cfg.Sub("logging.system"), "")
 	if err != nil {
 		return nil, fmt.Errorf("couldn't initialize system logger: %w", err)
 	}
 
 	// initialize audit logger
 	// Audit logs are always at INFO level
-	auditLogger, err := initializeLogger(
-		"info",
-		cfg.GetString("logging.audit.output"),
-		cfg.GetString("logging.audit.path"),
-	)
+	auditLogger, err := initializeLogger(cfg.Sub("logging.audit"), "info")
 	if err != nil {
 		return nil, fmt.Errorf("couldn't initialize audit logger: %w", err)
 	}
@@ -226,11 +218,22 @@ func initializeEncryptionBackend(encryptionCfg *viper.Viper, logger *zap.Logger)
 	}
 }
 
-// initializeLogger creates and configures a logger based on the provided parameters.
-// output can be "stdout", "stderr", or "file"
-// path is required when output is "file"
-func initializeLogger(level, output, path string) (*zap.Logger, error) {
+// initializeLogger creates and configures a logger based on the provided configuration.
+// cfg is the logger configuration subsection (e.g., logging.system or logging.audit).
+// levelOverride allows overriding the configured level (e.g., "info" for audit logs).
+// If levelOverride is empty, the level from cfg is used.
+// output can be "stdout", "stderr", or a file path.
+func initializeLogger(cfg *viper.Viper, levelOverride string) (*zap.Logger, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("logger configuration is not defined")
+	}
+
 	zapConfig := zap.NewProductionConfig()
+
+	level := levelOverride
+	if level == "" {
+		level = cfg.GetString("level")
+	}
 
 	logLevel, err := zapcore.ParseLevel(level)
 	if err != nil {
@@ -238,14 +241,8 @@ func initializeLogger(level, output, path string) (*zap.Logger, error) {
 	}
 	zapConfig.Level.SetLevel(logLevel)
 
-	if output == "file" {
-		if path == "" {
-			return nil, fmt.Errorf("path is required when output is 'file'")
-		}
-		zapConfig.OutputPaths = []string{path}
-	} else {
-		zapConfig.OutputPaths = []string{output}
-	}
+	output := cfg.GetString("output")
+	zapConfig.OutputPaths = []string{output}
 
 	zapConfig.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 

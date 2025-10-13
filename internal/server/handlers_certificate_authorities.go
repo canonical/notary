@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/logging"
 	"go.uber.org/zap"
 )
 
@@ -293,8 +294,8 @@ func CreateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 		}
 
 		env.AuditLogger.CACreated(int(newCAID), params.CommonName,
-			WithActor(claims.Email),
-			WithRequest(r),
+			logging.WithActor(claims.Email),
+			logging.WithRequest(r),
 		)
 
 		successResponse := CreateSuccessResponse{Message: "Certificate Authority created successfully", ID: newCAID}
@@ -376,8 +377,8 @@ func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 		}
 
 		env.AuditLogger.CAUpdated(id, params.Enabled,
-			WithActor(claims.Email),
-			WithRequest(r),
+			logging.WithActor(claims.Email),
+			logging.WithRequest(r),
 		)
 
 		successResponse := SuccessResponse{Message: "success"}
@@ -427,8 +428,8 @@ func DeleteCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 		}
 		
 		env.AuditLogger.CADeleted(int(idNum), extractCommonName(ca.CertificateChain),
-			WithActor(claims.Email),
-			WithRequest(r),
+			logging.WithActor(claims.Email),
+			logging.WithRequest(r),
 		)
 		
 		successResponse := SuccessResponse{Message: "success"}
@@ -478,8 +479,8 @@ func PostCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
 		}
 		
 		env.AuditLogger.CACertificateUploaded(id,
-			WithActor(claims.Email),
-			WithRequest(r),
+			logging.WithActor(claims.Email),
+			logging.WithRequest(r),
 		)
 		
 		err = writeResponse(w, SuccessResponse{Message: "success"}, http.StatusCreated)
@@ -610,8 +611,8 @@ func RevokeCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc 
 		}
 		
 		env.AuditLogger.CACertificateRevoked(id,
-			WithActor(claims.Email),
-			WithRequest(r),
+			logging.WithActor(claims.Email),
+			logging.WithRequest(r),
 		)
 		
 		if env.SendPebbleNotifications {

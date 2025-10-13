@@ -359,7 +359,7 @@ func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format", err, env.SystemLogger)
 			return
 		}
-		
+
 		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
 		if headerErr != nil {
 			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.SystemLogger)
@@ -400,13 +400,13 @@ func DeleteCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid ID", err, env.SystemLogger)
 			return
 		}
-		
+
 		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
 		if headerErr != nil {
 			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.SystemLogger)
 			return
 		}
-		
+
 		ca, err := env.DB.GetDenormalizedCertificateAuthority(db.ByCertificateAuthorityDenormalizedID(idNum))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
@@ -426,12 +426,12 @@ func DeleteCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
 		}
-		
+
 		env.AuditLogger.CADeleted(int(idNum), extractCommonName(ca.CertificateChain),
 			logging.WithActor(claims.Email),
 			logging.WithRequest(r),
 		)
-		
+
 		successResponse := SuccessResponse{Message: "success"}
 		err = writeResponse(w, successResponse, http.StatusOK)
 		if err != nil {
@@ -461,7 +461,7 @@ func PostCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.SystemLogger)
 			return
 		}
-		
+
 		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
 		if headerErr != nil {
 			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.SystemLogger)
@@ -477,12 +477,12 @@ func PostCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
 		}
-		
+
 		env.AuditLogger.CACertificateUploaded(id,
 			logging.WithActor(claims.Email),
 			logging.WithRequest(r),
 		)
-		
+
 		err = writeResponse(w, SuccessResponse{Message: "success"}, http.StatusCreated)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
@@ -582,13 +582,13 @@ func RevokeCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc 
 			writeError(w, http.StatusBadRequest, "Invalid ID", err, env.SystemLogger)
 			return
 		}
-		
+
 		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
 		if headerErr != nil {
 			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.SystemLogger)
 			return
 		}
-		
+
 		ca, err := env.DB.GetCertificateAuthority(db.ByCertificateAuthorityID(idNum))
 		if err != nil {
 			env.SystemLogger.Info("could not get certificate authority", zap.Error(err))
@@ -609,12 +609,12 @@ func RevokeCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc 
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
 		}
-		
+
 		env.AuditLogger.CACertificateRevoked(id,
 			logging.WithActor(claims.Email),
 			logging.WithRequest(r),
 		)
-		
+
 		if env.SendPebbleNotifications {
 			err := SendPebbleNotification(CertificateUpdate, idNum)
 			if err != nil {

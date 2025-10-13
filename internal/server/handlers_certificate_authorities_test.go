@@ -15,7 +15,7 @@ import (
 
 // The order of the tests is important, as some tests depend on the state of the server after previous tests.
 func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
-    ts, logs := tu.MustPrepareServer(t)
+	ts, logs := tu.MustPrepareServer(t)
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 	client := ts.Client()
 
@@ -35,8 +35,8 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		}
 	})
 
-    t.Run("2. Create self signed certificate authority", func(t *testing.T) {
-        _ = logs.TakeAll()
+	t.Run("2. Create self signed certificate authority", func(t *testing.T) {
+		_ = logs.TakeAll()
 		createCertificatAuthorityParams := tu.CreateCertificateAuthorityParams{
 			SelfSigned: true,
 
@@ -56,20 +56,24 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		if statusCode != http.StatusCreated {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-        if createCAResponse.Error != "" {
+		if createCAResponse.Error != "" {
 			t.Fatalf("expected success, got %s", createCAResponse.Error)
 		}
 
-        entries := logs.TakeAll()
-        var haveCACreated bool
-        for _, e := range entries {
-            if e.LoggerName != "audit" { continue }
-            if findStringField(e, "event") == "ca_created" {
-                haveCACreated = true
-                break
-            }
-        }
-        if !haveCACreated { t.Fatalf("expected CACreated audit entry") }
+		entries := logs.TakeAll()
+		var haveCACreated bool
+		for _, e := range entries {
+			if e.LoggerName != "audit" {
+				continue
+			}
+			if findStringField(e, "event") == "ca_created" {
+				haveCACreated = true
+				break
+			}
+		}
+		if !haveCACreated {
+			t.Fatalf("expected CACreated audit entry")
+		}
 	})
 
 	t.Run("3. Get all CA's - 1 should be there and enabled", func(t *testing.T) {
@@ -167,8 +171,8 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		IntermediateCACSR = getCAResponse.Result.CSRPEM
 	})
 
-    t.Run("7. Sign the intermediate CA's CSR", func(t *testing.T) {
-        _ = logs.TakeAll()
+	t.Run("7. Sign the intermediate CA's CSR", func(t *testing.T) {
+		_ = logs.TakeAll()
 		signedCert := tu.SignCSR(IntermediateCACSR)
 		statusCode, uploadCertificateResponse, err := tu.UploadCertificateToCertificateAuthority(ts.URL, client, adminToken, 2, server.UploadCertificateToCertificateAuthorityParams{CertificateChain: signedCert + tu.SelfSignedCACertificate})
 		if err != nil {
@@ -177,17 +181,24 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		if statusCode != http.StatusCreated {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-        if uploadCertificateResponse.Error != "" {
+		if uploadCertificateResponse.Error != "" {
 			t.Fatalf("expected success, got %s", uploadCertificateResponse.Error)
 		}
 
-        entries := logs.TakeAll()
-        var haveCertUploaded bool
-        for _, e := range entries {
-            if e.LoggerName != "audit" { continue }
-            if findStringField(e, "event") == "ca_cert_uploaded" { haveCertUploaded = true; break }
-        }
-        if !haveCertUploaded { t.Fatalf("expected CACertificateUploaded audit entry") }
+		entries := logs.TakeAll()
+		var haveCertUploaded bool
+		for _, e := range entries {
+			if e.LoggerName != "audit" {
+				continue
+			}
+			if findStringField(e, "event") == "ca_cert_uploaded" {
+				haveCertUploaded = true
+				break
+			}
+		}
+		if !haveCertUploaded {
+			t.Fatalf("expected CACertificateUploaded audit entry")
+		}
 	})
 	t.Run("8. Get all CA's - 2 should be there and both enabled", func(t *testing.T) {
 		statusCode, listCAsResponse, err := tu.ListCertificateAuthorities(ts.URL, client, adminToken)
@@ -210,8 +221,8 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 			t.Fatalf("expected second CA to be enabled")
 		}
 	})
-    t.Run("9. Make first CA legacy", func(t *testing.T) {
-        statusCode, makeLegacyResponse, err := tu.UpdateCertificateAuthority(ts.URL, client, adminToken, 1, tu.UpdateCertificateAuthorityParams{Status: "legacy"})
+	t.Run("9. Make first CA legacy", func(t *testing.T) {
+		statusCode, makeLegacyResponse, err := tu.UpdateCertificateAuthority(ts.URL, client, adminToken, 1, tu.UpdateCertificateAuthorityParams{Status: "legacy"})
 		if err != nil {
 			t.Fatal("expected no error, got: ", err)
 		}
@@ -243,22 +254,29 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 			t.Fatalf("expected second CA to be enabled")
 		}
 	})
-    t.Run("11. Delete first CA", func(t *testing.T) {
-        _ = logs.TakeAll()
-        statusCode, err := tu.DeleteCertificateAuthority(ts.URL, client, adminToken, 1)
+	t.Run("11. Delete first CA", func(t *testing.T) {
+		_ = logs.TakeAll()
+		statusCode, err := tu.DeleteCertificateAuthority(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal("expected no error, got: ", err)
 		}
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-        entries := logs.TakeAll()
-        var haveCADeleted bool
-        for _, e := range entries {
-            if e.LoggerName != "audit" { continue }
-            if findStringField(e, "event") == "ca_deleted" { haveCADeleted = true; break }
-        }
-        if !haveCADeleted { t.Fatalf("expected CADeleted audit entry") }
+		entries := logs.TakeAll()
+		var haveCADeleted bool
+		for _, e := range entries {
+			if e.LoggerName != "audit" {
+				continue
+			}
+			if findStringField(e, "event") == "ca_deleted" {
+				haveCADeleted = true
+				break
+			}
+		}
+		if !haveCADeleted {
+			t.Fatalf("expected CADeleted audit entry")
+		}
 	})
 	t.Run("12. Get all CA's - 1 enabled should be there", func(t *testing.T) {
 		statusCode, listCAsResponse, err := tu.ListCertificateAuthorities(ts.URL, client, adminToken)
@@ -281,7 +299,7 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 }
 
 func TestCreateCertificateAuthorityInvalidInputs(t *testing.T) {
-    ts, _ := tu.MustPrepareServer(t)
+	ts, _ := tu.MustPrepareServer(t)
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 	client := ts.Client()
 
@@ -370,7 +388,7 @@ func TestCreateCertificateAuthorityInvalidInputs(t *testing.T) {
 }
 
 func TestUploadCertificateToCertificateAuthorityInvalidInputs(t *testing.T) {
-ts, _ := tu.MustPrepareServer(t)
+	ts, _ := tu.MustPrepareServer(t)
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 	client := ts.Client()
 
@@ -444,7 +462,7 @@ invalid
 }
 
 func TestSignCertificatesEndToEnd(t *testing.T) {
-ts, logs := tu.MustPrepareServer(t)
+	ts, logs := tu.MustPrepareServer(t)
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 	client := ts.Client()
 
@@ -616,7 +634,7 @@ ts, logs := tu.MustPrepareServer(t)
 			t.Fatalf("expected success, got %s", uploadCertificateResponse.Error)
 		}
 	})
-    t.Run("9. Get all CA's - 2 should be there and both active", func(t *testing.T) {
+	t.Run("9. Get all CA's - 2 should be there and both active", func(t *testing.T) {
 		statusCode, listCAsResponse, err := tu.ListCertificateAuthorities(ts.URL, client, adminToken)
 		if err != nil {
 			t.Fatal("expected no error, got: ", err)
@@ -641,20 +659,33 @@ ts, logs := tu.MustPrepareServer(t)
 		}
 	})
 
-    t.Run("10. Update CA enabled status and assert audit", func(t *testing.T) {
-        _ = logs.TakeAll()
-        statusCode, updateResp, err := tu.UpdateCertificateAuthority(ts.URL, client, adminToken, 1, tu.UpdateCertificateAuthorityParams{Status: "active"})
-        if err != nil { t.Fatal(err) }
-        if statusCode != http.StatusOK { t.Fatalf("expected %d, got %d", http.StatusOK, statusCode) }
-        if updateResp.Error != "" { t.Fatalf("expected success, got %s", updateResp.Error) }
-        entries := logs.TakeAll()
-        var haveCAUpdated bool
-        for _, e := range entries {
-            if e.LoggerName != "audit" { continue }
-            if findStringField(e, "event") == "ca_updated" { haveCAUpdated = true; break }
-        }
-        if !haveCAUpdated { t.Fatalf("expected CAUpdated audit entry") }
-    })
+	t.Run("10. Update CA enabled status and assert audit", func(t *testing.T) {
+		_ = logs.TakeAll()
+		statusCode, updateResp, err := tu.UpdateCertificateAuthority(ts.URL, client, adminToken, 1, tu.UpdateCertificateAuthorityParams{Status: "active"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if statusCode != http.StatusOK {
+			t.Fatalf("expected %d, got %d", http.StatusOK, statusCode)
+		}
+		if updateResp.Error != "" {
+			t.Fatalf("expected success, got %s", updateResp.Error)
+		}
+		entries := logs.TakeAll()
+		var haveCAUpdated bool
+		for _, e := range entries {
+			if e.LoggerName != "audit" {
+				continue
+			}
+			if findStringField(e, "event") == "ca_updated" {
+				haveCAUpdated = true
+				break
+			}
+		}
+		if !haveCAUpdated {
+			t.Fatalf("expected CAUpdated audit entry")
+		}
+	})
 	t.Run("10. Create 2nd CSR's", func(t *testing.T) {
 		createCertificateRequestRequest := tu.CreateCertificateRequestParams{CSR: tu.StrawberryCSR}
 		statusCode, createCertResponse, err := tu.CreateCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
@@ -716,9 +747,9 @@ ts, logs := tu.MustPrepareServer(t)
 		if len(listCSRsResponse.Result) != 2 {
 			t.Fatalf("expected 2 certificates, got %d", len(listCSRsResponse.Result))
 		}
-        if listCSRsResponse.Result[0].Status != "Active" {
-            t.Fatalf("expected first csr to be active, got %s", listCSRsResponse.Result[0].Status)
-        }
+		if listCSRsResponse.Result[0].Status != "Active" {
+			t.Fatalf("expected first csr to be active, got %s", listCSRsResponse.Result[0].Status)
+		}
 		if strings.Count(listCSRsResponse.Result[0].CertificateChain, "BEGIN CERTIFICATE") != 2 {
 			t.Fatalf("expected first csr to have a chain with 2 certificates")
 		}
@@ -732,7 +763,7 @@ ts, logs := tu.MustPrepareServer(t)
 }
 
 func TestUnsuccessfulRequestsMadeToCACSRs(t *testing.T) {
-ts, _ := tu.MustPrepareServer(t)
+	ts, _ := tu.MustPrepareServer(t)
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 	client := ts.Client()
 
@@ -1118,7 +1149,7 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 	})
 
 	t.Run("10. Revoke Intermediate CA", func(t *testing.T) {
-        _ = logs.TakeAll()
+		_ = logs.TakeAll()
 		statusCode, response, err := tu.RevokeCertificateAuthority(ts.URL, client, adminToken, 2)
 		if err != nil {
 			t.Fatalf("expected no error, got: %s", err)
@@ -1129,13 +1160,20 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if response.Error != "" {
 			t.Fatalf("expected success, got %s", response.Error)
 		}
-        entries := logs.TakeAll()
-        var haveCARevoked bool
-        for _, e := range entries {
-            if e.LoggerName != "audit" { continue }
-            if findStringField(e, "event") == "ca_cert_revoked" { haveCARevoked = true; break }
-        }
-        if !haveCARevoked { t.Fatalf("expected CACertificateRevoked audit entry") }
+		entries := logs.TakeAll()
+		var haveCARevoked bool
+		for _, e := range entries {
+			if e.LoggerName != "audit" {
+				continue
+			}
+			if findStringField(e, "event") == "ca_cert_revoked" {
+				haveCARevoked = true
+				break
+			}
+		}
+		if !haveCARevoked {
+			t.Fatalf("expected CACertificateRevoked audit entry")
+		}
 		statusCode, cas, err := tu.ListCertificateAuthorities(ts.URL, client, adminToken)
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)

@@ -9,7 +9,7 @@ import (
 )
 
 func TestStatus(t *testing.T) {
-    ts, _ := tu.MustPrepareServer(t)
+	ts, _ := tu.MustPrepareServer(t)
 	client := ts.Client()
 
 	t.Run("status not initialized", func(t *testing.T) {

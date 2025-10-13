@@ -175,13 +175,13 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 		if claimsErr == nil {
 			actor = claims.Email
 		}
-		
+
 		opts := []logging.AuditOption{logging.WithRequest(r)}
 		if actor != "" {
 			opts = append(opts, logging.WithActor(actor))
 		}
 		env.AuditLogger.UserCreated(createAccountParams.Email, int(createAccountParams.RoleID), opts...)
-		
+
 		successResponse := CreateSuccessResponse{Message: "success", ID: newUserID}
 		err = writeResponse(w, successResponse, http.StatusCreated)
 		if err != nil {
@@ -374,7 +374,7 @@ func ChangeMyPassword(env *HandlerConfig) http.HandlerFunc {
 
 		env.AuditLogger.PasswordChanged(account.Email, logging.WithRequest(r))
 		env.AuditLogger.UserUpdated(account.Email, "password_change", logging.WithRequest(r))
-		
+
 		successResponse := SuccessResponse{Message: "success"}
 		err = writeResponse(w, successResponse, http.StatusCreated)
 		if err != nil {

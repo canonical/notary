@@ -26,18 +26,18 @@ func MustPrepareServer(t *testing.T) (*httptest.Server, *observer.ObservedLogs) 
 
 	db := MustPrepareEmptyDB(t)
 	// Attach observed audit logger
-    core, logs := observer.New(zapcore.InfoLevel)
+	core, logs := observer.New(zapcore.InfoLevel)
 	auditZap := zap.New(core)
 
-    srv, err := server.New(&server.ServerOpts{
+	srv, err := server.New(&server.ServerOpts{
 		Port:                      8000,
 		TLSCertificate:            []byte(TestServerCertificate),
 		TLSPrivateKey:             []byte(TestServerKey),
 		Database:                  db,
 		ExternalHostname:          "example.com",
 		EnablePebbleNotifications: false,
-        SystemLogger:              logger,
-        AuditLogger:               auditZap,
+		SystemLogger:              logger,
+		AuditLogger:               auditZap,
 		PublicConfig:              &PublicConfig,
 	})
 	if err != nil {
@@ -47,7 +47,7 @@ func MustPrepareServer(t *testing.T) (*httptest.Server, *observer.ObservedLogs) 
 	t.Cleanup(func() {
 		testServer.Close()
 	})
-    return testServer, logs
+	return testServer, logs
 }
 
 func MustPrepareAccount(t *testing.T, ts *httptest.Server, email string, roleID RoleID, token string) string {
@@ -536,14 +536,14 @@ type UpdateCertificateAuthorityResponse struct {
 }
 
 func UpdateCertificateAuthority(url string, client *http.Client, token string, id int, status UpdateCertificateAuthorityParams) (int, *UpdateCertificateAuthorityResponse, error) {
-    enabled := status.Status == "active"
-    payload := struct{
-        Enabled bool `json:"enabled"`
-    }{Enabled: enabled}
-    reqData, err := json.Marshal(payload)
-    if err != nil {
-        return 0, nil, err
-    }
+	enabled := status.Status == "active"
+	payload := struct {
+		Enabled bool `json:"enabled"`
+	}{Enabled: enabled}
+	reqData, err := json.Marshal(payload)
+	if err != nil {
+		return 0, nil, err
+	}
 	req, err := http.NewRequest("PUT", url+"/api/v1/certificate_authorities/"+strconv.Itoa(id), bytes.NewReader(reqData))
 	if err != nil {
 		return 0, nil, err

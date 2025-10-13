@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/logging"
 	"go.uber.org/zap"
 )
 
@@ -156,8 +157,8 @@ func CreateCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 		}
 		
 		env.AuditLogger.CertificateRequested(strconv.FormatInt(newCSRID, 10), 0,
-			WithActor(claims.Email),
-			WithRequest(r),
+			logging.WithActor(claims.Email),
+			logging.WithRequest(r),
 		)
 		
 		successResponse := CreateSuccessResponse{Message: "success", ID: newCSRID}
@@ -279,8 +280,8 @@ func DeleteCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 		}
 		
 		env.AuditLogger.CertificateRequestDeleted(id,
-			WithActor(claims.Email),
-			WithRequest(r),
+			logging.WithActor(claims.Email),
+			logging.WithRequest(r),
 		)
 		
 		successResponse := SuccessResponse{Message: "success"}
@@ -340,8 +341,8 @@ func PostCertificateRequestCertificate(env *HandlerConfig) http.HandlerFunc {
 		}
 		
 		env.AuditLogger.CertificateIssued(id, 0,
-			WithActor(claims.Email),
-			WithRequest(r),
+			logging.WithActor(claims.Email),
+			logging.WithRequest(r),
 		)
 		
 		if env.SendPebbleNotifications {
@@ -397,9 +398,9 @@ func RejectCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 		}
 		
 		env.AuditLogger.CertificateRejected(id, 0,
-			WithActor(claims.Email),
-			WithRequest(r),
-			WithReason("rejected by administrator"),
+			logging.WithActor(claims.Email),
+			logging.WithRequest(r),
+			logging.WithReason("rejected by administrator"),
 		)
 		
 		if env.SendPebbleNotifications {
@@ -498,8 +499,8 @@ func RevokeCertificate(env *HandlerConfig) http.HandlerFunc {
 		}
 		
 		env.AuditLogger.CertificateRevoked(id,
-			WithActor(claims.Email),
-			WithRequest(r),
+			logging.WithActor(claims.Email),
+			logging.WithRequest(r),
 		)
 		
 		if env.SendPebbleNotifications {

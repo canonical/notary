@@ -8,6 +8,7 @@ import (
 
 	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/hashing"
+	"github.com/canonical/notary/internal/logging"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -80,8 +81,8 @@ func Login(env *HandlerConfig) http.HandlerFunc {
 		}
 		if err := hashing.CompareHashAndPassword(hashedPassword, loginParams.Password); err != nil {
 			env.AuditLogger.LoginFailed(loginParams.Email,
-				WithRequest(r),
-				WithReason("invalid credentials"),
+				logging.WithRequest(r),
+				logging.WithReason("invalid credentials"),
 			)
 			writeError(w, http.StatusUnauthorized, "The email or password is incorrect", err, env.SystemLogger)
 			return
@@ -100,7 +101,7 @@ func Login(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 		
-		env.AuditLogger.LoginSuccess(userAccount.Email, WithRequest(r))
-		env.AuditLogger.TokenCreated(userAccount.Email, WithRequest(r))
+		env.AuditLogger.LoginSuccess(userAccount.Email, logging.WithRequest(r))
+		env.AuditLogger.TokenCreated(userAccount.Email, logging.WithRequest(r))
 	}
 }

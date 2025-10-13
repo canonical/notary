@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/logging"
 	"github.com/canonical/notary/internal/metrics"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -27,7 +28,7 @@ type middlewareContext struct {
 	responseStatusCode int
 	jwtSecret          []byte
 	systemLogger       *zap.Logger
-	auditLogger        *AuditLogger
+	auditLogger        *logging.AuditLogger
 }
 
 // createMiddlewareStack chains the given middleware functions to wrap the api.
@@ -114,19 +115,19 @@ func auditLoggingMiddleware(ctx *middlewareContext) middleware {
 			resourceID := extractResourceID(r.URL.Path)
 			resourceType := extractResourceType(r.URL.Path)
 
-			opts := []AuditOption{WithRequest(r)}
+			opts := []logging.AuditOption{logging.WithRequest(r)}
 			if actor != "" {
-				opts = append(opts, WithActor(actor))
+				opts = append(opts, logging.WithActor(actor))
 			}
 			if resourceID != "" {
-				opts = append(opts, WithResourceID(resourceID))
+				opts = append(opts, logging.WithResourceID(resourceID))
 			}
 			if resourceType != "" {
-				opts = append(opts, WithResourceType(resourceType))
+				opts = append(opts, logging.WithResourceType(resourceType))
 			}
 
             if ctx.responseStatusCode >= 400 {
-                opts = append(opts, WithReason(fmt.Sprintf("HTTP %d: %s", ctx.responseStatusCode, http.StatusText(ctx.responseStatusCode))))
+                opts = append(opts, logging.WithReason(fmt.Sprintf("HTTP %d: %s", ctx.responseStatusCode, http.StatusText(ctx.responseStatusCode))))
 				ctx.auditLogger.APIAction(action+" (failed)", opts...)
 			}
             if ctx.responseStatusCode < 400 && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
@@ -181,13 +182,13 @@ func extractResourceType(path string) string {
 	return ""
 }
 
-func requirePermission(permission string, jwtSecret []byte, handler http.HandlerFunc, systemLogger *zap.Logger, auditLogger *AuditLogger) http.HandlerFunc {
+func requirePermission(permission string, jwtSecret []byte, handler http.HandlerFunc, systemLogger *zap.Logger, auditLogger *logging.AuditLogger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
 		if err != nil {
 			auditLogger.UnauthorizedAccess(
-				WithRequest(r),
-				WithReason("invalid or missing JWT token"),
+				logging.WithRequest(r),
+				logging.WithReason("invalid or missing JWT token"),
 			)
 			writeError(w, http.StatusUnauthorized, "Unauthorized", err, systemLogger)
 			return
@@ -197,9 +198,9 @@ func requirePermission(permission string, jwtSecret []byte, handler http.Handler
 		permissions, ok := PermissionsByRole[roleID]
 		if !ok {
 			auditLogger.UnauthorizedAccess(
-				WithActor(claims.Email),
-				WithRequest(r),
-				WithReason("unknown role"),
+				logging.WithActor(claims.Email),
+				logging.WithRequest(r),
+				logging.WithReason("unknown role"),
 			)
 			writeError(w, http.StatusForbidden, "forbidden: unknown role", errors.New("role not found"), systemLogger)
 			return
@@ -207,8 +208,8 @@ func requirePermission(permission string, jwtSecret []byte, handler http.Handler
 
         if !hasPermission(permissions, permission) {
             auditLogger.AccessDenied(claims.Email, r.URL.Path, permission,
-                WithRequest(r),
-                WithReason("insufficient permissions"),
+                logging.WithRequest(r),
+                logging.WithReason("insufficient permissions"),
             )
 			writeError(w, http.StatusForbidden, "forbidden: insufficient permissions", errors.New("missing permission"), systemLogger)
 			return
@@ -227,7 +228,7 @@ func hasPermission(userPermissions []string, required string) bool {
 	return false
 }
 
-func requirePermissionOrFirstUser(permission string, jwtSecret []byte, db *db.Database, handler http.HandlerFunc, systemLogger *zap.Logger, auditLogger *AuditLogger) http.HandlerFunc {
+func requirePermissionOrFirstUser(permission string, jwtSecret []byte, db *db.Database, handler http.HandlerFunc, systemLogger *zap.Logger, auditLogger *logging.AuditLogger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		numUsers, err := db.NumUsers()
 		if err != nil {
@@ -243,8 +244,8 @@ func requirePermissionOrFirstUser(permission string, jwtSecret []byte, db *db.Da
 		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
 		if err != nil {
 			auditLogger.UnauthorizedAccess(
-				WithRequest(r),
-				WithReason("invalid or missing JWT token"),
+				logging.WithRequest(r),
+				logging.WithReason("invalid or missing JWT token"),
 			)
 			writeError(w, http.StatusUnauthorized, "Unauthorized", err, systemLogger)
 			return
@@ -253,8 +254,8 @@ func requirePermissionOrFirstUser(permission string, jwtSecret []byte, db *db.Da
 		permissions, ok := PermissionsByRole[claims.RoleID]
         if !ok || !hasPermission(permissions, permission) {
             auditLogger.AccessDenied(claims.Email, r.URL.Path, permission,
-                WithRequest(r),
-                WithReason("insufficient permissions"),
+                logging.WithRequest(r),
+                logging.WithReason("insufficient permissions"),
             )
 			writeError(w, http.StatusForbidden, "forbidden: insufficient permissions", errors.New("missing required permission"), systemLogger)
 			return

@@ -17,15 +17,15 @@ func TestNewSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot create logger: %s", err)
 	}
-    s, err := server.New(&server.ServerOpts{
+	s, err := server.New(&server.ServerOpts{
 		Port:                      8000,
 		TLSCertificate:            []byte(tu.TestServerCertificate),
 		TLSPrivateKey:             []byte(tu.TestServerKey),
 		Database:                  db,
 		ExternalHostname:          "example.com",
 		EnablePebbleNotifications: false,
-        SystemLogger:              l,
-        AuditLogger:               l,
+		SystemLogger:              l,
+		AuditLogger:               l,
 		PublicConfig:              &tu.PublicConfig,
 	})
 	if err != nil {

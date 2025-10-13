@@ -34,7 +34,7 @@ func New(opts *ServerOpts) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create logger for http server: %w", err)
 	}
-	
+
 	cfg := &HandlerConfig{}
 	cfg.SendPebbleNotifications = opts.EnablePebbleNotifications
 	cfg.JWTSecret = opts.Database.JWTSecret

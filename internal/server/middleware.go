@@ -22,7 +22,6 @@ const (
 	MAX_KILOBYTES = 100
 )
 
-
 // The middlewareContext type helps middleware receive and pass along information through the middleware chain.
 type middlewareContext struct {
 	responseStatusCode int
@@ -104,7 +103,7 @@ func loggingMiddleware(ctx *middlewareContext) middleware {
 func auditLoggingMiddleware(ctx *middlewareContext) middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-            next.ServeHTTP(w, r)
+			next.ServeHTTP(w, r)
 			var actor string
 			claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), ctx.jwtSecret)
 			if err == nil {
@@ -126,13 +125,13 @@ func auditLoggingMiddleware(ctx *middlewareContext) middleware {
 				opts = append(opts, logging.WithResourceType(resourceType))
 			}
 
-            if ctx.responseStatusCode >= 400 {
-                opts = append(opts, logging.WithReason(fmt.Sprintf("HTTP %d: %s", ctx.responseStatusCode, http.StatusText(ctx.responseStatusCode))))
+			if ctx.responseStatusCode >= 400 {
+				opts = append(opts, logging.WithReason(fmt.Sprintf("HTTP %d: %s", ctx.responseStatusCode, http.StatusText(ctx.responseStatusCode))))
 				ctx.auditLogger.APIAction(action+" (failed)", opts...)
 			}
-            if ctx.responseStatusCode < 400 && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
-                ctx.auditLogger.APIAction(action, opts...)
-            }
+			if ctx.responseStatusCode < 400 && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
+				ctx.auditLogger.APIAction(action, opts...)
+			}
 		})
 	}
 }
@@ -177,7 +176,7 @@ func extractResourceType(path string) string {
 	cleanPath := strings.Trim(path, "/")
 	parts := strings.Split(cleanPath, "/")
 	if len(parts) > 0 && parts[0] != "" {
-        return parts[0]
+		return parts[0]
 	}
 	return ""
 }
@@ -206,11 +205,11 @@ func requirePermission(permission string, jwtSecret []byte, handler http.Handler
 			return
 		}
 
-        if !hasPermission(permissions, permission) {
-            auditLogger.AccessDenied(claims.Email, r.URL.Path, permission,
-                logging.WithRequest(r),
-                logging.WithReason("insufficient permissions"),
-            )
+		if !hasPermission(permissions, permission) {
+			auditLogger.AccessDenied(claims.Email, r.URL.Path, permission,
+				logging.WithRequest(r),
+				logging.WithReason("insufficient permissions"),
+			)
 			writeError(w, http.StatusForbidden, "forbidden: insufficient permissions", errors.New("missing permission"), systemLogger)
 			return
 		}
@@ -252,11 +251,11 @@ func requirePermissionOrFirstUser(permission string, jwtSecret []byte, db *db.Da
 		}
 
 		permissions, ok := PermissionsByRole[claims.RoleID]
-        if !ok || !hasPermission(permissions, permission) {
-            auditLogger.AccessDenied(claims.Email, r.URL.Path, permission,
-                logging.WithRequest(r),
-                logging.WithReason("insufficient permissions"),
-            )
+		if !ok || !hasPermission(permissions, permission) {
+			auditLogger.AccessDenied(claims.Email, r.URL.Path, permission,
+				logging.WithRequest(r),
+				logging.WithReason("insufficient permissions"),
+			)
 			writeError(w, http.StatusForbidden, "forbidden: insufficient permissions", errors.New("missing required permission"), systemLogger)
 			return
 		}

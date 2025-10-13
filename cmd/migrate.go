@@ -121,7 +121,7 @@ func init() {
 	migrateUpCmd.Flags().StringVarP(&dsn, "database-path", "d", "./notary.db", "A DSN for connecting to the database. Also accepts a path to a file, and will assume that the database is SQLite.")
 	migrateDownCmd.Flags().StringVarP(&dsn, "database-path", "d", "./notary.db", "A DSN for connecting to the database. Also accepts a path to a file, and will assume that the database is SQLite.")
 	migrateStatusCmd.Flags().StringVarP(&dsn, "database-path", "d", "./notary.db", "A DSN for connecting to the database. Also accepts a path to a file, and will assume that the database is SQLite.")
-	
+
 	if err := migrateUpCmd.MarkFlagRequired("database-path"); err != nil {
 		log.Fatalf("Error marking database-path flag as required: %v", err)
 	}

@@ -100,7 +100,7 @@ func Login(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
 			return
 		}
-		
+
 		env.AuditLogger.LoginSuccess(userAccount.Email, logging.WithRequest(r))
 		env.AuditLogger.TokenCreated(userAccount.Email, logging.WithRequest(r))
 	}

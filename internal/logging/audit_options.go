@@ -65,7 +65,7 @@ func WithResourceID(id string) AuditOption {
 // It captures: remote IP, user agent, path, and method. Kept simple by design.
 func WithRequest(r *http.Request) AuditOption {
 	return func(ctx *auditContext) {
-        ctx.ipAddress = r.RemoteAddr
+		ctx.ipAddress = r.RemoteAddr
 		ctx.userAgent = r.UserAgent()
 		ctx.path = r.URL.Path
 		ctx.method = r.Method
@@ -107,4 +107,3 @@ func (ctx *auditContext) toZapFields() []zap.Field {
 
 	return fields
 }
-

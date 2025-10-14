@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/logging"
 	"github.com/canonical/notary/internal/metrics"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -21,12 +22,12 @@ const (
 	MAX_KILOBYTES = 100
 )
 
-
 // The middlewareContext type helps middleware receive and pass along information through the middleware chain.
 type middlewareContext struct {
 	responseStatusCode int
 	jwtSecret          []byte
-	logger             *zap.Logger
+	systemLogger       *zap.Logger
+	auditLogger        *logging.AuditLogger
 }
 
 // createMiddlewareStack chains the given middleware functions to wrap the api.
@@ -89,7 +90,7 @@ func loggingMiddleware(ctx *middlewareContext) middleware {
 
 			// Suppress logging for static files
 			if !strings.HasPrefix(r.URL.Path, "/_next") {
-				ctx.logger.Info("Request", zap.String("method", r.Method), zap.String("path", r.URL.Path), zap.Int("status_code", clonedWriter.statusCode), zap.String("status_text", http.StatusText(clonedWriter.statusCode)))
+				ctx.systemLogger.Info("HTTP request completed", zap.String("method", r.Method), zap.String("path", r.URL.Path), zap.Int("status_code", clonedWriter.statusCode), zap.String("status_text", http.StatusText(clonedWriter.statusCode)))
 			}
 
 			ctx.responseStatusCode = clonedWriter.statusCode
@@ -97,23 +98,119 @@ func loggingMiddleware(ctx *middlewareContext) middleware {
 	}
 }
 
-func requirePermission(permission string, jwtSecret []byte, handler http.HandlerFunc, logger *zap.Logger) http.HandlerFunc {
+// auditLoggingMiddleware logs API requests to the audit log.
+// It logs all failed requests, and also successful read-only (GET/HEAD) requests.
+func auditLoggingMiddleware(ctx *middlewareContext) middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			next.ServeHTTP(w, r)
+			var actor string
+			claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), ctx.jwtSecret)
+			if err == nil {
+				actor = claims.Email
+			}
+
+			action := buildActionDescription(r.Method, r.URL.Path)
+			resourceID := extractResourceID(r.URL.Path)
+			resourceType := extractResourceType(r.URL.Path)
+
+			opts := []logging.AuditOption{logging.WithRequest(r)}
+			if actor != "" {
+				opts = append(opts, logging.WithActor(actor))
+			}
+			if resourceID != "" {
+				opts = append(opts, logging.WithResourceID(resourceID))
+			}
+			if resourceType != "" {
+				opts = append(opts, logging.WithResourceType(resourceType))
+			}
+
+			if ctx.responseStatusCode >= 400 {
+				opts = append(opts, logging.WithReason(fmt.Sprintf("HTTP %d: %s", ctx.responseStatusCode, http.StatusText(ctx.responseStatusCode))))
+				ctx.auditLogger.APIAction(action+" (failed)", opts...)
+			}
+			if ctx.responseStatusCode < 400 && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
+				ctx.auditLogger.APIAction(action, opts...)
+			}
+		})
+	}
+}
+
+// buildActionDescription returns a minimal deterministic description from HTTP method and path.
+// It returns "METHOD path" where the leading slash is trimmed from the path.
+// Examples:
+//   - GET /certificate_requests -> "GET certificate_requests"
+//   - POST /users -> "POST users"
+//   - DELETE /certificate_authorities/5 -> "DELETE certificate_authorities/5"
+func buildActionDescription(method, path string) string {
+	// Minimal, deterministic: "METHOD path-without-leading-slash"
+	cleanPath := strings.Trim(path, "/")
+	if cleanPath == "" {
+		return method
+	}
+	return method + " " + cleanPath
+}
+
+// extractResourceID extracts the resource ID from the URL path if present.
+// Examples:
+//   - /users/123 -> "123"
+//   - /certificate_authorities/5 -> "5"
+func extractResourceID(path string) string {
+	// Expect formats like: /{resource}/{id} or /{resource}/{id}/{subresource}
+	cleanPath := strings.Trim(path, "/")
+	parts := strings.Split(cleanPath, "/")
+	if len(parts) > 1 {
+		if _, err := strconv.ParseInt(parts[1], 10, 64); err == nil {
+			return parts[1]
+		}
+	}
+	return ""
+}
+
+// extractResourceType returns the first path segment as the resource type.
+// No singularization is performed.
+// Examples:
+//   - /users -> "users"
+//   - /certificate_requests/123 -> "certificate_requests"
+func extractResourceType(path string) string {
+	cleanPath := strings.Trim(path, "/")
+	parts := strings.Split(cleanPath, "/")
+	if len(parts) > 0 && parts[0] != "" {
+		return parts[0]
+	}
+	return ""
+}
+
+func requirePermission(permission string, jwtSecret []byte, handler http.HandlerFunc, systemLogger *zap.Logger, auditLogger *logging.AuditLogger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
 		if err != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", err, logger)
+			auditLogger.UnauthorizedAccess(
+				logging.WithRequest(r),
+				logging.WithReason("invalid or missing JWT token"),
+			)
+			writeError(w, http.StatusUnauthorized, "Unauthorized", err, systemLogger)
 			return
 		}
 
 		roleID := claims.RoleID
 		permissions, ok := PermissionsByRole[roleID]
 		if !ok {
-			writeError(w, http.StatusForbidden, "forbidden: unknown role", errors.New("role not found"), logger)
+			auditLogger.UnauthorizedAccess(
+				logging.WithActor(claims.Email),
+				logging.WithRequest(r),
+				logging.WithReason("unknown role"),
+			)
+			writeError(w, http.StatusForbidden, "forbidden: unknown role", errors.New("role not found"), systemLogger)
 			return
 		}
 
 		if !hasPermission(permissions, permission) {
-			writeError(w, http.StatusForbidden, "forbidden: insufficient permissions", errors.New("missing permission"), logger)
+			auditLogger.AccessDenied(claims.Email, r.URL.Path, permission,
+				logging.WithRequest(r),
+				logging.WithReason("insufficient permissions"),
+			)
+			writeError(w, http.StatusForbidden, "forbidden: insufficient permissions", errors.New("missing permission"), systemLogger)
 			return
 		}
 
@@ -130,30 +227,36 @@ func hasPermission(userPermissions []string, required string) bool {
 	return false
 }
 
-func requirePermissionOrFirstUser(permission string, jwtSecret []byte, db *db.Database, handler http.HandlerFunc, logger *zap.Logger) http.HandlerFunc {
+func requirePermissionOrFirstUser(permission string, jwtSecret []byte, db *db.Database, handler http.HandlerFunc, systemLogger *zap.Logger, auditLogger *logging.AuditLogger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		numUsers, err := db.NumUsers()
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, logger)
+			writeError(w, http.StatusInternalServerError, "Internal Error", err, systemLogger)
 			return
 		}
 
-		// If no users exist, allow the request through (initial setup case)
 		if numUsers == 0 {
 			handler(w, r)
 			return
 		}
 
-		// Otherwise validate permissions
 		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
 		if err != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", err, logger)
+			auditLogger.UnauthorizedAccess(
+				logging.WithRequest(r),
+				logging.WithReason("invalid or missing JWT token"),
+			)
+			writeError(w, http.StatusUnauthorized, "Unauthorized", err, systemLogger)
 			return
 		}
 
 		permissions, ok := PermissionsByRole[claims.RoleID]
 		if !ok || !hasPermission(permissions, permission) {
-			writeError(w, http.StatusForbidden, "forbidden: insufficient permissions", errors.New("missing required permission"), logger)
+			auditLogger.AccessDenied(claims.Email, r.URL.Path, permission,
+				logging.WithRequest(r),
+				logging.WithReason("insufficient permissions"),
+			)
+			writeError(w, http.StatusForbidden, "forbidden: insufficient permissions", errors.New("missing required permission"), systemLogger)
 			return
 		}
 

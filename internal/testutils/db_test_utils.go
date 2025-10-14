@@ -16,7 +16,7 @@ import (
 func MustPrepareEmptyDB(t *testing.T) *db.Database {
 	t.Helper()
 
-	tempDir := t.TempDir()	
+	tempDir := t.TempDir()
 	sqlConnection, err := sql.Open("sqlite3", filepath.Join(tempDir, "db.sqlite3"))
 	if err != nil {
 		t.Fatalf("Couldn't create temporary database: %s", err)

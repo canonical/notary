@@ -2,7 +2,9 @@ package config
 
 import (
 	"github.com/canonical/notary/internal/encryption_backend"
+	"github.com/coreos/go-oidc/v3/oidc"
 	"go.uber.org/zap"
+	"golang.org/x/oauth2"
 )
 
 type EncryptionBackendType string
@@ -117,4 +119,14 @@ type NotaryAppContext struct {
 	// Encryption backend to be used for encrypting and decrypting sensitive data
 	EncryptionBackendType
 	EncryptionBackend encryption_backend.EncryptionBackend
+
+	// OIDC configuration
+	OIDCConfig *OIDCConfig
+}
+
+// This is the configuration for OIDC authentication
+type OIDCConfig struct {
+	OIDCConfig *oauth2.Config
+	Provider   *oidc.Provider
+	Verifier   *oidc.IDTokenVerifier
 }

@@ -80,7 +80,7 @@ func validateEmail(email string) bool {
 }
 
 // ListAccounts returns all accounts from the database
-func ListAccounts(env *HandlerConfig) http.HandlerFunc {
+func ListAccounts(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		accounts, err := env.DB.ListUsers()
 		if err != nil {
@@ -105,7 +105,7 @@ func ListAccounts(env *HandlerConfig) http.HandlerFunc {
 
 // GetAccount receives an id as a path parameter, and
 // returns the corresponding User Account
-func GetAccount(env *HandlerConfig) http.HandlerFunc {
+func GetAccount(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		var account *db.User
@@ -147,7 +147,7 @@ func GetAccount(env *HandlerConfig) http.HandlerFunc {
 }
 
 // CreateAccount creates a new Account, and returns the id of the created row
-func CreateAccount(env *HandlerConfig) http.HandlerFunc {
+func CreateAccount(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var createAccountParams CreateAccountParams
 		if err := json.NewDecoder(r.Body).Decode(&createAccountParams); err != nil {
@@ -179,7 +179,7 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 
 // DeleteAccount handler receives an id as a path parameter,
 // deletes the corresponding User Account, and returns a http.StatusNoContent on success
-func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
+func DeleteAccount(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		idInt, err := strconv.ParseInt(id, 10, 64)
@@ -219,7 +219,7 @@ func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
 	}
 }
 
-func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
+func ChangeAccountPassword(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		var idNum int64
@@ -257,7 +257,7 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 	}
 }
 
-func ChangeMyPassword(env *HandlerConfig) http.HandlerFunc {
+func ChangeMyPassword(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var idNum int64
 		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)

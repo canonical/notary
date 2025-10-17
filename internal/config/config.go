@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -9,10 +10,12 @@ import (
 	"strings"
 
 	eb "github.com/canonical/notary/internal/encryption_backend"
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"golang.org/x/oauth2"
 )
 
 // CreateAppContext opens and processes the given configuration yaml file by
@@ -46,6 +49,11 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 	if err != nil {
 		return nil, fmt.Errorf("couldn't initialize encryption backend: %w", err)
 	}
+	// initialize OIDC config
+	oidcConfig, err := initializeOIDC(cfg.Sub("authentication.oidc"))
+	if err != nil {
+		return nil, fmt.Errorf("couldn't initialize OIDC config: %w", err)
+	}
 
 	appContext.Port = cfg.GetInt("port")
 	appContext.ExternalHostname = cfg.GetString("external_hostname")
@@ -58,6 +66,7 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 	appContext.Logger = logger
 	appContext.EncryptionBackend = backend
 	appContext.EncryptionBackendType = backendType
+	appContext.OIDCConfig = oidcConfig
 	appContext.PublicConfig = &PublicConfigData{
 		Port:                  cfg.GetInt("port"),
 		PebbleNotifications:   cfg.GetBool("pebble_notifications"),
@@ -65,6 +74,7 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 		LoggingOutput:         cfg.GetString("logging.system.output"),
 		EncryptionBackendType: backendType,
 	}
+
 	return &appContext, nil
 }
 
@@ -228,4 +238,37 @@ func initializeLogger(cfg *viper.Viper) (*zap.Logger, error) {
 	}
 
 	return logger, nil
+}
+
+func initializeOIDC(cfg *viper.Viper) (*OIDCConfig, error) {
+	if cfg == nil {
+		return nil, nil
+	}
+
+	domain := cfg.GetString("provider_url")
+	clientID := cfg.GetString("client_id")
+	clientSecret := cfg.GetString("client_secret")
+	scopes := cfg.GetStringSlice("scopes")
+
+	provider, err := oidc.NewProvider(context.Background(), "https://"+domain+"/")
+	if err != nil {
+		return nil, err
+	}
+	verifier := provider.Verifier(&oidc.Config{ClientID: clientID})
+
+	oidcConfig := &oauth2.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		RedirectURL:  "https://localhost:2111/api/v1/oauth/callback", // TODO: this value needs to be generated
+
+		Endpoint: provider.Endpoint(),
+
+		Scopes: append([]string{oidc.ScopeOpenID}, scopes...),
+	}
+
+	return &OIDCConfig{
+		OIDCConfig: oidcConfig,
+		Provider:   provider,
+		Verifier:   verifier,
+	}, nil
 }

@@ -50,7 +50,7 @@ func generateJWT(id int64, email string, jwtSecret []byte, roleID RoleID) (strin
 	return tokenString, nil
 }
 
-func Login(env *HandlerConfig) http.HandlerFunc {
+func Login(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var loginParams LoginParams
 		if err := json.NewDecoder(r.Body).Decode(&loginParams); err != nil {

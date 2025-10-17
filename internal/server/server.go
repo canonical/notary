@@ -13,12 +13,14 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-type HandlerConfig struct {
+type HandlerOpts struct {
 	DB                      *db.Database
 	Logger                  *zap.Logger
 	ExternalHostname        string
 	JWTSecret               []byte
 	SendPebbleNotifications bool
+	OIDCConfig              *config.OIDCConfig
+	State                   string
 	PublicConfig            config.PublicConfigData
 }
 
@@ -32,14 +34,16 @@ func New(opts *ServerOpts) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create logger for http server: %w", err)
 	}
-	
-	cfg := &HandlerConfig{}
+
+	cfg := &HandlerOpts{}
+	cfg.State = generateRandomString(32)
 	cfg.SendPebbleNotifications = opts.EnablePebbleNotifications
 	cfg.JWTSecret = opts.Database.JWTSecret
 	cfg.ExternalHostname = opts.ExternalHostname
 	cfg.Logger = opts.Logger
 	cfg.PublicConfig = *opts.PublicConfig
 	cfg.DB = opts.Database
+	cfg.OIDCConfig = opts.OIDCConfig
 
 	router := NewRouter(cfg)
 	s := &http.Server{

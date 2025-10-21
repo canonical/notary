@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 )
 
@@ -31,17 +30,21 @@ func CallbackOIDC(env *HandlerOpts) http.HandlerFunc {
 		if err := idtoken.Claims(&claims); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to unmarshal claims", err, env.Logger)
 		}
-		fmt.Println(claims)
-		// create a new user with this token content?
-
-		// sign the user in
 		http.SetCookie(w, &http.Cookie{
-			Name:     "user_token",
+			Name:     CookieSessionTokenKey,
 			Value:    rawIDToken,
 			HttpOnly: true,
 			Secure:   true,
 			Path:     "/",
-			SameSite: http.SameSiteLaxMode,
+			SameSite: http.SameSiteStrictMode,
+		})
+		http.SetCookie(w, &http.Cookie{
+			Name:     CookieHasSessionKey,
+			Value:    "true",
+			HttpOnly: false,
+			Secure:   true,
+			Path:     "/",
+			SameSite: http.SameSiteStrictMode,
 		})
 		http.Redirect(w, r, "/", http.StatusFound)
 	}

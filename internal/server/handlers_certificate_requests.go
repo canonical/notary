@@ -70,9 +70,9 @@ type CertificateRequest struct {
 // ListCertificateRequests returns all of the Certificate Requests
 func ListCertificateRequests(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
-		if headerErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.Logger)
+		claims, cookieErr := getClaimsFromCookie(r, env.JWTSecret)
+		if cookieErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.Logger)
 			return
 		}
 
@@ -134,10 +134,9 @@ func CreateCertificateRequest(env *HandlerOpts) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.Logger)
 			return
 		}
-
-		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
-		if headerErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.Logger)
+		claims, cookieErr := getClaimsFromCookie(r, env.JWTSecret)
+		if cookieErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.Logger)
 			return
 		}
 
@@ -167,7 +166,7 @@ func CreateCertificateRequest(env *HandlerOpts) http.HandlerFunc {
 // returns the corresponding Certificate Request
 func GetCertificateRequest(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
+		claims, headerErr := getClaimsFromCookie(r, env.JWTSecret)
 		if headerErr != nil {
 			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.Logger)
 			return

@@ -87,10 +87,46 @@ func Login(env *HandlerOpts) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
 			return
 		}
-		loginResponse := LoginResponse{
-			Token: jwt,
+		http.SetCookie(w, &http.Cookie{
+			Name:     CookieSessionTokenKey,
+			Value:    jwt,
+			HttpOnly: true,
+			Secure:   true,
+			Path:     "/",
+			SameSite: http.SameSiteStrictMode,
+		})
+		http.SetCookie(w, &http.Cookie{
+			Name:     CookieHasSessionKey,
+			Value:    "true",
+			HttpOnly: false,
+			Secure:   true,
+			Path:     "/",
+			SameSite: http.SameSiteStrictMode,
+		})
+		err = writeResponse(w, SuccessResponse{Message: "success"}, http.StatusOK)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error", err, env.Logger)
+			return
 		}
-		err = writeResponse(w, loginResponse, http.StatusOK)
+	}
+}
+
+// Expire both cookies if logging out
+func Logout(env *HandlerOpts) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		http.SetCookie(w, &http.Cookie{
+			Name:    CookieSessionTokenKey,
+			Value:   "",
+			Path:    "/",
+			Expires: time.Unix(0, 0),
+		})
+		http.SetCookie(w, &http.Cookie{
+			Name:    CookieHasSessionKey,
+			Value:   "",
+			Path:    "/",
+			Expires: time.Unix(0, 0),
+		})
+		err := writeResponse(w, SuccessResponse{Message: "success"}, http.StatusOK)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error", err, env.Logger)
 			return

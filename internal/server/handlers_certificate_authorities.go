@@ -258,9 +258,9 @@ func CreateCertificateAuthority(env *HandlerOpts) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.Logger)
 			return
 		}
-		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
-		if headerErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.Logger)
+		claims, cookieErr := getClaimsFromCookie(r, env.JWTSecret)
+		if cookieErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.Logger)
 			return
 		}
 		csrPEM, privPEM, crlPEM, certPEM, err := createCertificateAuthority(params)

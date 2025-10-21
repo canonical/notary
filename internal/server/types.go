@@ -8,6 +8,11 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	CookieSessionTokenKey = "user_token"
+	CookieHasSessionKey   = "has_session"
+)
+
 type ServerOpts struct {
 	TLSCertificate []byte
 	TLSPrivateKey  []byte

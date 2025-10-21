@@ -16,6 +16,7 @@ import {
   NotaryConfirmationModal,
 } from "@/components/NotaryConfirmationModal";
 import { RoleID } from "@/types";
+import { useActiveCA } from "@/hooks/useActiveCA";
 
 type TableProps = {
   cas: CertificateAuthorityEntry[];
@@ -27,6 +28,7 @@ export function CertificateAuthoritiesTable({
   setAsideOpen,
 }: TableProps) {
   const auth = useAuth();
+  const [activeCA, setActiveCA] = useActiveCA();
   const [certificateFormOpen, setCertificateFormOpen] =
     useState<boolean>(false);
   const [confirmationModalData, setConfirmationModalData] =
@@ -71,8 +73,7 @@ export function CertificateAuthoritiesTable({
       queryFn: signCA,
       queryParams: {
         id: id.toString(),
-        authToken: auth.user?.authToken || "",
-        certificate_authority_id: override ? override : auth.activeCA?.id,
+        certificate_authority_id: override ? override : activeCA?.id,
       },
       queryKey: "cas",
       closeFn: () => setConfirmationModalData(null),
@@ -83,12 +84,12 @@ export function CertificateAuthoritiesTable({
   };
 
   const handleRevoke = (id: number) => {
-    if (id === auth.activeCA?.id) {
-      auth.setActiveCA(null);
+    if (id === activeCA?.id) {
+      setActiveCA(null);
     }
     setConfirmationModalData({
       queryFn: revokeCA,
-      queryParams: { id: id.toString(), authToken: auth.user?.authToken || "" },
+      queryParams: { id: id.toString() },
       queryKey: "cas",
       closeFn: () => setConfirmationModalData(null),
       buttonConfirmText: "Revoke",
@@ -98,12 +99,12 @@ export function CertificateAuthoritiesTable({
   };
 
   const handleDisableCA = (id: number) => {
-    if (id === auth.activeCA?.id) {
-      auth.setActiveCA(null);
+    if (id === activeCA?.id) {
+      setActiveCA(null);
     }
     setConfirmationModalData({
       queryFn: disableCA,
-      queryParams: { id: id.toString(), authToken: auth.user?.authToken || "" },
+      queryParams: { id: id.toString() },
       queryKey: "cas",
       closeFn: () => setConfirmationModalData(null),
       buttonConfirmText: "Continue",
@@ -113,12 +114,12 @@ export function CertificateAuthoritiesTable({
   };
 
   const handleDelete = (id: number) => {
-    if (id === auth.activeCA?.id) {
-      auth.setActiveCA(null);
+    if (id === activeCA?.id) {
+      setActiveCA(null);
     }
     setConfirmationModalData({
       queryFn: deleteCA,
-      queryParams: { id: id.toString(), authToken: auth.user?.authToken || "" },
+      queryParams: { id: id.toString() },
       closeFn: () => setConfirmationModalData(null),
       queryKey: "cas",
       warningText:
@@ -189,7 +190,7 @@ export function CertificateAuthoritiesTable({
         {
           content:
             caEntry.enabled +
-            (auth.activeCA?.id === caEntry.id ? " (selected)" : ""),
+            (activeCA?.id === caEntry.id ? " (selected)" : ""),
         },
         {
           content: certObj?.notAfter || "",
@@ -241,7 +242,7 @@ export function CertificateAuthoritiesTable({
                   {canManageCAs && !isSelfSigned && (
                     <Button
                       className="p-contextual-menu__link"
-                      disabled={auth.activeCA == null}
+                      disabled={activeCA == null}
                       onClick={() => handleSign(caEntry.id)}
                     >
                       {caEntry.enabled === true ? "Re-sign CSR" : "Sign CSR"}
@@ -282,11 +283,10 @@ export function CertificateAuthoritiesTable({
                     <Button
                       className="p-contextual-menu__link"
                       disabled={
-                        caEntry.enabled != true ||
-                        auth.activeCA?.id === caEntry.id
+                        caEntry.enabled != true || activeCA?.id === caEntry.id
                       }
                       onClick={() => {
-                        auth.setActiveCA(caEntry);
+                        setActiveCA(caEntry);
                       }}
                     >
                       Set as default for signing CSRs

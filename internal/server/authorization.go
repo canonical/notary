@@ -8,8 +8,8 @@ const (
 	PermUpdateUserPassword = "user:update_password"
 	PermUpdateMyPassword   = "user:update_my_password"
 	PermReadUser           = "user:read"
-	PermDeleteUser         = "user:delete"
 	PermReadMyUser         = "user:read_my_user"
+	PermDeleteUser         = "user:delete"
 
 	// Config permissions
 	PermReadConfig = "config:read"

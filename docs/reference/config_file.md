@@ -31,6 +31,12 @@ Or If you are using the snap you can modify the config under `/var/snap/notary/c
       - `approle_secret_id` (string): Secret ID for AppRole authentication.
       - `tls_ca_cert` (string): Path to the CA certificate for TLS verification (optional).
       - `tls_skip_verify` (boolean): Whether to skip TLS certificate verification (optional, defaults to `false`). It is strongly discouraged to set this to `true` outside of development environments
+- `tracing` (object): Configuration for tracing.
+  - `service_name` (string): The name that will identify your service in the tracing system
+  - `endpoint` (string): The URL of your OpenTelemetry collector endpoint
+  - `sampling_rate` (string): The percentage of traces to sample. Can be specified as a percentage (50%)
+  or a decimal value between 0.0 and 1.0 (0.0, 0.5, 1.0).
+
 
 ## Examples
 
@@ -47,6 +53,10 @@ logging:
     level: "info"
     output: "stdout"
 encryption_backend: {}
+tracing:
+  service_name: "notary"
+  endpoint: "127.0.0.1:4317"
+  sampling_rate: "100%"
 ```
 
 ### With HSM as an Encryption Backend
@@ -67,4 +77,8 @@ encryption_backend:
       lib_path: "/path/to/yubihsm_pkcs11.so"
       pin: "0001password"
       aes_encryption_key_id: 0x1234
+tracing:
+  service_name: "notary"
+  endpoint: "127.0.0.1:4317"
+  sampling_rate: "100%"
 ```

@@ -49,14 +49,17 @@ func NewRouter(config *HandlerConfig) http.Handler {
 	ctx := middlewareContext{
 		jwtSecret: config.JWTSecret,
 		logger:    config.Logger,
+		tracer:    config.Tracer,
 	}
 	apiMiddlewareStack := createMiddlewareStack(
 		limitRequestSize(MAX_KILOBYTES, config.Logger),
 		metricsMiddleware(m),
 		loggingMiddleware(&ctx),
+		tracingMiddleware(&ctx),
 	)
 	metricsMiddlewareStack := createMiddlewareStack(
 		metricsMiddleware(m),
+		tracingMiddleware(&ctx),
 	)
 
 	router := http.NewServeMux()

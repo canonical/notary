@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -8,9 +9,13 @@ import (
 	"slices"
 	"strings"
 
+	"strconv"
+
 	eb "github.com/canonical/notary/internal/encryption_backend"
+	"github.com/canonical/notary/internal/tracing"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -41,6 +46,11 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 	if err != nil {
 		return nil, fmt.Errorf("couldn't initialize logger: %w", err)
 	}
+	// initialize tracer
+	tracer, err := initializeTracing(cfg.Sub("tracing"), logger)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't initialize tracer: %w", err)
+	}
 	// initialize encryption backend
 	backendType, backend, err := initializeEncryptionBackend(cfg.Sub("encryption_backend"), logger)
 	if err != nil {
@@ -56,6 +66,7 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 	appContext.TLSCertificate = cert
 	appContext.TLSPrivateKey = key
 	appContext.Logger = logger
+	appContext.Tracer = tracer
 	appContext.EncryptionBackend = backend
 	appContext.EncryptionBackendType = backendType
 	appContext.PublicConfig = &PublicConfigData{
@@ -85,6 +96,7 @@ func initializeServerConfig(cmdFlags *pflag.FlagSet, configFilePath string) (*vi
 	v.SetDefault("external_hostname", "localhost")
 	v.SetDefault("logging.system.level", "debug")
 	v.SetDefault("logging.system.output", "stdout")
+
 
 	if configFilePath == "" {
 		return nil, errors.New("config file path not provided")
@@ -228,4 +240,66 @@ func initializeLogger(cfg *viper.Viper) (*zap.Logger, error) {
 	}
 
 	return logger, nil
+}
+
+// initializeTracing creates and configures a tracer based on the configuration.
+func initializeTracing(cfg *viper.Viper, logger *zap.Logger) (*Tracer, error) {
+	if cfg == nil {
+		return nil, nil
+	}
+	cfg.SetDefault("tracing.service_name", "notary")
+	cfg.SetDefault("tracing.sampling_rate", "100%")
+
+	if !cfg.IsSet("endpoint") {
+		return nil, errors.New("`tracing.endpoint` is required when tracing is enabled")
+	}
+	serviceName := cfg.GetString("service_name")
+	endpoint := cfg.GetString("endpoint")
+	samplingRate, err := parseSamplingRate(cfg.GetString("sampling_rate"))
+	if err != nil {
+		return nil, fmt.Errorf("invalid sampling rate: %w", err)
+	}
+	tracer := otel.Tracer("notary")
+	shutdownFunc, err := tracing.SetupTracing(context.Background(), endpoint, serviceName, samplingRate, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set up tracing: %w", err)
+	}
+	return &Tracer{
+		Tracer: tracer,
+		ShutdownFunc: shutdownFunc,
+	}, nil
+}
+
+// parseSamplingRate converts a string sampling rate (percentage or decimal) to a float64
+func parseSamplingRate(rate string) (float64, error) {
+	// Try to parse as a float first
+	samplingRate, err := strconv.ParseFloat(rate, 64)
+	if err == nil {
+		// Check if the value is between 0 and 1 inclusive
+		if samplingRate < 0 || samplingRate > 1 {
+			return 0, fmt.Errorf("sampling rate must be between 0 and 1, got %f", samplingRate)
+		}
+		return samplingRate, nil
+	}
+
+	// If parsing as float failed, check if it's a percentage string
+	if len(rate) > 1 && rate[len(rate)-1] == '%' {
+		// Remove % and parse as float
+		percentage, err := strconv.ParseFloat(rate[:len(rate)-1], 64)
+		if err != nil {
+			return 0, fmt.Errorf("invalid sampling rate format: %s", rate)
+		}
+
+		// Convert percentage to decimal
+		samplingRate = percentage / 100.0
+
+		// Check if the value is between 0 and 1 inclusive
+		if samplingRate < 0 || samplingRate > 1 {
+			return 0, fmt.Errorf("sampling rate percentage must be between 0%% and 100%%, got %s", rate)
+		}
+
+		return samplingRate, nil
+	}
+
+	return 0, fmt.Errorf("invalid sampling rate format: %s", rate)
 }

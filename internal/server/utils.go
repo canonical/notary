@@ -1,14 +1,22 @@
 package server
 
 import (
+	"context"
 	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/x509"
 	"encoding/asn1"
 	"errors"
 	"fmt"
+	"math/rand"
 	"os/exec"
+	"strings"
+
+	"github.com/canonical/notary/internal/config"
+	"github.com/coreos/go-oidc/v3/oidc"
+	"golang.org/x/oauth2"
 )
+
 const (
 	CertificateUpdate NotificationKey = 1
 )
@@ -54,3 +62,25 @@ func generateSKI(priv *rsa.PrivateKey) []byte {
 	return hash[:]
 }
 
+// VerifyIDToken verifies that an *oauth2.Token is a valid *oidc.IDToken.
+func VerifyIDToken(ctx context.Context, appOIDCConfig *config.OIDCConfig, token *oauth2.Token) (*oidc.IDToken, error) {
+	rawIDToken, ok := token.Extra("id_token").(string)
+	if !ok {
+		return nil, errors.New("no id_token field in oauth2 token")
+	}
+
+	oidcConfig := &oidc.Config{
+		ClientID: appOIDCConfig.OIDCConfig.ClientID,
+	}
+
+	return appOIDCConfig.Provider.Verifier(oidcConfig).Verify(ctx, rawIDToken)
+}
+
+func generateRandomString(length int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	var result strings.Builder
+	for i := 0; i < length; i++ {
+		result.WriteByte(charset[rand.Intn(len(charset))])
+	}
+	return result.String()
+}

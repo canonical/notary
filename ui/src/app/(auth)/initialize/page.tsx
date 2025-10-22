@@ -2,7 +2,6 @@
 
 import { passwordIsValid } from "@/utils";
 import { getStatus, login, postFirstUser } from "@/queries";
-import { useAuth } from "@/hooks/useAuth";
 import {
   Input,
   PasswordToggle,
@@ -13,31 +12,22 @@ import {
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState, ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
-import { useCookies } from "react-cookie";
 import { RoleID } from "@/types";
 import { z } from "zod";
 
 export default function Initialize() {
   const router = useRouter();
-  const auth = useAuth();
-  const [, setCookie] = useCookies(["user_token"]);
   const statusQuery = useQuery({
     queryKey: ["status"],
     queryFn: () => getStatus(),
   });
   if (statusQuery.data && statusQuery.data.initialized) {
-    auth.setFirstUserCreated(true);
-    router.push("/login");
+    router.push("/");
   }
   const loginMutation = useMutation({
     mutationFn: login,
-    onSuccess: (result) => {
+    onSuccess: () => {
       setErrorText("");
-      setCookie("user_token", result.token, {
-        sameSite: true,
-        secure: true,
-        expires: new Date(new Date().getTime() + 60 * 60 * 1000),
-      });
       router.push("/certificate_requests");
     },
     onError: (e: Error) => {
@@ -48,7 +38,6 @@ export default function Initialize() {
     mutationFn: postFirstUser,
     onSuccess: () => {
       setErrorText("");
-      auth.setFirstUserCreated(true);
       loginMutation.mutate({ email: email, password: password1 });
     },
     onError: (e: Error) => {
@@ -59,7 +48,7 @@ export default function Initialize() {
   const [password1, setPassword1] = useState<string>("");
   const [password2, setPassword2] = useState<string>("");
   const passwordsMatch = password1 === password2;
-  const emailSchema = z.string().email();
+  const emailSchema = z.email();
   const isEmailValid = emailSchema.safeParse(email).success;
   const emailError = email && !isEmailValid ? "Email is not valid" : "";
   const password1Error =

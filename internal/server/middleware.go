@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -10,9 +11,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/canonical/notary/internal/auth"
 	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/metrics"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 )
@@ -20,7 +21,6 @@ import (
 const (
 	MAX_KILOBYTES = 100
 )
-
 
 // The middlewareContext type helps middleware receive and pass along information through the middleware chain.
 type middlewareContext struct {
@@ -64,6 +64,22 @@ func limitRequestSize(maxKilobytes int64, logger *zap.Logger) middleware {
 	}
 }
 
+// authenticationMiddleware extracts the claims from the request and loads it into the claims into the context.
+func authenticationMiddleware(jwtSecret []byte, logger *zap.Logger) middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			claims, err := getClaimsFromCookie(r, jwtSecret)
+			if err != nil {
+				writeError(w, http.StatusUnauthorized, "Unauthorized", err, logger)
+				return
+			}
+
+			ctx := context.WithValue(r.Context(), "claims", claims)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
 // The Metrics middleware captures any request relevant to a metric and records it for prometheus.
 func metricsMiddleware(metrics *metrics.PrometheusMetrics) middleware {
 	return func(next http.Handler) http.Handler {
@@ -99,12 +115,11 @@ func loggingMiddleware(ctx *middlewareContext) middleware {
 
 func requirePermission(permission string, jwtSecret []byte, handler http.HandlerFunc, logger *zap.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
+		claims, err := getClaimsFromCookie(r, jwtSecret)
 		if err != nil {
 			writeError(w, http.StatusUnauthorized, "Unauthorized", err, logger)
 			return
 		}
-
 		roleID := claims.RoleID
 		permissions, ok := PermissionsByRole[roleID]
 		if !ok {
@@ -145,7 +160,7 @@ func requirePermissionOrFirstUser(permission string, jwtSecret []byte, db *db.Da
 		}
 
 		// Otherwise validate permissions
-		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
+		claims, err := getClaimsFromCookie(r, jwtSecret)
 		if err != nil {
 			writeError(w, http.StatusUnauthorized, "Unauthorized", err, logger)
 			return
@@ -159,21 +174,6 @@ func requirePermissionOrFirstUser(permission string, jwtSecret []byte, db *db.Da
 
 		handler(w, r)
 	}
-}
-
-func getClaimsFromAuthorizationHeader(header string, jwtSecret []byte) (*jwtNotaryClaims, error) {
-	if header == "" {
-		return nil, fmt.Errorf("authorization header not found")
-	}
-	bearerToken := strings.Split(header, " ")
-	if len(bearerToken) != 2 || bearerToken[0] != "Bearer" {
-		return nil, fmt.Errorf("authorization header couldn't be processed. The expected format is 'Bearer <token>'")
-	}
-	claims, err := getClaimsFromJWT(bearerToken[1], jwtSecret)
-	if err != nil {
-		return nil, fmt.Errorf("token is not valid: %s", err)
-	}
-	return claims, nil
 }
 
 // AllowRequest looks at the user data to determine the following things:
@@ -228,19 +228,44 @@ func AllowRequest(claims *jwtNotaryClaims, method, path string) (bool, error) {
 	return true, nil
 }
 
-func getClaimsFromJWT(bearerToken string, jwtSecret []byte) (*jwtNotaryClaims, error) {
-	claims := jwtNotaryClaims{}
-	token, err := jwt.ParseWithClaims(bearerToken, &claims, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return jwtSecret, nil
+func getClaimsFromCookie(r *http.Request, jwtSecret []byte) (*jwtNotaryClaims, error) {
+	c, err := r.Cookie(CookieSessionTokenKey)
+	if err != nil {
+		return nil, fmt.Errorf("cookie not found")
+	}
+	if c.Value == "" {
+		return nil, fmt.Errorf("cookie value not found")
+	}
+
+	claims, err := getClaimsFromJWT(c.Value, jwtSecret)
+	if err != nil {
+		return nil, fmt.Errorf("token is not valid: %s", err)
+	}
+	return claims, nil
+}
+
+func getClaimsFromJWT(rawToken string, jwtSecret []byte) (*jwtNotaryClaims, error) {
+	v := auth.NewVerifier([]auth.ProviderConfig{
+		{
+			Issuer:   "dev-2g8fk6k6vajh1qod.us.auth0.com", // TODO: get this from the config
+			ClientID: "ib875DYuqa5qu5a5x7AYKfrzsOyUrZvR",  // TODO: get this from the config
+			Type:     auth.ProviderOIDC,
+		},
+		{
+			Secret: jwtSecret,
+			Type:   auth.ProviderLocal,
+		},
 	})
+	claims, err := v.VerifyToken(context.Background(), rawToken)
 	if err != nil {
 		return nil, err
 	}
-	if !token.Valid {
-		return nil, errors.New("invalid token")
+	id := claims["id"].(float64) //TODO: temp: remove this and just json unmarshall correctly into the struct inside verifytoken
+	roleid := claims["role_id"].(float64)
+	notaryClaims := jwtNotaryClaims{
+		ID:     int64(id),
+		Email:  claims["email"].(string),
+		RoleID: RoleID(roleid),
 	}
-	return &claims, nil
+	return &notaryClaims, nil
 }

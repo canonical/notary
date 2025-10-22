@@ -39,7 +39,6 @@ export type User = {
   id: number;
   role_id: RoleID;
   email: string;
-  authToken: string;
   activeCA: number;
 };
 

@@ -1,11 +1,8 @@
 "use client";
 
-import { getStatus, login } from "@/queries";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { login } from "@/queries";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, ChangeEvent } from "react";
-import { useCookies } from "react-cookie";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/hooks/useAuth";
 import {
   Input,
   PasswordToggle,
@@ -16,30 +13,15 @@ import {
 } from "@canonical/react-components";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const auth = useAuth();
-  const [, setCookie] = useCookies(["user_token"]);
-  const statusQuery = useQuery({
-    queryKey: ["status"],
-    queryFn: () => getStatus(),
-  });
-  if (
-    !auth.firstUserCreated &&
-    statusQuery.data &&
-    !statusQuery.data.initialized
-  ) {
-    router.push("/initialize");
-  }
+  const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: login,
-    onSuccess: (result) => {
-      setErrorText("");
-      setCookie("user_token", result.token, {
-        sameSite: true,
-        secure: true,
-        expires: new Date(new Date().getTime() + 60 * 60 * 1000),
-      });
-      router.push("/certificate_requests");
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["user"] });
+      // await queryClient.fetchQuery({
+      //   queryKey: ["user"],
+      //   queryFn: getSelfAccount,
+      // });
     },
     onError: (e: Error) => {
       setErrorText(e.message);

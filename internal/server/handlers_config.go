@@ -12,7 +12,7 @@ type GetConfigContentResponse struct {
 	EncryptionBackendType string `json:"encryption_backend_type"`
 }
 
-func GetConfigContent(env *HandlerConfig) http.HandlerFunc {
+func GetConfigContent(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		configContent := GetConfigContentResponse{
 			Port:                  env.PublicConfig.Port,

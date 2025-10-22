@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "@/globals.scss";
+import NotaryLayout from "@/components/NotaryLayout";
 
 export const metadata: Metadata = {
   title: "Notary",
@@ -16,7 +17,7 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
-      {children}
+      <NotaryLayout>{children}</NotaryLayout>
     </html>
   );
 }

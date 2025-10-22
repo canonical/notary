@@ -16,7 +16,6 @@ import {
   Modal,
   Icon,
 } from "@canonical/react-components";
-import { useAuth } from "@/hooks/useAuth";
 
 interface SubmitCertificateModalProps {
   id: string;
@@ -31,7 +30,6 @@ export function SubmitCertificateModal({
   cert,
   setFormOpen,
 }: SubmitCertificateModalProps) {
-  const auth = useAuth();
   const [errorText, setErrorText] = useState<string>("");
   const [certificatePEMString, setCertificatePEMString] =
     useState<string>(cert);
@@ -106,7 +104,6 @@ export function SubmitCertificateModal({
             onClick={() =>
               mutation.mutate({
                 id,
-                authToken: auth.user ? auth.user.authToken : "",
                 certificate_chain: certificatePEMString,
               })
             }

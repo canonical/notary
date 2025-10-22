@@ -11,7 +11,7 @@ import (
 // The order of the tests is important, as some tests depend on
 // the state of the server after previous tests.
 func TestAccountsEndToEnd(t *testing.T) {
-	ts := tu.MustPrepareServer(t)
+	ts, logs := tu.MustPrepareServer(t)
 	client := ts.Client()
 	adminToken := tu.MustPrepareAccount(t, ts, "testadmin@canonical.com", tu.RoleAdmin, "")
 	nonAdminToken := tu.MustPrepareAccount(t, ts, "whatever@canonical.com", tu.RoleCertificateManager, adminToken)
@@ -52,6 +52,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 	})
 
 	t.Run("3. Create account", func(t *testing.T) {
+		_ = logs.TakeAll()
 		createAccountParams := &tu.CreateAccountParams{
 			Email:    "nopass@canonical.com",
 			Password: "myPassword123!",
@@ -66,6 +67,21 @@ func TestAccountsEndToEnd(t *testing.T) {
 		}
 		if response.Error != "" {
 			t.Fatalf("unexpected error :%q", response.Error)
+		}
+
+		entries := logs.TakeAll()
+		var haveUserCreated bool
+		for _, e := range entries {
+			if e.LoggerName != "audit" {
+				continue
+			}
+			if findStringField(e, "event") == ("user_created:" + createAccountParams.Email + ",admin") {
+				haveUserCreated = true
+				break
+			}
+		}
+		if !haveUserCreated {
+			t.Fatalf("expected UserCreated audit entry for %s", createAccountParams.Email)
 		}
 	})
 
@@ -105,6 +121,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 	})
 
 	t.Run("6. Change account password - success", func(t *testing.T) {
+		_ = logs.TakeAll()
 		changeAccountPasswordParams := &tu.ChangeAccountPasswordParams{
 			Password: "newPassword1",
 		}
@@ -117,6 +134,26 @@ func TestAccountsEndToEnd(t *testing.T) {
 		}
 		if response.Error != "" {
 			t.Fatalf("unexpected error :%q", response.Error)
+		}
+
+		entries := logs.TakeAll()
+		var havePwdChanged, haveUserUpdated bool
+		for _, e := range entries {
+			if e.LoggerName != "audit" {
+				continue
+			}
+			switch findStringField(e, "event") {
+			case "authn_password_change:testadmin@canonical.com":
+				havePwdChanged = true
+			case "user_updated:testadmin@canonical.com,password_change":
+				haveUserUpdated = true
+			}
+		}
+		if !havePwdChanged {
+			t.Fatalf("expected PasswordChanged audit entry")
+		}
+		if !haveUserUpdated {
+			t.Fatalf("expected UserUpdated audit entry for password_change")
 		}
 	})
 
@@ -137,6 +174,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 	})
 
 	t.Run("8. Delete account - success", func(t *testing.T) {
+		_ = logs.TakeAll()
 		statusCode, response, err := tu.DeleteAccount(ts.URL, client, adminToken, 2)
 		if err != nil {
 			t.Fatalf("couldn't delete account: %s", err)
@@ -146,6 +184,21 @@ func TestAccountsEndToEnd(t *testing.T) {
 		}
 		if response.Error != "" {
 			t.Fatalf("expected error %q, got %q", "", response.Error)
+		}
+
+		entries := logs.TakeAll()
+		var haveUserDeleted bool
+		for _, e := range entries {
+			if e.LoggerName != "audit" {
+				continue
+			}
+			if findStringField(e, "event") == "user_deleted" && findStringField(e, "username") == "whatever@canonical.com" {
+				haveUserDeleted = true
+				break
+			}
+		}
+		if !haveUserDeleted {
+			t.Fatalf("expected UserDeleted audit entry for whatever@canonical.com")
 		}
 	})
 
@@ -186,7 +239,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 }
 
 func TestCreateAccountInvalidInputs(t *testing.T) {
-	ts := tu.MustPrepareServer(t)
+	ts, _ := tu.MustPrepareServer(t)
 	client := ts.Client()
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 
@@ -292,7 +345,7 @@ func TestCreateAccountInvalidInputs(t *testing.T) {
 }
 
 func TestChangeAccountPasswordInvalidInputs(t *testing.T) {
-	ts := tu.MustPrepareServer(t)
+	ts, _ := tu.MustPrepareServer(t)
 	client := ts.Client()
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 

@@ -10,7 +10,7 @@ import (
 )
 
 func TestAuthorizationNoAuth(t *testing.T) {
-	ts := tu.MustPrepareServer(t)
+	ts, _ := tu.MustPrepareServer(t)
 	client := ts.Client()
 
 	testCases := []struct {
@@ -47,7 +47,7 @@ func TestAuthorizationNoAuth(t *testing.T) {
 }
 
 func TestAuthorizationAdminAuthorized(t *testing.T) {
-	ts := tu.MustPrepareServer(t)
+	ts, _ := tu.MustPrepareServer(t)
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 	tu.MustPrepareAccount(t, ts, "whatever@canonical.com", tu.RoleCertificateManager, adminToken)
 	client := ts.Client()
@@ -91,7 +91,7 @@ func TestAuthorizationAdminAuthorized(t *testing.T) {
 }
 
 func TestAuthorizationAdminUnAuthorized(t *testing.T) {
-	ts := tu.MustPrepareServer(t)
+	ts, _ := tu.MustPrepareServer(t)
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 	nonAdminToken := tu.MustPrepareAccount(t, ts, "whatever@canonical.com", tu.RoleCertificateManager, adminToken)
 	client := ts.Client()
@@ -111,7 +111,7 @@ func TestAuthorizationAdminUnAuthorized(t *testing.T) {
 }
 
 func TestAuthorizationCertificateManagerAuthorized(t *testing.T) {
-	ts := tu.MustPrepareServer(t)
+	ts, logs := tu.MustPrepareServer(t)
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 	certManagerToken := tu.MustPrepareAccount(t, ts, "testuser@canonical.com", tu.RoleCertificateManager, adminToken)
 	client := ts.Client()
@@ -167,6 +167,9 @@ func TestAuthorizationCertificateManagerAuthorized(t *testing.T) {
 	}
 	for _, tC := range testCases {
 		t.Run(tC.desc, func(t *testing.T) {
+			if tC.desc == "certificate manager can change self password with /me" {
+				_ = logs.TakeAll()
+			}
 			req, err := http.NewRequest(tC.method, ts.URL+tC.path, strings.NewReader(tC.data))
 			if err != nil {
 				t.Fatal(err)
@@ -179,12 +182,33 @@ func TestAuthorizationCertificateManagerAuthorized(t *testing.T) {
 			if res.StatusCode != tC.status {
 				t.Errorf("expected status code %d, got %d", tC.status, res.StatusCode)
 			}
+			if tC.desc == "certificate manager can change self password with /me" {
+				entries := logs.TakeAll()
+				var havePwdChanged, haveUserUpdated bool
+				for _, e := range entries {
+					if e.LoggerName != "audit" {
+						continue
+					}
+					switch findStringField(e, "event") {
+					case "authn_password_change:testuser@canonical.com":
+						havePwdChanged = true
+					case "user_updated:testuser@canonical.com,password_change":
+						haveUserUpdated = true
+					}
+				}
+				if !havePwdChanged {
+					t.Errorf("expected PasswordChanged audit entry for self change")
+				}
+				if !haveUserUpdated {
+					t.Errorf("expected UserUpdated audit entry for self change")
+				}
+			}
 		})
 	}
 }
 
 func TestAuthorizationCertificateManagerUnauthorized(t *testing.T) {
-	ts := tu.MustPrepareServer(t)
+	ts, logs := tu.MustPrepareServer(t)
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 	certManagerToken := tu.MustPrepareAccount(t, ts, "whatever@canonical.com", tu.RoleCertificateManager, adminToken)
 	client := ts.Client()
@@ -220,6 +244,7 @@ func TestAuthorizationCertificateManagerUnauthorized(t *testing.T) {
 	}
 	for _, tC := range testCases {
 		t.Run(tC.desc, func(t *testing.T) {
+			_ = logs.TakeAll()
 			req, err := http.NewRequest(tC.method, ts.URL+tC.path, strings.NewReader(tC.data))
 			if err != nil {
 				t.Fatal(err)
@@ -232,12 +257,28 @@ func TestAuthorizationCertificateManagerUnauthorized(t *testing.T) {
 			if res.StatusCode != tC.status {
 				t.Errorf("expected status code %d, got %d", tC.status, res.StatusCode)
 			}
+			if tC.status == http.StatusForbidden {
+				entries := logs.TakeAll()
+				var haveAuthzFail bool
+				for _, e := range entries {
+					if e.LoggerName != "audit" {
+						continue
+					}
+					if strings.HasPrefix(findStringField(e, "event"), "authz_fail:") {
+						haveAuthzFail = true
+						break
+					}
+				}
+				if !haveAuthzFail {
+					t.Errorf("expected audit authz_fail for %s %s", tC.method, tC.path)
+				}
+			}
 		})
 	}
 }
 
 func TestAuthorizationCertificateRequestorAuthorized(t *testing.T) {
-	ts := tu.MustPrepareServer(t)
+	ts, _ := tu.MustPrepareServer(t)
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 	certRequestorToken := tu.MustPrepareAccount(t, ts, "testuser@canonical.com", tu.RoleCertificateRequestor, adminToken)
 	client := ts.Client()
@@ -315,7 +356,7 @@ func TestAuthorizationCertificateRequestorAuthorized(t *testing.T) {
 }
 
 func TestAuthorizationCertificateRequestorUnauthorized(t *testing.T) {
-	ts := tu.MustPrepareServer(t)
+	ts, _ := tu.MustPrepareServer(t)
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 	certRequestorToken := tu.MustPrepareAccount(t, ts, "testuser@canonical.com", tu.RoleCertificateRequestor, adminToken)
 	client := ts.Client()
@@ -436,7 +477,7 @@ func TestAuthorizationCertificateRequestorUnauthorized(t *testing.T) {
 }
 
 func TestAuthorizationReadOnlyAuthorized(t *testing.T) {
-	ts := tu.MustPrepareServer(t)
+	ts, _ := tu.MustPrepareServer(t)
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 	readOnlyToken := tu.MustPrepareAccount(t, ts, "testuser@canonical.com", tu.RoleReadOnly, adminToken)
 	client := ts.Client()
@@ -531,7 +572,7 @@ func TestAuthorizationReadOnlyAuthorized(t *testing.T) {
 }
 
 func TestAuthorizationReadOnlyUnauthorized(t *testing.T) {
-	ts := tu.MustPrepareServer(t)
+	ts, _ := tu.MustPrepareServer(t)
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 	readOnlyToken := tu.MustPrepareAccount(t, ts, "testuser@canonical.com", tu.RoleReadOnly, adminToken)
 	client := ts.Client()

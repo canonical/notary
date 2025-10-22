@@ -7,19 +7,19 @@ import (
 )
 
 type DatabaseOpts struct {
-	DatabasePath string
+	DatabasePath    string
 	ApplyMigrations bool
-	Backend      encryption_backend.EncryptionBackend
-	Logger       *zap.Logger
+	Backend         encryption_backend.EncryptionBackend
+	Logger          *zap.Logger
 }
 
 // Database is the object used to communicate with the established repository.
 type Database struct {
-	Conn          *sqlair.DB
-	stmts         *Statements
+	Conn  *sqlair.DB
+	stmts *Statements
 
 	EncryptionKey []byte
-	JWTSecret	 []byte
+	JWTSecret     []byte
 }
 
 const CAMaxExpiryYears = 1

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os/exec"
 )
+
 const (
 	CertificateUpdate NotificationKey = 1
 )
@@ -53,4 +54,3 @@ func generateSKI(priv *rsa.PrivateKey) []byte {
 	hash := sha1.Sum(spki.SubjectPublicKey.Bytes)
 	return hash[:]
 }
-

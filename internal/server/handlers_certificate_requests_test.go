@@ -12,7 +12,7 @@ import (
 // The order of the tests is important, as some tests depend on the
 // state of the server after previous tests.
 func TestCertificateRequestsEndToEnd(t *testing.T) {
-	ts := tu.MustPrepareServer(t)
+	ts, logs := tu.MustPrepareServer(t)
 	adminToken := tu.MustPrepareAccount(t, ts, "testadmin@canonical.com", tu.RoleAdmin, "")
 	client := ts.Client()
 
@@ -33,6 +33,7 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 	})
 
 	t.Run("2. Create certificate request", func(t *testing.T) {
+		_ = logs.TakeAll()
 
 		createCertificateRequestRequest := tu.CreateCertificateRequestParams{
 			CSR: tu.AppleCSR,
@@ -46,6 +47,20 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 		if createCertResponse.Error != "" {
 			t.Fatalf("expected no error, got %s", createCertResponse.Error)
+		}
+		entries := logs.TakeAll()
+		var haveRequested bool
+		for _, e := range entries {
+			if e.LoggerName != "audit" {
+				continue
+			}
+			if findStringField(e, "event") == "cert_requested" {
+				haveRequested = true
+				break
+			}
+		}
+		if !haveRequested {
+			t.Fatalf("expected CertificateRequested audit entry")
 		}
 	})
 
@@ -186,12 +201,27 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 	})
 
 	t.Run("10. Delete certificate request 1", func(t *testing.T) {
+		_ = logs.TakeAll()
 		statusCode, err := tu.DeleteCertificateRequest(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if statusCode != http.StatusAccepted {
 			t.Fatalf("expected status %d, got %d", http.StatusAccepted, statusCode)
+		}
+		entries := logs.TakeAll()
+		var haveDeleted bool
+		for _, e := range entries {
+			if e.LoggerName != "audit" {
+				continue
+			}
+			if findStringField(e, "event") == "cert_request_deleted" {
+				haveDeleted = true
+				break
+			}
+		}
+		if !haveDeleted {
+			t.Fatalf("expected CertificateRequestDeleted audit entry")
 		}
 	})
 
@@ -211,7 +241,8 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("12. Delete certificate request 2", func(t *testing.T) {
+	t.Run("12. Delete certificate request 2 and assert revoke audit", func(t *testing.T) {
+		_ = logs.TakeAll()
 		statusCode, err := tu.DeleteCertificateRequest(ts.URL, client, adminToken, 2)
 		if err != nil {
 			t.Fatal(err)
@@ -219,12 +250,26 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusAccepted {
 			t.Fatalf("expected status %d, got %d", http.StatusAccepted, statusCode)
 		}
+		entries := logs.TakeAll()
+		var haveCertDeleted bool
+		for _, e := range entries {
+			if e.LoggerName != "audit" {
+				continue
+			}
+			if findStringField(e, "event") == "cert_request_deleted" {
+				haveCertDeleted = true
+				break
+			}
+		}
+		if !haveCertDeleted {
+			t.Fatalf("expected CertificateRequestDeleted audit entry")
+		}
 	})
 }
 
 // TestListCertificateRequestsRequestorRole tests that a certificate requestor can only view their own requests.
 func TestListCertificateRequestsRequestorRole(t *testing.T) {
-	ts := tu.MustPrepareServer(t)
+	ts, _ := tu.MustPrepareServer(t)
 	adminToken := tu.MustPrepareAccount(t, ts, "testadmin@canonical.com", tu.RoleAdmin, "")
 	client := ts.Client()
 
@@ -293,7 +338,7 @@ func TestListCertificateRequestsRequestorRole(t *testing.T) {
 // The order of the tests is important, as some tests depend on the
 // state of the server after previous tests.
 func TestCertificatesEndToEnd(t *testing.T) {
-	ts := tu.MustPrepareServer(t)
+	ts, logs := tu.MustPrepareServer(t)
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 	client := ts.Client()
 
@@ -314,6 +359,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 	})
 
 	t.Run("2. Create Certificate", func(t *testing.T) {
+		_ = logs.TakeAll()
 		createCertificateRequest := tu.CreateCertificateParams{
 			Certificate: fmt.Sprintf("%s\n%s", tu.ExampleCSRCertificate, tu.ExampleCSRIssuerCertificate),
 		}
@@ -326,6 +372,20 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		}
 		if createCertResponse.Error != "" {
 			t.Fatalf("expected no error, got %s", createCertResponse.Error)
+		}
+		entries := logs.TakeAll()
+		var haveIssued bool
+		for _, e := range entries {
+			if e.LoggerName != "audit" {
+				continue
+			}
+			if findStringField(e, "event") == "cert_issued" {
+				haveIssued = true
+				break
+			}
+		}
+		if !haveIssued {
+			t.Fatalf("expected CertificateIssued audit entry")
 		}
 	})
 
@@ -346,12 +406,27 @@ func TestCertificatesEndToEnd(t *testing.T) {
 	})
 
 	t.Run("4. Reject Certificate", func(t *testing.T) {
+		_ = logs.TakeAll()
 		statusCode, err := tu.RejectCertificate(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if statusCode != http.StatusAccepted {
 			t.Fatalf("expected status %d, got %d", http.StatusAccepted, statusCode)
+		}
+		entries := logs.TakeAll()
+		var haveRejected bool
+		for _, e := range entries {
+			if e.LoggerName != "audit" {
+				continue
+			}
+			if findStringField(e, "event") == "cert_rejected" {
+				haveRejected = true
+				break
+			}
+		}
+		if !haveRejected {
+			t.Fatalf("expected CertificateRejected audit entry")
 		}
 	})
 
@@ -371,13 +446,29 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("6. Delete Certificate", func(t *testing.T) {
+	t.Run("6. Delete Certificate (revocation)", func(t *testing.T) {
+		_ = logs.TakeAll()
 		statusCode, err := tu.DeleteCertificateRequest(ts.URL, client, adminToken, 1)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if statusCode != http.StatusAccepted {
 			t.Fatalf("expected status %d, got %d", http.StatusAccepted, statusCode)
+		}
+		entries := logs.TakeAll()
+		var haveDeletedOrRevoked bool
+		for _, e := range entries {
+			if e.LoggerName != "audit" {
+				continue
+			}
+			ev := findStringField(e, "event")
+			if ev == "cert_request_deleted" || ev == "cert_revoked" {
+				haveDeletedOrRevoked = true
+				break
+			}
+		}
+		if !haveDeletedOrRevoked {
+			t.Fatalf("expected CertificateRequestDeleted or CertificateRevoked audit entry")
 		}
 	})
 
@@ -397,7 +488,7 @@ func TestCertificatesEndToEnd(t *testing.T) {
 }
 
 func TestCreateCertificateRequestInvalidInputs(t *testing.T) {
-	ts := tu.MustPrepareServer(t)
+	ts, _ := tu.MustPrepareServer(t)
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 	client := ts.Client()
 
@@ -452,7 +543,7 @@ MIIBVwIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAuQ==
 }
 
 func TestCreateCertificateInvalidInputs(t *testing.T) {
-	ts := tu.MustPrepareServer(t)
+	ts, _ := tu.MustPrepareServer(t)
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 	client := ts.Client()
 

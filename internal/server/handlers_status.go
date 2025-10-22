@@ -17,7 +17,7 @@ func GetStatus(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		numUsers, err := env.DB.NumUsers()
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "couldn't generate status", err, env.Logger)
+			writeError(w, http.StatusInternalServerError, "couldn't generate status", err, env.SystemLogger)
 			return
 		}
 		statusResponse := StatusResponse{
@@ -26,7 +26,7 @@ func GetStatus(env *HandlerConfig) http.HandlerFunc {
 		}
 		err = writeResponse(w, statusResponse, http.StatusOK)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.Logger)
+			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
 			return
 		}
 	}

@@ -9,13 +9,15 @@ import (
 
 	"github.com/canonical/notary/internal/config"
 	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/logging"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
 type HandlerConfig struct {
 	DB                      *db.Database
-	Logger                  *zap.Logger
+	SystemLogger            *zap.Logger
+	AuditLogger             *logging.AuditLogger
 	ExternalHostname        string
 	JWTSecret               []byte
 	SendPebbleNotifications bool
@@ -28,16 +30,17 @@ func New(opts *ServerOpts) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	stdErrLog, err := zap.NewStdLogAt(opts.Logger, zapcore.ErrorLevel)
+	stdErrLog, err := zap.NewStdLogAt(opts.SystemLogger, zapcore.ErrorLevel)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create logger for http server: %w", err)
 	}
-	
+
 	cfg := &HandlerConfig{}
 	cfg.SendPebbleNotifications = opts.EnablePebbleNotifications
 	cfg.JWTSecret = opts.Database.JWTSecret
 	cfg.ExternalHostname = opts.ExternalHostname
-	cfg.Logger = opts.Logger
+	cfg.SystemLogger = opts.SystemLogger
+	cfg.AuditLogger = logging.NewAuditLogger(opts.AuditLogger)
 	cfg.PublicConfig = *opts.PublicConfig
 	cfg.DB = opts.Database
 

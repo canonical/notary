@@ -36,15 +36,15 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 		return nil, err
 	}
 
-	// initialize system logger
-	systemLogger, err := initializeLogger(cfg.Sub("logging.system"), "")
+    // initialize system logger
+    systemLogger, err := initializeLogger(cfg.Sub("logging.system"))
 	if err != nil {
 		return nil, fmt.Errorf("couldn't initialize system logger: %w", err)
 	}
 
-	// initialize audit logger
-	// Audit logs are always at INFO level
-	auditLogger, err := initializeLogger(cfg.Sub("logging.audit"), "info")
+    // initialize audit logger
+    // Audit logs are always at INFO level
+    auditLogger, err := initializeAuditLogger(cfg.Sub("logging.audit"))
 	if err != nil {
 		return nil, fmt.Errorf("couldn't initialize audit logger: %w", err)
 	}
@@ -219,27 +219,45 @@ func initializeEncryptionBackend(encryptionCfg *viper.Viper, logger *zap.Logger)
 }
 
 // initializeLogger creates and configures a logger based on the provided configuration.
-// cfg is the logger configuration subsection (e.g., logging.system or logging.audit).
-// levelOverride allows overriding the configured level (e.g., "info" for audit logs).
-// If levelOverride is empty, the level from cfg is used.
+// cfg is the logger configuration subsection (e.g., logging.system).
 // output can be "stdout", "stderr", or a file path.
-func initializeLogger(cfg *viper.Viper, levelOverride string) (*zap.Logger, error) {
+func initializeLogger(cfg *viper.Viper) (*zap.Logger, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("logger configuration is not defined")
 	}
 
 	zapConfig := zap.NewProductionConfig()
 
-	level := levelOverride
-	if level == "" {
-		level = cfg.GetString("level")
-	}
-
-	logLevel, err := zapcore.ParseLevel(level)
+	logLevel, err := zapcore.ParseLevel(cfg.GetString("level"))
 	if err != nil {
 		return nil, fmt.Errorf("invalid log level: %w", err)
 	}
 	zapConfig.Level.SetLevel(logLevel)
+
+	output := cfg.GetString("output")
+	zapConfig.OutputPaths = []string{output}
+
+	zapConfig.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+
+	logger, err := zapConfig.Build()
+	if err != nil {
+		return nil, err
+	}
+
+	return logger, nil
+}
+
+// initializeAuditLogger creates an audit logger that always logs at INFO level, regardless of config.
+// cfg is the logger configuration subsection (e.g., logging.audit).
+// output can be "stdout", "stderr", or a file path.
+func initializeAuditLogger(cfg *viper.Viper) (*zap.Logger, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("logger configuration is not defined")
+	}
+
+	zapConfig := zap.NewProductionConfig()
+	// Force INFO level for audit logs
+	zapConfig.Level.SetLevel(zapcore.InfoLevel)
 
 	output := cfg.GetString("output")
 	zapConfig.OutputPaths = []string{output}

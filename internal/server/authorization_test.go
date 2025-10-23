@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/canonical/notary/internal/server"
 	tu "github.com/canonical/notary/internal/testutils"
 )
 
@@ -79,6 +80,14 @@ func TestAuthorizationAdminAuthorized(t *testing.T) {
 				t.Fatal(err)
 			}
 			req.Header.Add("Authorization", "Bearer "+adminToken)
+			req.AddCookie(&http.Cookie{
+				Name:     server.CookieSessionTokenKey,
+				Value:    adminToken,
+				HttpOnly: true,
+				Secure:   true,
+				Path:     "/",
+				SameSite: http.SameSiteStrictMode,
+			})
 			res, err := client.Do(req)
 			if err != nil {
 				t.Fatal(err)
@@ -101,6 +110,14 @@ func TestAuthorizationAdminUnAuthorized(t *testing.T) {
 		t.Fatal(err)
 	}
 	req.Header.Add("Authorization", "Bearer "+nonAdminToken)
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    nonAdminToken,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		t.Fatal(err)
@@ -172,6 +189,14 @@ func TestAuthorizationCertificateManagerAuthorized(t *testing.T) {
 				t.Fatal(err)
 			}
 			req.Header.Add("Authorization", "Bearer "+certManagerToken)
+			req.AddCookie(&http.Cookie{
+				Name:     server.CookieSessionTokenKey,
+				Value:    certManagerToken,
+				HttpOnly: true,
+				Secure:   true,
+				Path:     "/",
+				SameSite: http.SameSiteStrictMode,
+			})
 			res, err := client.Do(req)
 			if err != nil {
 				t.Fatal(err)
@@ -225,6 +250,14 @@ func TestAuthorizationCertificateManagerUnauthorized(t *testing.T) {
 				t.Fatal(err)
 			}
 			req.Header.Add("Authorization", "Bearer "+certManagerToken)
+			req.AddCookie(&http.Cookie{
+				Name:     server.CookieSessionTokenKey,
+				Value:    certManagerToken,
+				HttpOnly: true,
+				Secure:   true,
+				Path:     "/",
+				SameSite: http.SameSiteStrictMode,
+			})
 			res, err := client.Do(req)
 			if err != nil {
 				t.Fatal(err)
@@ -303,6 +336,14 @@ func TestAuthorizationCertificateRequestorAuthorized(t *testing.T) {
 				t.Fatal(err)
 			}
 			req.Header.Add("Authorization", "Bearer "+certRequestorToken)
+			req.AddCookie(&http.Cookie{
+				Name:     server.CookieSessionTokenKey,
+				Value:    certRequestorToken,
+				HttpOnly: true,
+				Secure:   true,
+				Path:     "/",
+				SameSite: http.SameSiteStrictMode,
+			})
 			res, err := client.Do(req)
 			if err != nil {
 				t.Fatal(err)
@@ -424,6 +465,14 @@ func TestAuthorizationCertificateRequestorUnauthorized(t *testing.T) {
 				t.Fatal(err)
 			}
 			req.Header.Add("Authorization", "Bearer "+certRequestorToken)
+			req.AddCookie(&http.Cookie{
+				Name:     server.CookieSessionTokenKey,
+				Value:    certRequestorToken,
+				HttpOnly: true,
+				Secure:   true,
+				Path:     "/",
+				SameSite: http.SameSiteStrictMode,
+			})
 			res, err := client.Do(req)
 			if err != nil {
 				t.Fatal(err)
@@ -519,6 +568,14 @@ func TestAuthorizationReadOnlyAuthorized(t *testing.T) {
 				t.Fatal(err)
 			}
 			req.Header.Add("Authorization", "Bearer "+readOnlyToken)
+			req.AddCookie(&http.Cookie{
+				Name:     server.CookieSessionTokenKey,
+				Value:    readOnlyToken,
+				HttpOnly: true,
+				Secure:   true,
+				Path:     "/",
+				SameSite: http.SameSiteStrictMode,
+			})
 			res, err := client.Do(req)
 			if err != nil {
 				t.Fatal(err)
@@ -636,6 +693,14 @@ func TestAuthorizationReadOnlyUnauthorized(t *testing.T) {
 				t.Fatal(err)
 			}
 			req.Header.Add("Authorization", "Bearer "+readOnlyToken)
+			req.AddCookie(&http.Cookie{
+				Name:     server.CookieSessionTokenKey,
+				Value:    readOnlyToken,
+				HttpOnly: true,
+				Secure:   true,
+				Path:     "/",
+				SameSite: http.SameSiteStrictMode,
+			})
 			res, err := client.Do(req)
 			if err != nil {
 				t.Fatal(err)

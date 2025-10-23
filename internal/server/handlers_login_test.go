@@ -47,8 +47,8 @@ func TestLoginEndToEnd(t *testing.T) {
 			t.Fatalf("couldn't parse token: %s", err)
 		}
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			if claims["email"] != "testadmin@canonical.com" {
-				t.Fatalf("expected email %q, got %q", "testadmin@canonical.com", claims["email"])
+			if claims["Email"] != "testadmin@canonical.com" {
+				t.Fatalf("expected email %q, got %q", "testadmin@canonical.com", claims["Email"])
 			}
 		}
 	})

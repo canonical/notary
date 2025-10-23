@@ -31,7 +31,7 @@ func NewVerifier(providers []ProviderConfig) *Verifier {
 }
 
 func (v *Verifier) VerifyToken(ctx context.Context, rawToken string) (*NotaryJWTClaims, error) {
-	var errors []error = make([]error, 0, 2)
+	errors := make([]error, 0, 2)
 
 	for _, p := range v.providers {
 		switch p.Type {
@@ -80,7 +80,6 @@ func verifyOIDCAccessToken(ctx context.Context, p ProviderConfig, raw string) (*
 	return &NotaryJWTClaims{
 		Permissions: permissions,
 		Email:       claims[p.Provider.EmailClaimKey].(string),
-		// TODO: extract registeredclaims from the claims in the jwt
 	}, nil
 }
 

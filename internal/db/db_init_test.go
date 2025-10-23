@@ -54,7 +54,7 @@ func Example() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	csrID, err := database.CreateCertificateRequest("----- CERTIFICATE REQUEST -----...", 0)
+	csrID, err := database.CreateCertificateRequest("----- CERTIFICATE REQUEST -----...", "user@example.com")
 	if err != nil {
 		log.Fatalln(err)
 	}

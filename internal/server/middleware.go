@@ -64,22 +64,6 @@ func limitRequestSize(maxKilobytes int64, logger *zap.Logger) middleware {
 	}
 }
 
-// authenticationMiddleware extracts the claims from the request and loads it into the claims into the context.
-func authenticationMiddleware(jwtSecret []byte, oidcConfig *config.OIDCConfig, logger *zap.Logger) middleware {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			claims, err := getClaimsFromCookie(r, jwtSecret, oidcConfig)
-			if err != nil {
-				writeError(w, http.StatusUnauthorized, "Unauthorized", err, logger)
-				return
-			}
-
-			ctx := context.WithValue(r.Context(), "claims", claims)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	}
-}
-
 // The Metrics middleware captures any request relevant to a metric and records it for prometheus.
 func metricsMiddleware(metrics *metrics.PrometheusMetrics) middleware {
 	return func(next http.Handler) http.Handler {
@@ -118,11 +102,11 @@ func loggingMiddleware(ctx *middlewareContext) middleware {
 func requirePermission(requiredPermissions []string, jwtSecret []byte, oidcConfig *config.OIDCConfig, handler http.HandlerFunc, logger *zap.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, err := getClaimsFromCookie(r, jwtSecret, oidcConfig)
+
 		if err != nil {
 			writeError(w, http.StatusUnauthorized, "Unauthorized", err, logger)
 			return
 		}
-		// TODO: bug
 		for _, perm := range requiredPermissions {
 			if slices.Contains(claims.Permissions, perm) {
 				handler(w, r)
@@ -131,15 +115,6 @@ func requirePermission(requiredPermissions []string, jwtSecret []byte, oidcConfi
 		}
 		writeError(w, http.StatusForbidden, "forbidden: insufficient permissions", errors.New("missing permission"), logger)
 	}
-}
-
-func hasPermission(userPermissions []string, required string) bool {
-	for _, p := range userPermissions {
-		if p == required || p == "*" {
-			return true
-		}
-	}
-	return false
 }
 
 func requirePermissionOrFirstUser(permission string, jwtSecret []byte, oidcConfig *config.OIDCConfig, db *db.Database, handler http.HandlerFunc, logger *zap.Logger) http.HandlerFunc {

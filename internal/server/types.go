@@ -10,7 +10,6 @@ import (
 
 const (
 	CookieSessionTokenKey = "user_token"
-	CookieHasSessionKey   = "has_session"
 )
 
 type ServerOpts struct {

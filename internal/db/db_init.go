@@ -46,7 +46,7 @@ func NewDatabase(dbOpts *DatabaseOpts) (*Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	if version < 1  {
+	if version < 1 {
 		if dbOpts.ApplyMigrations {
 			goose.SetBaseFS(migrations.EmbedMigrations)
 			if err := goose.Up(sqlConnection, ".", goose.WithNoColor(true)); err != nil {

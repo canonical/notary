@@ -29,7 +29,13 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 	if err := validateServerConfig(cfg); err != nil {
 		return nil, fmt.Errorf("failed to validate server config: %w", err)
 	}
+
 	appContext := NotaryAppContext{}
+	appContext.Port = cfg.GetInt("port")
+	appContext.ExternalHostname = cfg.GetString("external_hostname")
+	appContext.DBPath = cfg.GetString("db_path")
+	appContext.ApplyMigrations = cfg.GetBool("migrate-database")
+	appContext.PebbleNotificationsEnabled = cfg.GetBool("pebble_notifications")
 
 	cert, err := os.ReadFile(cfg.GetString("cert_path"))
 	if err != nil {
@@ -51,16 +57,10 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 		return nil, fmt.Errorf("couldn't initialize encryption backend: %w", err)
 	}
 	// initialize OIDC config
-	oidcConfig, err := initializeOIDC(cfg.Sub("authentication.oidc"))
+	oidcConfig, err := initializeOIDC(cfg.Sub("authentication.oidc"), appContext.ExternalHostname)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't initialize OIDC config: %w", err)
 	}
-
-	appContext.Port = cfg.GetInt("port")
-	appContext.ExternalHostname = cfg.GetString("external_hostname")
-	appContext.DBPath = cfg.GetString("db_path")
-	appContext.ApplyMigrations = cfg.GetBool("migrate-database")
-	appContext.PebbleNotificationsEnabled = cfg.GetBool("pebble_notifications")
 
 	appContext.TLSCertificate = cert
 	appContext.TLSPrivateKey = key
@@ -241,7 +241,7 @@ func initializeLogger(cfg *viper.Viper) (*zap.Logger, error) {
 	return logger, nil
 }
 
-func initializeOIDC(cfg *viper.Viper) (*OIDCConfig, error) {
+func initializeOIDC(cfg *viper.Viper, externalHostname string) (*OIDCConfig, error) {
 	if cfg == nil {
 		return nil, nil
 	}
@@ -252,6 +252,7 @@ func initializeOIDC(cfg *viper.Viper) (*OIDCConfig, error) {
 	audience := cfg.GetString("audience")
 	email_claim := cfg.GetString("email_claim_key")
 	permissions_claim := cfg.GetString("permissions_claim_key")
+	extra_scopes := cfg.GetStringSlice("extra_scopes")
 
 	provider, err := oidc.NewProvider(context.Background(), oidcServer)
 	if err != nil {
@@ -266,11 +267,11 @@ func initializeOIDC(cfg *viper.Viper) (*OIDCConfig, error) {
 	oauth2Config := &oauth2.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
-		RedirectURL:  "https://localhost:2111/api/v1/oauth/callback", // TODO: this value needs to be generated
+		RedirectURL:  fmt.Sprintf("https://%s/api/v1/oauth/callback", externalHostname),
 
 		Endpoint: provider.Endpoint(),
 
-		Scopes: []string{oidc.ScopeOpenID, email_claim, permissions_claim},
+		Scopes: append([]string{oidc.ScopeOpenID, email_claim, permissions_claim}, extra_scopes...),
 	}
 
 	return &OIDCConfig{

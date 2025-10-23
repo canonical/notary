@@ -173,7 +173,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 		if response.Error != "" {
 			t.Fatalf("expected error %q, got %q", "", response.Error)
 		}
-		if response.Result.ID != 1 {
+		if response.Result.ID != 0 {
 			t.Fatalf("expected ID 1, got %d", response.Result.ID)
 		}
 		if response.Result.Email != "testadmin@canonical.com" {

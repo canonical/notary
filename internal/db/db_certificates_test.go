@@ -12,19 +12,20 @@ import (
 func TestCertificatesEndToEnd(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)
 
-	userID, err := database.CreateUser("testuser", "testpassword", 0)
+	userEmail := "testuser@example.com"
+	_, err := database.CreateUser(userEmail, "testpassword", 0)
 	if err != nil {
 		t.Fatalf("Couldn't complete CreateUser: %s", err)
 	}
 
-	csrID, err := database.CreateCertificateRequest(tu.AppleCSR, userID)
+	csrID, err := database.CreateCertificateRequest(tu.AppleCSR, userEmail)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
 	if csrID != 1 {
 		t.Fatalf("Couldn't complete Create: wrong csr id. expected 1, got %d", csrID)
 	}
-	csrID, err = database.CreateCertificateRequest(tu.BananaCSR, userID)
+	csrID, err = database.CreateCertificateRequest(tu.BananaCSR, userEmail)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
@@ -129,7 +130,8 @@ func TestCertificatesEndToEnd(t *testing.T) {
 func TestCertificateRequestUserMappingEndToEnd(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)
 
-	userID, err := database.CreateUser("testuser", "testpassword", 0)
+	userEmail := "testuser@example.com"
+	userID, err := database.CreateUser(userEmail, "testpassword", 0)
 	if err != nil {
 		t.Fatalf("Couldn't complete CreateUser: %s", err)
 	}
@@ -138,7 +140,7 @@ func TestCertificateRequestUserMappingEndToEnd(t *testing.T) {
 		t.Fatalf("CreateUser should return a valid user ID, got 0")
 	}
 
-	csrID, err := database.CreateCertificateRequest(tu.AppleCSR, userID)
+	csrID, err := database.CreateCertificateRequest(tu.AppleCSR, userEmail)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
@@ -150,11 +152,11 @@ func TestCertificateRequestUserMappingEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete Retrieve: %s", err)
 	}
-	if retrievedCSR.UserEmail != userID {
+	if retrievedCSR.UserEmail != userEmail {
 		t.Fatalf("The CSR from the database doesn't match the user that was given")
 	}
 
-	err = database.DeleteUser(db.ByUserEmail(userID))
+	err = database.DeleteUser(db.ByUserID(userID))
 	if err != nil {
 		t.Fatalf("Couldn't complete DeleteUser: %s", err)
 	}
@@ -163,25 +165,21 @@ func TestCertificateRequestUserMappingEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete Retrieve: %s", err)
 	}
-	if retrievedCSR.UserEmail != 0 {
-		t.Fatalf("The User ID from the database should be set to 0 after deleting the user, got %d", retrievedCSR.UserEmail)
-	}
-
-	_, err = database.CreateCertificateRequest(tu.BananaCSR, userID)
-	if err == nil {
-		t.Fatalf("Creating a certificate request with a deleted user should return an error")
+	if retrievedCSR.UserEmail != userEmail {
+		t.Fatalf("The User ID from the database should be set to 0 after deleting the user, got %s", retrievedCSR.UserEmail)
 	}
 }
 
 func TestGetCertificateFails(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)
 
-	userID, err := database.CreateUser("testuser", "testpassword", 0)
+	userEmail := "testuser@example.com"
+	_, err := database.CreateUser(userEmail, "testpassword", 0)
 	if err != nil {
 		t.Fatalf("Couldn't complete CreateUser: %s", err)
 	}
 
-	database.CreateCertificateRequest(tu.AppleCSR, userID)                                                                                       //nolint:errcheck
+	database.CreateCertificateRequest(tu.AppleCSR, userEmail)                                                                                    //nolint:errcheck
 	database.AddCertificateChainToCertificateRequest(db.ByCSRPEM(tu.AppleCSR), tu.AppleCert+tu.IntermediateCert+"some extra string"+tu.RootCert) //nolint:errcheck
 
 	cert, err := database.GetCertificate(db.ByCertificatePEM(tu.AppleCert))
@@ -217,16 +215,17 @@ func TestGetCertificateFails(t *testing.T) {
 func TestCertificateAddFails(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)
 
-	userID, err := database.CreateUser("testuser", "testpassword", 0)
+	userEmail := "testuser@example.com"
+	_, err := database.CreateUser(userEmail, "testpassword", 0)
 	if err != nil {
 		t.Fatalf("Couldn't complete CreateUser: %s", err)
 	}
 
-	_, err = database.CreateCertificateRequest(tu.AppleCSR, userID)
+	_, err = database.CreateCertificateRequest(tu.AppleCSR, userEmail)
 	if err != nil {
 		t.Fatalf("The certificate should have been uploaded successfully")
 	}
-	_, err = database.CreateCertificateRequest(tu.BananaCSR, userID)
+	_, err = database.CreateCertificateRequest(tu.BananaCSR, userEmail)
 	if err != nil {
 		t.Fatalf("The certificate should have been uploaded successfully")
 	}
@@ -260,16 +259,17 @@ func TestCertificateAddFails(t *testing.T) {
 func TestGetCertificateChainFails(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)
 
-	userID, err := database.CreateUser("testuser", "testpassword", 0)
+	userEmail := "testuser@example.com"
+	_, err := database.CreateUser(userEmail, "testpassword", 0)
 	if err != nil {
 		t.Fatalf("Couldn't complete CreateUser: %s", err)
 	}
 
-	_, err = database.CreateCertificateRequest(tu.AppleCSR, userID)
+	_, err = database.CreateCertificateRequest(tu.AppleCSR, userEmail)
 	if err != nil {
 		t.Fatalf("The certificate should have been uploaded successfully")
 	}
-	_, err = database.CreateCertificateRequest(tu.BananaCSR, userID)
+	_, err = database.CreateCertificateRequest(tu.BananaCSR, userEmail)
 	if err != nil {
 		t.Fatalf("The certificate should have been uploaded successfully")
 	}

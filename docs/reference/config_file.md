@@ -9,6 +9,7 @@ Or If you are using the snap you can modify the config under `/var/snap/notary/c
 
 - `key_path` (string): Path to the private key for enabling HTTPS connections.
 - `cert_path` (string): Path to a PEM formatted certificate for enabling HTTPS connections.
+- `external_hostname` (string): Path to where the sqlite database should be stored. If the file does not exist Notary will attempt to create it.
 - `db_path` (string): Path to where the sqlite database should be stored. If the file does not exist Notary will attempt to create it.
 - `port` (integer): Port number on which Notary will listen for all incoming API and frontend connections.
 - `pebble_notifications` (boolean): Allow Notary to send pebble notices on certificate events (create, update, delete). Pebble needs to be running on the same system as Notary.
@@ -37,8 +38,9 @@ Or If you are using the snap you can modify the config under `/var/snap/notary/c
     - `client_id` (string): The client ID provided to you by the OIDC provider.
     - `client_secret` (string): The client secret provided to you by the OIDC provider.
     - `audience` (string): The audience value to be included in the oauth2 process.
-    - `email_claim_key` (string): The email claim key that will be checked in the claims of the access token.
-    - `permissions_claim_key` (string): The permission claim key that will be checked in the claims of the access token.
+    - `email_scope_key` (string): The email scope and claim that will be requested as a scope and checked in the claims of the access token.
+    - `permissions_scope_key` (string): The permission scope and claim that will be requested as a scope and checked in the claims of the access token.
+    - `extra_scopes` ([]string): Extra scopes to request from the OIDC provider.
 
 ## Examples
 

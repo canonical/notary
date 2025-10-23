@@ -128,7 +128,7 @@ func CreateCertificateRequest(env *HandlerOpts) http.HandlerFunc {
 			return
 		}
 
-		newCSRID, err := env.DB.CreateCertificateRequest(createCertificateRequestParams.CSR, claims.ID)
+		newCSRID, err := env.DB.CreateCertificateRequest(createCertificateRequestParams.CSR, claims.Email)
 		if err != nil {
 			if errors.Is(err, db.ErrAlreadyExists) {
 				writeError(w, http.StatusBadRequest, "given csr already recorded", err, env.Logger)

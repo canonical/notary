@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -68,11 +69,11 @@ type CertificateRequest struct {
 }
 
 // ListCertificateRequests returns all of the Certificate Requests
-func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
+func ListCertificateRequests(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
-		if headerErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.Logger)
+		claims, cookieErr := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		if cookieErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.Logger)
 			return
 		}
 
@@ -80,8 +81,8 @@ func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 		var err error
 
 		filter := &db.CSRFilter{}
-		if claims.RoleID == RoleCertificateRequestor {
-			filter.UserID = &claims.ID
+		if !slices.Contains(claims.Permissions, PermReadCertificateRequest) {
+			filter.UserEmail = &claims.Email
 		}
 
 		csrs, err = env.DB.ListCertificateRequestWithCertificatesWithoutCAS(filter)
@@ -92,25 +93,12 @@ func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 
 		certificateRequestsResponse := make([]CertificateRequest, len(csrs))
 		for i, csr := range csrs {
-			var email string
-			user, err := env.DB.GetUser(db.ByUserID(csr.UserID))
-			if err != nil {
-				if errors.Is(err, db.ErrNotFound) {
-					env.Logger.Warn("user not found for certificate request", zap.Int64("user_id", csr.UserID))
-					email = "unknown"
-				} else {
-					writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
-					return
-				}
-			} else {
-				email = user.Email
-			}
 			certificateRequestsResponse[i] = CertificateRequest{
 				ID:               csr.CSR_ID,
 				CSR:              csr.CSR,
 				Status:           csr.Status,
 				CertificateChain: csr.CertificateChain,
-				Email:            email,
+				Email:            csr.UserEmail,
 			}
 		}
 		err = writeResponse(w, certificateRequestsResponse, http.StatusOK)
@@ -122,7 +110,7 @@ func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 }
 
 // CreateCertificateRequest creates a new Certificate Request, and returns the id of the created row
-func CreateCertificateRequest(env *HandlerConfig) http.HandlerFunc {
+func CreateCertificateRequest(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var createCertificateRequestParams CreateCertificateRequestParams
 		if err := json.NewDecoder(r.Body).Decode(&createCertificateRequestParams); err != nil {
@@ -134,10 +122,9 @@ func CreateCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.Logger)
 			return
 		}
-
-		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
-		if headerErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.Logger)
+		claims, cookieErr := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		if cookieErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.Logger)
 			return
 		}
 
@@ -165,9 +152,9 @@ func CreateCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 
 // GetCertificateRequest receives an id as a path parameter, and
 // returns the corresponding Certificate Request
-func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
+func GetCertificateRequest(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
+		claims, headerErr := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
 		if headerErr != nil {
 			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.Logger)
 			return
@@ -191,7 +178,7 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 		}
 
 		// Restrict access to certificate requestors' own requests
-		if claims.RoleID == RoleCertificateRequestor && claims.ID != csr.UserID {
+		if !slices.Contains(claims.Permissions, PermReadCertificateRequest) && claims.Email != csr.UserEmail {
 			writeError(w, http.StatusForbidden, "Access denied", fmt.Errorf("user does not have permission to access this certificate request"), env.Logger)
 			return
 		}
@@ -206,26 +193,12 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 
-		var email string
-		user, err := env.DB.GetUser(db.ByUserID(csr.UserID))
-		if err != nil {
-			if errors.Is(err, db.ErrNotFound) {
-				env.Logger.Warn("user not found for certificate request", zap.Int64("user_id", csr.UserID))
-				email = "unknown"
-			} else {
-				writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
-				return
-			}
-		} else {
-			email = user.Email
-		}
-
 		certificateRequestResponse := CertificateRequest{
 			ID:               csr.CSR_ID,
 			CSR:              csr.CSR,
 			CertificateChain: csr.CertificateChain,
 			Status:           csr.Status,
-			Email:            email,
+			Email:            csr.UserEmail,
 		}
 
 		err = writeResponse(w, certificateRequestResponse, http.StatusOK)
@@ -238,7 +211,7 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 
 // DeleteCertificateRequest handler receives an id as a path parameter,
 // deletes the corresponding Certificate Request, and returns a http.StatusNoContent on success
-func DeleteCertificateRequest(env *HandlerConfig) http.HandlerFunc {
+func DeleteCertificateRequest(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
@@ -275,7 +248,7 @@ func DeleteCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 
 // PostCertificateRequestCertificate handler receives an id as a path parameter,
 // and attempts to add a given certificate to the corresponding certificate request
-func PostCertificateRequestCertificate(env *HandlerConfig) http.HandlerFunc {
+func PostCertificateRequestCertificate(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var createCertificateParams CreateCertificateParams
 		if err := json.NewDecoder(r.Body).Decode(&createCertificateParams); err != nil {
@@ -329,7 +302,7 @@ func PostCertificateRequestCertificate(env *HandlerConfig) http.HandlerFunc {
 
 // RejectCertificateRequest handler receives an id as a path parameter,
 // rejects the corresponding Certificate Request, and returns a http.StatusNoContent on success
-func RejectCertificateRequest(env *HandlerConfig) http.HandlerFunc {
+func RejectCertificateRequest(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
@@ -373,7 +346,7 @@ func RejectCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 
 // DeleteCertificate handler receives an id as a path parameter,
 // and attempts to add a given certificate to the corresponding certificate request
-func DeleteCertificate(env *HandlerConfig) http.HandlerFunc {
+func DeleteCertificate(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
@@ -417,7 +390,7 @@ func DeleteCertificate(env *HandlerConfig) http.HandlerFunc {
 // RevokeCertificate handler receives an id as a path parameter,
 // and attempts to revoke the corresponding certificate request by adding the certificate to the CRL
 // It returns a 200 OK on success
-func RevokeCertificate(env *HandlerConfig) http.HandlerFunc {
+func RevokeCertificate(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
@@ -461,7 +434,7 @@ func RevokeCertificate(env *HandlerConfig) http.HandlerFunc {
 // SignCertificateRequest handler receives the ID of an existing active certificate authority in Notary
 // to sign any certificate request available in Notary.
 // It returns a 202 Accepted on success.
-func SignCertificateRequest(env *HandlerConfig) http.HandlerFunc {
+func SignCertificateRequest(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)

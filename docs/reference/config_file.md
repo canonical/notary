@@ -31,6 +31,14 @@ Or If you are using the snap you can modify the config under `/var/snap/notary/c
       - `approle_secret_id` (string): Secret ID for AppRole authentication.
       - `tls_ca_cert` (string): Path to the CA certificate for TLS verification (optional).
       - `tls_skip_verify` (boolean): Whether to skip TLS certificate verification (optional, defaults to `false`). It is strongly discouraged to set this to `true` outside of development environments
+- `authentication` (object): Configuration for authenticating to Notary.
+  - `oidc` (object): Configuration for an OIDC identity provider.
+    - `domain` (string): URL of the OIDC provider not including the protocol.
+    - `client_id` (string): The client ID provided to you by the OIDC provider.
+    - `client_secret` (string): The client secret provided to you by the OIDC provider.
+    - `audience` (string): The audience value to be included in the oauth2 process.
+    - `email_claim_key` (string): The email claim key that will be checked in the claims of the access token.
+    - `permissions_claim_key` (string): The permission claim key that will be checked in the claims of the access token.
 
 ## Examples
 

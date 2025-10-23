@@ -37,8 +37,8 @@ func (db *Database) GetDenormalizedCertificateAuthority(filter CertificateAuthor
 
 // CreateCertificateAuthority creates a new certificate authority in the database from a given CSR, private key, and certificate chain.
 // The certificate chain is optional and can be empty.
-func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, crlPEM string, certChainPEM string, userID int64) (int64, error) {
-	csrID, err := db.CreateCertificateRequest(csrPEM, userID)
+func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, crlPEM string, certChainPEM string, userEmail string) (int64, error) {
+	csrID, err := db.CreateCertificateRequest(csrPEM, userEmail)
 	if err != nil {
 		return 0, err
 	}

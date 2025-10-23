@@ -6,9 +6,7 @@ CREATE TABLE IF NOT EXISTS certificate_requests
 	csr             TEXT NOT NULL UNIQUE,
 	status          TEXT DEFAULT 'Outstanding',
 	certificate_id  INTEGER,
-	user_id         INTEGER,
-
-	FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+	user_email      TEXT,
 
 	CHECK (status IN ('Outstanding', 'Rejected', 'Revoked', 'Active')),
 	CHECK (NOT (certificate_id == NULL AND status == 'Active' )),

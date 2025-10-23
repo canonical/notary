@@ -8,6 +8,11 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	CookieSessionTokenKey = "user_token"
+	CookieHasSessionKey   = "has_session"
+)
+
 type ServerOpts struct {
 	TLSCertificate []byte
 	TLSPrivateKey  []byte
@@ -15,14 +20,17 @@ type ServerOpts struct {
 	ExternalHostname string
 	Port             int
 
-	// Sends a notification to Pebble when an action is taken on a CSR.
-	EnablePebbleNotifications bool
+	// OIDC Configuration
+	OIDCConfig *config.OIDCConfig
 
 	// Config data to be returned in the API response.
 	PublicConfig *config.PublicConfigData
 
 	// Database object to run SQL queries on
 	Database *db.Database
+
+	// Sends a notification to Pebble when an action is taken on a CSR.
+	EnablePebbleNotifications bool
 
 	Logger *zap.Logger
 }

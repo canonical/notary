@@ -8,16 +8,18 @@ const (
 	PermUpdateUserPassword = "user:update_password"
 	PermUpdateMyPassword   = "user:update_my_password"
 	PermReadUser           = "user:read"
-	PermDeleteUser         = "user:delete"
 	PermReadMyUser         = "user:read_my_user"
+	PermDeleteUser         = "user:delete"
 
 	// Config permissions
 	PermReadConfig = "config:read"
 
 	// Certificate request permissions
 	PermListCertificateRequests             = "certificate_request:list"
+	PermListMyCertificateRequests           = "certificate_request:list_my"
 	PermCreateCertificateRequest            = "certificate_request:create"
 	PermReadCertificateRequest              = "certificate_request:read"
+	PermReadMyCertificateRequest            = "certificate_request:read_my"
 	PermDeleteCertificateRequest            = "certificate_request:delete"
 	PermRejectCertificateRequest            = "certificate_request:reject"
 	PermSignCertificateRequest              = "certificate_request:sign"
@@ -55,7 +57,36 @@ func (r RoleID) IsValid() bool {
 }
 
 var PermissionsByRole = map[RoleID][]string{
-	RoleAdmin: {"*"},
+	RoleAdmin: {
+		PermListUsers,
+		PermCreateUser,
+		PermUpdateUser,
+		PermUpdateUserPassword,
+		PermUpdateMyPassword,
+		PermReadUser,
+		PermReadMyUser,
+		PermDeleteUser,
+		PermReadConfig,
+		PermListCertificateRequests,
+		PermListMyCertificateRequests,
+		PermCreateCertificateRequest,
+		PermReadCertificateRequest,
+		PermReadMyCertificateRequest,
+		PermDeleteCertificateRequest,
+		PermRejectCertificateRequest,
+		PermSignCertificateRequest,
+		PermCreateCertificateRequestCertificate,
+		PermDeleteCertificateRequestCertificate,
+		PermRevokeCertificateRequestCertificate,
+		PermListCertificateAuthorities,
+		PermCreateCertificateAuthority,
+		PermReadCertificateAuthority,
+		PermUpdateCertificateAuthority,
+		PermDeleteCertificateAuthority,
+		PermSignCertificateAuthorityCertificate,
+		PermCreateCertificateAuthorityCertificate,
+		PermRevokeCertificateAuthorityCertificate,
+	},
 
 	RoleCertificateManager: {
 		PermReadMyUser,
@@ -84,8 +115,8 @@ var PermissionsByRole = map[RoleID][]string{
 		PermReadMyUser,
 		PermUpdateMyPassword,
 		PermCreateCertificateRequest,
-		PermReadCertificateRequest,
-		PermListCertificateRequests,
+		PermReadMyCertificateRequest,
+		PermListMyCertificateRequests,
 	},
 
 	RoleReadOnly: {
@@ -97,4 +128,11 @@ var PermissionsByRole = map[RoleID][]string{
 		PermReadCertificateAuthority,
 		PermReadConfig,
 	},
+}
+
+func getPermissionsFromRoleID(roleID RoleID) []string {
+	if roleID.IsValid() {
+		return PermissionsByRole[roleID]
+	}
+	return nil
 }

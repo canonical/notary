@@ -7,19 +7,19 @@ import (
 )
 
 type DatabaseOpts struct {
-	DatabasePath string
+	DatabasePath    string
 	ApplyMigrations bool
-	Backend      encryption_backend.EncryptionBackend
-	Logger       *zap.Logger
+	Backend         encryption_backend.EncryptionBackend
+	Logger          *zap.Logger
 }
 
 // Database is the object used to communicate with the established repository.
 type Database struct {
-	Conn          *sqlair.DB
-	stmts         *Statements
+	Conn  *sqlair.DB
+	stmts *Statements
 
 	EncryptionKey []byte
-	JWTSecret	 []byte
+	JWTSecret     []byte
 }
 
 const CAMaxExpiryYears = 1
@@ -69,7 +69,7 @@ type CertificateRequest struct {
 	CSR           string `db:"csr"`
 	Status        string `db:"status"`
 	CertificateID int64  `db:"certificate_id"`
-	UserID        int64  `db:"user_id"`
+	UserEmail     string `db:"user_email"`
 }
 
 // CertificateRequestWithChain contains the same information as the CertificateRequest object,
@@ -81,7 +81,7 @@ type CertificateRequestWithChain struct {
 	CSR              string `db:"csr"`
 	Status           string `db:"status"`
 	CertificateChain string `db:"certificate_chain"`
-	UserID           int64  `db:"user_id"`
+	UserEmail        string `db:"user_email"`
 }
 
 // PrivateKey contains the PEM encoded string of a private key. This object is only used in relation

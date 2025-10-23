@@ -52,9 +52,9 @@ func (params *ChangeAccountParams) IsValid() (bool, error) {
 }
 
 type GetAccountResponse struct {
-	ID     int64  `json:"id"`
+	ID     int64  `json:"id,omitempty"`
 	Email  string `json:"email"`
-	RoleID RoleID `json:"role_id"`
+	RoleID RoleID `json:"role_id,omitempty"`
 }
 
 func validatePassword(password string) bool {
@@ -80,7 +80,7 @@ func validateEmail(email string) bool {
 }
 
 // ListAccounts returns all accounts from the database
-func ListAccounts(env *HandlerConfig) http.HandlerFunc {
+func ListAccounts(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		accounts, err := env.DB.ListUsers()
 		if err != nil {
@@ -105,17 +105,21 @@ func ListAccounts(env *HandlerConfig) http.HandlerFunc {
 
 // GetAccount receives an id as a path parameter, and
 // returns the corresponding User Account
-func GetAccount(env *HandlerConfig) http.HandlerFunc {
+// It can only return accounts that exist in the database
+// If the account was logged in with OIDC, it will only return the email
+func GetAccount(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		var account *db.User
 		var err error
 		if id == "me" {
-			claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
-			if headerErr != nil {
-				writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.Logger)
+			claims, jwtErr := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+			if jwtErr != nil {
+				writeError(w, http.StatusUnauthorized, "Unauthorized", jwtErr, env.Logger)
 			}
-			account, err = env.DB.GetUser(db.ByEmail(claims.Email))
+			account = &db.User{
+				Email: claims.Email,
+			}
 		} else {
 			var idNum int64
 			idNum, err = strconv.ParseInt(id, 10, 64)
@@ -146,8 +150,35 @@ func GetAccount(env *HandlerConfig) http.HandlerFunc {
 	}
 }
 
+// GetMyAccount receives "me" as a path parameter, and
+// returns the corresponding User Account. Unlike GetAccount,
+// it uses the JWT claims to retrieve the account information.
+func GetMyAccount(env *HandlerOpts) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var account *db.User
+		var err error
+		claims, jwtErr := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		if jwtErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", jwtErr, env.Logger)
+		}
+		account = &db.User{
+			Email: claims.Email,
+		}
+		accountResponse := GetAccountResponse{
+			ID:     account.ID,
+			Email:  account.Email,
+			RoleID: RoleID(account.RoleID),
+		}
+		err = writeResponse(w, accountResponse, http.StatusOK)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error", err, env.Logger)
+			return
+		}
+	}
+}
+
 // CreateAccount creates a new Account, and returns the id of the created row
-func CreateAccount(env *HandlerConfig) http.HandlerFunc {
+func CreateAccount(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var createAccountParams CreateAccountParams
 		if err := json.NewDecoder(r.Body).Decode(&createAccountParams); err != nil {
@@ -179,7 +210,7 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 
 // DeleteAccount handler receives an id as a path parameter,
 // deletes the corresponding User Account, and returns a http.StatusNoContent on success
-func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
+func DeleteAccount(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		idInt, err := strconv.ParseInt(id, 10, 64)
@@ -219,7 +250,7 @@ func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
 	}
 }
 
-func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
+func ChangeAccountPassword(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		var idNum int64
@@ -257,10 +288,10 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 	}
 }
 
-func ChangeMyPassword(env *HandlerConfig) http.HandlerFunc {
+func ChangeMyPassword(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var idNum int64
-		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
+		claims, err := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
 		if err != nil {
 			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.Logger)
 			return

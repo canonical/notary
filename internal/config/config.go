@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -8,11 +9,14 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/MicahParks/keyfunc/v3"
 	eb "github.com/canonical/notary/internal/encryption_backend"
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"golang.org/x/oauth2"
 )
 
 // CreateAppContext opens and processes the given configuration yaml file by
@@ -46,6 +50,11 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 	if err != nil {
 		return nil, fmt.Errorf("couldn't initialize encryption backend: %w", err)
 	}
+	// initialize OIDC config
+	oidcConfig, err := initializeOIDC(cfg.Sub("authentication.oidc"))
+	if err != nil {
+		return nil, fmt.Errorf("couldn't initialize OIDC config: %w", err)
+	}
 
 	appContext.Port = cfg.GetInt("port")
 	appContext.ExternalHostname = cfg.GetString("external_hostname")
@@ -58,6 +67,7 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 	appContext.Logger = logger
 	appContext.EncryptionBackend = backend
 	appContext.EncryptionBackendType = backendType
+	appContext.OIDCConfig = oidcConfig
 	appContext.PublicConfig = &PublicConfigData{
 		Port:                  cfg.GetInt("port"),
 		PebbleNotifications:   cfg.GetBool("pebble_notifications"),
@@ -65,6 +75,7 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 		LoggingOutput:         cfg.GetString("logging.system.output"),
 		EncryptionBackendType: backendType,
 	}
+
 	return &appContext, nil
 }
 
@@ -228,4 +239,46 @@ func initializeLogger(cfg *viper.Viper) (*zap.Logger, error) {
 	}
 
 	return logger, nil
+}
+
+func initializeOIDC(cfg *viper.Viper) (*OIDCConfig, error) {
+	if cfg == nil {
+		return nil, nil
+	}
+
+	oidcServer := fmt.Sprintf("https://%s/", cfg.GetString("domain"))
+	clientID := cfg.GetString("client_id")
+	clientSecret := cfg.GetString("client_secret")
+	audience := cfg.GetString("audience")
+	email_claim := cfg.GetString("email_claim_key")
+	permissions_claim := cfg.GetString("permissions_claim_key")
+
+	provider, err := oidc.NewProvider(context.Background(), oidcServer)
+	if err != nil {
+		return nil, err
+	}
+
+	keyfunc, err := keyfunc.NewDefaultCtx(context.Background(), []string{oidcServer + ".well-known/jwks.json"})
+	if err != nil {
+		return nil, err
+	}
+
+	oauth2Config := &oauth2.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		RedirectURL:  "https://localhost:2111/api/v1/oauth/callback", // TODO: this value needs to be generated
+
+		Endpoint: provider.Endpoint(),
+
+		Scopes: []string{oidc.ScopeOpenID, email_claim, permissions_claim},
+	}
+
+	return &OIDCConfig{
+		OAuth2Config:        oauth2Config,
+		Audience:            audience,
+		OIDCProvider:        provider,
+		KeyFunc:             keyfunc,
+		EmailClaimKey:       email_claim,
+		PermissionsClaimKey: permissions_claim,
+	}, nil
 }

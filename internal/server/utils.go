@@ -7,8 +7,11 @@ import (
 	"encoding/asn1"
 	"errors"
 	"fmt"
+	"math/rand"
 	"os/exec"
+	"strings"
 )
+
 const (
 	CertificateUpdate NotificationKey = 1
 )
@@ -54,3 +57,11 @@ func generateSKI(priv *rsa.PrivateKey) []byte {
 	return hash[:]
 }
 
+func generateRandomString(length int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	var result strings.Builder
+	for i := 0; i < length; i++ {
+		result.WriteByte(charset[rand.Intn(len(charset))])
+	}
+	return result.String()
+}

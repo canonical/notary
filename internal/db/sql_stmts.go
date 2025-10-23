@@ -12,7 +12,7 @@ const (
 	listCertificateRequestsWithoutCASStmt = "SELECT csrs.&CertificateRequest.csr_id, csrs.&CertificateRequest.csr, csrs.&CertificateRequest.status, csrs.&CertificateRequest.certificate_id FROM certificate_requests csrs LEFT JOIN certificate_authorities cas ON csrs.csr_id = cas.csr_id WHERE cas.certificate_authority_id IS NULL"
 	getCertificateRequestStmt             = "SELECT &CertificateRequest.* FROM certificate_requests WHERE csr_id==$CertificateRequest.csr_id or csr==$CertificateRequest.csr"
 	updateCertificateRequestStmt          = "UPDATE certificate_requests SET certificate_id=$CertificateRequest.certificate_id, status=$CertificateRequest.status WHERE csr_id==$CertificateRequest.csr_id or csr==$CertificateRequest.csr"
-	createCertificateRequestStmt          = "INSERT INTO certificate_requests (csr, user_id) VALUES ($CertificateRequest.csr, $CertificateRequest.user_id)"
+	createCertificateRequestStmt          = "INSERT INTO certificate_requests (csr, user_email) VALUES ($CertificateRequest.csr, $CertificateRequest.user_email)"
 	deleteCertificateRequestStmt          = "DELETE FROM certificate_requests WHERE csr_id=$CertificateRequest.csr_id or csr=$CertificateRequest.csr"
 
 	listCertificateRequestsWithCertificatesStmt = `
@@ -21,7 +21,7 @@ WITH RECURSIVE certificate_chain AS (
         csr.csr_id,
         csr.csr,
 		csr.status,
-		csr.user_id,
+		csr.user_email,
         cert.certificate_id,
         cert.issuer_id,
         cert.certificate,
@@ -37,7 +37,7 @@ WITH RECURSIVE certificate_chain AS (
         cc.csr_id,
         cc.csr,
 		cc.status,
-		cc.user_id,
+		cc.user_email,
         cert.certificate_id,
         cert.issuer_id,
         cert.certificate,
@@ -59,7 +59,7 @@ WITH RECURSIVE certificate_chain AS (
         csr.csr_id,
         csr.csr,
         csr.status,
-        csr.user_id,
+        csr.user_email,
         cert.certificate_id,
         cert.issuer_id,
         cert.certificate,
@@ -75,7 +75,7 @@ WITH RECURSIVE certificate_chain AS (
         cc.csr_id,
         cc.csr,
         cc.status,
-        cc.user_id,
+        cc.user_email,
         cert.certificate_id,
         cert.issuer_id,
         cert.certificate,
@@ -88,18 +88,18 @@ SELECT
 	cc.&CertificateRequestWithChain.csr_id,
 	cc.&CertificateRequestWithChain.csr,
 	cc.&CertificateRequestWithChain.status,
-	cc.&CertificateRequestWithChain.user_id,
+	cc.&CertificateRequestWithChain.user_email,
 	chain AS &CertificateRequestWithChain.certificate_chain
 FROM certificate_chain cc
 LEFT JOIN certificate_authorities cas ON cc.csr_id = cas.csr_id
 WHERE cas.certificate_authority_id IS NULL AND (chain = '' OR issuer_id = 0)`
-	listCertificateRequestsWithCertificatesWithoutCASByUserIDStmt = `
+	listCertificateRequestsWithCertificatesWithoutCASByUserEmailStmt = `
 WITH RECURSIVE certificate_chain AS (
     SELECT
         csr.csr_id,
         csr.csr,
         csr.status,
-        csr.user_id,
+        csr.user_email,
         cert.certificate_id,
         cert.issuer_id,
         cert.certificate,
@@ -107,7 +107,7 @@ WITH RECURSIVE certificate_chain AS (
     FROM certificate_requests csr
     LEFT JOIN certificates cert
       ON csr.certificate_id = cert.certificate_id
-    WHERE csr.user_id = $CertificateRequestWithChain.user_id
+    WHERE csr.user_email = $CertificateRequestWithChain.user_email
 
     UNION ALL
 
@@ -115,7 +115,7 @@ WITH RECURSIVE certificate_chain AS (
         cc.csr_id,
         cc.csr,
         cc.status,
-        cc.user_id,
+        cc.user_email,
         cert.certificate_id,
         cert.issuer_id,
         cert.certificate,
@@ -128,7 +128,7 @@ SELECT
 	cc.&CertificateRequestWithChain.csr_id,
 	cc.&CertificateRequestWithChain.csr,
 	cc.&CertificateRequestWithChain.status,
-	cc.&CertificateRequestWithChain.user_id,
+	cc.&CertificateRequestWithChain.user_email,
 	chain AS &CertificateRequestWithChain.certificate_chain
 FROM certificate_chain cc
 LEFT JOIN certificate_authorities cas ON cc.csr_id = cas.csr_id
@@ -139,7 +139,7 @@ WITH RECURSIVE certificate_chain AS (
         csr.csr_id,
         csr.csr,
 		csr.status,
-		csr.user_id,
+		csr.user_email,
         cert.certificate_id,
         cert.issuer_id,
         cert.certificate,
@@ -155,7 +155,7 @@ WITH RECURSIVE certificate_chain AS (
         cc.csr_id,
         cc.csr,
 		cc.status,
-		cc.user_id,
+		cc.user_email,
         cert.certificate_id,
         cert.issuer_id,
         cert.certificate,
@@ -168,7 +168,7 @@ SELECT
 	&CertificateRequestWithChain.csr_id,
 	&CertificateRequestWithChain.csr,
 	&CertificateRequestWithChain.status,
-	&CertificateRequestWithChain.user_id,
+	&CertificateRequestWithChain.user_email,
 	chain AS &CertificateRequestWithChain.certificate_chain
 FROM certificate_chain
 WHERE (csr_id = $CertificateRequestWithChain.csr_id OR csr = $CertificateRequestWithChain.csr) AND (chain = '' OR issuer_id = 0)`
@@ -326,16 +326,16 @@ WITH RECURSIVE cas_with_chain AS (
 // Statements contains all prepared SQL statements used by the database
 type Statements struct {
 	// Certificate Request statements
-	CreateCertificateRequest                    *sqlair.Statement
-	GetCertificateRequest                       *sqlair.Statement
-	GetCertificateRequestWithChain              *sqlair.Statement
-	UpdateCertificateRequest                    *sqlair.Statement
-	ListCertificateRequests                     *sqlair.Statement
-	ListCertificateRequestsWithoutCAS           *sqlair.Statement
-	ListCertificateRequestsWithChain            *sqlair.Statement
-	ListCertificateRequestsWithoutChain         *sqlair.Statement
-	ListCertificateRequestsWithoutChainByUserID *sqlair.Statement
-	DeleteCertificateRequest                    *sqlair.Statement
+	CreateCertificateRequest                       *sqlair.Statement
+	GetCertificateRequest                          *sqlair.Statement
+	GetCertificateRequestWithChain                 *sqlair.Statement
+	UpdateCertificateRequest                       *sqlair.Statement
+	ListCertificateRequests                        *sqlair.Statement
+	ListCertificateRequestsWithoutCAS              *sqlair.Statement
+	ListCertificateRequestsWithChain               *sqlair.Statement
+	ListCertificateRequestsWithoutChain            *sqlair.Statement
+	ListCertificateRequestsWithoutChainByUserEmail *sqlair.Statement
+	DeleteCertificateRequest                       *sqlair.Statement
 
 	// Certificate statements
 	CreateCertificate   *sqlair.Statement
@@ -392,7 +392,7 @@ func PrepareStatements() *Statements {
 	stmts.ListCertificateRequestsWithoutCAS = sqlair.MustPrepare(listCertificateRequestsWithoutCASStmt, CertificateRequest{})
 	stmts.ListCertificateRequestsWithChain = sqlair.MustPrepare(listCertificateRequestsWithCertificatesStmt, CertificateRequestWithChain{})
 	stmts.ListCertificateRequestsWithoutChain = sqlair.MustPrepare(listCertificateRequestsWithCertificatesWithoutCASStmt, CertificateRequestWithChain{})
-	stmts.ListCertificateRequestsWithoutChainByUserID = sqlair.MustPrepare(listCertificateRequestsWithCertificatesWithoutCASByUserIDStmt, CertificateRequestWithChain{})
+	stmts.ListCertificateRequestsWithoutChainByUserEmail = sqlair.MustPrepare(listCertificateRequestsWithCertificatesWithoutCASByUserEmailStmt, CertificateRequestWithChain{})
 	stmts.DeleteCertificateRequest = sqlair.MustPrepare(deleteCertificateRequestStmt, CertificateRequest{})
 
 	// Certificate statements

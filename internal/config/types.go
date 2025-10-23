@@ -1,8 +1,11 @@
 package config
 
 import (
+	"github.com/MicahParks/keyfunc/v3"
 	"github.com/canonical/notary/internal/encryption_backend"
+	"github.com/coreos/go-oidc/v3/oidc"
 	"go.uber.org/zap"
+	"golang.org/x/oauth2"
 )
 
 type EncryptionBackendType string
@@ -117,4 +120,23 @@ type NotaryAppContext struct {
 	// Encryption backend to be used for encrypting and decrypting sensitive data
 	EncryptionBackendType
 	EncryptionBackend encryption_backend.EncryptionBackend
+
+	// OIDC configuration
+	OIDCConfig *OIDCConfig
+}
+
+// This is the configuration for OIDC authentication
+type OIDCConfig struct {
+	// This is the OIDC configuration of the configured server
+	OIDCProvider *oidc.Provider
+	// This is the oauth2 configuration for the IDP
+	OAuth2Config *oauth2.Config
+	// The audience is the value that the IDP will use to identify the Notary server with the correct API scopes
+	Audience string
+	// This is the key for the email claim in the access token
+	EmailClaimKey string
+	// This is the key for the permissions claim in the access token
+	PermissionsClaimKey string
+	// This is the key function for verifying the access token coming from the IDP
+	KeyFunc keyfunc.Keyfunc
 }

@@ -218,7 +218,7 @@ func createCertificateAuthority(fields CreateCertificateAuthorityParams) (string
 
 // ListCertificateAuthorities handler returns a list of all Certificate Authorities
 // It returns a 200 OK on success
-func ListCertificateAuthorities(env *HandlerConfig) http.HandlerFunc {
+func ListCertificateAuthorities(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cas, err := env.DB.ListDenormalizedCertificateAuthorities()
 		if err != nil {
@@ -246,7 +246,7 @@ func ListCertificateAuthorities(env *HandlerConfig) http.HandlerFunc {
 
 // CreateCertificateAuthority handler creates a new Certificate Authority
 // It returns a 201 Created on success
-func CreateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
+func CreateCertificateAuthority(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var params CreateCertificateAuthorityParams
 		if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
@@ -258,9 +258,9 @@ func CreateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.Logger)
 			return
 		}
-		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
-		if headerErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.Logger)
+		claims, cookieErr := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		if cookieErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.Logger)
 			return
 		}
 		csrPEM, privPEM, crlPEM, certPEM, err := createCertificateAuthority(params)
@@ -290,7 +290,7 @@ func CreateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 
 // GetCertificateAuthority handler returns a Certificate Authority given its id
 // It returns a 200 OK on success
-func GetCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
+func GetCertificateAuthority(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
@@ -327,7 +327,7 @@ func GetCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 
 // UpdateCertificateAuthority handler updates a Certificate Authority given its id
 // It returns a 200 OK on success
-func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
+func UpdateCertificateAuthority(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
@@ -362,7 +362,7 @@ func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 
 // DeleteCertificateAuthority handler deletes a Certificate Authority given its id
 // It returns a 200 OK on success
-func DeleteCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
+func DeleteCertificateAuthority(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
@@ -391,7 +391,7 @@ func DeleteCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 
 // PostCertificateAuthorityCertificate handler uploads a certificate chain to a Certificate Authority given its id
 // It returns a 201 Created on success
-func PostCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
+func PostCertificateAuthorityCertificate(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
@@ -430,7 +430,7 @@ func PostCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
 // SignCertificateAuthority handler receives the ID of an existing enabled certificate authority in Notary
 // to sign any pending intermediate certificate authority available in Notary.
 // It returns a 202 Accepted on success.
-func SignCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
+func SignCertificateAuthority(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
@@ -479,7 +479,7 @@ func SignCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 
 // GetCertificateAuthorityCRL handler returns the CRL of the associated CA
 // It returns a 200 OK on success
-func GetCertificateAuthorityCRL(env *HandlerConfig) http.HandlerFunc {
+func GetCertificateAuthorityCRL(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
@@ -510,7 +510,7 @@ func GetCertificateAuthorityCRL(env *HandlerConfig) http.HandlerFunc {
 // RevokeCertificateAuthorityCertificate handler receives an id as a path parameter,
 // and revokes the corresponding certificate by placing the certificate serial number to the CRL
 // It returns a 200 OK on success
-func RevokeCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
+func RevokeCertificateAuthorityCertificate(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)

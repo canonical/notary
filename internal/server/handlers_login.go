@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/canonical/notary/internal/auth"
 	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/hashing"
 	"github.com/golang-jwt/jwt/v5"
@@ -13,13 +14,6 @@ import (
 
 func expireAfter() time.Time {
 	return time.Now().Add(time.Hour * 1)
-}
-
-type jwtNotaryClaims struct {
-	ID     int64  `json:"id"`
-	Email  string `json:"email"`
-	RoleID RoleID `json:"role_id"`
-	jwt.RegisteredClaims
 }
 
 type LoginParams struct {
@@ -34,10 +28,10 @@ type LoginResponse struct {
 // Helper function to generate a JWT
 func generateJWT(id int64, email string, jwtSecret []byte, roleID RoleID) (string, error) {
 	expiresAt := jwt.NewNumericDate(expireAfter())
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtNotaryClaims{
-		ID:     id,
-		Email:  email,
-		RoleID: roleID,
+	permissionList := getPermissionsFromRoleID(roleID)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, auth.NotaryJWTClaims{
+		Email:       email,
+		Permissions: permissionList,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: expiresAt,
 		},
@@ -50,7 +44,7 @@ func generateJWT(id int64, email string, jwtSecret []byte, roleID RoleID) (strin
 	return tokenString, nil
 }
 
-func Login(env *HandlerConfig) http.HandlerFunc {
+func Login(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var loginParams LoginParams
 		if err := json.NewDecoder(r.Body).Decode(&loginParams); err != nil {
@@ -87,10 +81,32 @@ func Login(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.Logger)
 			return
 		}
-		loginResponse := LoginResponse{
-			Token: jwt,
+		http.SetCookie(w, &http.Cookie{
+			Name:     CookieSessionTokenKey,
+			Value:    jwt,
+			HttpOnly: true,
+			Secure:   true,
+			Path:     "/",
+			SameSite: http.SameSiteStrictMode,
+		})
+		err = writeResponse(w, SuccessResponse{Message: "success"}, http.StatusOK)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error", err, env.Logger)
+			return
 		}
-		err = writeResponse(w, loginResponse, http.StatusOK)
+	}
+}
+
+// Expire both cookies if logging out
+func Logout(env *HandlerOpts) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		http.SetCookie(w, &http.Cookie{
+			Name:    CookieSessionTokenKey,
+			Value:   "",
+			Path:    "/",
+			Expires: time.Unix(0, 0),
+		})
+		err := writeResponse(w, SuccessResponse{Message: "success"}, http.StatusOK)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error", err, env.Logger)
 			return

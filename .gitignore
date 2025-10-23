@@ -34,3 +34,7 @@ ui/.vercel
 # typescript
 ui/*.tsbuildinfo
 ui/next-env.d.ts
+
+# editor
+.idea/
+.vscode/

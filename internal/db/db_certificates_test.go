@@ -150,11 +150,11 @@ func TestCertificateRequestUserMappingEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete Retrieve: %s", err)
 	}
-	if retrievedCSR.UserID != userID {
+	if retrievedCSR.UserEmail != userID {
 		t.Fatalf("The CSR from the database doesn't match the user that was given")
 	}
 
-	err = database.DeleteUser(db.ByUserID(userID))
+	err = database.DeleteUser(db.ByUserEmail(userID))
 	if err != nil {
 		t.Fatalf("Couldn't complete DeleteUser: %s", err)
 	}
@@ -163,8 +163,8 @@ func TestCertificateRequestUserMappingEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete Retrieve: %s", err)
 	}
-	if retrievedCSR.UserID != 0 {
-		t.Fatalf("The User ID from the database should be set to 0 after deleting the user, got %d", retrievedCSR.UserID)
+	if retrievedCSR.UserEmail != 0 {
+		t.Fatalf("The User ID from the database should be set to 0 after deleting the user, got %d", retrievedCSR.UserEmail)
 	}
 
 	_, err = database.CreateCertificateRequest(tu.BananaCSR, userID)

@@ -6,14 +6,12 @@ import { HTTPStatus } from "@/utils";
 
 export type RequiredCSRParams = {
   id: string;
-  authToken: string;
   csr?: string;
   cert?: string;
 };
 
 export type RequiredCAParams = {
   id: string;
-  authToken: string;
 };
 
 export type Response<T> = {
@@ -37,23 +35,18 @@ export async function getStatus(): Promise<GETStatus> {
   return respData.result;
 }
 
-export async function getCertificateRequests(params: {
-  authToken: string;
-}): Promise<CSREntry[]> {
-  const response = await fetch("/api/v1/certificate_requests", {
-    headers: { Authorization: "Bearer " + params.authToken },
-  });
+export async function getCertificateRequests(): Promise<CSREntry[]> {
+  const response = await fetch("/api/v1/certificate_requests");
   const respData = await response.json();
   if (!response.ok) {
     throw new Error(
       `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
     );
   }
-  console.log(respData);
   return respData.result;
 }
 
-export async function postCSR(params: { authToken: string; csr: string }) {
+export async function postCSR(params: { csr: string }) {
   if (!params.csr) {
     throw new Error("CSR not provided");
   }
@@ -63,8 +56,7 @@ export async function postCSR(params: { authToken: string; csr: string }) {
   const response = await fetch("/api/v1/certificate_requests", {
     method: "post",
     headers: {
-      "Content-Type": "text/plain",
-      Authorization: "Bearer " + params.authToken,
+      "Content-Type": "application/json",
     },
     body: JSON.stringify(reqParams),
   });
@@ -90,7 +82,6 @@ export async function postCertToID(params: RequiredCSRParams) {
       method: "post",
       headers: {
         "Content-Type": "text/plain",
-        Authorization: "Bearer " + params.authToken,
       },
       body: JSON.stringify(reqParams),
     },
@@ -107,9 +98,6 @@ export async function postCertToID(params: RequiredCSRParams) {
 export async function deleteCSR(params: RequiredCSRParams) {
   const response = await fetch("/api/v1/certificate_requests/" + params.id, {
     method: "delete",
-    headers: {
-      Authorization: "Bearer " + params.authToken,
-    },
   });
   const respData = await response.json();
   if (!response.ok) {
@@ -134,7 +122,6 @@ export async function signCSR(
     {
       method: "post",
       headers: {
-        Authorization: "Bearer " + params.authToken,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(reqParams),
@@ -152,12 +139,7 @@ export async function signCSR(
 export async function rejectCSR(params: RequiredCSRParams) {
   const response = await fetch(
     "/api/v1/certificate_requests/" + params.id + "/reject",
-    {
-      method: "post",
-      headers: {
-        Authorization: "Bearer " + params.authToken,
-      },
-    },
+    { method: "post" },
   );
   const respData = await response.json();
   if (!response.ok) {
@@ -173,9 +155,6 @@ export async function revokeCertificate(params: RequiredCSRParams) {
     "/api/v1/certificate_requests/" + params.id + "/certificate/revoke",
     {
       method: "post",
-      headers: {
-        Authorization: "Bearer " + params.authToken,
-      },
     },
   );
   const respData = await response.json();
@@ -187,10 +166,7 @@ export async function revokeCertificate(params: RequiredCSRParams) {
   return respData.result;
 }
 
-export async function login(userForm: {
-  email: string;
-  password: string;
-}): Promise<{ token: string }> {
+export async function login(userForm: { email: string; password: string }) {
   const response = await fetch("/login", {
     method: "POST",
 
@@ -208,15 +184,22 @@ export async function login(userForm: {
   return respData.result;
 }
 
+export async function logout() {
+  const response = await fetch("/logout", { method: "POST" });
+  const respData = await response.json();
+  if (!response.ok) {
+    throw new Error(
+      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
+    );
+  }
+  return respData.result;
+}
+
 export async function changeSelfPassword(changePasswordForm: {
-  authToken: string;
   password: string;
 }) {
   const response = await fetch("/api/v1/accounts/me/change_password", {
     method: "POST",
-    headers: {
-      Authorization: "Bearer " + changePasswordForm.authToken,
-    },
     body: JSON.stringify({ password: changePasswordForm.password }),
   });
   const respData = await response.json();
@@ -229,7 +212,6 @@ export async function changeSelfPassword(changePasswordForm: {
 }
 
 export async function changePassword(changePasswordForm: {
-  authToken: string;
   id: string;
   password: string;
 }) {
@@ -237,9 +219,6 @@ export async function changePassword(changePasswordForm: {
     "/api/v1/accounts/" + changePasswordForm.id + "/change_password",
     {
       method: "POST",
-      headers: {
-        Authorization: "Bearer " + changePasswordForm.authToken,
-      },
       body: JSON.stringify({ password: changePasswordForm.password }),
     },
   );
@@ -252,12 +231,8 @@ export async function changePassword(changePasswordForm: {
   return respData.result;
 }
 
-export async function ListUsers(params: {
-  authToken: string;
-}): Promise<UserEntry[]> {
-  const response = await fetch("/api/v1/accounts", {
-    headers: { Authorization: "Bearer " + params.authToken },
-  });
+export async function ListUsers(params: {}): Promise<UserEntry[]> {
+  const response = await fetch("/api/v1/accounts");
   const respData = await response.json();
   if (!response.ok) {
     throw new Error(
@@ -267,12 +242,20 @@ export async function ListUsers(params: {
   return respData.result;
 }
 
-export async function deleteUser(params: { authToken: string; id: string }) {
+export async function getSelfAccount(): Promise<UserEntry> {
+  const response = await fetch("/api/v1/accounts/me");
+  const respData = await response.json();
+  if (!response.ok) {
+    throw new Error(
+      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
+    );
+  }
+  return respData.result;
+}
+
+export async function deleteUser(params: { id: string }) {
   const response = await fetch("/api/v1/accounts/" + params.id, {
     method: "delete",
-    headers: {
-      Authorization: "Bearer " + params.authToken,
-    },
   });
   const respData = await response.json();
   if (!response.ok) {
@@ -306,7 +289,6 @@ export async function postFirstUser(userForm: {
 }
 
 export async function postUser(userForm: {
-  authToken: string;
   email: string;
   password: string;
   role_id: number;
@@ -318,9 +300,6 @@ export async function postUser(userForm: {
       password: userForm.password,
       role_id: userForm.role_id,
     }),
-    headers: {
-      Authorization: "Bearer " + userForm.authToken,
-    },
   });
   const respData = await response.json();
   if (!response.ok) {
@@ -331,12 +310,10 @@ export async function postUser(userForm: {
   return respData.result;
 }
 
-export async function getCertificateAuthorities(params: {
-  authToken: string;
-}): Promise<CertificateAuthorityEntry[]> {
-  const response = await fetch("/api/v1/certificate_authorities", {
-    headers: { Authorization: "Bearer " + params.authToken },
-  });
+export async function getCertificateAuthorities(): Promise<
+  CertificateAuthorityEntry[]
+> {
+  const response = await fetch("/api/v1/certificate_authorities");
   const respData = await response.json();
   if (!response.ok) {
     throw new Error(
@@ -347,8 +324,6 @@ export async function getCertificateAuthorities(params: {
 }
 
 export async function postCA(params: {
-  authToken: string;
-
   SelfSigned: boolean;
   CommonName: string;
   CountryName: string;
@@ -374,7 +349,6 @@ export async function postCA(params: {
   const response = await fetch("/api/v1/certificate_authorities", {
     method: "post",
     headers: {
-      Authorization: "Bearer " + params.authToken,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(reqParams),
@@ -391,9 +365,6 @@ export async function postCA(params: {
 export async function deleteCA(params: RequiredCAParams) {
   const response = await fetch("/api/v1/certificate_authorities/" + params.id, {
     method: "delete",
-    headers: {
-      Authorization: "Bearer " + params.authToken,
-    },
   });
   const respData = await response.json();
   if (!response.ok) {
@@ -409,9 +380,6 @@ export async function revokeCA(params: RequiredCAParams) {
     "/api/v1/certificate_authorities/" + params.id + "/revoke",
     {
       method: "post",
-      headers: {
-        Authorization: "Bearer " + params.authToken,
-      },
     },
   );
   const respData = await response.json();
@@ -427,7 +395,6 @@ export async function disableCA(params: RequiredCAParams) {
   const response = await fetch("/api/v1/certificate_authorities/" + params.id, {
     method: "PUT",
     headers: {
-      Authorization: "Bearer " + params.authToken,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ enabled: false }),
@@ -455,7 +422,6 @@ export async function postCertToCA(
     {
       method: "post",
       headers: {
-        Authorization: "Bearer " + params.authToken,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(reqParams),
@@ -484,7 +450,6 @@ export async function signCA(
     {
       method: "post",
       headers: {
-        Authorization: "Bearer " + params.authToken,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(reqParams),

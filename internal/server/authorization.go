@@ -36,6 +36,10 @@ const (
 	PermSignCertificateAuthorityCertificate   = "certificate_authority:sign"
 	PermCreateCertificateAuthorityCertificate = "certificate_authority:certificate:create"
 	PermRevokeCertificateAuthorityCertificate = "certificate_authority:certificate:revoke"
+
+	// Backup permissions
+	PermCreateBackup  = "backup:create"
+	PermRestoreBackup = "backup:restore"
 )
 
 type RoleID int

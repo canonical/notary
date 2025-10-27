@@ -250,9 +250,9 @@ func initializeOIDC(cfg *viper.Viper, externalHostname string) (*OIDCConfig, err
 	clientID := cfg.GetString("client_id")
 	clientSecret := cfg.GetString("client_secret")
 	audience := cfg.GetString("audience")
-	email_claim := cfg.GetString("email_claim_key")
-	permissions_claim := cfg.GetString("permissions_claim_key")
-	extra_scopes := cfg.GetStringSlice("extra_scopes")
+	emailScope := cfg.GetString("email_scope_key")
+	permissionsScope := cfg.GetString("permissions_scope_key")
+	extraScopes := cfg.GetStringSlice("extra_scopes")
 
 	provider, err := oidc.NewProvider(context.Background(), oidcServer)
 	if err != nil {
@@ -271,7 +271,7 @@ func initializeOIDC(cfg *viper.Viper, externalHostname string) (*OIDCConfig, err
 
 		Endpoint: provider.Endpoint(),
 
-		Scopes: append([]string{oidc.ScopeOpenID, email_claim, permissions_claim}, extra_scopes...),
+		Scopes: append([]string{oidc.ScopeOpenID, emailScope, permissionsScope}, extraScopes...),
 	}
 
 	return &OIDCConfig{
@@ -279,7 +279,7 @@ func initializeOIDC(cfg *viper.Viper, externalHostname string) (*OIDCConfig, err
 		Audience:            audience,
 		OIDCProvider:        provider,
 		KeyFunc:             keyfunc,
-		EmailClaimKey:       email_claim,
-		PermissionsClaimKey: permissions_claim,
+		EmailClaimKey:       emailScope,
+		PermissionsClaimKey: permissionsScope,
 	}, nil
 }

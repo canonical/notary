@@ -86,6 +86,7 @@ func Login(env *HandlerOpts) http.HandlerFunc {
 			Value:    jwt,
 			HttpOnly: true,
 			Secure:   true,
+			Expires:  time.Now().Add(2 * time.Hour),
 			Path:     "/",
 			SameSite: http.SameSiteStrictMode,
 		})

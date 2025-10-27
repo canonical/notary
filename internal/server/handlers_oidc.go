@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
@@ -27,6 +28,10 @@ func CallbackOIDC(env *HandlerOpts) http.HandlerFunc {
 
 		aud := oauth2.SetAuthURLParam("audience", env.OIDCConfig.Audience)
 		oauth2Token, err := env.OIDCConfig.OAuth2Config.Exchange(context.Background(), code, aud)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to exchange oauth2 token", err, env.Logger)
+			return
+		}
 		rawAccessToken := oauth2Token.AccessToken
 		rawIDToken, ok := oauth2Token.Extra("id_token").(string)
 
@@ -46,6 +51,7 @@ func CallbackOIDC(env *HandlerOpts) http.HandlerFunc {
 			Value:    rawAccessToken,
 			HttpOnly: true,
 			Secure:   true,
+			Expires:  time.Now().Add(2 * time.Hour),
 			Path:     "/",
 			SameSite: http.SameSiteStrictMode,
 		})

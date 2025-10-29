@@ -105,8 +105,8 @@ func TestBackupEndToEnd(t *testing.T) {
 		if err != nil {
 			t.Fatalf("couldn't create backup: %s", err)
 		}
-		if statusCode != http.StatusInternalServerError {
-			t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, statusCode)
+		if statusCode != http.StatusBadRequest {
+			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
 		}
 		if response.Error == "" {
 			t.Fatalf("expected error when calling backup endpoint with invalid path")

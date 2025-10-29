@@ -2,15 +2,21 @@
 package db
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/canonical/notary/internal/db/migrations"
 	"github.com/canonical/sqlair"
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/mattn/go-sqlite3"
 	"github.com/pressly/goose/v3"
 )
 
@@ -59,6 +65,7 @@ func NewDatabase(dbOpts *DatabaseOpts) (*Database, error) {
 	db := new(Database)
 	db.stmts = PrepareStatements()
 	db.Conn = sqlair.NewDB(sqlConnection)
+	db.Path = dbOpts.DatabasePath
 
 	db.EncryptionKey, err = setUpEncryptionKey(db, dbOpts.Backend, dbOpts.Logger)
 	if err != nil {
@@ -143,3 +150,190 @@ func DeleteEntity[T any](db *Database, stmt *sqlair.Statement, entity_to_delete 
 	}
 	return nil
 }
+
+
+// CreateBackup creates a compressed archive of the database and returns the archive path.
+func CreateBackup(db *Database, backupDir string) (string, error) {
+    timestamp := time.Now().UTC().Format("20060102_150405")
+    backupFileName := fmt.Sprintf("notary_backup_%s.db", timestamp)
+    backupPath := filepath.Join(backupDir, backupFileName)
+    archivePath := filepath.Join(backupDir, fmt.Sprintf("backup_%s.tar.gz", timestamp))
+
+    vacuumQuery := fmt.Sprintf("VACUUM INTO '%s'", strings.ReplaceAll(backupPath, "'", "''"))
+    if _, err := db.Conn.PlainDB().ExecContext(context.Background(), vacuumQuery); err != nil {
+        return "", fmt.Errorf("failed to create backup: %w", err)
+    }
+    defer os.Remove(backupPath)
+
+    archiveFile, err := os.Create(archivePath)
+    if err != nil {
+        return "", fmt.Errorf("failed to create archive: %w", err)
+    }
+    defer archiveFile.Close()
+
+    gzWriter := gzip.NewWriter(archiveFile)
+    defer gzWriter.Close()
+
+    tarWriter := tar.NewWriter(gzWriter)
+    defer tarWriter.Close()
+
+    backupFile, err := os.Open(backupPath)
+    if err != nil {
+        return "", fmt.Errorf("failed to open backup: %w", err)
+    }
+    defer backupFile.Close()
+
+    stat, err := backupFile.Stat()
+    if err != nil {
+        return "", fmt.Errorf("failed to stat backup: %w", err)
+    }
+
+    header := &tar.Header{
+        Name:    backupFileName,
+        Mode:    0600,
+        Size:    stat.Size(),
+        ModTime: stat.ModTime(),
+    }
+    if err := tarWriter.WriteHeader(header); err != nil {
+        return "", fmt.Errorf("failed to write tar header: %w", err)
+    }
+    if _, err := io.Copy(tarWriter, backupFile); err != nil {
+        return "", fmt.Errorf("failed to write tar contents: %w", err)
+    }
+
+    return archivePath, nil
+}
+
+func RestoreBackup(db *Database, archivePath string) error {
+	absPath, err := filepath.Abs(archivePath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve archive path %q: %w", archivePath, err)
+	}
+	
+	if _, err := os.Stat(absPath); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("backup archive not found at %q", absPath)
+		}
+		return fmt.Errorf("cannot access backup archive at %q: %w", absPath, err)
+	}
+	
+	archivePath = absPath
+
+	if db.Path == "" || db.Path == ":memory:" {
+		return errors.New("cannot restore to in-memory database")
+	}
+
+	archiveFile, err := os.Open(archivePath)
+	if err != nil {
+		return fmt.Errorf("failed to open archive: %w", err)
+	}
+	defer archiveFile.Close()
+
+	gzReader, err := gzip.NewReader(archiveFile)
+	if err != nil {
+		return fmt.Errorf("failed to decompress archive: %w", err)
+	}
+	defer gzReader.Close()
+
+	tarReader := tar.NewReader(gzReader)
+
+	_, err = tarReader.Next()
+	if err != nil {
+		return fmt.Errorf("failed to read archive contents: %w", err)
+	}
+
+	tempDir := os.TempDir()
+	tempDBPath := filepath.Join(tempDir, fmt.Sprintf("restore_%d.db", time.Now().UnixNano()))
+	
+	tempFile, err := os.Create(tempDBPath)
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer func() {
+		tempFile.Close()
+		os.Remove(tempDBPath)
+	}()
+
+	if _, err := io.Copy(tempFile, tarReader); err != nil {
+		return fmt.Errorf("failed to extract database: %w", err)
+	}
+	tempFile.Close()
+
+	backupDB, err := sql.Open("sqlite3", tempDBPath)
+	if err != nil {
+		return fmt.Errorf("invalid database file: %w", err)
+	}
+	if err := backupDB.Ping(); err != nil {
+		backupDB.Close()
+		return fmt.Errorf("backup file is not a valid database: %w", err)
+	}
+
+	destDB, err := sql.Open("sqlite3", db.Path)
+	if err != nil {
+		backupDB.Close()
+		return fmt.Errorf("failed to open destination database: %w", err)
+	}
+	defer destDB.Close()
+
+	ctx := context.Background()
+	destConn, err := destDB.Conn(ctx)
+	if err != nil {
+		backupDB.Close()
+		return fmt.Errorf("failed to get destination connection: %w", err)
+	}
+	defer destConn.Close()
+
+	srcConn, err := backupDB.Conn(ctx)
+	if err != nil {
+		backupDB.Close()
+		return fmt.Errorf("failed to get source connection: %w", err)
+	}
+	defer srcConn.Close()
+
+	err = destConn.Raw(func(destRaw any) error {
+		return srcConn.Raw(func(srcRaw any) error {
+			destSQLite, ok := destRaw.(*sqlite3.SQLiteConn)
+			if !ok {
+				return errors.New("destination is not a SQLite connection")
+			}
+			srcSQLite, ok := srcRaw.(*sqlite3.SQLiteConn)
+			if !ok {
+				return errors.New("source is not a SQLite connection")
+			}
+
+			backup, err := destSQLite.Backup("main", srcSQLite, "main")
+			if err != nil {
+				return fmt.Errorf("failed to initialize backup: %w", err)
+			}
+
+			isDone, err := backup.Step(-1)
+			if err != nil {
+				if finishErr := backup.Finish(); finishErr != nil {
+					return fmt.Errorf("backup step failed: %w (cleanup error: %v)", err, finishErr)
+				}
+				return fmt.Errorf("backup step failed: %w", err)
+			}
+			if !isDone {
+				if finishErr := backup.Finish(); finishErr != nil {
+					return fmt.Errorf("backup incomplete (cleanup error: %v)", finishErr)
+				}
+				return errors.New("backup incomplete")
+			}
+
+			if err := backup.Finish(); err != nil {
+				return fmt.Errorf("failed to finalize backup: %w", err)
+			}
+
+			return nil
+		})
+	})
+
+	backupDB.Close()
+
+	if err != nil {
+		return fmt.Errorf("failed to restore backup: %w", err)
+	}
+
+	return nil
+}
+

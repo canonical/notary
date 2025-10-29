@@ -440,7 +440,7 @@ func (a *AuditLogger) BackupCreated(backupPath string, opts ...AuditOption) {
 
 // BackupRestored logs when a database backup is successfully restored.
 func (a *AuditLogger) BackupRestored(backupFile string, opts ...AuditOption) {
-	ctx := &auditContext{severity: SeverityWarn}
+    ctx := &auditContext{severity: SeverityInfo}
 	for _, opt := range opts {
 		opt(ctx)
 	}
@@ -452,5 +452,5 @@ func (a *AuditLogger) BackupRestored(backupFile string, opts ...AuditOption) {
 	}
 	fields = append(fields, ctx.toZapFields()...)
 
-	a.logger.Warn("Database backup restored", fields...)
+    a.logger.Info("Database backup restored", fields...)
 }

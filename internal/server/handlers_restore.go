@@ -29,16 +29,18 @@ func RestoreBackup(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 
-		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
-		if err == nil {
-			env.AuditLogger.BackupRestored(req.File,
-				logging.WithActor(claims.Email),
-				logging.WithRequest(r),
-			)
-		}
+    	if claims, cerr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret); cerr == nil {
+    		env.AuditLogger.BackupRestored(req.File,
+    			logging.WithActor(claims.Email),
+    			logging.WithRequest(r),
+    		)
+    	} else {
+    		env.AuditLogger.BackupRestored(req.File,
+    			logging.WithRequest(r),
+    		)
+    	}
 
-		err = writeResponse(w, "Backup restored", http.StatusOK)
-		if err != nil {
+		if err := writeResponse(w, "Backup restored", http.StatusOK); err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
 			return
 		}

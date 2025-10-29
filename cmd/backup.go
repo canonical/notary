@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -30,7 +31,7 @@ The backup will be created as a tar.gz archive containing the database file.
 You must provide authentication credentials to access the Notary API.
 
 Environment Variables:
-  NOTARY_ADDR   Notary server address (e.g., https://localhost:8443)
+  NOTARY_ADDR   Notary server address
   NOTARY_TOKEN  Authentication token for API access`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		endpoint := backupViper.GetString("addr")
@@ -43,7 +44,31 @@ Environment Variables:
 			return fmt.Errorf("no authentication token provided. Set NOTARY_TOKEN environment variable or use --token flag")
 		}
 
+		if backupFile == "" {
+			return fmt.Errorf("backup file path is required")
+		}
+		
 		backupDir := filepath.Dir(backupFile)
+		if backupDir == "" || backupDir == "." {
+			return fmt.Errorf("backup file must include a directory path")
+		}
+		
+		absDir, err := filepath.Abs(backupDir)
+		if err != nil {
+			return fmt.Errorf("invalid backup directory path: %w", err)
+		}
+		
+		info, err := os.Stat(absDir)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return fmt.Errorf("backup directory does not exist: %s", absDir)
+			}
+			return fmt.Errorf("cannot access backup directory: %w", err)
+		}
+		
+		if !info.IsDir() {
+			return fmt.Errorf("backup path is not a directory: %s", absDir)
+		}
 
 		reqBody := map[string]string{
 			"path": backupDir,
@@ -75,7 +100,7 @@ Environment Variables:
 		}
 		defer resp.Body.Close()
 
-		body, err := io.ReadAll(resp.Body)
+        body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return fmt.Errorf("failed to read response: %w", err)
 		}
@@ -84,7 +109,14 @@ Environment Variables:
 			return fmt.Errorf("backup failed (status %d): %s", resp.StatusCode, string(body))
 		}
 
-		fmt.Printf("Backup %s created\n", backupFile)
+        var parsed struct {
+            Result string `json:"result"`
+        }
+        if err := json.Unmarshal(body, &parsed); err == nil && parsed.Result != "" {
+            fmt.Printf("Backup created at: %s\n", parsed.Result)
+        } else {
+            fmt.Printf("Backup created\n")
+        }
 		return nil
 	},
 }

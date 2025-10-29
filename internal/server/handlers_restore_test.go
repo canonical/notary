@@ -63,7 +63,7 @@ func TestRestoreEndToEnd(t *testing.T) {
 	testDB := tu.MustPrepareEmptyDB(t)
 	backupPath := filepath.Join(tempDir, "test_backup.tar.gz")
 	
-	if err := db.CreateBackup(testDB, tempDir); err != nil {
+	if _, err := db.CreateBackup(testDB, tempDir); err != nil {
 		t.Fatalf("couldn't create test backup: %s", err)
 	}
 	
@@ -147,6 +147,51 @@ func TestRestoreEndToEnd(t *testing.T) {
 		}
 		if response.Error == "" {
 			t.Fatalf("expected error when restoring invalid backup file")
+		}
+	})
+
+	t.Run("6. Restore backup - successful restore", func(t *testing.T) {
+		testServer, logs := tu.MustPrepareServer(t)
+		testAdminToken := tu.MustPrepareAccount(t, testServer, "test-admin@canonical.com", tu.RoleAdmin, "")
+		testClient := testServer.Client()
+
+		_ = logs.TakeAll()
+
+		statusCode, response, err := restoreBackup(testServer.URL, testClient, testAdminToken, backupPath)
+		if err != nil {
+			t.Fatalf("couldn't restore backup: %s", err)
+		}
+		if statusCode != http.StatusOK {
+			t.Fatalf("expected status %d, got %d. Error: %s", http.StatusOK, statusCode, response.Error)
+		}
+		if response.Error != "" {
+			t.Fatalf("expected no error, got %q", response.Error)
+		}
+		if response.Result == "" {
+			t.Fatalf("expected success message, got empty string")
+		}
+
+		entries := logs.TakeAll()
+		var haveBackupRestored bool
+		for _, e := range entries {
+			if e.LoggerName != "audit" {
+				continue
+			}
+			if findStringField(e, "event") == "backup_restored" {
+				haveBackupRestored = true
+				loggedFile := findStringField(e, "backup_file")
+				if loggedFile != backupPath {
+					t.Fatalf("expected backup_file %q in audit log, got %q", backupPath, loggedFile)
+				}
+				actor := findStringField(e, "actor")
+				if actor != "test-admin@canonical.com" {
+					t.Fatalf("expected actor %q in audit log, got %q", "test-admin@canonical.com", actor)
+				}
+				break
+			}
+		}
+		if !haveBackupRestored {
+			t.Fatalf("expected backup_restored audit entry")
 		}
 	})
 }

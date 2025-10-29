@@ -8,6 +8,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -32,7 +34,7 @@ WARNING: This operation will replace the current database. Make sure to back up
 your current database before restoring.
 
 Environment Variables:
-  NOTARY_ADDR   Notary server address (e.g., https://localhost:8443)
+  NOTARY_ADDR   Notary server address
   NOTARY_TOKEN  Authentication token for API access`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		endpoint := restoreViper.GetString("addr")
@@ -45,8 +47,33 @@ Environment Variables:
 			return fmt.Errorf("no authentication token provided. Set NOTARY_TOKEN environment variable or use --token flag")
 		}
 
+		if restoreFile == "" {
+			return fmt.Errorf("restore file path is required")
+		}
+		
+		absPath, err := filepath.Abs(restoreFile)
+		if err != nil {
+			return fmt.Errorf("invalid restore file path: %w", err)
+		}
+		
+		info, err := os.Stat(absPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return fmt.Errorf("restore file does not exist: %s", absPath)
+			}
+			return fmt.Errorf("cannot access restore file: %w", err)
+		}
+		
+		if info.IsDir() {
+			return fmt.Errorf("restore path is a directory, not a file: %s", absPath)
+		}
+		
+		if ext := filepath.Ext(restoreFile); ext != ".gz" && ext != ".tar" {
+			log.Printf("Warning: restore file does not have .tar.gz or .gz extension: %s", restoreFile)
+		}
+
 		reqBody := map[string]string{
-			"file": restoreFile,
+			"file": absPath,
 		}
 		jsonData, err := json.Marshal(reqBody)
 		if err != nil {

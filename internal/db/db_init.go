@@ -17,7 +17,6 @@ import (
 	"github.com/canonical/notary/internal/db/migrations"
 	"github.com/canonical/sqlair"
 	"github.com/mattn/go-sqlite3"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/pressly/goose/v3"
 )
 
@@ -153,55 +152,56 @@ func DeleteEntity[T any](db *Database, stmt *sqlair.Statement, entity_to_delete 
 }
 
 
-func CreateBackup(db *Database, backupDir string) error {
-	timestamp := time.Now().UTC().Format("20060102_150405")
-	backupFileName := fmt.Sprintf("notary_backup_%s.db", timestamp)
-	backupPath := filepath.Join(backupDir, backupFileName)
-	archivePath := filepath.Join(backupDir, fmt.Sprintf("backup_%s.tar.gz", timestamp))
+// CreateBackup creates a compressed archive of the database and returns the archive path.
+func CreateBackup(db *Database, backupDir string) (string, error) {
+    timestamp := time.Now().UTC().Format("20060102_150405")
+    backupFileName := fmt.Sprintf("notary_backup_%s.db", timestamp)
+    backupPath := filepath.Join(backupDir, backupFileName)
+    archivePath := filepath.Join(backupDir, fmt.Sprintf("backup_%s.tar.gz", timestamp))
 
-	vacuumQuery := fmt.Sprintf("VACUUM INTO '%s'", strings.ReplaceAll(backupPath, "'", "''"))
-	if _, err := db.Conn.PlainDB().ExecContext(context.Background(), vacuumQuery); err != nil {
-		return fmt.Errorf("failed to create backup: %w", err)
-	}
-	defer os.Remove(backupPath)
+    vacuumQuery := fmt.Sprintf("VACUUM INTO '%s'", strings.ReplaceAll(backupPath, "'", "''"))
+    if _, err := db.Conn.PlainDB().ExecContext(context.Background(), vacuumQuery); err != nil {
+        return "", fmt.Errorf("failed to create backup: %w", err)
+    }
+    defer os.Remove(backupPath)
 
-	archiveFile, err := os.Create(archivePath)
-	if err != nil {
-		return fmt.Errorf("failed to create archive: %w", err)
-	}
-	defer archiveFile.Close()
+    archiveFile, err := os.Create(archivePath)
+    if err != nil {
+        return "", fmt.Errorf("failed to create archive: %w", err)
+    }
+    defer archiveFile.Close()
 
-	gzWriter := gzip.NewWriter(archiveFile)
-	defer gzWriter.Close()
+    gzWriter := gzip.NewWriter(archiveFile)
+    defer gzWriter.Close()
 
-	tarWriter := tar.NewWriter(gzWriter)
-	defer tarWriter.Close()
+    tarWriter := tar.NewWriter(gzWriter)
+    defer tarWriter.Close()
 
-	backupFile, err := os.Open(backupPath)
-	if err != nil {
-		return fmt.Errorf("failed to open backup: %w", err)
-	}
-	defer backupFile.Close()
+    backupFile, err := os.Open(backupPath)
+    if err != nil {
+        return "", fmt.Errorf("failed to open backup: %w", err)
+    }
+    defer backupFile.Close()
 
-	stat, err := backupFile.Stat()
-	if err != nil {
-		return fmt.Errorf("failed to stat backup: %w", err)
-	}
+    stat, err := backupFile.Stat()
+    if err != nil {
+        return "", fmt.Errorf("failed to stat backup: %w", err)
+    }
 
-	header := &tar.Header{
-		Name:    backupFileName,
-		Mode:    0600,
-		Size:    stat.Size(),
-		ModTime: stat.ModTime(),
-	}
-	if err := tarWriter.WriteHeader(header); err != nil {
-		return fmt.Errorf("failed to write tar header: %w", err)
-	}
-	if _, err := io.Copy(tarWriter, backupFile); err != nil {
-		return fmt.Errorf("failed to write tar contents: %w", err)
-	}
+    header := &tar.Header{
+        Name:    backupFileName,
+        Mode:    0600,
+        Size:    stat.Size(),
+        ModTime: stat.ModTime(),
+    }
+    if err := tarWriter.WriteHeader(header); err != nil {
+        return "", fmt.Errorf("failed to write tar header: %w", err)
+    }
+    if _, err := io.Copy(tarWriter, backupFile); err != nil {
+        return "", fmt.Errorf("failed to write tar contents: %w", err)
+    }
 
-	return nil
+    return archivePath, nil
 }
 
 func RestoreBackup(db *Database, archivePath string) error {

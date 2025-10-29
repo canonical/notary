@@ -16,6 +16,7 @@ import (
 
 	"github.com/canonical/notary/internal/db/migrations"
 	"github.com/canonical/sqlair"
+	"github.com/mattn/go-sqlite3"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pressly/goose/v3"
 )
@@ -204,9 +205,19 @@ func CreateBackup(db *Database, backupDir string) error {
 }
 
 func RestoreBackup(db *Database, archivePath string) error {
-	if _, err := os.Stat(archivePath); err != nil {
-		return fmt.Errorf("backup archive not found: %w", err)
+	absPath, err := filepath.Abs(archivePath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve archive path %q: %w", archivePath, err)
 	}
+	
+	if _, err := os.Stat(absPath); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("backup archive not found at %q", absPath)
+		}
+		return fmt.Errorf("cannot access backup archive at %q: %w", absPath, err)
+	}
+	
+	archivePath = absPath
 
 	if db.Path == "" || db.Path == ":memory:" {
 		return errors.New("cannot restore to in-memory database")
@@ -248,26 +259,79 @@ func RestoreBackup(db *Database, archivePath string) error {
 	}
 	tempFile.Close()
 
-	testDB, err := sql.Open("sqlite3", tempDBPath)
+	backupDB, err := sql.Open("sqlite3", tempDBPath)
 	if err != nil {
 		return fmt.Errorf("invalid database file: %w", err)
 	}
-	if err := testDB.Ping(); err != nil {
-		testDB.Close()
+	if err := backupDB.Ping(); err != nil {
+		backupDB.Close()
 		return fmt.Errorf("backup file is not a valid database: %w", err)
 	}
-	testDB.Close()
 
-	if err := db.Close(); err != nil {
-		return fmt.Errorf("failed to close current database: %w", err)
+	destDB, err := sql.Open("sqlite3", db.Path)
+	if err != nil {
+		backupDB.Close()
+		return fmt.Errorf("failed to open destination database: %w", err)
 	}
+	defer destDB.Close()
 
-	if err := os.Remove(db.Path); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to remove current database: %w", err)
+	ctx := context.Background()
+	destConn, err := destDB.Conn(ctx)
+	if err != nil {
+		backupDB.Close()
+		return fmt.Errorf("failed to get destination connection: %w", err)
 	}
+	defer destConn.Close()
 
-	if err := os.Rename(tempDBPath, db.Path); err != nil {
-		return fmt.Errorf("failed to restore database: %w", err)
+	srcConn, err := backupDB.Conn(ctx)
+	if err != nil {
+		backupDB.Close()
+		return fmt.Errorf("failed to get source connection: %w", err)
+	}
+	defer srcConn.Close()
+
+	err = destConn.Raw(func(destRaw any) error {
+		return srcConn.Raw(func(srcRaw any) error {
+			destSQLite, ok := destRaw.(*sqlite3.SQLiteConn)
+			if !ok {
+				return errors.New("destination is not a SQLite connection")
+			}
+			srcSQLite, ok := srcRaw.(*sqlite3.SQLiteConn)
+			if !ok {
+				return errors.New("source is not a SQLite connection")
+			}
+
+			backup, err := destSQLite.Backup("main", srcSQLite, "main")
+			if err != nil {
+				return fmt.Errorf("failed to initialize backup: %w", err)
+			}
+
+			isDone, err := backup.Step(-1)
+			if err != nil {
+				if finishErr := backup.Finish(); finishErr != nil {
+					return fmt.Errorf("backup step failed: %w (cleanup error: %v)", err, finishErr)
+				}
+				return fmt.Errorf("backup step failed: %w", err)
+			}
+			if !isDone {
+				if finishErr := backup.Finish(); finishErr != nil {
+					return fmt.Errorf("backup incomplete (cleanup error: %v)", finishErr)
+				}
+				return errors.New("backup incomplete")
+			}
+
+			if err := backup.Finish(); err != nil {
+				return fmt.Errorf("failed to finalize backup: %w", err)
+			}
+
+			return nil
+		})
+	})
+
+	backupDB.Close()
+
+	if err != nil {
+		return fmt.Errorf("failed to restore backup: %w", err)
 	}
 
 	return nil

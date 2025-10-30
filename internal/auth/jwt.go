@@ -66,6 +66,39 @@ func verifyOIDCAccessToken(ctx context.Context, p ProviderConfig, raw string) (*
 	if !token.Valid {
 		return nil, fmt.Errorf("oidc token is not valid")
 	}
+
+	if issVal, ok := claims["iss"].(string); !ok || issVal == "" || (p.Provider.Issuer != "" && issVal != p.Provider.Issuer) {
+		return nil, fmt.Errorf("oidc token issuer mismatch or missing")
+	}
+
+	expectedAud := p.Provider.Audience
+	if expectedAud == "" && p.Provider.OAuth2Config != nil {
+		expectedAud = p.Provider.OAuth2Config.ClientID
+	}
+	if expectedAud != "" {
+		audOk := false
+		switch aud := claims["aud"].(type) {
+		case string:
+			audOk = (aud == expectedAud)
+		case []any:
+			for _, v := range aud {
+				if s, ok := v.(string); ok && s == expectedAud {
+					audOk = true
+					break
+				}
+			}
+		case []string:
+			for _, s := range aud {
+				if s == expectedAud {
+					audOk = true
+					break
+				}
+			}
+		}
+		if !audOk {
+			return nil, fmt.Errorf("oidc token audience invalid")
+		}
+	}
 	rawPermissions, ok := claims[p.Provider.PermissionsClaimKey].([]any)
 	if !ok {
 		return nil, fmt.Errorf("oidc permissions claim could not be parsed")
@@ -77,9 +110,13 @@ func verifyOIDCAccessToken(ctx context.Context, p ProviderConfig, raw string) (*
 			permissions = append(permissions, s)
 		}
 	}
+	email, _ := claims[p.Provider.EmailClaimKey].(string)
+	if email == "" {
+		return nil, fmt.Errorf("oidc email claim missing or invalid")
+	}
 	return &NotaryJWTClaims{
 		Permissions: permissions,
-		Email:       claims[p.Provider.EmailClaimKey].(string),
+		Email:       email,
 	}, nil
 }
 

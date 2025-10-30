@@ -259,6 +259,12 @@ func initializeOIDC(cfg *viper.Viper, externalHostname string) (*OIDCConfig, err
 		return nil, err
 	}
 
+    // Capture issuer from discovery metadata
+    var discovery struct {
+        Issuer string `json:"issuer"`
+    }
+    _ = provider.Claims(&discovery)
+
 	keyfunc, err := keyfunc.NewDefaultCtx(context.Background(), []string{oidcServer + ".well-known/jwks.json"})
 	if err != nil {
 		return nil, err
@@ -278,6 +284,7 @@ func initializeOIDC(cfg *viper.Viper, externalHostname string) (*OIDCConfig, err
 		OAuth2Config:        oauth2Config,
 		Audience:            audience,
 		OIDCProvider:        provider,
+        Issuer:              discovery.Issuer,
 		KeyFunc:             keyfunc,
 		EmailClaimKey:       emailScope,
 		PermissionsClaimKey: permissionsScope,

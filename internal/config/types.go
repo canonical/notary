@@ -133,6 +133,8 @@ type OIDCConfig struct {
 	OAuth2Config *oauth2.Config
 	// The audience is the value that the IDP will use to identify the Notary server with the correct API scopes
 	Audience string
+    // The issuer identifier for the OIDC provider, captured from discovery
+    Issuer string
 	// This is the key for the email claim in the access token
 	EmailClaimKey string
 	// This is the key for the permissions claim in the access token

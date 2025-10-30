@@ -6,13 +6,22 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 )
 
 func LoginOIDC(env *HandlerOpts) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		state := generateRandomString(32)
+		
+		env.StateStore.Store(state, r.UserAgent())
+		
+		env.Logger.Debug("OIDC login initiated",
+			zap.String("state", state[:8]+"..."),
+			zap.String("user_agent", r.UserAgent()))
+		
 		aud := oauth2.SetAuthURLParam("audience", env.OIDCConfig.Audience)
-		http.Redirect(w, r, env.OIDCConfig.OAuth2Config.AuthCodeURL(env.State, aud), http.StatusFound)
+		http.Redirect(w, r, env.OIDCConfig.OAuth2Config.AuthCodeURL(state, aud), http.StatusFound)
 	}
 }
 
@@ -21,10 +30,17 @@ func CallbackOIDC(env *HandlerOpts) http.HandlerFunc {
 		code := r.URL.Query().Get("code")
 		state := r.URL.Query().Get("state")
 
-		if state != env.State {
-			writeError(w, http.StatusBadRequest, "invalid state", nil, env.Logger)
+		if !env.StateStore.Validate(state, r.UserAgent()) {
+			env.Logger.Warn("OIDC callback with invalid state",
+				zap.String("state_prefix", state[:min(8, len(state))]+"..."),
+				zap.String("user_agent", r.UserAgent()),
+				zap.String("remote_addr", r.RemoteAddr))
+			writeError(w, http.StatusBadRequest, "invalid or expired state parameter", nil, env.Logger)
 			return
 		}
+		
+		env.Logger.Debug("OIDC callback state validated successfully",
+			zap.String("user_agent", r.UserAgent()))
 
 		aud := oauth2.SetAuthURLParam("audience", env.OIDCConfig.Audience)
 		oauth2Token, err := env.OIDCConfig.OAuth2Config.Exchange(context.Background(), code, aud)

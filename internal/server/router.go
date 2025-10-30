@@ -40,8 +40,10 @@ func NewRouter(config *HandlerOpts) http.Handler {
 	apiV1Router.HandleFunc("POST /accounts/{id}/change_password", requirePermission([]string{PermUpdateUserPassword}, config.JWTSecret, config.OIDCConfig, ChangeAccountPassword(config), config.Logger))
 	apiV1Router.HandleFunc("POST /accounts/me/change_password", requirePermission([]string{PermUpdateMyPassword}, config.JWTSecret, config.OIDCConfig, ChangeMyPassword(config), config.Logger))
 
-	apiV1Router.HandleFunc("GET /oauth/login", LoginOIDC(config))
-	apiV1Router.HandleFunc("GET /oauth/callback", CallbackOIDC(config))
+	if config.OIDCConfig != nil {
+		apiV1Router.HandleFunc("GET /oauth/login", LoginOIDC(config))
+		apiV1Router.HandleFunc("GET /oauth/callback", CallbackOIDC(config))
+	}
 
 	apiV1Router.HandleFunc("GET /config", requirePermission([]string{PermReadConfig}, config.JWTSecret, config.OIDCConfig, GetConfigContent(config), config.Logger))
 

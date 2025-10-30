@@ -20,8 +20,7 @@ type HandlerOpts struct {
 	JWTSecret               []byte
 	SendPebbleNotifications bool
 	OIDCConfig              *config.OIDCConfig
-	// This is the state parameter used for OIDC authentication to verify that the OIDC request is coming from the expected source
-	State        string
+	StateStore   *StateStore
 	PublicConfig config.PublicConfigData
 }
 
@@ -37,7 +36,6 @@ func New(opts *ServerOpts) (*Server, error) {
 	}
 
 	cfg := &HandlerOpts{}
-	cfg.State = generateRandomString(32)
 	cfg.SendPebbleNotifications = opts.EnablePebbleNotifications
 	cfg.JWTSecret = opts.Database.JWTSecret
 	cfg.ExternalHostname = opts.ExternalHostname
@@ -45,6 +43,22 @@ func New(opts *ServerOpts) (*Server, error) {
 	cfg.PublicConfig = *opts.PublicConfig
 	cfg.DB = opts.Database
 	cfg.OIDCConfig = opts.OIDCConfig
+	
+	if opts.OIDCConfig != nil {
+		cfg.StateStore = NewStateStore()
+		
+		go func() {
+			ticker := time.NewTicker(1 * time.Minute)
+			defer ticker.Stop()
+			for range ticker.C {
+				cfg.StateStore.Cleanup()
+				opts.Logger.Debug("cleaned up expired OIDC states", 
+					zap.Int("remaining_states", cfg.StateStore.Size()))
+			}
+		}()
+		
+		opts.Logger.Info("OIDC authentication enabled with state store")
+	}
 
 	router := NewRouter(cfg)
 	s := &http.Server{

@@ -51,7 +51,7 @@ func CallbackOIDC(env *HandlerOpts) http.HandlerFunc {
 		rawIDToken, ok := oauth2Token.Extra("id_token").(string)
 
         if !ok {
-            writeError(w, http.StatusUnauthorized, "failed to get id_token", err, env.Logger)
+            writeError(w, http.StatusInternalServerError, "failed to get id_token", err, env.Logger)
 			return
 		}
 

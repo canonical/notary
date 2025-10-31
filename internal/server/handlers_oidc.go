@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"net/http"
 	"time"
 
@@ -42,8 +41,8 @@ func CallbackOIDC(env *HandlerOpts) http.HandlerFunc {
 		env.Logger.Debug("OIDC callback state validated successfully",
 			zap.String("user_agent", r.UserAgent()))
 
-		aud := oauth2.SetAuthURLParam("audience", env.OIDCConfig.Audience)
-		oauth2Token, err := env.OIDCConfig.OAuth2Config.Exchange(context.Background(), code, aud)
+        aud := oauth2.SetAuthURLParam("audience", env.OIDCConfig.Audience)
+        oauth2Token, err := env.OIDCConfig.OAuth2Config.Exchange(r.Context(), code, aud)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to exchange oauth2 token", err, env.Logger)
 			return
@@ -51,23 +50,27 @@ func CallbackOIDC(env *HandlerOpts) http.HandlerFunc {
 		rawAccessToken := oauth2Token.AccessToken
 		rawIDToken, ok := oauth2Token.Extra("id_token").(string)
 
-		if !ok {
-			writeError(w, http.StatusInternalServerError, "failed to get id_token", err, env.Logger)
+        if !ok {
+            writeError(w, http.StatusUnauthorized, "failed to get id_token", err, env.Logger)
 			return
 		}
 
 		verifier := env.OIDCConfig.OIDCProvider.Verifier(&oidc.Config{ClientID: env.OIDCConfig.OAuth2Config.ClientID})
-		_, err = verifier.Verify(context.Background(), rawIDToken)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to verify id_token", err, env.Logger)
+        _, err = verifier.Verify(r.Context(), rawIDToken)
+        if err != nil {
+            writeError(w, http.StatusUnauthorized, "failed to verify id_token", err, env.Logger)
 			return
 		}
-		http.SetCookie(w, &http.Cookie{
+        expiry := oauth2Token.Expiry
+        if expiry.IsZero() {
+            expiry = time.Now().Add(2 * time.Hour)
+        }
+        http.SetCookie(w, &http.Cookie{
 			Name:     CookieSessionTokenKey,
 			Value:    rawAccessToken,
 			HttpOnly: true,
 			Secure:   true,
-			Expires:  time.Now().Add(2 * time.Hour),
+            Expires:  expiry,
 			Path:     "/",
 			SameSite: http.SameSiteStrictMode,
 		})

@@ -259,13 +259,17 @@ func initializeOIDC(cfg *viper.Viper, externalHostname string) (*OIDCConfig, err
 		return nil, err
 	}
 
-    // Capture issuer from discovery metadata
     var discovery struct {
-        Issuer string `json:"issuer"`
+        Issuer  string `json:"issuer"`
+        JWKSURI string `json:"jwks_uri"`
     }
     _ = provider.Claims(&discovery)
 
-	keyfunc, err := keyfunc.NewDefaultCtx(context.Background(), []string{oidcServer + ".well-known/jwks.json"})
+    jwksURL := discovery.JWKSURI
+    if jwksURL == "" {
+        jwksURL = oidcServer + ".well-known/jwks.json"
+    }
+    keyfunc, err := keyfunc.NewDefaultCtx(context.Background(), []string{jwksURL})
 	if err != nil {
 		return nil, err
 	}

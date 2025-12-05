@@ -50,15 +50,18 @@ func NewRouter(config *HandlerConfig) http.Handler {
 		jwtSecret:    config.JWTSecret,
 		systemLogger: config.SystemLogger,
 		auditLogger:  config.AuditLogger,
+		tracer:       config.Tracer,
 	}
 	apiMiddlewareStack := createMiddlewareStack(
 		limitRequestSize(MAX_KILOBYTES, config.SystemLogger),
 		metricsMiddleware(m),
 		auditLoggingMiddleware(&ctx),
 		loggingMiddleware(&ctx),
+		tracingMiddleware(&ctx),
 	)
 	metricsMiddlewareStack := createMiddlewareStack(
 		metricsMiddleware(m),
+		tracingMiddleware(&ctx),
 	)
 
 	router := http.NewServeMux()

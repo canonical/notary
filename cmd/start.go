@@ -51,6 +51,7 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 			EnablePebbleNotifications: appContext.PebbleNotificationsEnabled,
 			SystemLogger:              appContext.SystemLogger,
 			AuditLogger:               appContext.AuditLogger,
+			Tracer: 				   appContext.Tracer,
 			PublicConfig:              appContext.PublicConfig,
 		})
 		if err != nil {

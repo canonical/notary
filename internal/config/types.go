@@ -2,6 +2,8 @@ package config
 
 import (
 	"github.com/canonical/notary/internal/encryption_backend"
+	"github.com/canonical/notary/internal/tracing"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -12,6 +14,11 @@ const (
 	EncryptionBackendTypePKCS11 = "pkcs11"
 	EncryptionBackendTypeNone   = "none"
 )
+
+type Tracer struct {
+	Tracer       trace.Tracer
+	ShutdownFunc tracing.TracerShutdownFunc
+}
 
 // PublicConfigData contains non-sensitive configuration fields that are safe to expose
 type PublicConfigData struct {
@@ -42,9 +49,10 @@ type NotaryAppContext struct {
 	// Send pebble notifications if enabled. Read more at github.com/canonical/pebble
 	PebbleNotificationsEnabled bool
 
-	// Options for the loggers
+	// Options for the loggers and tracer
 	SystemLogger *zap.Logger
 	AuditLogger  *zap.Logger
+	Tracer       *Tracer
 
 	// Encryption backend to be used for encrypting and decrypting sensitive data
 	EncryptionBackendType

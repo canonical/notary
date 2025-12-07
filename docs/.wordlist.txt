@@ -36,3 +36,6 @@ RBAC
 GCM
 HashiCorp
 Requestor
+Grafana
+OpenTelemetry
+url

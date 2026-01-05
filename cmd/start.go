@@ -28,14 +28,14 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 		if err != nil {
 			log.Fatalf("couldn't create app context: %s", err)
 		}
-		l := appContext.Logger
+		l := appContext.SystemLogger
 
 		// Initialize the database connection
 		db, err := db.NewDatabase(&db.DatabaseOpts{
 			DatabasePath:    appContext.DBPath,
 			ApplyMigrations: appContext.ApplyMigrations,
 			Backend:         appContext.EncryptionBackend,
-			Logger:          appContext.Logger,
+			Logger:          appContext.SystemLogger,
 		})
 		if err != nil {
 			l.Fatal("couldn't initialize database", zap.Error(err))
@@ -50,7 +50,9 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 			OIDCConfig:                appContext.OIDCConfig,
 			ExternalHostname:          appContext.ExternalHostname,
 			EnablePebbleNotifications: appContext.PebbleNotificationsEnabled,
-			Logger:                    appContext.Logger,
+			SystemLogger:              appContext.SystemLogger,
+			AuditLogger:               appContext.AuditLogger,
+			Tracer:                    appContext.Tracer,
 			PublicConfig:              appContext.PublicConfig,
 		})
 		if err != nil {

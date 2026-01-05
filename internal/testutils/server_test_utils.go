@@ -15,12 +15,20 @@ import (
 	"time"
 
 	"github.com/canonical/notary/internal/server"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 )
 
-func MustPrepareServer(t *testing.T) *httptest.Server {
+// MustPrepareServer starts a test server and returns it along with observed audit logs.
+func MustPrepareServer(t *testing.T) (*httptest.Server, *observer.ObservedLogs) {
 	t.Helper()
 
 	db := MustPrepareEmptyDB(t)
+	// Attach observed audit logger
+	core, logs := observer.New(zapcore.InfoLevel)
+	auditZap := zap.New(core)
+
 	srv, err := server.New(&server.ServerOpts{
 		Port:                      8000,
 		TLSCertificate:            []byte(TestServerCertificate),
@@ -28,7 +36,8 @@ func MustPrepareServer(t *testing.T) *httptest.Server {
 		Database:                  db,
 		ExternalHostname:          "example.com",
 		EnablePebbleNotifications: false,
-		Logger:                    logger,
+		SystemLogger:              logger,
+		AuditLogger:               auditZap,
 		PublicConfig:              &PublicConfig,
 	})
 	if err != nil {
@@ -38,7 +47,7 @@ func MustPrepareServer(t *testing.T) *httptest.Server {
 	t.Cleanup(func() {
 		testServer.Close()
 	})
-	return testServer
+	return testServer, logs
 }
 
 func MustPrepareAccount(t *testing.T, ts *httptest.Server, email string, roleID RoleID, token string) string {
@@ -651,7 +660,11 @@ type UpdateCertificateAuthorityResponse struct {
 }
 
 func UpdateCertificateAuthority(url string, client *http.Client, token string, id int, status UpdateCertificateAuthorityParams) (int, *UpdateCertificateAuthorityResponse, error) {
-	reqData, err := json.Marshal(status)
+	enabled := status.Status == "active"
+	payload := struct {
+		Enabled bool `json:"enabled"`
+	}{Enabled: enabled}
+	reqData, err := json.Marshal(payload)
 	if err != nil {
 		return 0, nil, err
 	}

@@ -1,16 +1,14 @@
 package server
 
 import (
-	crand "crypto/rand"
+	"bytes"
 	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/x509"
 	"encoding/asn1"
 	"errors"
 	"fmt"
-	"math/big"
 	"os/exec"
-	"strings"
 )
 
 const (
@@ -58,16 +56,10 @@ func generateSKI(priv *rsa.PrivateKey) []byte {
 	return hash[:]
 }
 
-func generateRandomString(length int) string {
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	var result strings.Builder
-	result.Grow(length)
-	for i := 0; i < length; i++ {
-		n, err := crand.Int(crand.Reader, big.NewInt(int64(len(charset))))
-		if err != nil {
-			panic(errors.Join(errors.New("failed to generate random string"), err))
-		}
-		result.WriteByte(charset[n.Int64()])
+func generateRandomString(kilobytes int) string {
+	buf := bytes.NewBuffer(make([]byte, 0, kilobytes*1024))
+	for buf.Len() < kilobytes*1024 {
+		buf.WriteString("abcdefghijklmnopqrstuvwxyz")
 	}
-	return result.String()
+	return buf.String()
 }

@@ -12,7 +12,7 @@ type GetConfigContentResponse struct {
 	EncryptionBackendType string `json:"encryption_backend_type"`
 }
 
-func GetConfigContent(env *HandlerOpts) http.HandlerFunc {
+func GetConfigContent(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		configContent := GetConfigContentResponse{
 			Port:                  env.PublicConfig.Port,
@@ -23,7 +23,7 @@ func GetConfigContent(env *HandlerOpts) http.HandlerFunc {
 		}
 		err := writeResponse(w, configContent, http.StatusOK)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.Logger)
+			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
 			return
 		}
 	}

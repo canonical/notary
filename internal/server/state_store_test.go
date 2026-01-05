@@ -12,7 +12,7 @@ func TestStateStore_StoreAndValidate(t *testing.T) {
 		userAgent := "Mozilla/5.0"
 
 		store.Store(state, userAgent)
-		
+
 		if !store.Validate(state, userAgent) {
 			t.Error("expected valid state to validate successfully")
 		}
@@ -24,11 +24,11 @@ func TestStateStore_StoreAndValidate(t *testing.T) {
 		userAgent := "Mozilla/5.0"
 
 		store.Store(state, userAgent)
-		
+
 		if !store.Validate(state, userAgent) {
 			t.Error("expected first validation to succeed")
 		}
-		
+
 		if store.Validate(state, userAgent) {
 			t.Error("expected second validation to fail - state should be one-time use")
 		}
@@ -50,11 +50,11 @@ func TestStateStore_StoreAndValidate(t *testing.T) {
 		userAgent2 := "Mozilla/5.0 (Firefox)"
 
 		store.Store(state, userAgent1)
-		
+
 		if store.Validate(state, userAgent2) {
 			t.Error("expected validation to fail with different user agent")
 		}
-		
+
 		if store.Validate(state, userAgent1) {
 			t.Error("expected state to be deleted after failed validation")
 		}
@@ -192,4 +192,3 @@ func TestStateStore_ConcurrentAccess(t *testing.T) {
 		}
 	})
 }
-

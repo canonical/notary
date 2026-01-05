@@ -7,22 +7,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/canonical/notary/internal/config"
-	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/logging"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
-
-type HandlerOpts struct {
-	DB                      *db.Database
-	Logger                  *zap.Logger
-	ExternalHostname        string
-	JWTSecret               []byte
-	SendPebbleNotifications bool
-	OIDCConfig              *config.OIDCConfig
-	StateStore   *StateStore
-	PublicConfig config.PublicConfigData
-}
 
 // New creates an environment and an http server with handlers that Go can start listening to
 func New(opts *ServerOpts) (*Server, error) {
@@ -30,37 +19,49 @@ func New(opts *ServerOpts) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	stdErrLog, err := zap.NewStdLogAt(opts.Logger, zapcore.ErrorLevel)
+	stdErrLog, err := zap.NewStdLogAt(opts.SystemLogger, zapcore.ErrorLevel)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create logger for http server: %w", err)
 	}
 
-	cfg := &HandlerOpts{}
+	cfg := &HandlerConfig{}
 	cfg.SendPebbleNotifications = opts.EnablePebbleNotifications
 	cfg.JWTSecret = opts.Database.JWTSecret
 	cfg.ExternalHostname = opts.ExternalHostname
-	cfg.Logger = opts.Logger
+	cfg.SystemLogger = opts.SystemLogger
+	cfg.AuditLogger = logging.NewAuditLogger(opts.AuditLogger)
+	cfg.Tracer = opts.Tracer
 	cfg.PublicConfig = *opts.PublicConfig
 	cfg.DB = opts.Database
 	cfg.OIDCConfig = opts.OIDCConfig
-	
+
 	if opts.OIDCConfig != nil {
 		cfg.StateStore = NewStateStore()
-		
+
 		go func() {
 			ticker := time.NewTicker(1 * time.Minute)
 			defer ticker.Stop()
 			for range ticker.C {
 				cfg.StateStore.Cleanup()
-				opts.Logger.Debug("cleaned up expired OIDC states", 
+				opts.SystemLogger.Debug("cleaned up expired OIDC states",
 					zap.Int("remaining_states", cfg.StateStore.Size()))
 			}
 		}()
-		
-		opts.Logger.Info("OIDC authentication enabled with state store")
+
+		opts.SystemLogger.Info("OIDC authentication enabled with state store")
 	}
 
 	router := NewRouter(cfg)
+	if cfg.Tracer != nil {
+		router = otelhttp.NewHandler(
+			router,
+			"http_server",
+			otelhttp.WithMessageEvents(otelhttp.ReadEvents, otelhttp.WriteEvents),
+			otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
+				return fmt.Sprintf("%s %s", r.Method, r.URL.Path)
+			}),
+		)
+	}
 	s := &http.Server{
 		Addr:           fmt.Sprintf(":%d", opts.Port),
 		ErrorLog:       stdErrLog,

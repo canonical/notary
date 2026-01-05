@@ -9,11 +9,15 @@ import (
 	"slices"
 	"strings"
 
+	"strconv"
+
 	"github.com/MicahParks/keyfunc/v3"
 	eb "github.com/canonical/notary/internal/encryption_backend"
+	"github.com/canonical/notary/internal/tracing"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/oauth2"
@@ -46,13 +50,25 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 		return nil, err
 	}
 
-	// initialize logger
-	logger, err := initializeLogger(cfg.Sub("logging"))
+	// initialize system logger
+	systemLogger, err := initializeLogger(cfg.Sub("logging.system"))
 	if err != nil {
-		return nil, fmt.Errorf("couldn't initialize logger: %w", err)
+		return nil, fmt.Errorf("couldn't initialize system logger: %w", err)
+	}
+
+	// initialize audit logger
+	// Audit logs are always at INFO level
+	auditLogger, err := initializeAuditLogger(cfg.Sub("logging.audit"))
+	if err != nil {
+		return nil, fmt.Errorf("couldn't initialize audit logger: %w", err)
+	}
+	// initialize tracer
+	tracer, err := initializeTracing(cfg.Sub("tracing"), systemLogger)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't initialize tracer: %w", err)
 	}
 	// initialize encryption backend
-	backendType, backend, err := initializeEncryptionBackend(cfg.Sub("encryption_backend"), logger)
+	backendType, backend, err := initializeEncryptionBackend(cfg.Sub("encryption_backend"), systemLogger)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't initialize encryption backend: %w", err)
 	}
@@ -64,7 +80,9 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 
 	appContext.TLSCertificate = cert
 	appContext.TLSPrivateKey = key
-	appContext.Logger = logger
+	appContext.SystemLogger = systemLogger
+	appContext.AuditLogger = auditLogger
+	appContext.Tracer = tracer
 	appContext.EncryptionBackend = backend
 	appContext.EncryptionBackendType = backendType
 	appContext.OIDCConfig = oidcConfig
@@ -96,6 +114,7 @@ func initializeServerConfig(cmdFlags *pflag.FlagSet, configFilePath string) (*vi
 	v.SetDefault("external_hostname", "localhost")
 	v.SetDefault("logging.system.level", "debug")
 	v.SetDefault("logging.system.output", "stdout")
+	v.SetDefault("logging.audit.output", "stdout")
 
 	if configFilePath == "" {
 		return nil, errors.New("config file path not provided")
@@ -220,17 +239,50 @@ func initializeEncryptionBackend(encryptionCfg *viper.Viper, logger *zap.Logger)
 	}
 }
 
-// initializeLogger creates and configures a logger based on the configuration.
+// initializeLogger creates and configures a logger based on the provided configuration.
+// cfg is the logger configuration subsection (e.g., logging.system).
+// output can be "stdout", "stderr", or a file path.
 func initializeLogger(cfg *viper.Viper) (*zap.Logger, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("logger configuration is not defined")
+	}
+
 	zapConfig := zap.NewProductionConfig()
 
-	logLevel, err := zapcore.ParseLevel(cfg.GetString("system.level"))
+	logLevel, err := zapcore.ParseLevel(cfg.GetString("level"))
 	if err != nil {
 		return nil, fmt.Errorf("invalid log level: %w", err)
 	}
-
-	zapConfig.OutputPaths = []string{cfg.GetString("system.output")}
 	zapConfig.Level.SetLevel(logLevel)
+
+	output := cfg.GetString("output")
+	zapConfig.OutputPaths = []string{output}
+
+	zapConfig.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+
+	logger, err := zapConfig.Build()
+	if err != nil {
+		return nil, err
+	}
+
+	return logger, nil
+}
+
+// initializeAuditLogger creates an audit logger that always logs at INFO level, regardless of config.
+// cfg is the logger configuration subsection (e.g., logging.audit).
+// output can be "stdout", "stderr", or a file path.
+func initializeAuditLogger(cfg *viper.Viper) (*zap.Logger, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("logger configuration is not defined")
+	}
+
+	zapConfig := zap.NewProductionConfig()
+	// Force INFO level for audit logs
+	zapConfig.Level.SetLevel(zapcore.InfoLevel)
+
+	output := cfg.GetString("output")
+	zapConfig.OutputPaths = []string{output}
+
 	zapConfig.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 
 	logger, err := zapConfig.Build()
@@ -259,17 +311,17 @@ func initializeOIDC(cfg *viper.Viper, externalHostname string) (*OIDCConfig, err
 		return nil, err
 	}
 
-    var discovery struct {
-        Issuer  string `json:"issuer"`
-        JWKSURI string `json:"jwks_uri"`
-    }
-    _ = provider.Claims(&discovery)
+	var discovery struct {
+		Issuer  string `json:"issuer"`
+		JWKSURI string `json:"jwks_uri"`
+	}
+	_ = provider.Claims(&discovery)
 
-    jwksURL := discovery.JWKSURI
-    if jwksURL == "" {
-        jwksURL = oidcServer + ".well-known/jwks.json"
-    }
-    keyfunc, err := keyfunc.NewDefaultCtx(context.Background(), []string{jwksURL})
+	jwksURL := discovery.JWKSURI
+	if jwksURL == "" {
+		jwksURL = oidcServer + ".well-known/jwks.json"
+	}
+	keyfunc, err := keyfunc.NewDefaultCtx(context.Background(), []string{jwksURL})
 	if err != nil {
 		return nil, err
 	}
@@ -288,9 +340,71 @@ func initializeOIDC(cfg *viper.Viper, externalHostname string) (*OIDCConfig, err
 		OAuth2Config:        oauth2Config,
 		Audience:            audience,
 		OIDCProvider:        provider,
-        Issuer:              discovery.Issuer,
+		Issuer:              discovery.Issuer,
 		KeyFunc:             keyfunc,
 		EmailClaimKey:       emailScope,
 		PermissionsClaimKey: permissionsScope,
 	}, nil
+}
+
+// initializeTracing creates and configures a tracer based on the configuration.
+func initializeTracing(cfg *viper.Viper, logger *zap.Logger) (*Tracer, error) {
+	if cfg == nil {
+		return nil, nil
+	}
+	cfg.SetDefault("tracing.service_name", "notary")
+	cfg.SetDefault("tracing.sampling_rate", "100%")
+
+	if !cfg.IsSet("endpoint") {
+		return nil, errors.New("`tracing.endpoint` is required when tracing is enabled")
+	}
+	serviceName := cfg.GetString("service_name")
+	endpoint := cfg.GetString("endpoint")
+	samplingRate, err := parseSamplingRate(cfg.GetString("sampling_rate"))
+	if err != nil {
+		return nil, fmt.Errorf("invalid sampling rate: %w", err)
+	}
+	tracer := otel.Tracer("notary")
+	shutdownFunc, err := tracing.SetupTracing(context.Background(), endpoint, serviceName, samplingRate, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set up tracing: %w", err)
+	}
+	return &Tracer{
+		Tracer:       tracer,
+		ShutdownFunc: shutdownFunc,
+	}, nil
+}
+
+// parseSamplingRate converts a string sampling rate (percentage or decimal) to a float64
+func parseSamplingRate(rate string) (float64, error) {
+	// Try to parse as a float first
+	samplingRate, err := strconv.ParseFloat(rate, 64)
+	if err == nil {
+		// Check if the value is between 0 and 1 inclusive
+		if samplingRate < 0 || samplingRate > 1 {
+			return 0, fmt.Errorf("sampling rate must be between 0 and 1, got %f", samplingRate)
+		}
+		return samplingRate, nil
+	}
+
+	// If parsing as float failed, check if it's a percentage string
+	if len(rate) > 1 && rate[len(rate)-1] == '%' {
+		// Remove % and parse as float
+		percentage, err := strconv.ParseFloat(rate[:len(rate)-1], 64)
+		if err != nil {
+			return 0, fmt.Errorf("invalid sampling rate format: %s", rate)
+		}
+
+		// Convert percentage to decimal
+		samplingRate = percentage / 100.0
+
+		// Check if the value is between 0 and 1 inclusive
+		if samplingRate < 0 || samplingRate > 1 {
+			return 0, fmt.Errorf("sampling rate percentage must be between 0%% and 100%%, got %s", rate)
+		}
+
+		return samplingRate, nil
+	}
+
+	return 0, fmt.Errorf("invalid sampling rate format: %s", rate)
 }

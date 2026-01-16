@@ -80,8 +80,9 @@ func (filter *CSRFilter) AsCertificateRequestWithChain() *CertificateRequestWith
 }
 
 type UserFilter struct {
-	ID    *int64
-	Email *string
+	ID          *int64
+	Email       *string
+	OIDCSubject *string
 }
 
 func ByUserID(id int64) UserFilter {
@@ -92,6 +93,10 @@ func ByEmail(email string) UserFilter {
 	return UserFilter{Email: &email}
 }
 
+func ByOIDCSubject(subject string) UserFilter {
+	return UserFilter{OIDCSubject: &subject}
+}
+
 func (filter *UserFilter) AsUser() *User {
 	var userRow User
 
@@ -100,8 +105,10 @@ func (filter *UserFilter) AsUser() *User {
 		userRow = User{ID: *filter.ID}
 	case filter.Email != nil:
 		userRow = User{Email: *filter.Email}
+	case filter.OIDCSubject != nil:
+		userRow = User{OIDCSubject: filter.OIDCSubject}
 	default:
-		panic(fmt.Errorf("%w: only user ID or email is supported but none was provided", ErrInvalidFilter))
+		panic(fmt.Errorf("%w: only user ID, email, or OIDC subject is supported but none was provided", ErrInvalidFilter))
 	}
 	return &userRow
 }

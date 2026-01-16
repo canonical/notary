@@ -70,8 +70,8 @@ func Login(env *HandlerConfig) http.HandlerFunc {
 			}
 		}
 		hashedPassword := ""
-		if userAccount != nil {
-			hashedPassword = userAccount.HashedPassword
+		if userAccount != nil && userAccount.HashedPassword != nil {
+			hashedPassword = *userAccount.HashedPassword
 		}
 		if err := hashing.CompareHashAndPassword(hashedPassword, loginParams.Password); err != nil {
 			env.AuditLogger.LoginFailed(loginParams.Email,

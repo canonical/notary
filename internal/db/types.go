@@ -106,9 +106,20 @@ const (
 type User struct {
 	ID int64 `db:"id"`
 
-	Email          string `db:"email"`
-	HashedPassword string `db:"hashed_password"`
-	RoleID         RoleID `db:"role_id"`
+	Email          string  `db:"email"`
+	HashedPassword *string `db:"hashed_password"` // Nullable for OIDC-only users
+	RoleID         RoleID  `db:"role_id"`
+	OIDCSubject    *string `db:"oidc_subject"` // OIDC provider's subject identifier
+}
+
+// HasPassword checks if a user has a local password set
+func (u *User) HasPassword() bool {
+	return u.HashedPassword != nil && *u.HashedPassword != ""
+}
+
+// HasOIDC checks if a user has an OIDC identity linked
+func (u *User) HasOIDC() bool {
+	return u.OIDCSubject != nil && *u.OIDCSubject != ""
 }
 
 type NumUsers struct {

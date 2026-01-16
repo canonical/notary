@@ -9,6 +9,8 @@ import (
 type StateEntry struct {
 	CreatedAt time.Time
 	UserAgent string
+	UserID    *int64 // Set when state is for account linking (not regular login)
+	Type      string // "login" or "linking"
 }
 
 // StateStore manages OAuth state parameters for CSRF protection
@@ -29,10 +31,24 @@ func NewStateStore() *StateStore {
 func (s *StateStore) Store(state string, userAgent string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	s.states[state] = StateEntry{
 		CreatedAt: time.Now(),
 		UserAgent: userAgent,
+		Type:      "login", // Default to login type
+	}
+}
+
+// StoreForLinking saves a state parameter for account linking with user ID
+func (s *StateStore) StoreForLinking(state string, userAgent string, userID int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.states[state] = StateEntry{
+		CreatedAt: time.Now(),
+		UserAgent: userAgent,
+		UserID:    &userID,
+		Type:      "linking",
 	}
 }
 
@@ -41,12 +57,12 @@ func (s *StateStore) Store(state string, userAgent string) {
 func (s *StateStore) Validate(state string, userAgent string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	entry, exists := s.states[state]
 	if !exists {
 		return false
 	}
-	
+
 	if time.Since(entry.CreatedAt) > 5*time.Minute {
 		delete(s.states, state)
 		return false
@@ -56,9 +72,38 @@ func (s *StateStore) Validate(state string, userAgent string) bool {
 		delete(s.states, state)
 		return false
 	}
-	
+
 	delete(s.states, state)
 	return true
+}
+
+// Get retrieves a state entry without deleting it (for inspecting metadata)
+// Returns the entry and whether it exists and is valid
+func (s *StateStore) Get(state string, userAgent string) (*StateEntry, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	entry, exists := s.states[state]
+	if !exists {
+		return nil, false
+	}
+
+	if time.Since(entry.CreatedAt) > 5*time.Minute {
+		return nil, false
+	}
+
+	if entry.UserAgent != userAgent {
+		return nil, false
+	}
+
+	return &entry, true
+}
+
+// Delete removes a state from the store
+func (s *StateStore) Delete(state string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.states, state)
 }
 
 // Cleanup removes expired states from the store
@@ -66,7 +111,7 @@ func (s *StateStore) Validate(state string, userAgent string) bool {
 func (s *StateStore) Cleanup() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	now := time.Now()
 	for state, entry := range s.states {
 		if now.Sub(entry.CreatedAt) > 5*time.Minute {
@@ -81,4 +126,3 @@ func (s *StateStore) Size() int {
 	defer s.mu.RUnlock()
 	return len(s.states)
 }
-

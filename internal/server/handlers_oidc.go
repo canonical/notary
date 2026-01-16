@@ -154,3 +154,202 @@ func CallbackOIDC(env *HandlerConfig) http.HandlerFunc {
 		http.Redirect(w, r, "/", http.StatusFound)
 	}
 }
+
+// LinkOIDC initiates the OIDC authentication flow for account linking
+func LinkOIDC(env *HandlerConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Get current user from JWT
+		claims, err := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.SystemLogger)
+			return
+		}
+
+		// Get user from database to get user ID
+		user, err := env.DB.GetUser(db.ByEmail(claims.Email))
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to get user", err, env.SystemLogger)
+			return
+		}
+
+		// Check if user already has OIDC linked
+		if user.HasOIDC() {
+			writeError(w, http.StatusBadRequest, "OIDC account already linked", nil, env.SystemLogger)
+			return
+		}
+
+		// Generate state and store it with user ID for linking
+		state := generateRandomString(32)
+		env.StateStore.StoreForLinking(state, r.UserAgent(), user.ID)
+
+		env.SystemLogger.Debug("OIDC account linking initiated",
+			zap.Int64("user_id", user.ID),
+			zap.String("email", user.Email),
+			zap.String("state", state[:8]+"..."))
+
+		aud := oauth2.SetAuthURLParam("audience", env.OIDCConfig.Audience)
+		http.Redirect(w, r, env.OIDCConfig.OAuth2Config.AuthCodeURL(state, aud), http.StatusFound)
+	}
+}
+
+// CallbackLinkOIDC handles the OIDC callback for account linking
+func CallbackLinkOIDC(env *HandlerConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		code := r.URL.Query().Get("code")
+		state := r.URL.Query().Get("state")
+
+		// Get state entry to check if it's a linking request
+		stateEntry, valid := env.StateStore.Get(state, r.UserAgent())
+		if !valid || stateEntry == nil {
+			env.SystemLogger.Warn("OIDC linking callback with invalid state",
+				zap.String("state_prefix", state[:min(8, len(state))]+"..."),
+				zap.String("user_agent", r.UserAgent()))
+			writeError(w, http.StatusBadRequest, "invalid or expired state parameter", nil, env.SystemLogger)
+			return
+		}
+
+		// Verify this is a linking request
+		if stateEntry.Type != "linking" || stateEntry.UserID == nil {
+			env.SystemLogger.Warn("OIDC callback state is not for linking",
+				zap.String("state_type", stateEntry.Type))
+			writeError(w, http.StatusBadRequest, "invalid state type", nil, env.SystemLogger)
+			return
+		}
+
+		// Delete state after validation
+		env.StateStore.Delete(state)
+
+		// Get current user from JWT to verify session is still valid
+		claims, err := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "Session expired. Please login and try again.", err, env.SystemLogger)
+			return
+		}
+
+		user, err := env.DB.GetUser(db.ByEmail(claims.Email))
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to get user", err, env.SystemLogger)
+			return
+		}
+
+		// Verify user ID matches the one in state (prevent session hijacking)
+		if user.ID != *stateEntry.UserID {
+			env.SystemLogger.Warn("OIDC linking callback user ID mismatch",
+				zap.Int64("user_id_from_state", *stateEntry.UserID),
+				zap.Int64("user_id_from_session", user.ID))
+			writeError(w, http.StatusForbidden, "User mismatch. Please try again.", nil, env.SystemLogger)
+			return
+		}
+
+		// Exchange code for tokens
+		aud := oauth2.SetAuthURLParam("audience", env.OIDCConfig.Audience)
+		oauth2Token, err := env.OIDCConfig.OAuth2Config.Exchange(r.Context(), code, aud)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to exchange oauth2 token", err, env.SystemLogger)
+			return
+		}
+
+		rawIDToken, ok := oauth2Token.Extra("id_token").(string)
+		if !ok {
+			writeError(w, http.StatusInternalServerError, "failed to get id_token", nil, env.SystemLogger)
+			return
+		}
+
+		// Verify ID token
+		verifier := env.OIDCConfig.OIDCProvider.Verifier(&oidc.Config{ClientID: env.OIDCConfig.OAuth2Config.ClientID})
+		idToken, err := verifier.Verify(r.Context(), rawIDToken)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "failed to verify id_token", err, env.SystemLogger)
+			return
+		}
+
+		// Extract OIDC subject
+		var oidcClaims struct {
+			Sub   string `json:"sub"`
+			Email string `json:"email"`
+		}
+		if err := idToken.Claims(&oidcClaims); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to extract claims from id_token", err, env.SystemLogger)
+			return
+		}
+
+		// Check if this OIDC subject is already linked to another user
+		existingUser, err := env.DB.GetUser(db.ByOIDCSubject(oidcClaims.Sub))
+		if err == nil && existingUser != nil {
+			if existingUser.ID != user.ID {
+				env.SystemLogger.Warn("OIDC subject already linked to different user",
+					zap.String("oidc_subject", oidcClaims.Sub[:min(8, len(oidcClaims.Sub))]+"..."),
+					zap.Int64("existing_user_id", existingUser.ID),
+					zap.Int64("current_user_id", user.ID))
+				writeError(w, http.StatusConflict, "This OIDC account is already linked to another user", nil, env.SystemLogger)
+				return
+			}
+			// Already linked to same user - this is fine, redirect to settings
+			http.Redirect(w, r, "/settings/account?message=already_linked", http.StatusFound)
+			return
+		}
+
+		// Link OIDC account
+		if err := env.DB.LinkOIDCAccount(user.ID, oidcClaims.Sub); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to link OIDC account", err, env.SystemLogger)
+			return
+		}
+
+		env.SystemLogger.Info("OIDC account linked successfully",
+			zap.Int64("user_id", user.ID),
+			zap.String("email", user.Email),
+			zap.String("oidc_subject", oidcClaims.Sub[:min(8, len(oidcClaims.Sub))]+"..."))
+
+		env.AuditLogger.UserUpdated(user.Email, "oidc_linked", logging.WithRequest(r))
+
+		http.Redirect(w, r, "/settings/account?message=link_success", http.StatusFound)
+	}
+}
+
+// UnlinkOIDC removes the OIDC link from a user account
+func UnlinkOIDC(env *HandlerConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Get current user from JWT
+		claims, err := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.SystemLogger)
+			return
+		}
+
+		user, err := env.DB.GetUser(db.ByEmail(claims.Email))
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to get user", err, env.SystemLogger)
+			return
+		}
+
+		// Check if user has a password (prevent lockout)
+		if !user.HasPassword() {
+			writeError(w, http.StatusBadRequest, "Cannot unlink OIDC account without a local password. Please set a password first.", nil, env.SystemLogger)
+			return
+		}
+
+		// Check if user has OIDC linked
+		if !user.HasOIDC() {
+			writeError(w, http.StatusBadRequest, "No OIDC account linked", nil, env.SystemLogger)
+			return
+		}
+
+		// Unlink OIDC account
+		if err := env.DB.UnlinkOIDCAccount(user.ID); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to unlink OIDC account", err, env.SystemLogger)
+			return
+		}
+
+		env.SystemLogger.Info("OIDC account unlinked",
+			zap.Int64("user_id", user.ID),
+			zap.String("email", user.Email))
+
+		env.AuditLogger.UserUpdated(user.Email, "oidc_unlinked", logging.WithRequest(r))
+
+		err = writeResponse(w, SuccessResponse{Message: "OIDC account unlinked successfully"}, http.StatusOK)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
+			return
+		}
+	}
+}

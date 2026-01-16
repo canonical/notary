@@ -192,3 +192,185 @@ func TestStateStore_ConcurrentAccess(t *testing.T) {
 		}
 	})
 }
+
+func TestStateStore_OIDCLinking(t *testing.T) {
+	t.Run("StoreForLinking stores state with user ID and type", func(t *testing.T) {
+		store := NewStateStore()
+		state := "linking-state-123"
+		userAgent := "Mozilla/5.0"
+		var userID int64 = 42
+
+		store.StoreForLinking(state, userAgent, userID)
+
+		entry, exists := store.Get(state, userAgent)
+		if !exists {
+			t.Fatal("expected state to exist after StoreForLinking")
+		}
+		if entry.UserID == nil || *entry.UserID != userID {
+			t.Errorf("expected UserID to be %d, got %v", userID, entry.UserID)
+		}
+		if entry.Type != "linking" {
+			t.Errorf("expected Type to be 'linking', got %s", entry.Type)
+		}
+		if entry.UserAgent != userAgent {
+			t.Errorf("expected UserAgent to be %s, got %s", userAgent, entry.UserAgent)
+		}
+	})
+
+	t.Run("Get retrieves state without deleting it", func(t *testing.T) {
+		store := NewStateStore()
+		state := "persistent-state"
+		userAgent := "Mozilla/5.0"
+		var userID int64 = 100
+
+		store.StoreForLinking(state, userAgent, userID)
+
+		// First Get
+		entry1, exists1 := store.Get(state, userAgent)
+		if !exists1 {
+			t.Fatal("expected state to exist on first Get")
+		}
+
+		// Second Get - should still exist
+		entry2, exists2 := store.Get(state, userAgent)
+		if !exists2 {
+			t.Fatal("expected state to still exist on second Get")
+		}
+
+		if entry1.UserID == nil || entry2.UserID == nil || *entry1.UserID != *entry2.UserID {
+			t.Error("expected consistent UserID across multiple Gets")
+		}
+	})
+
+	t.Run("Get returns false for nonexistent state", func(t *testing.T) {
+		store := NewStateStore()
+
+		_, exists := store.Get("nonexistent-state", "Mozilla/5.0")
+		if exists {
+			t.Error("expected Get to return false for nonexistent state")
+		}
+	})
+
+	t.Run("Get returns false for wrong user agent", func(t *testing.T) {
+		store := NewStateStore()
+		state := "test-state"
+		userAgent1 := "Mozilla/5.0 (Chrome)"
+		userAgent2 := "Mozilla/5.0 (Firefox)"
+		var userID int64 = 150
+
+		store.StoreForLinking(state, userAgent1, userID)
+
+		_, exists := store.Get(state, userAgent2)
+		if exists {
+			t.Error("expected Get to return false for wrong user agent")
+		}
+	})
+
+	t.Run("Delete removes state", func(t *testing.T) {
+		store := NewStateStore()
+		state := "deletable-state"
+		userAgent := "Mozilla/5.0"
+		var userID int64 = 200
+
+		store.StoreForLinking(state, userAgent, userID)
+
+		// Verify state exists
+		_, exists := store.Get(state, userAgent)
+		if !exists {
+			t.Fatal("expected state to exist before deletion")
+		}
+
+		// Delete the state
+		store.Delete(state)
+
+		// Verify state is gone
+		_, exists = store.Get(state, userAgent)
+		if exists {
+			t.Error("expected state to not exist after deletion")
+		}
+	})
+
+	t.Run("Validate consumes linking state", func(t *testing.T) {
+		store := NewStateStore()
+		state := "linking-validate-state"
+		userAgent := "Mozilla/5.0"
+		var userID int64 = 300
+
+		store.StoreForLinking(state, userAgent, userID)
+
+		// Validate should consume the state
+		if !store.Validate(state, userAgent) {
+			t.Error("expected Validate to succeed for linking state")
+		}
+
+		// State should no longer exist
+		_, exists := store.Get(state, userAgent)
+		if exists {
+			t.Error("expected state to be deleted after Validate")
+		}
+	})
+
+	t.Run("linking state expires like regular state", func(t *testing.T) {
+		store := NewStateStore()
+		state := "expired-linking-state"
+		userAgent := "Mozilla/5.0"
+		var userID int64 = 400
+
+		// Manually create an expired linking state
+		store.mu.Lock()
+		store.states[state] = StateEntry{
+			CreatedAt: time.Now().Add(-10 * time.Minute),
+			UserAgent: userAgent,
+			UserID:    &userID,
+			Type:      "linking",
+		}
+		store.mu.Unlock()
+
+		// Get should return false for expired state (it checks expiration)
+		_, exists := store.Get(state, userAgent)
+		if exists {
+			t.Error("expected Get to return false for expired state")
+		}
+
+		// Validate should fail due to expiration
+		if store.Validate(state, userAgent) {
+			t.Error("expected Validate to fail for expired linking state")
+		}
+
+		// Cleanup should remove it
+		store.mu.Lock()
+		store.states[state] = StateEntry{
+			CreatedAt: time.Now().Add(-10 * time.Minute),
+			UserAgent: userAgent,
+			UserID:    &userID,
+			Type:      "linking",
+		}
+		store.mu.Unlock()
+
+		store.Cleanup()
+
+		_, exists = store.Get(state, userAgent)
+		if exists {
+			t.Error("expected Cleanup to remove expired linking state")
+		}
+	})
+
+	t.Run("regular Store sets login type", func(t *testing.T) {
+		store := NewStateStore()
+		state := "regular-state"
+		userAgent := "Mozilla/5.0"
+
+		store.Store(state, userAgent)
+
+		entry, exists := store.Get(state, userAgent)
+		if !exists {
+			t.Fatal("expected state to exist after Store")
+		}
+		if entry.UserID != nil {
+			t.Error("expected UserID to be nil for regular Store")
+		}
+		if entry.Type != "login" {
+			t.Errorf("expected Type to be 'login' for regular Store, got %s", entry.Type)
+		}
+	})
+}

@@ -84,9 +84,13 @@ type SuccessResponse struct {
 }
 
 type GetAccountResponseResult struct {
-	ID     int    `json:"id"`
-	Email  string `json:"email"`
-	RoleID int    `json:"role_id"`
+	ID          int      `json:"id"`
+	Email       string   `json:"email"`
+	RoleID      int      `json:"role_id"`
+	HasPassword bool     `json:"has_password"`
+	HasOIDC     bool     `json:"has_oidc"`
+	OIDCSubject *string  `json:"oidc_subject,omitempty"`
+	AuthMethods []string `json:"auth_methods"`
 }
 
 type GetAccountResponse struct {

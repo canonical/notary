@@ -101,13 +101,17 @@ func TestAuditMiddleware_LogsSuccessfulRead(t *testing.T) {
 	if res.StatusCode != http.StatusOK {
 		t.Fatalf("expected %d, got %d", http.StatusOK, res.StatusCode)
 	}
-	var loginResp struct {
-		Result struct {
-			Token string `json:"token"`
+
+	// Extract session cookie from login response
+	var sessionCookie *http.Cookie
+	for _, c := range res.Cookies() {
+		if c.Name == "user_token" {
+			sessionCookie = c
+			break
 		}
 	}
-	if err := json.NewDecoder(res.Body).Decode(&loginResp); err != nil {
-		t.Fatalf("decode login response: %v", err)
+	if sessionCookie == nil {
+		t.Fatal("expected session cookie from login response")
 	}
 
 	_ = logs.TakeAll()
@@ -116,7 +120,7 @@ func TestAuditMiddleware_LogsSuccessfulRead(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}
-	req.Header.Set("Authorization", "Bearer "+loginResp.Result.Token)
+	req.AddCookie(sessionCookie)
 	res, err = ts.Client().Do(req)
 	if err != nil {
 		t.Fatalf("do request: %v", err)

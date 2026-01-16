@@ -53,9 +53,35 @@ func (params *ChangeAccountParams) IsValid() (bool, error) {
 }
 
 type GetAccountResponse struct {
-	ID     int64  `json:"id,omitempty"`
-	Email  string `json:"email"`
-	RoleID RoleID `json:"role_id,omitempty"`
+	ID          int64    `json:"id,omitempty"`
+	Email       string   `json:"email"`
+	RoleID      RoleID   `json:"role_id,omitempty"`
+	Permissions []string `json:"permissions,omitempty"`
+	HasPassword bool     `json:"has_password"`
+	HasOIDC     bool     `json:"has_oidc"`
+	OIDCSubject *string  `json:"oidc_subject,omitempty"`
+	AuthMethods []string `json:"auth_methods"`
+}
+
+// userToAccountResponse converts a db.User to GetAccountResponse
+func userToAccountResponse(user *db.User) GetAccountResponse {
+	authMethods := []string{}
+	if user.HasPassword() {
+		authMethods = append(authMethods, "local")
+	}
+	if user.HasOIDC() {
+		authMethods = append(authMethods, "oidc")
+	}
+
+	return GetAccountResponse{
+		ID:          user.ID,
+		Email:       user.Email,
+		RoleID:      RoleID(user.RoleID),
+		HasPassword: user.HasPassword(),
+		HasOIDC:     user.HasOIDC(),
+		OIDCSubject: user.OIDCSubject,
+		AuthMethods: authMethods,
+	}
 }
 
 func validatePassword(password string) bool {
@@ -90,11 +116,7 @@ func ListAccounts(env *HandlerConfig) http.HandlerFunc {
 		}
 		accountsResponse := make([]GetAccountResponse, len(accounts))
 		for i, account := range accounts {
-			accountsResponse[i] = GetAccountResponse{
-				ID:     account.ID,
-				Email:  account.Email,
-				RoleID: RoleID(account.RoleID),
-			}
+			accountsResponse[i] = userToAccountResponse(&account)
 		}
 		err = writeResponse(w, accountsResponse, http.StatusOK)
 		if err != nil {
@@ -138,11 +160,7 @@ func GetAccount(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
 		}
-		accountResponse := GetAccountResponse{
-			ID:     account.ID,
-			Email:  account.Email,
-			RoleID: RoleID(account.RoleID),
-		}
+		accountResponse := userToAccountResponse(account)
 		err = writeResponse(w, accountResponse, http.StatusOK)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
@@ -156,21 +174,22 @@ func GetAccount(env *HandlerConfig) http.HandlerFunc {
 // it uses the JWT claims to retrieve the account information.
 func GetMyAccount(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var account *db.User
-		var err error
 		claims, jwtErr := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
 		if jwtErr != nil {
 			writeError(w, http.StatusUnauthorized, "Unauthorized", jwtErr, env.SystemLogger)
 			return
 		}
-		account = &db.User{
-			Email: claims.Email,
+		account, err := env.DB.GetUser(db.ByEmail(claims.Email))
+		if err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			return
 		}
-		accountResponse := GetAccountResponse{
-			ID:     account.ID,
-			Email:  account.Email,
-			RoleID: RoleID(account.RoleID),
-		}
+		accountResponse := userToAccountResponse(account)
+		accountResponse.Permissions = claims.Permissions
 		err = writeResponse(w, accountResponse, http.StatusOK)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)

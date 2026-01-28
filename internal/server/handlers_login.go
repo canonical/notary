@@ -33,6 +33,7 @@ func generateJWT(id int64, email string, jwtSecret []byte, roleID RoleID) (strin
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, auth.NotaryJWTClaims{
 		Email:       email,
 		Permissions: permissionList,
+		RoleID:      int(roleID),
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: expiresAt,
 		},

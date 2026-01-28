@@ -55,7 +55,7 @@ func (params *ChangeAccountParams) IsValid() (bool, error) {
 type GetAccountResponse struct {
 	ID          int64    `json:"id,omitempty"`
 	Email       string   `json:"email"`
-	RoleID      RoleID   `json:"role_id,omitempty"`
+	RoleID      RoleID   `json:"role_id"` // Removed omitempty - role_id=0 (Admin) must be included
 	Permissions []string `json:"permissions,omitempty"`
 	HasPassword bool     `json:"has_password"`
 	HasOIDC     bool     `json:"has_oidc"`

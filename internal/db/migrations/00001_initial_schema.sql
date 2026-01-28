@@ -37,17 +37,25 @@ CREATE TABLE IF NOT EXISTS private_keys
 CREATE TABLE IF NOT EXISTS users
 (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
-	email           TEXT NOT NULL UNIQUE,
+	oidc_subject    TEXT,  -- OIDC provider's subject identifier (sub claim)
+	email           TEXT,  -- Nullable to support OIDC-only users without email
 	hashed_password TEXT,  -- Nullable to support OIDC-only users
 	role_id         INTEGER NOT NULL,
-	oidc_subject    TEXT,  -- OIDC provider's subject identifier (sub claim)
 
-	CHECK (trim(email) != '')
+	CHECK (
+		-- Either email or oidc_subject must be present
+		(email IS NOT NULL AND trim(email) != '') OR
+		(oidc_subject IS NOT NULL AND trim(oidc_subject) != '')
+	)
 );
+-- Create unique index on email for non-NULL values
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email
+ON users(email)
+WHERE email IS NOT NULL;
 -- Create unique index on oidc_subject to prevent duplicate OIDC identities
 -- Partial index only indexes non-NULL values
-CREATE UNIQUE INDEX IF NOT EXISTS idx_users_oidc_subject 
-ON users(oidc_subject) 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_oidc_subject
+ON users(oidc_subject)
 WHERE oidc_subject IS NOT NULL;
 CREATE TABLE IF NOT EXISTS encryption_keys
 (

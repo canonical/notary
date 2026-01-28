@@ -156,6 +156,43 @@ func TestGetUserByOIDCSubject(t *testing.T) {
 	}
 }
 
+// TestCreateOIDCUserWithoutEmail tests creating an OIDC user without an email
+// Email should be optional - only the OIDC subject is required
+func TestCreateOIDCUserWithoutEmail(t *testing.T) {
+	database := tu.MustPrepareEmptyDB(t)
+
+	oidcSubject := "auth0|no-email-user"
+	user, err := database.CreateOIDCUser("", oidcSubject, db.RoleReadOnly)
+	if err != nil {
+		t.Fatalf("Failed to create OIDC user without email: %s", err)
+	}
+
+	if user.ID == 0 {
+		t.Fatal("User ID should not be 0")
+	}
+	if user.Email != "" {
+		t.Fatalf("Expected empty email, got %s", user.Email)
+	}
+	if !user.HasOIDC() {
+		t.Fatal("User should have OIDC linked")
+	}
+	if user.HasPassword() {
+		t.Fatal("OIDC-only user should not have password")
+	}
+	if user.OIDCSubject == nil || *user.OIDCSubject != oidcSubject {
+		t.Fatalf("Expected OIDC subject %s, got %v", oidcSubject, user.OIDCSubject)
+	}
+
+	// Should be retrievable by OIDC subject
+	retrievedUser, err := database.GetUser(db.ByOIDCSubject(oidcSubject))
+	if err != nil {
+		t.Fatalf("Failed to get user by OIDC subject: %s", err)
+	}
+	if retrievedUser.ID != user.ID {
+		t.Fatalf("Expected user ID %d, got %d", user.ID, retrievedUser.ID)
+	}
+}
+
 // TestLinkOIDCAccount tests linking an OIDC identity to an existing local user
 func TestLinkOIDCAccount(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)

@@ -64,37 +64,57 @@ func CallbackOIDC(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 
-		// Extract claims from ID token
-		var claims struct {
-			Sub   string `json:"sub"`
-			Email string `json:"email"`
-		}
-		if err := idToken.Claims(&claims); err != nil {
+		// Extract all claims for debugging
+		var allClaims map[string]interface{}
+		if err := idToken.Claims(&allClaims); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to extract claims from id_token", err, env.SystemLogger)
 			return
 		}
 
+		// Extract subject (always "sub" per OIDC spec)
+		sub, ok := allClaims["sub"].(string)
+		if !ok || sub == "" {
+			env.SystemLogger.Error("OIDC ID token missing required 'sub' claim",
+				zap.Any("all_claims", allClaims))
+			writeError(w, http.StatusBadRequest, "ID token missing required 'sub' claim", nil, env.SystemLogger)
+			return
+		}
+
+		// Extract email using configured claim key
+		email, _ := allClaims[env.OIDCConfig.EmailClaimKey].(string)
+
+		// Log helpful message if email is missing
+		if email == "" {
+			env.SystemLogger.Warn("OIDC ID token missing email claim - user will be created without email",
+				zap.String("expected_claim_key", env.OIDCConfig.EmailClaimKey),
+				zap.Any("available_claims", allClaims),
+				zap.String("hint", "To include email: 1) Ensure email scope is requested in OIDC config, 2) Check IDP settings, 3) Verify email_claim_key matches your IDP's claim field name"))
+		}
+
 		env.SystemLogger.Debug("OIDC user authenticated",
-			zap.String("email", claims.Email),
-			zap.String("subject", claims.Sub[:min(8, len(claims.Sub))]+"..."))
+			zap.String("email", email),
+			zap.String("subject", sub[:min(8, len(sub))]+"..."),
+			zap.String("email_claim_key", env.OIDCConfig.EmailClaimKey),
+			zap.Any("all_claims", allClaims))
 
 		// Try to find existing user by OIDC subject
-		user, err := env.DB.GetUser(db.ByOIDCSubject(claims.Sub))
+		user, err := env.DB.GetUser(db.ByOIDCSubject(sub))
 		if err != nil {
 			if !errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusInternalServerError, "failed to query user", err, env.SystemLogger)
 				return
 			}
 
-			// User not found by OIDC subject - check if email exists
-			existingUserByEmail, emailErr := env.DB.GetUser(db.ByEmail(claims.Email))
-			if emailErr == nil && existingUserByEmail != nil {
-				// Email exists but OIDC subject doesn't match - prevent auto-linking for security
-				env.SystemLogger.Warn("OIDC login attempted with email that matches existing local user",
-					zap.String("email", claims.Email),
-					zap.String("oidc_subject", claims.Sub[:min(8, len(claims.Sub))]+"..."))
+			// User not found by OIDC subject - check if email exists (only if email is provided)
+			if email != "" {
+				existingUserByEmail, emailErr := env.DB.GetUser(db.ByEmail(email))
+				if emailErr == nil && existingUserByEmail != nil {
+					// Email exists but OIDC subject doesn't match - prevent auto-linking for security
+					env.SystemLogger.Warn("OIDC login attempted with email that matches existing local user",
+						zap.String("email", email),
+						zap.String("oidc_subject", sub[:min(8, len(sub))]+"..."))
 
-				errorPage := `
+					errorPage := `
 <!DOCTYPE html>
 <html>
 <head><title>Account Linking Required</title></head>
@@ -110,24 +130,40 @@ func CallbackOIDC(env *HandlerConfig) http.HandlerFunc {
 	<a href="/login">Return to Login</a>
 </body>
 </html>`
-				w.Header().Set("Content-Type", "text/html")
-				w.WriteHeader(http.StatusConflict)
-				w.Write([]byte(errorPage))
-				return
+					w.Header().Set("Content-Type", "text/html")
+					w.WriteHeader(http.StatusConflict)
+					w.Write([]byte(errorPage))
+					return
+				}
 			}
 
 			// Auto-provision new OIDC user with RoleReadOnly (ID=3)
-			user, err = env.DB.CreateOIDCUser(claims.Email, claims.Sub, db.RoleReadOnly)
+			// Email is optional - the OIDC subject is the primary identifier
+			emailOrPlaceholder := email
+			if emailOrPlaceholder == "" {
+				emailOrPlaceholder = "(none)"
+			}
+
+			env.SystemLogger.Info("Auto-provisioning new OIDC user",
+				zap.String("email", emailOrPlaceholder),
+				zap.String("subject", sub),
+				zap.Int("role_id", int(db.RoleReadOnly)))
+
+			user, err = env.DB.CreateOIDCUser(email, sub, db.RoleReadOnly)
 			if err != nil {
+				env.SystemLogger.Error("Failed to create OIDC user",
+					zap.Error(err),
+					zap.String("email", emailOrPlaceholder),
+					zap.String("subject", sub))
 				writeError(w, http.StatusInternalServerError, "failed to create OIDC user", err, env.SystemLogger)
 				return
 			}
 
-			env.SystemLogger.Info("New OIDC user auto-provisioned",
-				zap.String("email", claims.Email),
+			env.SystemLogger.Info("New OIDC user auto-provisioned successfully",
+				zap.String("email", emailOrPlaceholder),
 				zap.Int64("user_id", user.ID),
 				zap.String("role", "RoleReadOnly"))
-			env.AuditLogger.UserCreated(claims.Email, int(db.RoleReadOnly), logging.WithRequest(r))
+			env.AuditLogger.UserCreated(emailOrPlaceholder, int(db.RoleReadOnly), logging.WithRequest(r))
 		}
 
 		// Generate local JWT with user's database role permissions
@@ -263,22 +299,28 @@ func CallbackLinkOIDC(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 
-		// Extract OIDC subject
-		var oidcClaims struct {
-			Sub   string `json:"sub"`
-			Email string `json:"email"`
-		}
-		if err := idToken.Claims(&oidcClaims); err != nil {
+		// Extract all claims for debugging
+		var allOIDCClaims map[string]interface{}
+		if err := idToken.Claims(&allOIDCClaims); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to extract claims from id_token", err, env.SystemLogger)
 			return
 		}
 
+		// Extract subject (always "sub" per OIDC spec)
+		oidcSub, ok := allOIDCClaims["sub"].(string)
+		if !ok || oidcSub == "" {
+			env.SystemLogger.Error("OIDC ID token missing required 'sub' claim",
+				zap.Any("all_claims", allOIDCClaims))
+			writeError(w, http.StatusBadRequest, "ID token missing required 'sub' claim", nil, env.SystemLogger)
+			return
+		}
+
 		// Check if this OIDC subject is already linked to another user
-		existingUser, err := env.DB.GetUser(db.ByOIDCSubject(oidcClaims.Sub))
+		existingUser, err := env.DB.GetUser(db.ByOIDCSubject(oidcSub))
 		if err == nil && existingUser != nil {
 			if existingUser.ID != user.ID {
 				env.SystemLogger.Warn("OIDC subject already linked to different user",
-					zap.String("oidc_subject", oidcClaims.Sub[:min(8, len(oidcClaims.Sub))]+"..."),
+					zap.String("oidc_subject", oidcSub[:min(8, len(oidcSub))]+"..."),
 					zap.Int64("existing_user_id", existingUser.ID),
 					zap.Int64("current_user_id", user.ID))
 				writeError(w, http.StatusConflict, "This OIDC account is already linked to another user", nil, env.SystemLogger)
@@ -290,7 +332,7 @@ func CallbackLinkOIDC(env *HandlerConfig) http.HandlerFunc {
 		}
 
 		// Link OIDC account
-		if err := env.DB.LinkOIDCAccount(user.ID, oidcClaims.Sub); err != nil {
+		if err := env.DB.LinkOIDCAccount(user.ID, oidcSub); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to link OIDC account", err, env.SystemLogger)
 			return
 		}
@@ -298,7 +340,7 @@ func CallbackLinkOIDC(env *HandlerConfig) http.HandlerFunc {
 		env.SystemLogger.Info("OIDC account linked successfully",
 			zap.Int64("user_id", user.ID),
 			zap.String("email", user.Email),
-			zap.String("oidc_subject", oidcClaims.Sub[:min(8, len(oidcClaims.Sub))]+"..."))
+			zap.String("oidc_subject", oidcSub[:min(8, len(oidcSub))]+"..."))
 
 		env.AuditLogger.UserUpdated(user.Email, "oidc_linked", logging.WithRequest(r))
 

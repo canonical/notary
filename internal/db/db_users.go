@@ -47,14 +47,11 @@ func (db *Database) CreateUser(email string, password string, roleID RoleID) (in
 }
 
 // CreateOIDCUser creates a new user from OIDC login (no password required)
+// Email is optional - the oidcSubject is the primary identifier
 func (db *Database) CreateOIDCUser(email, oidcSubject string, roleID RoleID) (*User, error) {
-	err := ValidateUser(email, roleID)
+	err := ValidateOIDCUser(oidcSubject, roleID)
 	if err != nil {
 		return nil, err
-	}
-
-	if oidcSubject == "" {
-		return nil, fmt.Errorf("%w: oidc_subject cannot be empty", ErrInvalidUser)
 	}
 
 	row := User{

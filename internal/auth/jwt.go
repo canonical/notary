@@ -141,6 +141,7 @@ func verifyLocalJWT(ctx context.Context, p ProviderConfig, raw string) (*NotaryJ
 	return &NotaryJWTClaims{
 		Permissions:      claims.Permissions,
 		Email:            claims.Email,
+		RoleID:           claims.RoleID,
 		RegisteredClaims: claims.RegisteredClaims,
 	}, nil
 }

@@ -38,12 +38,17 @@ CREATE TABLE IF NOT EXISTS users
 (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
 	email           TEXT NOT NULL UNIQUE,
-	hashed_password TEXT NOT NULL,
+	hashed_password TEXT,  -- Nullable to support OIDC-only users
 	role_id         INTEGER NOT NULL,
+	oidc_subject    TEXT,  -- OIDC provider's subject identifier (sub claim)
 
-	CHECK (trim(email) != ''),
-	CHECK (trim(hashed_password) != '')
+	CHECK (trim(email) != '')
 );
+-- Create unique index on oidc_subject to prevent duplicate OIDC identities
+-- Partial index only indexes non-NULL values
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_oidc_subject 
+ON users(oidc_subject) 
+WHERE oidc_subject IS NOT NULL;
 CREATE TABLE IF NOT EXISTS encryption_keys
 (
     encryption_key_id INTEGER PRIMARY KEY AUTOINCREMENT,

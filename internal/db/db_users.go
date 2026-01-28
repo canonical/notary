@@ -69,27 +69,6 @@ func (db *Database) CreateOIDCUser(email, oidcSubject string, roleID RoleID) (*U
 	return db.GetUser(ByUserID(insertedRowID))
 }
 
-// LinkOIDCAccount links an OIDC identity to an existing user account
-func (db *Database) LinkOIDCAccount(userID int64, oidcSubject string) error {
-	if oidcSubject == "" {
-		return fmt.Errorf("%w: oidc_subject cannot be empty", ErrInvalidInput)
-	}
-
-	userRow := User{
-		ID:          userID,
-		OIDCSubject: &oidcSubject,
-	}
-	return UpdateEntity(db, db.stmts.LinkOIDCAccount, &userRow)
-}
-
-// UnlinkOIDCAccount removes the OIDC link from a user account
-func (db *Database) UnlinkOIDCAccount(userID int64) error {
-	userRow := User{
-		ID: userID,
-	}
-	return UpdateEntity(db, db.stmts.UnlinkOIDC, &userRow)
-}
-
 // UpdateUser updates the password of the given user.
 // Just like with CreateUser, this function handles hashing and salting the password before storage.
 func (db *Database) UpdateUserPassword(filter UserFilter, password string) error {

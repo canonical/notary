@@ -193,98 +193,6 @@ func TestCreateOIDCUserWithoutEmail(t *testing.T) {
 	}
 }
 
-// TestLinkOIDCAccount tests linking an OIDC identity to an existing local user
-func TestLinkOIDCAccount(t *testing.T) {
-	database := tu.MustPrepareEmptyDB(t)
-
-	// Create local user
-	userID, err := database.CreateUser("local@example.com", "password123", db.RoleCertificateManager)
-	if err != nil {
-		t.Fatalf("Failed to create local user: %s", err)
-	}
-
-	// Link OIDC account
-	oidcSubject := "auth0|linked"
-	err = database.LinkOIDCAccount(userID, oidcSubject)
-	if err != nil {
-		t.Fatalf("Failed to link OIDC account: %s", err)
-	}
-
-	// Verify user has both password and OIDC
-	user, err := database.GetUser(db.ByUserID(userID))
-	if err != nil {
-		t.Fatalf("Failed to get user: %s", err)
-	}
-
-	if !user.HasPassword() {
-		t.Fatal("User should still have password")
-	}
-	if !user.HasOIDC() {
-		t.Fatal("User should have OIDC linked")
-	}
-	if *user.OIDCSubject != oidcSubject {
-		t.Fatalf("Expected OIDC subject %s, got %s", oidcSubject, *user.OIDCSubject)
-	}
-
-	// Verify user can be found by both email and OIDC subject
-	byEmail, err := database.GetUser(db.ByEmail("local@example.com"))
-	if err != nil {
-		t.Fatalf("Failed to get user by email: %s", err)
-	}
-	byOIDC, err := database.GetUser(db.ByOIDCSubject(oidcSubject))
-	if err != nil {
-		t.Fatalf("Failed to get user by OIDC subject: %s", err)
-	}
-	if byEmail.ID != byOIDC.ID {
-		t.Fatal("Email and OIDC lookups should return same user")
-	}
-}
-
-// TestUnlinkOIDCAccount tests unlinking an OIDC identity from a user
-func TestUnlinkOIDCAccount(t *testing.T) {
-	database := tu.MustPrepareEmptyDB(t)
-
-	// Create user with OIDC
-	user, err := database.CreateOIDCUser("oidc@example.com", "auth0|unlink", db.RoleReadOnly)
-	if err != nil {
-		t.Fatalf("Failed to create OIDC user: %s", err)
-	}
-
-	// Set a password so user can login after unlinking
-	err = database.UpdateUserPassword(db.ByUserID(user.ID), "password123")
-	if err != nil {
-		t.Fatalf("Failed to set password: %s", err)
-	}
-
-	// Unlink OIDC
-	err = database.UnlinkOIDCAccount(user.ID)
-	if err != nil {
-		t.Fatalf("Failed to unlink OIDC account: %s", err)
-	}
-
-	// Verify OIDC is unlinked
-	updatedUser, err := database.GetUser(db.ByUserID(user.ID))
-	if err != nil {
-		t.Fatalf("Failed to get user: %s", err)
-	}
-
-	if updatedUser.HasOIDC() {
-		t.Fatal("User should not have OIDC linked after unlinking")
-	}
-	if !updatedUser.HasPassword() {
-		t.Fatal("User should still have password")
-	}
-
-	// Verify user cannot be found by old OIDC subject
-	_, err = database.GetUser(db.ByOIDCSubject("auth0|unlink"))
-	if err == nil {
-		t.Fatal("Should not find user by unlinked OIDC subject")
-	}
-	if !errors.Is(err, db.ErrNotFound) {
-		t.Fatalf("Expected ErrNotFound, got %v", err)
-	}
-}
-
 // TestUserHasPasswordHelper tests the HasPassword helper method
 func TestUserHasPasswordHelper(t *testing.T) {
 	// User with password
@@ -364,18 +272,14 @@ func TestMixedAuthenticationScenarios(t *testing.T) {
 		t.Fatal("OIDC user should have OIDC but not password")
 	}
 
-	// Scenario 3: Hybrid user (both auth methods)
+	// Scenario 3: Local user with password
 	hybridUserID, err := database.CreateUser("hybrid@example.com", "password123", db.RoleCertificateManager)
 	if err != nil {
-		t.Fatalf("Failed to create hybrid user: %s", err)
-	}
-	err = database.LinkOIDCAccount(hybridUserID, "auth0|hybrid")
-	if err != nil {
-		t.Fatalf("Failed to link OIDC to hybrid user: %s", err)
+		t.Fatalf("Failed to create local user: %s", err)
 	}
 	hybridUser, _ := database.GetUser(db.ByUserID(hybridUserID))
-	if !hybridUser.HasPassword() || !hybridUser.HasOIDC() {
-		t.Fatal("Hybrid user should have both password and OIDC")
+	if !hybridUser.HasPassword() || hybridUser.HasOIDC() {
+		t.Fatal("Local user should have password only")
 	}
 
 	// Verify all three users exist

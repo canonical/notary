@@ -9,8 +9,8 @@ import (
 type StateEntry struct {
 	CreatedAt time.Time
 	UserAgent string
-	UserID    *int64 // Set when state is for account linking (not regular login)
-	Type      string // "login" or "linking"
+	UserID    *int64
+	Type      string
 }
 
 // StateStore manages OAuth state parameters for CSRF protection
@@ -36,19 +36,6 @@ func (s *StateStore) Store(state string, userAgent string) {
 		CreatedAt: time.Now(),
 		UserAgent: userAgent,
 		Type:      "login", // Default to login type
-	}
-}
-
-// StoreForLinking saves a state parameter for account linking with user ID
-func (s *StateStore) StoreForLinking(state string, userAgent string, userID int64) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.states[state] = StateEntry{
-		CreatedAt: time.Now(),
-		UserAgent: userAgent,
-		UserID:    &userID,
-		Type:      "linking",
 	}
 }
 

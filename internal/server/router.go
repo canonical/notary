@@ -43,9 +43,6 @@ func NewRouter(config *HandlerConfig) http.Handler {
 	if config.OIDCConfig != nil {
 		apiV1Router.HandleFunc("GET /oauth/login", LoginOIDC(config))
 		apiV1Router.HandleFunc("GET /oauth/callback", CallbackOIDC(config))
-		apiV1Router.HandleFunc("POST /accounts/me/link-oidc", requirePermission([]string{PermReadMyUser}, config.JWTSecret, config.OIDCConfig, LinkOIDC(config), config.SystemLogger, config.AuditLogger))
-		apiV1Router.HandleFunc("GET /oauth/link-callback", CallbackLinkOIDC(config))
-		apiV1Router.HandleFunc("DELETE /accounts/me/unlink-oidc", requirePermission([]string{PermReadMyUser}, config.JWTSecret, config.OIDCConfig, UnlinkOIDC(config), config.SystemLogger, config.AuditLogger))
 	}
 
 	apiV1Router.HandleFunc("GET /config", requirePermission([]string{PermReadConfig}, config.JWTSecret, config.OIDCConfig, GetConfigContent(config), config.SystemLogger, config.AuditLogger))

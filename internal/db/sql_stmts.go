@@ -301,15 +301,13 @@ WITH RECURSIVE cas_with_chain AS (
 	// // // // // // // // // //
 	// Users Table SQL Strings //
 	// // // // // // // // // //
-	listUsersStmt         = "SELECT &User.* from users"
-	getUserStmt           = "SELECT &User.* from users WHERE id==$User.id or email==$User.email or oidc_subject==$User.oidc_subject"
-	createUserStmt        = "INSERT INTO users (email, hashed_password, role_id) VALUES ($User.email, $User.hashed_password, $User.role_id)"
-	createOIDCUserStmt    = "INSERT INTO users (email, hashed_password, role_id, oidc_subject) VALUES ($User.email, NULL, $User.role_id, $User.oidc_subject)"
-	updateUserStmt        = "UPDATE users SET hashed_password=$User.hashed_password WHERE id==$User.id or email==$User.email"
-	linkOIDCAccountStmt   = "UPDATE users SET oidc_subject=$User.oidc_subject WHERE id==$User.id AND oidc_subject IS NULL"
-	unlinkOIDCAccountStmt = "UPDATE users SET oidc_subject=NULL WHERE id==$User.id"
-	deleteUserStmt        = "DELETE FROM users WHERE id==$User.id"
-	getNumUsersStmt       = "SELECT COUNT(*) AS &NumUsers.count FROM users"
+	listUsersStmt      = "SELECT &User.* from users"
+	getUserStmt        = "SELECT &User.* from users WHERE id==$User.id or email==$User.email or oidc_subject==$User.oidc_subject"
+	createUserStmt     = "INSERT INTO users (email, hashed_password, role_id) VALUES ($User.email, $User.hashed_password, $User.role_id)"
+	createOIDCUserStmt = "INSERT INTO users (email, hashed_password, role_id, oidc_subject) VALUES ($User.email, NULL, $User.role_id, $User.oidc_subject)"
+	updateUserStmt     = "UPDATE users SET hashed_password=$User.hashed_password WHERE id==$User.id or email==$User.email"
+	deleteUserStmt     = "DELETE FROM users WHERE id==$User.id"
+	getNumUsersStmt    = "SELECT COUNT(*) AS &NumUsers.count FROM users"
 
 	// // // // // // // // // //
 	// Encryption Key SQL Strings //
@@ -362,15 +360,13 @@ type Statements struct {
 	DeletePrivateKey *sqlair.Statement
 
 	// User statements
-	CreateUser      *sqlair.Statement
-	CreateOIDCUser  *sqlair.Statement
-	GetUser         *sqlair.Statement
-	UpdateUser      *sqlair.Statement
-	LinkOIDCAccount *sqlair.Statement
-	UnlinkOIDC      *sqlair.Statement
-	ListUsers       *sqlair.Statement
-	DeleteUser      *sqlair.Statement
-	GetNumUsers     *sqlair.Statement
+	CreateUser     *sqlair.Statement
+	CreateOIDCUser *sqlair.Statement
+	GetUser        *sqlair.Statement
+	UpdateUser     *sqlair.Statement
+	ListUsers      *sqlair.Statement
+	DeleteUser     *sqlair.Statement
+	GetNumUsers    *sqlair.Statement
 
 	// Encryption Key statements
 	CreateEncryptionKey *sqlair.Statement
@@ -427,8 +423,6 @@ func PrepareStatements() *Statements {
 	stmts.CreateOIDCUser = sqlair.MustPrepare(createOIDCUserStmt, User{})
 	stmts.GetUser = sqlair.MustPrepare(getUserStmt, User{})
 	stmts.UpdateUser = sqlair.MustPrepare(updateUserStmt, User{})
-	stmts.LinkOIDCAccount = sqlair.MustPrepare(linkOIDCAccountStmt, User{})
-	stmts.UnlinkOIDC = sqlair.MustPrepare(unlinkOIDCAccountStmt, User{})
 	stmts.ListUsers = sqlair.MustPrepare(listUsersStmt, User{})
 	stmts.DeleteUser = sqlair.MustPrepare(deleteUserStmt, User{})
 	stmts.GetNumUsers = sqlair.MustPrepare(getNumUsersStmt, NumUsers{})

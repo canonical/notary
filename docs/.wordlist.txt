@@ -27,6 +27,7 @@ YubiHSM
 HSM
 HSMs
 AES
+CSRF
 decrypt
 HSM's
 SDK
@@ -35,6 +36,11 @@ config
 RBAC
 GCM
 HashiCorp
+hostname
+namespaced
+oauth
+OIDC
+OpenID
 Requestor
 Grafana
 OpenTelemetry

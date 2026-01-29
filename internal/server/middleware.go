@@ -259,17 +259,7 @@ func requirePermission(
 			logging.WithReason("insufficient permissions"),
 		)
 		writeError(w, http.StatusForbidden, "forbidden: insufficient permissions", errors.New("missing permission"), systemLogger)
-		return
 	}
-}
-
-func hasPermission(userPermissions []string, required string) bool {
-	for _, p := range userPermissions {
-		if p == required || p == "*" {
-			return true
-		}
-	}
-	return false
 }
 
 func requirePermissionOrFirstUser(permission string, jwtSecret []byte, oidcConfig *config.OIDCConfig, db *db.Database, handler http.HandlerFunc, systemLogger *zap.Logger, auditLogger *logging.AuditLogger) http.HandlerFunc {

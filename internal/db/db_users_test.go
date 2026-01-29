@@ -13,18 +13,18 @@ func TestUsersEndToEnd(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)
 
 	userAdminEmail := "admin@canonical.com"
-	userID, err := database.CreateUser(userAdminEmail, "pw123", 0)
+	_, err := database.CreateUser(userAdminEmail, "pw123", 0)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
 
 	userNormanEmail := "norman@canonical.com"
-	userID, err = database.CreateUser(userNormanEmail, "pw456", 1)
+	userNormanID, err := database.CreateUser(userNormanEmail, "pw456", 1)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
-	if userID != 2 {
-		t.Fatalf("Couldn't complete Create: expected user id 1, but got %d", userID)
+	if userNormanID != 2 {
+		t.Fatalf("Couldn't complete Create: expected user id 2, but got %d", userNormanID)
 	}
 
 	res, err := database.ListUsers()
@@ -51,7 +51,7 @@ func TestUsersEndToEnd(t *testing.T) {
 		t.Fatalf("The user from the database doesn't match the user that was given")
 	}
 
-	retrievedUser, err = database.GetUser(db.ByUserID(userID))
+	retrievedUser, err = database.GetUser(db.ByUserID(userNormanID))
 	if err != nil {
 		t.Fatalf("Couldn't complete Retrieve: %s", err)
 	}

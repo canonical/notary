@@ -132,7 +132,9 @@ func CallbackOIDC(env *HandlerConfig) http.HandlerFunc {
 </html>`
 					w.Header().Set("Content-Type", "text/html")
 					w.WriteHeader(http.StatusConflict)
-					w.Write([]byte(errorPage))
+					if _, writeErr := w.Write([]byte(errorPage)); writeErr != nil {
+						env.SystemLogger.Error("Failed to write OIDC error page", zap.Error(writeErr))
+					}
 					return
 				}
 			}

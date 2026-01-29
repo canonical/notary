@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/canonical/notary/internal/server"
 	tu "github.com/canonical/notary/internal/testutils"
 )
 
@@ -28,6 +29,14 @@ func getConfig(url string, client *http.Client, token string) (int, *GetConfigRe
 	}
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
+		req.AddCookie(&http.Cookie{
+			Name:     server.CookieSessionTokenKey,
+			Value:    token,
+			HttpOnly: true,
+			Secure:   true,
+			Path:     "/",
+			SameSite: http.SameSiteStrictMode,
+		})
 	}
 	res, err := client.Do(req)
 	if err != nil {

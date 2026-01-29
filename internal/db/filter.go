@@ -30,9 +30,9 @@ func (filter *CertificateFilter) AsCertificate() *Certificate {
 }
 
 type CSRFilter struct {
-	UserID *int64
-	ID     *int64
-	PEM    *string
+	UserEmail *string
+	ID        *int64
+	PEM       *string
 }
 
 func ByCSRID(id int64) CSRFilter {
@@ -43,6 +43,10 @@ func ByCSRPEM(pem string) CSRFilter {
 	return CSRFilter{PEM: &pem}
 }
 
+func ByUserEmail(email string) CSRFilter {
+	return CSRFilter{UserEmail: &email}
+}
+
 func (filter *CSRFilter) AsCertificateRequest() *CertificateRequest {
 	var csrRow CertificateRequest
 
@@ -51,10 +55,10 @@ func (filter *CSRFilter) AsCertificateRequest() *CertificateRequest {
 		csrRow = CertificateRequest{CSR_ID: *filter.ID}
 	case filter.PEM != nil:
 		csrRow = CertificateRequest{CSR: *filter.PEM}
-	case filter.UserID != nil:
-		csrRow = CertificateRequest{UserID: *filter.UserID}
+	case filter.UserEmail != nil:
+		csrRow = CertificateRequest{UserEmail: *filter.UserEmail}
 	default:
-		panic(fmt.Errorf("%w: only CSR ID, PEM, and UserID are supported", ErrInvalidFilter))
+		panic(fmt.Errorf("%w: only CSR ID, PEM, and User Email are supported", ErrInvalidFilter))
 	}
 	return &csrRow
 }
@@ -67,8 +71,8 @@ func (filter *CSRFilter) AsCertificateRequestWithChain() *CertificateRequestWith
 		csrRow = CertificateRequestWithChain{CSR_ID: *filter.ID}
 	case filter.PEM != nil:
 		csrRow = CertificateRequestWithChain{CSR: *filter.PEM}
-	case filter.UserID != nil:
-		csrRow = CertificateRequestWithChain{UserID: *filter.UserID}
+	case filter.UserEmail != nil:
+		csrRow = CertificateRequestWithChain{UserEmail: *filter.UserEmail}
 	default:
 		panic(fmt.Errorf("%w: only CSR ID, PEM and UserID are supported", ErrInvalidFilter))
 	}
@@ -76,8 +80,9 @@ func (filter *CSRFilter) AsCertificateRequestWithChain() *CertificateRequestWith
 }
 
 type UserFilter struct {
-	ID    *int64
-	Email *string
+	ID          *int64
+	Email       *string
+	OIDCSubject *string
 }
 
 func ByUserID(id int64) UserFilter {
@@ -88,6 +93,10 @@ func ByEmail(email string) UserFilter {
 	return UserFilter{Email: &email}
 }
 
+func ByOIDCSubject(subject string) UserFilter {
+	return UserFilter{OIDCSubject: &subject}
+}
+
 func (filter *UserFilter) AsUser() *User {
 	var userRow User
 
@@ -96,8 +105,10 @@ func (filter *UserFilter) AsUser() *User {
 		userRow = User{ID: *filter.ID}
 	case filter.Email != nil:
 		userRow = User{Email: *filter.Email}
+	case filter.OIDCSubject != nil:
+		userRow = User{OIDCSubject: filter.OIDCSubject}
 	default:
-		panic(fmt.Errorf("%w: only user ID or email is supported but none was provided", ErrInvalidFilter))
+		panic(fmt.Errorf("%w: only user ID, email, or OIDC subject is supported but none was provided", ErrInvalidFilter))
 	}
 	return &userRow
 }

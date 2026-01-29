@@ -84,9 +84,13 @@ type SuccessResponse struct {
 }
 
 type GetAccountResponseResult struct {
-	ID     int    `json:"id"`
-	Email  string `json:"email"`
-	RoleID int    `json:"role_id"`
+	ID          int      `json:"id"`
+	Email       string   `json:"email"`
+	RoleID      int      `json:"role_id"`
+	HasPassword bool     `json:"has_password"`
+	HasOIDC     bool     `json:"has_oidc"`
+	OIDCSubject *string  `json:"oidc_subject,omitempty"`
+	AuthMethods []string `json:"auth_methods"`
 }
 
 type GetAccountResponse struct {
@@ -146,6 +150,14 @@ func GetAccount(url string, client *http.Client, token string, id int) (int, *Ge
 		return 0, nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -164,6 +176,14 @@ func GetMyAccount(url string, client *http.Client, token string) (int, *GetAccou
 		return 0, nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -186,6 +206,14 @@ func CreateAccount(url string, client *http.Client, token string, data *CreateAc
 		return 0, nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -208,6 +236,14 @@ func ChangeAccountPassword(url string, client *http.Client, token string, id int
 		return 0, nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -226,6 +262,14 @@ func DeleteAccount(url string, client *http.Client, token string, id int) (int, 
 		return 0, nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -254,6 +298,14 @@ func GetStatus(url string, client *http.Client, token string) (int, *GetStatusRe
 		return 0, nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -295,6 +347,10 @@ func Login(url string, client *http.Client, data *LoginParams) (int, *LoginRespo
 	}
 	defer res.Body.Close() // nolint: errcheck
 	var loginResponse LoginResponse
+	if len(res.Cookies()) >= 1 {
+		tokenValue := res.Cookies()[0].Value
+		loginResponse.Result.Token = tokenValue
+	}
 	if err := json.NewDecoder(res.Body).Decode(&loginResponse); err != nil {
 		return 0, nil, err
 	}
@@ -344,6 +400,14 @@ func ListCertificateRequests(url string, client *http.Client, token string) (int
 		return 0, nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -361,6 +425,14 @@ func GetCertificateRequest(url string, client *http.Client, token string, id int
 		return 0, nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -383,6 +455,14 @@ func CreateCertificateRequest(url string, client *http.Client, token string, cer
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -400,6 +480,14 @@ func DeleteCertificateRequest(url string, client *http.Client, token string, id 
 		return 0, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, err
@@ -418,6 +506,14 @@ func CreateCertificate(url string, client *http.Client, token string, cert Creat
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -435,6 +531,14 @@ func RejectCertificate(url string, client *http.Client, token string, id int) (i
 		return 0, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, err
@@ -471,6 +575,14 @@ func CreateCertificateAuthority(url string, client *http.Client, token string, c
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -493,6 +605,14 @@ func ListCertificateAuthorities(url string, client *http.Client, token string) (
 		return 0, nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -515,6 +635,14 @@ func GetCertificateAuthority(url string, client *http.Client, token string, id i
 		return 0, nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -550,6 +678,14 @@ func UpdateCertificateAuthority(url string, client *http.Client, token string, i
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -567,6 +703,14 @@ func DeleteCertificateAuthority(url string, client *http.Client, token string, i
 		return 0, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, err
@@ -590,6 +734,14 @@ func UploadCertificateToCertificateAuthority(url string, client *http.Client, to
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -617,6 +769,14 @@ func SignCertificateRequest(url string, client *http.Client, token string, id in
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -643,6 +803,14 @@ func SignCertificateAuthority(url string, client *http.Client, token string, id 
 		return 0, nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	req.Header.Set("Content-Type", "application/json")
 	res, err := client.Do(req)
 	if err != nil {
@@ -666,6 +834,14 @@ func RevokeCertificateAuthority(url string, client *http.Client, token string, i
 		return 0, nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -688,6 +864,14 @@ func RevokeCertificateRequest(url string, client *http.Client, token string, id 
 		return 0, nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -710,6 +894,14 @@ func GetCertificateAuthorityCRLRequest(url string, client *http.Client, token st
 		return 0, nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -767,6 +959,14 @@ func CreateRequestBombWithCustomHeader(url string, client *http.Client, token st
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Length", contentLengthHeaderData)
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, err

@@ -44,4 +44,5 @@ login.md
 metrics.md
 status.md
 config.md
+oidc.md
 ```

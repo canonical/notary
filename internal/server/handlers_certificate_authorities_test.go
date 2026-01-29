@@ -16,7 +16,8 @@ import (
 // The order of the tests is important, as some tests depend on the state of the server after previous tests.
 func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 	ts, logs := tu.MustPrepareServer(t)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+	adminEmail := "admin@canonical.com"
+	adminToken := tu.MustPrepareAccount(t, ts, adminEmail, tu.RoleAdmin, "")
 	client := ts.Client()
 
 	t.Run("1. List certificate authorities", func(t *testing.T) {

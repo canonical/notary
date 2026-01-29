@@ -128,3 +128,14 @@ func ValidateUser(email string, roleID RoleID) error {
 	}
 	return nil
 }
+
+// ValidateOIDCUser validates an OIDC user (email is optional, only sub is required)
+func ValidateOIDCUser(oidcSubject string, roleID RoleID) error {
+	if oidcSubject == "" {
+		return fmt.Errorf("%w: oidc_subject cannot be empty", ErrInvalidUser)
+	}
+	if roleID < 0 || roleID > 3 {
+		return fmt.Errorf("%w: invalid role ID: %d", ErrInvalidUser, roleID)
+	}
+	return nil
+}

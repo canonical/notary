@@ -47,11 +47,12 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 			TLSPrivateKey:             appContext.TLSPrivateKey,
 			Port:                      appContext.Port,
 			Database:                  db,
+			OIDCConfig:                appContext.OIDCConfig,
 			ExternalHostname:          appContext.ExternalHostname,
 			EnablePebbleNotifications: appContext.PebbleNotificationsEnabled,
 			SystemLogger:              appContext.SystemLogger,
 			AuditLogger:               appContext.AuditLogger,
-			Tracer: 				   appContext.Tracer,
+			Tracer:                    appContext.Tracer,
 			PublicConfig:              appContext.PublicConfig,
 		})
 		if err != nil {

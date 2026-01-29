@@ -11,13 +11,16 @@ import (
 
 	"strconv"
 
+	"github.com/MicahParks/keyfunc/v3"
 	eb "github.com/canonical/notary/internal/encryption_backend"
 	"github.com/canonical/notary/internal/tracing"
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"golang.org/x/oauth2"
 )
 
 // CreateAppContext opens and processes the given configuration yaml file by
@@ -30,7 +33,13 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 	if err := validateServerConfig(cfg); err != nil {
 		return nil, fmt.Errorf("failed to validate server config: %w", err)
 	}
+
 	appContext := NotaryAppContext{}
+	appContext.Port = cfg.GetInt("port")
+	appContext.ExternalHostname = cfg.GetString("external_hostname")
+	appContext.DBPath = cfg.GetString("db_path")
+	appContext.ApplyMigrations = cfg.GetBool("migrate-database")
+	appContext.PebbleNotificationsEnabled = cfg.GetBool("pebble_notifications")
 
 	cert, err := os.ReadFile(cfg.GetString("cert_path"))
 	if err != nil {
@@ -63,12 +72,11 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 	if err != nil {
 		return nil, fmt.Errorf("couldn't initialize encryption backend: %w", err)
 	}
-
-	appContext.Port = cfg.GetInt("port")
-	appContext.ExternalHostname = cfg.GetString("external_hostname")
-	appContext.DBPath = cfg.GetString("db_path")
-	appContext.ApplyMigrations = cfg.GetBool("migrate-database")
-	appContext.PebbleNotificationsEnabled = cfg.GetBool("pebble_notifications")
+	// initialize OIDC config
+	oidcConfig, err := initializeOIDC(cfg.Sub("authentication.oidc"), appContext.ExternalHostname)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't initialize OIDC config: %w", err)
+	}
 
 	appContext.TLSCertificate = cert
 	appContext.TLSPrivateKey = key
@@ -77,6 +85,7 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 	appContext.Tracer = tracer
 	appContext.EncryptionBackend = backend
 	appContext.EncryptionBackendType = backendType
+	appContext.OIDCConfig = oidcConfig
 	appContext.PublicConfig = &PublicConfigData{
 		Port:                  cfg.GetInt("port"),
 		PebbleNotifications:   cfg.GetBool("pebble_notifications"),
@@ -84,6 +93,7 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 		LoggingOutput:         cfg.GetString("logging.system.output"),
 		EncryptionBackendType: backendType,
 	}
+
 	return &appContext, nil
 }
 
@@ -281,6 +291,60 @@ func initializeAuditLogger(cfg *viper.Viper) (*zap.Logger, error) {
 	}
 
 	return logger, nil
+}
+
+func initializeOIDC(cfg *viper.Viper, externalHostname string) (*OIDCConfig, error) {
+	if cfg == nil {
+		return nil, nil
+	}
+
+	oidcServer := fmt.Sprintf("https://%s/", cfg.GetString("domain"))
+	clientID := cfg.GetString("client_id")
+	clientSecret := cfg.GetString("client_secret")
+	audience := cfg.GetString("audience")
+	emailScope := cfg.GetString("email_scope_key")
+	permissionsScope := cfg.GetString("permissions_scope_key")
+	extraScopes := cfg.GetStringSlice("extra_scopes")
+
+	provider, err := oidc.NewProvider(context.Background(), oidcServer)
+	if err != nil {
+		return nil, err
+	}
+
+	var discovery struct {
+		Issuer  string `json:"issuer"`
+		JWKSURI string `json:"jwks_uri"`
+	}
+	_ = provider.Claims(&discovery)
+
+	jwksURL := discovery.JWKSURI
+	if jwksURL == "" {
+		jwksURL = oidcServer + ".well-known/jwks.json"
+	}
+	keyfunc, err := keyfunc.NewDefaultCtx(context.Background(), []string{jwksURL})
+	if err != nil {
+		return nil, err
+	}
+
+	oauth2Config := &oauth2.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		RedirectURL:  fmt.Sprintf("https://%s/api/v1/oauth/callback", externalHostname),
+
+		Endpoint: provider.Endpoint(),
+
+		Scopes: append([]string{oidc.ScopeOpenID, emailScope, permissionsScope}, extraScopes...),
+	}
+
+	return &OIDCConfig{
+		OAuth2Config:        oauth2Config,
+		Audience:            audience,
+		OIDCProvider:        provider,
+		Issuer:              discovery.Issuer,
+		KeyFunc:             keyfunc,
+		EmailClaimKey:       emailScope,
+		PermissionsClaimKey: permissionsScope,
+	}, nil
 }
 
 // initializeTracing creates and configures a tracer based on the configuration.

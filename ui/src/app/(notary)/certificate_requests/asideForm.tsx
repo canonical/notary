@@ -15,7 +15,6 @@ import {
   Panel,
   Form,
 } from "@canonical/react-components";
-import { useAuth } from "@/hooks/useAuth";
 
 type AsideProps = {
   setAsideOpen: Dispatch<SetStateAction<boolean>>;
@@ -24,7 +23,6 @@ type AsideProps = {
 export default function CertificateRequestsAsidePanel({
   setAsideOpen,
 }: AsideProps): JSX.Element {
-  const auth = useAuth();
   const [errorText, setErrorText] = useState<string>("");
   const [CSRPEMString, setCSRPEMString] = useState<string>("");
   const queryClient = useQueryClient();
@@ -70,7 +68,6 @@ export default function CertificateRequestsAsidePanel({
 
   const handleSubmit = () => {
     mutation.mutate({
-      authToken: auth.user ? auth.user.authToken : "",
       csr: CSRPEMString,
     });
   };

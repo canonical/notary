@@ -16,6 +16,7 @@ import {
 } from "@/components/NotaryConfirmationModal";
 import { useAuth } from "@/hooks/useAuth";
 import { RoleID } from "@/types";
+import { useActiveCA } from "@/hooks/useActiveCA";
 
 type TableProps = {
   csrs: CSREntry[];
@@ -27,6 +28,7 @@ export function CertificateRequestsTable({
   setAsideOpen,
 }: TableProps) {
   const auth = useAuth();
+  const [activeCA] = useActiveCA();
   const [certificateFormOpen, setCertificateFormOpen] =
     useState<boolean>(false);
   const [confirmationModalData, setConfirmationModalData] =
@@ -71,18 +73,17 @@ export function CertificateRequestsTable({
   };
 
   const handleSign = (id: number) => {
-    if (!auth.activeCA) {
+    if (!activeCA) {
       return;
     }
-    const certs = splitBundle(auth.activeCA.certificate);
+    const certs = splitBundle(activeCA?.certificate);
     const clientCertificate = certs?.at(0);
     const certObj = clientCertificate ? extractCert(clientCertificate) : null;
     setConfirmationModalData({
       queryFn: signCSR,
       queryParams: {
         id: id.toString(),
-        authToken: auth.user?.authToken,
-        certificate_authority_id: auth.activeCA.id,
+        certificate_authority_id: activeCA.id,
       },
       closeFn: () => setConfirmationModalData(null),
       queryKey: "csrs",
@@ -94,7 +95,7 @@ export function CertificateRequestsTable({
   const handleReject = (id: number) => {
     setConfirmationModalData({
       queryFn: rejectCSR,
-      queryParams: { id: id.toString(), authToken: auth.user?.authToken },
+      queryParams: { id: id.toString() },
       closeFn: () => setConfirmationModalData(null),
       queryKey: "csrs",
       warningText:
@@ -106,7 +107,7 @@ export function CertificateRequestsTable({
   const handleDelete = (id: number) => {
     setConfirmationModalData({
       queryFn: deleteCSR,
-      queryParams: { id: id.toString(), authToken: auth.user?.authToken },
+      queryParams: { id: id.toString() },
       closeFn: () => setConfirmationModalData(null),
       queryKey: "csrs",
       warningText:
@@ -118,7 +119,7 @@ export function CertificateRequestsTable({
   const handleRevoke = (id: number) => {
     setConfirmationModalData({
       queryFn: revokeCertificate,
-      queryParams: { id: id.toString(), authToken: auth.user?.authToken },
+      queryParams: { id: id.toString() },
       closeFn: () => setConfirmationModalData(null),
       queryKey: "csrs",
       warningText:
@@ -253,7 +254,7 @@ export function CertificateRequestsTable({
                     <>
                       <Button
                         className="p-contextual-menu__link"
-                        disabled={!auth.activeCA}
+                        disabled={!activeCA}
                         onClick={() => handleSign(id)}
                       >
                         Sign CSR

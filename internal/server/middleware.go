@@ -2,19 +2,20 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/canonical/notary/internal/auth"
 	"github.com/canonical/notary/internal/config"
 	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/logging"
 	"github.com/canonical/notary/internal/metrics"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -150,7 +151,7 @@ func auditLoggingMiddleware(ctx *middlewareContext) middleware {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			next.ServeHTTP(w, r)
 			var actor string
-			claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), ctx.jwtSecret)
+			claims, err := getClaimsFromCookie(r, ctx.jwtSecret, nil)
 			if err == nil {
 				actor = claims.Email
 			}
@@ -226,9 +227,18 @@ func extractResourceType(path string) string {
 	return ""
 }
 
-func requirePermission(permission string, jwtSecret []byte, handler http.HandlerFunc, systemLogger *zap.Logger, auditLogger *logging.AuditLogger) http.HandlerFunc {
+// requirePermission authorizes a request based on the user's given permissions.
+// At least one of the required permissions must be present in the user's permissions.
+func requirePermission(
+	requiredPermissions []string,
+	jwtSecret []byte,
+	oidcConfig *config.OIDCConfig,
+	handler http.HandlerFunc,
+	systemLogger *zap.Logger,
+	auditLogger *logging.AuditLogger,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
+		claims, err := getClaimsFromCookie(r, jwtSecret, oidcConfig)
 		if err != nil {
 			auditLogger.UnauthorizedAccess(
 				logging.WithRequest(r),
@@ -238,41 +248,21 @@ func requirePermission(permission string, jwtSecret []byte, handler http.Handler
 			return
 		}
 
-		roleID := claims.RoleID
-		permissions, ok := PermissionsByRole[roleID]
-		if !ok {
-			auditLogger.UnauthorizedAccess(
-				logging.WithActor(claims.Email),
-				logging.WithRequest(r),
-				logging.WithReason("unknown role"),
-			)
-			writeError(w, http.StatusForbidden, "forbidden: unknown role", errors.New("role not found"), systemLogger)
-			return
+		for _, perm := range requiredPermissions {
+			if slices.Contains(claims.Permissions, perm) {
+				handler(w, r)
+				return
+			}
 		}
-
-		if !hasPermission(permissions, permission) {
-			auditLogger.AccessDenied(claims.Email, r.URL.Path, permission,
-				logging.WithRequest(r),
-				logging.WithReason("insufficient permissions"),
-			)
-			writeError(w, http.StatusForbidden, "forbidden: insufficient permissions", errors.New("missing permission"), systemLogger)
-			return
-		}
-
-		handler(w, r)
+		auditLogger.AccessDenied(claims.Email, r.URL.Path, strings.Join(requiredPermissions, ","),
+			logging.WithRequest(r),
+			logging.WithReason("insufficient permissions"),
+		)
+		writeError(w, http.StatusForbidden, "forbidden: insufficient permissions", errors.New("missing permission"), systemLogger)
 	}
 }
 
-func hasPermission(userPermissions []string, required string) bool {
-	for _, p := range userPermissions {
-		if p == required || p == "*" {
-			return true
-		}
-	}
-	return false
-}
-
-func requirePermissionOrFirstUser(permission string, jwtSecret []byte, db *db.Database, handler http.HandlerFunc, systemLogger *zap.Logger, auditLogger *logging.AuditLogger) http.HandlerFunc {
+func requirePermissionOrFirstUser(permission string, jwtSecret []byte, oidcConfig *config.OIDCConfig, db *db.Database, handler http.HandlerFunc, systemLogger *zap.Logger, auditLogger *logging.AuditLogger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		numUsers, err := db.NumUsers()
 		if err != nil {
@@ -285,7 +275,7 @@ func requirePermissionOrFirstUser(permission string, jwtSecret []byte, db *db.Da
 			return
 		}
 
-		claims, err := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), jwtSecret)
+		claims, err := getClaimsFromCookie(r, jwtSecret, oidcConfig)
 		if err != nil {
 			auditLogger.UnauthorizedAccess(
 				logging.WithRequest(r),
@@ -295,8 +285,7 @@ func requirePermissionOrFirstUser(permission string, jwtSecret []byte, db *db.Da
 			return
 		}
 
-		permissions, ok := PermissionsByRole[claims.RoleID]
-		if !ok || !hasPermission(permissions, permission) {
+		if !slices.Contains(claims.Permissions, permission) {
 			auditLogger.AccessDenied(claims.Email, r.URL.Path, permission,
 				logging.WithRequest(r),
 				logging.WithReason("insufficient permissions"),
@@ -309,86 +298,36 @@ func requirePermissionOrFirstUser(permission string, jwtSecret []byte, db *db.Da
 	}
 }
 
-func getClaimsFromAuthorizationHeader(header string, jwtSecret []byte) (*jwtNotaryClaims, error) {
-	if header == "" {
-		return nil, fmt.Errorf("authorization header not found")
+func getClaimsFromCookie(r *http.Request, jwtSecret []byte, oidcConfig *config.OIDCConfig) (*auth.NotaryJWTClaims, error) {
+	c, err := r.Cookie(CookieSessionTokenKey)
+	if err != nil {
+		return nil, fmt.Errorf("cookie not found")
 	}
-	bearerToken := strings.Split(header, " ")
-	if len(bearerToken) != 2 || bearerToken[0] != "Bearer" {
-		return nil, fmt.Errorf("authorization header couldn't be processed. The expected format is 'Bearer <token>'")
+	if c.Value == "" {
+		return nil, fmt.Errorf("cookie value not found")
 	}
-	claims, err := getClaimsFromJWT(bearerToken[1], jwtSecret)
+
+	claims, err := getClaimsFromJWT(c.Value, jwtSecret, oidcConfig)
 	if err != nil {
 		return nil, fmt.Errorf("token is not valid: %s", err)
 	}
 	return claims, nil
 }
 
-// AllowRequest looks at the user data to determine the following things:
-// The first question is "Is this user trying to access a path that's restricted?"
-//
-// There are two types of restricted paths: admin only paths that only admins can access, and self authorized paths,
-// which users are allowed to use only if they are taking an action on their own user ID. The second question is
-// "If the path requires an ID, is the user attempting to access their own ID?"
-//
-// For all endpoints and permission permutations, there are only 2 cases when users are allowed to use endpoints:
-// If the URL path is not restricted to admins
-// If the URL path is restricted to self authorized endpoints, and the user is taking action with their own ID
-// This function validates that the user the with the given claims is allowed to use the endpoints by passing the above checks.
-func AllowRequest(claims *jwtNotaryClaims, method, path string) (bool, error) {
-	restrictedPaths := []struct {
-		method, pathRegex     string
-		SelfAuthorizedAllowed bool
-	}{
-		{"POST", `accounts$`, false},
-		{"GET", `accounts$`, false},
-		{"DELETE", `accounts\/(\d+)$`, false},
-		{"GET", `accounts\/(\d+)$`, true},
-		{"POST", `accounts\/(\d+)\/change_password$`, true},
-	}
-	for _, pr := range restrictedPaths {
-		regexChallenge, err := regexp.Compile(pr.pathRegex)
-		if err != nil {
-			return false, fmt.Errorf("regex couldn't compile: %s", err)
-		}
-		matches := regexChallenge.FindStringSubmatch(path)
-		restrictedPathMatchedToRequestedPath := len(matches) > 0 && method == pr.method
-		if !restrictedPathMatchedToRequestedPath {
-			continue
-		}
-		if !pr.SelfAuthorizedAllowed {
-			return false, nil
-		}
-		matchedID, err := strconv.ParseInt(matches[1], 10, 64)
-		if err != nil {
-			return true, fmt.Errorf("error converting url id to string: %s", err)
-		}
-		var requestedIDMatchesTheClaimant bool
-		if matchedID == claims.ID {
-			requestedIDMatchesTheClaimant = true
-		}
-		IDRequiredForPath := len(matches) > 1
-		if IDRequiredForPath && !requestedIDMatchesTheClaimant {
-			return false, nil
-		}
-		return true, nil
-	}
-	return true, nil
-}
-
-func getClaimsFromJWT(bearerToken string, jwtSecret []byte) (*jwtNotaryClaims, error) {
-	claims := jwtNotaryClaims{}
-	token, err := jwt.ParseWithClaims(bearerToken, &claims, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return jwtSecret, nil
+func getClaimsFromJWT(rawToken string, jwtSecret []byte, oidcConfig *config.OIDCConfig) (*auth.NotaryJWTClaims, error) {
+	v := auth.NewVerifier([]auth.ProviderConfig{
+		{
+			Provider: oidcConfig,
+			Type:     auth.ProviderOIDC,
+		},
+		{
+			Secret: jwtSecret,
+			Type:   auth.ProviderLocal,
+		},
 	})
+	claims, err := v.VerifyToken(context.Background(), rawToken)
 	if err != nil {
 		return nil, err
 	}
-	if !token.Valid {
-		return nil, errors.New("invalid token")
-	}
-	return &claims, nil
+	return claims, nil
 }

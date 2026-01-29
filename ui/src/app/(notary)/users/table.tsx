@@ -13,7 +13,6 @@ import {
   ChangePasswordModalData,
   ChangePasswordModal,
 } from "./components";
-import { useAuth } from "@/hooks/useAuth";
 import { deleteUser } from "@/queries";
 
 type TableProps = {
@@ -30,7 +29,6 @@ const roleLabels: Record<RoleID, string> = {
 };
 
 export function UsersTable({ users, setAsideOpen, setFormData }: TableProps) {
-  const auth = useAuth();
   const [confirmationModalData, setConfirmationModalData] =
     useState<ConfirmationModalData>(null);
   const [changePasswordModalData, setChangePasswordModalData] =
@@ -44,8 +42,7 @@ export function UsersTable({ users, setAsideOpen, setFormData }: TableProps) {
     setConfirmationModalData({
       warningText: `Deleting user: "${email}". This action cannot be undone.`,
       onMouseDownFunc: () => {
-        const authToken = auth.user ? auth.user.authToken : "";
-        deleteMutation.mutate({ id: id, authToken });
+        deleteMutation.mutate({ id: id });
       },
     });
   };

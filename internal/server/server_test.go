@@ -119,6 +119,14 @@ func createRequestBomb(url string, client *http.Client, adminToken string, certR
 	}
 	req.Header.Set("Authorization", "Bearer "+adminToken)
 	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    adminToken,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, err
@@ -142,6 +150,14 @@ func createRequestBombWithCustomHeader(url string, client *http.Client, adminTok
 	req.Header.Set("Authorization", "Bearer "+adminToken)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Length", contentLengthHeaderData)
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    adminToken,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, err

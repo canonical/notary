@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -71,9 +72,9 @@ type CertificateRequest struct {
 // ListCertificateRequests returns all of the Certificate Requests
 func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
-		if headerErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.SystemLogger)
+		claims, cookieErr := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		if cookieErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.SystemLogger)
 			return
 		}
 
@@ -81,8 +82,8 @@ func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 		var err error
 
 		filter := &db.CSRFilter{}
-		if claims.RoleID == RoleCertificateRequestor {
-			filter.UserID = &claims.ID
+		if !slices.Contains(claims.Permissions, PermReadCertificateRequest) {
+			filter.UserEmail = &claims.Email
 		}
 
 		csrs, err = env.DB.ListCertificateRequestWithCertificatesWithoutCAS(filter)
@@ -94,10 +95,11 @@ func ListCertificateRequests(env *HandlerConfig) http.HandlerFunc {
 		certificateRequestsResponse := make([]CertificateRequest, len(csrs))
 		for i, csr := range csrs {
 			var email string
-			user, err := env.DB.GetUser(db.ByUserID(csr.UserID))
+			user, err := env.DB.GetUser(db.ByEmail(csr.UserEmail))
 			if err != nil {
 				if errors.Is(err, db.ErrNotFound) {
-					env.SystemLogger.Warn("user not found for certificate request", zap.Int64("user_id", csr.UserID))
+					env.SystemLogger.Warn("user not found for certificate request", zap.String("user_email", csr.UserEmail))
+					// Here, we're purposefully hiding the email of an account that's deleted even though we have the information
 					email = "unknown"
 				} else {
 					writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
@@ -135,14 +137,13 @@ func CreateCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.SystemLogger)
 			return
 		}
-
-		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
-		if headerErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.SystemLogger)
+		claims, cookieErr := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		if cookieErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.SystemLogger)
 			return
 		}
 
-		newCSRID, err := env.DB.CreateCertificateRequest(createCertificateRequestParams.CSR, claims.ID)
+		newCSRID, err := env.DB.CreateCertificateRequest(createCertificateRequestParams.CSR, claims.Email)
 		if err != nil {
 			if errors.Is(err, db.ErrAlreadyExists) {
 				writeError(w, http.StatusBadRequest, "given csr already recorded", err, env.SystemLogger)
@@ -174,7 +175,7 @@ func CreateCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 // returns the corresponding Certificate Request
 func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
+		claims, headerErr := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
 		if headerErr != nil {
 			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.SystemLogger)
 			return
@@ -198,7 +199,7 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 		}
 
 		// Restrict access to certificate requestors' own requests
-		if claims.RoleID == RoleCertificateRequestor && claims.ID != csr.UserID {
+		if !slices.Contains(claims.Permissions, PermReadCertificateRequest) && claims.Email != csr.UserEmail {
 			writeError(w, http.StatusForbidden, "Access denied", fmt.Errorf("user does not have permission to access this certificate request"), env.SystemLogger)
 			return
 		}
@@ -214,10 +215,11 @@ func GetCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 		}
 
 		var email string
-		user, err := env.DB.GetUser(db.ByUserID(csr.UserID))
+		user, err := env.DB.GetUser(db.ByEmail(csr.UserEmail))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
-				env.SystemLogger.Warn("user not found for certificate request", zap.Int64("user_id", csr.UserID))
+				env.SystemLogger.Warn("user not found for certificate request", zap.String("user_email", csr.UserEmail))
+				// Here, we're purposefully hiding the email of an account that's deleted even though we have the information
 				email = "unknown"
 			} else {
 				writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
@@ -254,9 +256,9 @@ func DeleteCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 
-		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
-		if headerErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.SystemLogger)
+		claims, cookieErr := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		if cookieErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.SystemLogger)
 			return
 		}
 
@@ -314,9 +316,9 @@ func PostCertificateRequestCertificate(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 
-		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
-		if headerErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.SystemLogger)
+		claims, cookieErr := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		if cookieErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.SystemLogger)
 			return
 		}
 
@@ -371,9 +373,9 @@ func RejectCertificateRequest(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 
-		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
-		if headerErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.SystemLogger)
+		claims, cookieErr := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		if cookieErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.SystemLogger)
 			return
 		}
 
@@ -473,9 +475,9 @@ func RevokeCertificate(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 
-		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
-		if headerErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.SystemLogger)
+		claims, cookieErr := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		if cookieErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.SystemLogger)
 			return
 		}
 

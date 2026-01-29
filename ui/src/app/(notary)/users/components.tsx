@@ -5,7 +5,6 @@ import {
   ChangeEvent,
   createContext,
 } from "react";
-import { useAuth } from "@/hooks/useAuth";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { changePassword, changeSelfPassword } from "@/queries";
 import { passwordIsValid } from "@/utils";
@@ -76,7 +75,6 @@ export function ChangePasswordModal({
   self: boolean;
   setChangePasswordModalVisible: Dispatch<SetStateAction<boolean>>;
 }) {
-  const auth = useAuth();
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
@@ -121,7 +119,6 @@ export function ChangePasswordModal({
             onClick={(event) => {
               event.preventDefault();
               mutation.mutate({
-                authToken: auth.user ? auth.user.authToken : "",
                 id,
                 password: password1,
               });

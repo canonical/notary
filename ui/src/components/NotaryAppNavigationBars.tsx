@@ -8,7 +8,6 @@ import { AppNavigation } from "@canonical/react-components";
 import { AppNavigationBar } from "@canonical/react-components";
 import { ChangePasswordModal } from "@/app/(notary)/users/components";
 import { RoleID } from "../types";
-import { useCookies } from "react-cookie";
 
 type SidebarProps = {
   sidebarVisible: boolean;
@@ -23,7 +22,6 @@ export function SideBar({
 }: SidebarProps) {
   const auth = useAuth();
   const path = usePathname();
-  const [, , removeCookie] = useCookies(["user_token"]);
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
 
   return (
@@ -76,7 +74,8 @@ export function SideBar({
                       </span>
                     </a>
                   </li>
-                  {auth.user?.role_id !== undefined &&
+                  {auth.user &&
+                    auth.user?.role_id !== undefined &&
                     [
                       RoleID.Admin,
                       RoleID.CertificateManager,
@@ -164,7 +163,7 @@ export function SideBar({
                                 </button>
                                 <button
                                   className="p-contextual-menu__link"
-                                  onClick={() => removeCookie("user_token")}
+                                  onClick={() => auth.logout()}
                                 >
                                   Log Out
                                 </button>

@@ -18,7 +18,6 @@ import {
   validateLocalityName,
   validateNotAfter,
 } from "@/validators";
-import { useAuth } from "@/hooks/useAuth";
 
 type AsideProps = {
   setAsideOpen: Dispatch<SetStateAction<boolean>>;
@@ -28,7 +27,6 @@ export default function CertificateAuthoritiesAsidePanel({
   setAsideOpen,
 }: AsideProps): JSX.Element {
   const queryClient = useQueryClient();
-  const auth = useAuth();
 
   const [isSelfSigned, setIsSelfSigned] = useState<boolean | null>(null);
 
@@ -69,8 +67,6 @@ export default function CertificateAuthoritiesAsidePanel({
 
   const handleSubmit = () => {
     mutation.mutate({
-      authToken: auth.user ? auth.user.authToken : "",
-
       SelfSigned: isSelfSigned ? isSelfSigned : false,
 
       CommonName: commonName,

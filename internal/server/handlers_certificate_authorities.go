@@ -272,9 +272,9 @@ func CreateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.SystemLogger)
 			return
 		}
-		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
-		if headerErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.SystemLogger)
+		claims, cookieErr := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		if cookieErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.SystemLogger)
 			return
 		}
 		csrPEM, privPEM, crlPEM, certPEM, err := createCertificateAuthority(params)
@@ -360,9 +360,9 @@ func UpdateCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 
-		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
-		if headerErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.SystemLogger)
+		claims, cookieErr := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		if cookieErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.SystemLogger)
 			return
 		}
 
@@ -401,9 +401,9 @@ func DeleteCertificateAuthority(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 
-		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
-		if headerErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.SystemLogger)
+		claims, cookieErr := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		if cookieErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.SystemLogger)
 			return
 		}
 
@@ -462,9 +462,9 @@ func PostCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 
-		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
-		if headerErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.SystemLogger)
+		claims, cookieErr := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		if cookieErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.SystemLogger)
 			return
 		}
 
@@ -583,9 +583,9 @@ func RevokeCertificateAuthorityCertificate(env *HandlerConfig) http.HandlerFunc 
 			return
 		}
 
-		claims, headerErr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret)
-		if headerErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.SystemLogger)
+		claims, cookieErr := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		if cookieErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.SystemLogger)
 			return
 		}
 

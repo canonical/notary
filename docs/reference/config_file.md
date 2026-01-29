@@ -9,6 +9,7 @@ Or If you are using the snap you can modify the config under `/var/snap/notary/c
 
 - `key_path` (string): Path to the private key for enabling HTTPS connections.
 - `cert_path` (string): Path to a PEM formatted certificate for enabling HTTPS connections.
+- `external_hostname` (string): The external hostname or IP address (with optional port) where Notary is accessible. Used for constructing OIDC redirect URLs and CRL distribution points. Example: `notary.example.com` or `localhost:2111`.
 - `db_path` (string): Path to where the sqlite database should be stored. If the file does not exist Notary will attempt to create it.
 - `port` (integer): Port number on which Notary will listen for all incoming API and frontend connections.
 - `pebble_notifications` (boolean): Allow Notary to send pebble notices on certificate events (create, update, delete). Pebble needs to be running on the same system as Notary.
@@ -31,6 +32,16 @@ Or If you are using the snap you can modify the config under `/var/snap/notary/c
       - `approle_secret_id` (string): Secret ID for AppRole authentication.
       - `tls_ca_cert` (string): Path to the CA certificate for TLS verification (optional).
       - `tls_skip_verify` (boolean): Whether to skip TLS certificate verification (optional, defaults to `false`). It is strongly discouraged to set this to `true` outside of development environments
+- `authentication` (object): Configuration for authenticating to Notary.
+  - `authentication` (object): Authentication configuration.
+    - `oidc` (object): Configuration for an OIDC identity provider.
+      - `domain` (string): URL of the OIDC provider not including the protocol.
+      - `client_id` (string): The client ID provided to you by the OIDC provider.
+      - `client_secret` (string): The client secret provided to you by the OIDC provider.
+      - `audience` (string): The audience value to be included in the oauth2 process.
+      - `email_scope_key` (string): The email scope and claim that will be requested as a scope and checked in the claims of the ID token. Common values: "email" (standard OIDC), or custom namespaced claims. Email is optional - users can be provisioned with only their OIDC subject identifier.
+      - `permissions_scope_key` (string): The permission scope and claim that will be requested as a scope and checked in the claims of the access token.
+      - `extra_scopes` ([]string): Extra scopes to request from the OIDC provider.
 - `tracing` (object): Configuration for tracing.
   - `service_name` (string): The name that will identify your service in the tracing system
   - `endpoint` (string): The URL of your OpenTelemetry collector endpoint

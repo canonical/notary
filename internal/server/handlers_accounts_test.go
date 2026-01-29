@@ -232,8 +232,17 @@ func TestAccountsEndToEnd(t *testing.T) {
 		if response.Result.Email != "testadmin@canonical.com" {
 			t.Fatalf("expected email testadmin@canonical.com, got %s", response.Result.Email)
 		}
-		if response.Result.RoleID != 0 {
-			t.Fatalf("expected role ID 0, got %d", response.Result.RoleID)
+		if response.Result.RoleID != int(tu.RoleAdmin) {
+			t.Fatalf("expected role ID %d, got %d", tu.RoleAdmin, response.Result.RoleID)
+		}
+		if !response.Result.HasPassword {
+			t.Fatal("expected admin to have password")
+		}
+		if response.Result.HasOIDC {
+			t.Fatal("expected admin to not have OIDC")
+		}
+		if len(response.Result.AuthMethods) != 1 || response.Result.AuthMethods[0] != "local" {
+			t.Fatalf("expected auth methods [local], got %v", response.Result.AuthMethods)
 		}
 	})
 }

@@ -2,7 +2,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { passwordIsValid } from "@/utils";
 import { changePassword, postUser } from "@/queries";
 import { ChangeEvent, Dispatch, SetStateAction, useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
 import {
   Panel,
   Button,
@@ -40,7 +39,6 @@ export default function UsersPageAsidePanel(asideProps: AsideProps) {
 }
 
 function AddNewUserForm(asideProps: AsideProps) {
-  const auth = useAuth();
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: postUser,
@@ -142,7 +140,6 @@ function AddNewUserForm(asideProps: AsideProps) {
           onClick={(event) => {
             event.preventDefault();
             mutation.mutate({
-              authToken: auth.user ? auth.user.authToken : "",
               email: email,
               password: password1,
               role_id: role_id,
@@ -157,7 +154,6 @@ function AddNewUserForm(asideProps: AsideProps) {
 }
 
 function ChangePasswordForm(asideProps: AsideProps) {
-  const auth = useAuth();
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: changePassword,
@@ -216,7 +212,6 @@ function ChangePasswordForm(asideProps: AsideProps) {
           onClick={(event) => {
             event.preventDefault();
             mutation.mutate({
-              authToken: auth.user ? auth.user.authToken : "",
               id: asideProps.formData.user ? asideProps.formData.user.id : "0",
               password: password1,
             });

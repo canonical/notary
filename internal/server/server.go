@@ -33,6 +33,23 @@ func New(opts *ServerOpts) (*Server, error) {
 	cfg.Tracer = opts.Tracer
 	cfg.PublicConfig = *opts.PublicConfig
 	cfg.DB = opts.Database
+	cfg.OIDCConfig = opts.OIDCConfig
+
+	if opts.OIDCConfig != nil {
+		cfg.StateStore = NewStateStore()
+
+		go func() {
+			ticker := time.NewTicker(1 * time.Minute)
+			defer ticker.Stop()
+			for range ticker.C {
+				cfg.StateStore.Cleanup()
+				opts.SystemLogger.Debug("cleaned up expired OIDC states",
+					zap.Int("remaining_states", cfg.StateStore.Size()))
+			}
+		}()
+
+		opts.SystemLogger.Info("OIDC authentication enabled with state store")
+	}
 
 	router := NewRouter(cfg)
 	if cfg.Tracer != nil {

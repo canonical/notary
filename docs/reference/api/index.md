@@ -40,9 +40,9 @@ GET calls to the `/metrics` endpoint don't follow this rule; they return text re
 accounts.md
 certificate_authorities.md
 certificate_requests.md
- login.md
- metrics.md
- status.md
- config.md
- oidc.md
+login.md
+metrics.md
+status.md
+config.md
+oidc.md
 ```

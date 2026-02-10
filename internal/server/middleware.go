@@ -238,7 +238,7 @@ func requirePermission(
 	auditLogger *logging.AuditLogger,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		claims, err := getClaimsFromCookie(r, jwtSecret, oidcConfig)
+		claims, err := getClaimsFromRequest(r, jwtSecret, oidcConfig)
 		if err != nil {
 			auditLogger.UnauthorizedAccess(
 				logging.WithRequest(r),
@@ -275,7 +275,7 @@ func requirePermissionOrFirstUser(permission string, jwtSecret []byte, oidcConfi
 			return
 		}
 
-		claims, err := getClaimsFromCookie(r, jwtSecret, oidcConfig)
+		claims, err := getClaimsFromRequest(r, jwtSecret, oidcConfig)
 		if err != nil {
 			auditLogger.UnauthorizedAccess(
 				logging.WithRequest(r),
@@ -312,6 +312,13 @@ func getClaimsFromCookie(r *http.Request, jwtSecret []byte, oidcConfig *config.O
 		return nil, fmt.Errorf("token is not valid: %s", err)
 	}
 	return claims, nil
+}
+
+func getClaimsFromRequest(r *http.Request, jwtSecret []byte, oidcConfig *config.OIDCConfig) (*auth.NotaryJWTClaims, error) {
+	if authHeader := r.Header.Get("Authorization"); authHeader != "" {
+		return getClaimsFromAuthorizationHeader(authHeader, jwtSecret, oidcConfig)
+	}
+	return getClaimsFromCookie(r, jwtSecret, oidcConfig)
 }
 
 func getClaimsFromAuthorizationHeader(authHeader string, jwtSecret []byte, oidcConfig *config.OIDCConfig) (*auth.NotaryJWTClaims, error) {

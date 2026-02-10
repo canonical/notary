@@ -29,7 +29,7 @@ func RestoreBackup(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 
-    	if claims, cerr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret); cerr == nil {
+		if claims, cerr := getClaimsFromAuthorizationHeader(r.Header.Get("Authorization"), env.JWTSecret, env.OIDCConfig); cerr == nil {
     		env.AuditLogger.BackupRestored(req.File,
     			logging.WithActor(claims.Email),
     			logging.WithRequest(r),

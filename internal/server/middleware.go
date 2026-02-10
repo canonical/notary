@@ -314,6 +314,24 @@ func getClaimsFromCookie(r *http.Request, jwtSecret []byte, oidcConfig *config.O
 	return claims, nil
 }
 
+func getClaimsFromAuthorizationHeader(authHeader string, jwtSecret []byte, oidcConfig *config.OIDCConfig) (*auth.NotaryJWTClaims, error) {
+	if authHeader == "" {
+		return nil, fmt.Errorf("authorization header not found")
+	}
+
+	parts := strings.Fields(authHeader)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+		return nil, fmt.Errorf("invalid authorization header")
+	}
+
+	claims, err := getClaimsFromJWT(parts[1], jwtSecret, oidcConfig)
+	if err != nil {
+		return nil, fmt.Errorf("token is not valid: %s", err)
+	}
+
+	return claims, nil
+}
+
 func getClaimsFromJWT(rawToken string, jwtSecret []byte, oidcConfig *config.OIDCConfig) (*auth.NotaryJWTClaims, error) {
 	v := auth.NewVerifier([]auth.ProviderConfig{
 		{

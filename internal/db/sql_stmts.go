@@ -306,6 +306,7 @@ WITH RECURSIVE cas_with_chain AS (
 	createUserStmt     = "INSERT INTO users (email, hashed_password, role_id) VALUES ($User.email, $User.hashed_password, $User.role_id)"
 	createOIDCUserStmt = "INSERT INTO users (email, hashed_password, role_id, oidc_subject) VALUES ($User.email, NULL, $User.role_id, $User.oidc_subject)"
 	updateUserStmt     = "UPDATE users SET hashed_password=$User.hashed_password WHERE id==$User.id or email==$User.email"
+	updateUserRoleStmt = "UPDATE users SET role_id=$User.role_id WHERE id==$User.id"
 	deleteUserStmt     = "DELETE FROM users WHERE id==$User.id"
 	getNumUsersStmt    = "SELECT COUNT(*) AS &NumUsers.count FROM users"
 
@@ -364,6 +365,7 @@ type Statements struct {
 	CreateOIDCUser *sqlair.Statement
 	GetUser        *sqlair.Statement
 	UpdateUser     *sqlair.Statement
+	UpdateUserRole *sqlair.Statement
 	ListUsers      *sqlair.Statement
 	DeleteUser     *sqlair.Statement
 	GetNumUsers    *sqlair.Statement
@@ -423,6 +425,7 @@ func PrepareStatements() *Statements {
 	stmts.CreateOIDCUser = sqlair.MustPrepare(createOIDCUserStmt, User{})
 	stmts.GetUser = sqlair.MustPrepare(getUserStmt, User{})
 	stmts.UpdateUser = sqlair.MustPrepare(updateUserStmt, User{})
+	stmts.UpdateUserRole = sqlair.MustPrepare(updateUserRoleStmt, User{})
 	stmts.ListUsers = sqlair.MustPrepare(listUsersStmt, User{})
 	stmts.DeleteUser = sqlair.MustPrepare(deleteUserStmt, User{})
 	stmts.GetNumUsers = sqlair.MustPrepare(getNumUsersStmt, NumUsers{})

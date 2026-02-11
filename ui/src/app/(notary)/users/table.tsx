@@ -12,8 +12,9 @@ import {
   UsersConfirmationModal,
   ChangePasswordModalData,
   ChangePasswordModal,
+  ChangeRoleModal,
 } from "./components";
-import { deleteUser } from "@/queries";
+import { deleteUser, updateUserRole } from "@/queries";
 
 type TableProps = {
   users: UserEntry[];
@@ -33,6 +34,11 @@ export function UsersTable({ users, setAsideOpen, setFormData }: TableProps) {
     useState<ConfirmationModalData>(null);
   const [changePasswordModalData, setChangePasswordModalData] =
     useState<ChangePasswordModalData>(null);
+  const [changeRoleModalData, setChangeRoleModalData] = useState<{
+    id: string;
+    email: string;
+    role_id: RoleID;
+  } | null>(null);
   const queryClient = useQueryClient();
   const deleteMutation = useMutation({
     mutationFn: deleteUser,
@@ -48,6 +54,15 @@ export function UsersTable({ users, setAsideOpen, setFormData }: TableProps) {
   };
   const handleChangePassword = (id: string, email: string) => {
     setChangePasswordModalData({ id: id, email: email, self: false });
+  };
+
+  const updateRoleMutation = useMutation({
+    mutationFn: updateUserRole,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
+  });
+
+  const handleChangeRole = (id: string, email: string, role_id: RoleID) => {
+    setChangeRoleModalData({ id, email, role_id });
   };
 
   return (
@@ -108,6 +123,16 @@ export function UsersTable({ users, setAsideOpen, setFormData }: TableProps) {
                           handleDelete(user.id.toString(), user.email),
                       },
                       {
+                        children: "Change Role",
+                        disabled: user.id === 1,
+                        onClick: () =>
+                          handleChangeRole(
+                            user.id.toString(),
+                            user.email,
+                            user.role_id,
+                          ),
+                      },
+                      {
                         children: "Change Password",
                         onClick: () =>
                           handleChangePassword(user.id.toString(), user.email),
@@ -137,6 +162,20 @@ export function UsersTable({ users, setAsideOpen, setFormData }: TableProps) {
           email={changePasswordModalData.email}
           setChangePasswordModalVisible={() => setChangePasswordModalData(null)}
           self={false}
+        />
+      )}
+      {changeRoleModalData && (
+        <ChangeRoleModal
+          email={changeRoleModalData.email}
+          currentRoleID={changeRoleModalData.role_id}
+          setChangeRoleModalVisible={() => setChangeRoleModalData(null)}
+          onSubmit={(roleID) => {
+            updateRoleMutation.mutate({
+              id: changeRoleModalData.id,
+              role_id: roleID,
+            });
+            setChangeRoleModalData(null);
+          }}
         />
       )}
     </Panel>

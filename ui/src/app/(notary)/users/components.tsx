@@ -15,7 +15,9 @@ import {
   Input,
   PasswordToggle,
   Form,
+  Select,
 } from "@canonical/react-components";
+import { RoleID } from "@/types";
 
 export type ConfirmationModalData = {
   onMouseDownFunc: () => void;
@@ -152,6 +154,66 @@ export function ChangePasswordModal({
           required={true}
           onChange={handlePassword2Change}
           error={password2Error}
+        />
+      </Form>
+    </Modal>
+  );
+}
+
+export function ChangeRoleModal({
+  email,
+  currentRoleID,
+  setChangeRoleModalVisible,
+  onSubmit,
+}: {
+  email: string;
+  currentRoleID: RoleID;
+  setChangeRoleModalVisible: Dispatch<SetStateAction<boolean>>;
+  onSubmit: (roleID: RoleID) => void;
+}) {
+
+  const [roleID, setRoleID] = useState<RoleID>(currentRoleID);
+
+  return (
+    <Modal
+      title="Change Role"
+      buttonRow={
+        <>
+          <Button onClick={() => setChangeRoleModalVisible(false)}>
+            Cancel
+          </Button>
+          <Button
+            appearance="positive"
+            onClick={(event) => {
+              event.preventDefault();
+              onSubmit(roleID);
+            }}
+          >
+            Submit
+          </Button>
+        </>
+      }
+    >
+      <Form>
+        <Input
+          id="ChangeRoleEmail"
+          label="Email"
+          type="text"
+          required={true}
+          disabled={true}
+          value={email}
+        />
+        <Select
+          id="ChangeRoleRoleID"
+          label="Role"
+          value={roleID.toString()}
+          onChange={(event) => setRoleID(Number(event.target.value) as RoleID)}
+          options={[
+            { label: "Admin", value: RoleID.Admin },
+            { label: "Certificate Manager", value: RoleID.CertificateManager },
+            { label: "Certificate Requestor", value: RoleID.CertificateRequestor },
+            { label: "Read Only", value: RoleID.ReadOnly },
+          ]}
         />
       </Form>
     </Modal>

@@ -266,6 +266,21 @@ export async function deleteUser(params: { id: string }) {
   return respData.result;
 }
 
+export async function updateUserRole(params: { id: string; role_id: number }) {
+
+  const response = await fetch("/api/v1/accounts/" + params.id + "/role", {
+    method: "PUT",
+    body: JSON.stringify({ role_id: params.role_id }),
+  });
+  const respData = await response.json();
+  if (!response.ok) {
+    throw new Error(
+      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
+    );
+  }
+  return respData.result;
+}
+
 export async function postFirstUser(userForm: {
   email: string;
   password: string;

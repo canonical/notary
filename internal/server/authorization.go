@@ -5,6 +5,7 @@ const (
 	PermListUsers          = "user:list"
 	PermCreateUser         = "user:create"
 	PermUpdateUser         = "user:update"
+	PermUpdateUserRole     = "user:update_role"
 	PermUpdateUserPassword = "user:update_password"
 	PermUpdateMyPassword   = "user:update_my_password"
 	PermReadUser           = "user:read"
@@ -61,6 +62,7 @@ var PermissionsByRole = map[RoleID][]string{
 		PermListUsers,
 		PermCreateUser,
 		PermUpdateUser,
+		PermUpdateUserRole,
 		PermUpdateUserPassword,
 		PermUpdateMyPassword,
 		PermReadUser,

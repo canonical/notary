@@ -144,6 +144,19 @@ type DeleteAccountResponse struct {
 	Error  string                      `json:"error,omitempty"`
 }
 
+type UpdateAccountRoleParams struct {
+	RoleID RoleID `json:"role_id"`
+}
+
+type UpdateAccountRoleResponseResult struct {
+	Message string `json:"message"`
+}
+
+type UpdateAccountRoleResponse struct {
+	Result UpdateAccountRoleResponseResult `json:"result"`
+	Error  string                          `json:"error,omitempty"`
+}
+
 func GetAccount(url string, client *http.Client, token string, id int) (int, *GetAccountResponse, error) {
 	req, err := http.NewRequest("GET", url+"/api/v1/accounts/"+strconv.Itoa(id), nil)
 	if err != nil {
@@ -280,6 +293,36 @@ func DeleteAccount(url string, client *http.Client, token string, id int) (int, 
 		return 0, nil, err
 	}
 	return res.StatusCode, &deleteResponse, nil
+}
+
+func UpdateAccountRole(url string, client *http.Client, token string, id int, data *UpdateAccountRoleParams) (int, *UpdateAccountRoleResponse, error) {
+	body, err := json.Marshal(data)
+	if err != nil {
+		return 0, nil, err
+	}
+	req, err := http.NewRequest("PUT", url+"/api/v1/accounts/"+strconv.Itoa(id)+"/role", strings.NewReader(string(body)))
+	if err != nil {
+		return 0, nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
+	res, err := client.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer res.Body.Close() // nolint: errcheck
+	var updateResponse UpdateAccountRoleResponse
+	if err := json.NewDecoder(res.Body).Decode(&updateResponse); err != nil {
+		return 0, nil, err
+	}
+	return res.StatusCode, &updateResponse, nil
 }
 
 type GetStatusResponseResult struct {

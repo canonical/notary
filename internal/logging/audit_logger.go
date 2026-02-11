@@ -3,6 +3,7 @@ package logging
 import (
 	"fmt"
 
+	"github.com/canonical/notary/internal/db"
 	"go.uber.org/zap"
 )
 
@@ -266,7 +267,7 @@ func (a *AuditLogger) UserCreated(username string, roleID int, opts ...AuditOpti
 	}
 
 	roleName := fmt.Sprintf("role_%d", roleID)
-	if roleID == 1 {
+	if roleID == int(db.RoleCertificateManager) {
 		roleName = "admin"
 	} else if roleID == 2 {
 		roleName = "user"

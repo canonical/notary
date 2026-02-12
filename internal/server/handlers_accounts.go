@@ -208,7 +208,7 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 		}
 		valid, err := createAccountParams.IsValid()
 		if !valid {
-			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.SystemLogger)
+			writeError(w, http.StatusBadRequest, fmt.Sprintf("Invalid request: %s", err), err, env.SystemLogger)
 			return
 		}
 		newUserID, err := env.DB.CreateUser(createAccountParams.Email, createAccountParams.Password, db.RoleID(createAccountParams.RoleID))
@@ -336,7 +336,7 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 				logging.WithRequest(r),
 				logging.WithReason(err.Error()),
 			)
-			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.SystemLogger)
+			writeError(w, http.StatusBadRequest, fmt.Sprintf("Invalid request: %s", err), err, env.SystemLogger)
 			return
 		}
 		err = env.DB.UpdateUserPassword(db.ByUserID(idNum), changeAccountParams.Password)
@@ -402,7 +402,7 @@ func ChangeMyPassword(env *HandlerConfig) http.HandlerFunc {
 				logging.WithRequest(r),
 				logging.WithReason(err.Error()),
 			)
-			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.SystemLogger)
+			writeError(w, http.StatusBadRequest, fmt.Sprintf("Invalid request: %s", err), err, env.SystemLogger)
 			return
 		}
 		err = env.DB.UpdateUserPassword(db.ByUserID(idNum), changeAccountParams.Password)

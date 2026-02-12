@@ -41,6 +41,13 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 			l.Fatal("couldn't initialize database", zap.Error(err))
 		}
 
+		// Initialize authorization config after database creation
+		authzConfig, err := config.InitializeAuthorizationConfig(db, appContext.SystemLogger)
+		if err != nil {
+			l.Fatal("couldn't initialize authorization", zap.Error(err))
+		}
+		appContext.AuthorizationConfig = authzConfig
+
 		// Initialize and run the API and webserver
 		srv, err := server.New(&server.ServerOpts{
 			TLSCertificate:            appContext.TLSCertificate,

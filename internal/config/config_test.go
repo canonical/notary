@@ -69,7 +69,7 @@ func TestValidConfig(t *testing.T) {
 				t.Errorf("ValidateConfig(%q) = %v, want nil", "config.yaml", err)
 				return
 			}
-			if !cmp.Equal(gotCfg, tc.wantCfg, cmpopts.IgnoreFields(config.NotaryAppContext{}, "SystemLogger", "AuditLogger")) {
+			if !cmp.Equal(gotCfg, tc.wantCfg, cmpopts.IgnoreFields(config.NotaryAppContext{}, "SystemLogger", "AuditLogger", "AuthorizationConfig")) {
 				t.Errorf("ValidateConfig returned unexpected diff (-want+got):\n%v", cmp.Diff(tc.wantCfg, gotCfg))
 			}
 		})

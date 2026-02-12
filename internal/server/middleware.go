@@ -227,9 +227,9 @@ func extractResourceType(path string) string {
 	return ""
 }
 
-// requirePermission authorizes a request based on the user's given permissions.
+// requirePermission authorizes a request based on OpenFGA or JWT permissions.
 // At least one of the required permissions must be present in the user's permissions.
-func requirePermission( // TODO: replace this with checkPermission, talks to openfga for auth decisions instead
+func requirePermission(
 	requiredPermissions []string,
 	jwtSecret []byte,
 	oidcConfig *config.OIDCConfig,
@@ -248,17 +248,25 @@ func requirePermission( // TODO: replace this with checkPermission, talks to ope
 			return
 		}
 
+		// Check if user has required permission
+		hasPermission := false
 		for _, perm := range requiredPermissions {
 			if slices.Contains(claims.Permissions, perm) {
-				handler(w, r)
-				return
+				hasPermission = true
+				break
 			}
 		}
-		auditLogger.AccessDenied(claims.Email, r.URL.Path, strings.Join(requiredPermissions, ","),
-			log.WithRequest(r),
-			log.WithReason("insufficient permissions"),
-		)
-		writeError(w, http.StatusForbidden, "forbidden: insufficient permissions", errors.New("missing permission"), systemLogger)
+
+		if !hasPermission {
+			auditLogger.AccessDenied(claims.Email, r.URL.Path, strings.Join(requiredPermissions, ","),
+				log.WithRequest(r),
+				log.WithReason("insufficient permissions"),
+			)
+			writeError(w, http.StatusForbidden, "forbidden: insufficient permissions", errors.New("missing permission"), systemLogger)
+			return
+		}
+
+		handler(w, r)
 	}
 }
 

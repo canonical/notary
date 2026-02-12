@@ -12,8 +12,10 @@ import (
 	"strconv"
 
 	"github.com/MicahParks/keyfunc/v3"
+	authz "github.com/canonical/notary/internal/backends/authorization"
 	eb "github.com/canonical/notary/internal/backends/encryption"
 	"github.com/canonical/notary/internal/backends/observability/tracing"
+	"github.com/canonical/notary/internal/db"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -53,35 +55,32 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 	// initialize system logger
 	systemLogger, err := initializeLogger(cfg.Sub("logging.system"))
 	if err != nil {
-		return nil, fmt.Errorf("couldn't initialize system logger: %w", err)
+		return nil, fmt.Errorf("couldn't initialize system logging subsystem: %w", err)
 	}
 
 	// initialize audit logger
 	// Audit logs are always at INFO level
 	auditLogger, err := initializeAuditLogger(cfg.Sub("logging.audit"))
 	if err != nil {
-		return nil, fmt.Errorf("couldn't initialize audit logger: %w", err)
+		return nil, fmt.Errorf("couldn't initialize audit logging subsystem: %w", err)
 	}
 	// initialize tracer
 	tracer, err := initializeTracing(cfg.Sub("tracing"), systemLogger)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't initialize tracer: %w", err)
+		return nil, fmt.Errorf("couldn't initialize tracing subsystem: %w", err)
 	}
 	// initialize encryption backend
 	backendType, backend, err := initializeEncryptionBackend(cfg.Sub("encryption_backend"), systemLogger)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't initialize encryption backend: %w", err)
+		return nil, fmt.Errorf("couldn't initialize encryption subsystem: %w", err)
 	}
 	// initialize OIDC config
 	oidcConfig, err := initializeOIDC(cfg.Sub("authentication.oidc"), appContext.ExternalHostname)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't initialize OIDC config: %w", err)
+		return nil, fmt.Errorf("couldn't initialize OIDC subsystem: %w", err)
 	}
-	// initialize openfga server TODO
-	// openFGAConfig, err := initializeOpenFGAServer(cfg.Sub("openfga"), systemLogger)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("couldn't initialize OpenFGA server: %w", err)
-	// }
+	// Note: Authorization config is initialized later after the database is created
+	// This is done in cmd/start.go after db.NewDatabase()
 
 	appContext.TLSCertificate = cert
 	appContext.TLSPrivateKey = key
@@ -91,6 +90,7 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 	appContext.EncryptionBackend = backend
 	appContext.EncryptionBackendType = backendType
 	appContext.OIDCConfig = oidcConfig
+	appContext.AuthorizationConfig = nil // Will be initialized after database creation
 	appContext.PublicConfig = &PublicConfigData{
 		Port:                  cfg.GetInt("port"),
 		PebbleNotifications:   cfg.GetBool("pebble_notifications"),
@@ -296,6 +296,16 @@ func initializeAuditLogger(cfg *viper.Viper) (*zap.Logger, error) {
 	}
 
 	return logger, nil
+}
+
+// InitializeAuthorizationConfig initializes the authorization config after database creation
+// This needs to be called from cmd/start.go after the database is created
+func InitializeAuthorizationConfig(database *db.Database, logger *zap.Logger) (*authz.OpenFGAConfig, error) {
+	ofgaConfig, err := authz.InitializeLocalOpenFGA(database, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize OpenFGA: %w", err)
+	}
+	return ofgaConfig, nil
 }
 
 func initializeOIDC(cfg *viper.Viper, externalHostname string) (*OIDCConfig, error) {

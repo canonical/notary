@@ -2,6 +2,7 @@ package config
 
 import (
 	"github.com/MicahParks/keyfunc/v3"
+	authz "github.com/canonical/notary/internal/backends/authorization"
 	"github.com/canonical/notary/internal/backends/encryption"
 	"github.com/canonical/notary/internal/backends/observability/tracing"
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -63,6 +64,9 @@ type NotaryAppContext struct {
 
 	// OIDC configuration
 	OIDCConfig *OIDCConfig
+
+	// Authorization configuration with OpenFGA
+	AuthorizationConfig *authz.OpenFGAConfig
 }
 
 // This is the configuration for OIDC authentication

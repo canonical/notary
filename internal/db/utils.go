@@ -11,8 +11,8 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/canonical/notary/internal/encryption"
-	"github.com/canonical/notary/internal/encryption_backend"
+	"github.com/canonical/notary/internal/backends/encryption"
+	"github.com/canonical/notary/internal/utils"
 	"go.uber.org/zap"
 )
 
@@ -112,11 +112,11 @@ func getTypeName[T any]() string {
 	return reflect.TypeOf(t).Name()
 }
 
-func setUpEncryptionKey(database *Database, backend encryption_backend.EncryptionBackend, logger *zap.Logger) ([]byte, error) {
+func setUpEncryptionKey(database *Database, backend encryption.EncryptionBackend, logger *zap.Logger) ([]byte, error) {
 	encryptionKeyFromDb, err := database.GetEncryptionKey()
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			encryptionKey, err := encryption.GenerateAES256GCMEncryptionKey()
+			encryptionKey, err := utils.GenerateAES256GCMEncryptionKey()
 			if err != nil {
 				return nil, fmt.Errorf("failed to generate encryption key: %w", err)
 			}

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/canonical/notary/internal/hashing"
+	"github.com/canonical/notary/internal/utils"
 )
 
 // ListUsers returns all of the users and their fields available in the database.
@@ -26,9 +26,9 @@ func (db *Database) CreateUser(email string, password string, roleID RoleID) (in
 	if err != nil {
 		return 0, err
 	}
-	pw, err := hashing.HashPassword(password)
+	pw, err := utils.HashPassword(password)
 	if err != nil {
-		if errors.Is(err, hashing.ErrInvalidPassword) {
+		if errors.Is(err, utils.ErrInvalidPassword) {
 			return 0, fmt.Errorf("%w: invalid password", ErrInvalidUser)
 		}
 		return 0, fmt.Errorf("%w: failed to create user", ErrInternal)
@@ -73,9 +73,9 @@ func (db *Database) CreateOIDCUser(email, oidcSubject string, roleID RoleID) (*U
 // Just like with CreateUser, this function handles hashing and salting the password before storage.
 func (db *Database) UpdateUserPassword(filter UserFilter, password string) error {
 	userRow := filter.AsUser()
-	hashedPassword, err := hashing.HashPassword(password)
+	hashedPassword, err := utils.HashPassword(password)
 	if err != nil {
-		if errors.Is(err, hashing.ErrInvalidPassword) {
+		if errors.Is(err, utils.ErrInvalidPassword) {
 			return fmt.Errorf("%w: invalid password", ErrInvalidInput)
 		}
 		return fmt.Errorf("%w: failed to hash password", ErrInternal)

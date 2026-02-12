@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/canonical/notary/internal/encryption"
+	"github.com/canonical/notary/internal/utils"
 )
 
 type JWTSecret struct {
@@ -15,7 +15,7 @@ type JWTSecret struct {
 
 // createJWTSecret encrypts and stores the JWT secret in the database, there can only be one JWT secret.
 func (db *Database) createJWTSecret(secret []byte) error {
-	encryptedSecret, err := encryption.Encrypt(string(secret), db.EncryptionKey)
+	encryptedSecret, err := utils.Encrypt(string(secret), db.EncryptionKey)
 	if err != nil {
 		return fmt.Errorf("failed to encrypt JWT secret: %w", ErrInternal)
 	}
@@ -36,7 +36,7 @@ func (db *Database) getJWTSecret() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	decryptedSecret, err := encryption.Decrypt(secret.EncryptedSecret, db.EncryptionKey)
+	decryptedSecret, err := utils.Decrypt(secret.EncryptedSecret, db.EncryptionKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decrypt JWT secret: %w", err)
 	}

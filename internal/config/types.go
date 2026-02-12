@@ -2,8 +2,8 @@ package config
 
 import (
 	"github.com/MicahParks/keyfunc/v3"
-	"github.com/canonical/notary/internal/encryption_backend"
-	"github.com/canonical/notary/internal/tracing"
+	"github.com/canonical/notary/internal/backends/encryption"
+	"github.com/canonical/notary/internal/backends/observability/tracing"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
@@ -59,7 +59,7 @@ type NotaryAppContext struct {
 
 	// Encryption backend to be used for encrypting and decrypting sensitive data
 	EncryptionBackendType
-	EncryptionBackend encryption_backend.EncryptionBackend
+	EncryptionBackend encryption.EncryptionBackend
 
 	// OIDC configuration
 	OIDCConfig *OIDCConfig

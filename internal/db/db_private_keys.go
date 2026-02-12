@@ -3,7 +3,7 @@ package db
 import (
 	"fmt"
 
-	"github.com/canonical/notary/internal/encryption"
+	"github.com/canonical/notary/internal/utils"
 )
 
 // GetDecryptedPrivateKey gets a private key row from the repository from a given ID or PEM.
@@ -13,7 +13,7 @@ func (db *Database) GetDecryptedPrivateKey(filter PrivateKeyFilter) (*PrivateKey
 	if err != nil {
 		return nil, err
 	}
-	decryptedPK, err := encryption.Decrypt(pk.PrivateKeyPEM, db.EncryptionKey)
+	decryptedPK, err := utils.Decrypt(pk.PrivateKeyPEM, db.EncryptionKey)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to decrypt private key", ErrInternal)
 	}
@@ -26,7 +26,7 @@ func (db *Database) CreatePrivateKey(pk string) (int64, error) {
 	if err := ValidatePrivateKey(pk); err != nil {
 		return 0, err
 	}
-	encryptedPK, err := encryption.Encrypt(pk, db.EncryptionKey)
+	encryptedPK, err := utils.Encrypt(pk, db.EncryptionKey)
 	if err != nil {
 		return 0, fmt.Errorf("%w: failed to encrypt private key", ErrInternal)
 	}

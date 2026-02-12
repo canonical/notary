@@ -9,8 +9,8 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/canonical/notary/internal/backends/observability/log"
 	"github.com/canonical/notary/internal/db"
-	"github.com/canonical/notary/internal/logging"
 )
 
 type CreateAccountParams struct {
@@ -227,9 +227,9 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 			actor = claims.Email
 		}
 
-		opts := []logging.AuditOption{logging.WithRequest(r)}
+		opts := []log.AuditOption{log.WithRequest(r)}
 		if actor != "" {
-			opts = append(opts, logging.WithActor(actor))
+			opts = append(opts, log.WithActor(actor))
 		}
 		env.AuditLogger.UserCreated(createAccountParams.Email, int(createAccountParams.RoleID), opts...)
 
@@ -284,8 +284,8 @@ func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
 		}
 
 		env.AuditLogger.UserDeleted(account.Email,
-			logging.WithActor(claims.Email),
-			logging.WithRequest(r),
+			log.WithActor(claims.Email),
+			log.WithRequest(r),
 		)
 
 		successResponse := SuccessResponse{Message: "success"}
@@ -332,9 +332,9 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 		valid, err := changeAccountParams.IsValid()
 		if !valid {
 			env.AuditLogger.PasswordChangeFailed(targetAccount.Email,
-				logging.WithActor(claims.Email),
-				logging.WithRequest(r),
-				logging.WithReason(err.Error()),
+				log.WithActor(claims.Email),
+				log.WithRequest(r),
+				log.WithReason(err.Error()),
 			)
 			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.SystemLogger)
 			return
@@ -343,29 +343,29 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				env.AuditLogger.PasswordChangeFailed(targetAccount.Email,
-					logging.WithActor(claims.Email),
-					logging.WithRequest(r),
-					logging.WithReason("user not found"),
+					log.WithActor(claims.Email),
+					log.WithRequest(r),
+					log.WithReason("user not found"),
 				)
 				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
 				return
 			}
 			env.AuditLogger.PasswordChangeFailed(targetAccount.Email,
-				logging.WithActor(claims.Email),
-				logging.WithRequest(r),
-				logging.WithReason("database error"),
+				log.WithActor(claims.Email),
+				log.WithRequest(r),
+				log.WithReason("database error"),
 			)
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
 		}
 
 		env.AuditLogger.PasswordChanged(targetAccount.Email,
-			logging.WithActor(claims.Email),
-			logging.WithRequest(r),
+			log.WithActor(claims.Email),
+			log.WithRequest(r),
 		)
 		env.AuditLogger.UserUpdated(targetAccount.Email, "password_change",
-			logging.WithActor(claims.Email),
-			logging.WithRequest(r),
+			log.WithActor(claims.Email),
+			log.WithRequest(r),
 		)
 
 		successResponse := SuccessResponse{Message: "success"}
@@ -399,8 +399,8 @@ func ChangeMyPassword(env *HandlerConfig) http.HandlerFunc {
 		valid, err := changeAccountParams.IsValid()
 		if !valid {
 			env.AuditLogger.PasswordChangeFailed(account.Email,
-				logging.WithRequest(r),
-				logging.WithReason(err.Error()),
+				log.WithRequest(r),
+				log.WithReason(err.Error()),
 			)
 			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.SystemLogger)
 			return
@@ -409,22 +409,22 @@ func ChangeMyPassword(env *HandlerConfig) http.HandlerFunc {
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				env.AuditLogger.PasswordChangeFailed(account.Email,
-					logging.WithRequest(r),
-					logging.WithReason("user not found"),
+					log.WithRequest(r),
+					log.WithReason("user not found"),
 				)
 				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
 				return
 			}
 			env.AuditLogger.PasswordChangeFailed(account.Email,
-				logging.WithRequest(r),
-				logging.WithReason("database error"),
+				log.WithRequest(r),
+				log.WithReason("database error"),
 			)
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
 		}
 
-		env.AuditLogger.PasswordChanged(account.Email, logging.WithRequest(r))
-		env.AuditLogger.UserUpdated(account.Email, "password_change", logging.WithRequest(r))
+		env.AuditLogger.PasswordChanged(account.Email, log.WithRequest(r))
+		env.AuditLogger.UserUpdated(account.Email, "password_change", log.WithRequest(r))
 
 		successResponse := SuccessResponse{Message: "success"}
 		err = writeResponse(w, successResponse, http.StatusCreated)

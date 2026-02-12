@@ -40,7 +40,7 @@ Use with no argument to apply all migrations. Use with a version number to apply
 		if err != nil {
 			return err
 		}
-		db, err := sql.Open("sqlite3", dsn)
+		db, err := sql.Open("sqlite", dsn)
 		if err != nil {
 			return err
 		}
@@ -75,7 +75,7 @@ Use with a version number to remove migrations up to that version.
 		if err != nil {
 			return err
 		}
-		db, err := sql.Open("sqlite3", dsn)
+		db, err := sql.Open("sqlite", dsn)
 		if err != nil {
 			return err
 		}
@@ -109,7 +109,7 @@ Will display the current migration version and the status of each migration.`,
 		if err != nil {
 			return err
 		}
-		db, err := sql.Open("sqlite3", dsn)
+		db, err := sql.Open("sqlite", dsn)
 		if err != nil {
 			log.Fatal(err)
 		}

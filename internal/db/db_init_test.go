@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	eb "github.com/canonical/notary/internal/backends/encryption"
 	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/db/migrations"
-	eb "github.com/canonical/notary/internal/encryption_backend"
 	"github.com/pressly/goose/v3"
 	"go.uber.org/zap"
 )
@@ -17,7 +17,7 @@ func TestConnect(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	tempDir := t.TempDir()
 
-	sqlConnection, err := sql.Open("sqlite3", filepath.Join(tempDir, "db.sqlite3"))
+	sqlConnection, err := sql.Open("sqlite", filepath.Join(tempDir, "db.sqlite"))
 	if err != nil {
 		t.Fatalf("Couldn't create temporary database: %s", err)
 	}
@@ -31,7 +31,7 @@ func TestConnect(t *testing.T) {
 		t.Fatalf("Couldn't apply database migrations: %s", err)
 	}
 	db, err := db.NewDatabase(&db.DatabaseOpts{
-		DatabasePath: filepath.Join(tempDir, "db.sqlite3"),
+		DatabasePath: filepath.Join(tempDir, "db.sqlite"),
 		Backend:      &eb.NoEncryptionBackend{},
 		Logger:       logger,
 	})

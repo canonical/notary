@@ -1,7 +1,7 @@
 package db
 
 import (
-	"github.com/canonical/notary/internal/encryption_backend"
+	"github.com/canonical/notary/internal/backends/encryption"
 	"github.com/canonical/sqlair"
 	"go.uber.org/zap"
 )
@@ -9,7 +9,7 @@ import (
 type DatabaseOpts struct {
 	DatabasePath    string
 	ApplyMigrations bool
-	Backend         encryption_backend.EncryptionBackend
+	Backend         encryption.EncryptionBackend
 	Logger          *zap.Logger
 }
 

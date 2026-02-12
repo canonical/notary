@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	encryption "github.com/canonical/notary/internal/backends/encryption"
 	"github.com/canonical/notary/internal/config"
 	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/db/migrations"
-	"github.com/canonical/notary/internal/encryption_backend"
 	"github.com/pressly/goose/v3"
 	"go.uber.org/zap"
 )
@@ -17,7 +17,7 @@ func MustPrepareEmptyDB(t *testing.T) *db.Database {
 	t.Helper()
 
 	tempDir := t.TempDir()
-	sqlConnection, err := sql.Open("sqlite3", filepath.Join(tempDir, "db.sqlite3"))
+	sqlConnection, err := sql.Open("sqlite", filepath.Join(tempDir, "db.sqlite"))
 	if err != nil {
 		t.Fatalf("Couldn't create temporary database: %s", err)
 	}
@@ -31,7 +31,7 @@ func MustPrepareEmptyDB(t *testing.T) *db.Database {
 		t.Fatalf("Couldn't apply database migrations: %s", err)
 	}
 	database, err := db.NewDatabase(&db.DatabaseOpts{
-		DatabasePath: filepath.Join(tempDir, "db.sqlite3"),
+		DatabasePath: filepath.Join(tempDir, "db.sqlite"),
 		Backend:      NoneEncryptionBackend,
 		Logger:       logger,
 	})
@@ -47,7 +47,7 @@ func MustPrepareEmptyDB(t *testing.T) *db.Database {
 	return database
 }
 
-var NoneEncryptionBackend = encryption_backend.NoEncryptionBackend{}
+var NoneEncryptionBackend = encryption.NoEncryptionBackend{}
 
 var logger, _ = zap.NewDevelopment()
 

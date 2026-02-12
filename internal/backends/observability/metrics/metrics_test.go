@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/canonical/notary/internal/backends/observability/metrics"
 	"github.com/canonical/notary/internal/db"
-	"github.com/canonical/notary/internal/metrics"
 	tu "github.com/canonical/notary/internal/testutils"
 	"go.uber.org/zap"
 )

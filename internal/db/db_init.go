@@ -10,8 +10,8 @@ import (
 
 	"github.com/canonical/notary/internal/db/migrations"
 	"github.com/canonical/sqlair"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/pressly/goose/v3"
+	_ "modernc.org/sqlite"
 )
 
 // Close closes the connection to the repository cleanly.
@@ -31,7 +31,7 @@ func (db *Database) Close() error {
 // The database path must be a valid file path or ":memory:".
 // The table will be created if it doesn't exist in the format expected by the package.
 func NewDatabase(dbOpts *DatabaseOpts) (*Database, error) {
-	sqlConnection, err := sql.Open("sqlite3", dbOpts.DatabasePath)
+	sqlConnection, err := sql.Open("sqlite", dbOpts.DatabasePath)
 	if err != nil {
 		return nil, err
 	}

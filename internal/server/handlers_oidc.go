@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/canonical/notary/internal/backends/observability/log"
 	"github.com/canonical/notary/internal/db"
-	"github.com/canonical/notary/internal/logging"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
@@ -165,7 +165,7 @@ func CallbackOIDC(env *HandlerConfig) http.HandlerFunc {
 				zap.String("email", emailOrPlaceholder),
 				zap.Int64("user_id", user.ID),
 				zap.String("role", "RoleReadOnly"))
-			env.AuditLogger.UserCreated(emailOrPlaceholder, int(db.RoleReadOnly), logging.WithRequest(r))
+			env.AuditLogger.UserCreated(emailOrPlaceholder, int(db.RoleReadOnly), log.WithRequest(r))
 		}
 
 		// Generate local JWT with user's database role permissions
@@ -186,8 +186,8 @@ func CallbackOIDC(env *HandlerConfig) http.HandlerFunc {
 			SameSite: http.SameSiteStrictMode,
 		})
 
-		env.AuditLogger.TokenCreated(user.Email, logging.WithRequest(r))
-		env.AuditLogger.LoginSuccess(user.Email, logging.WithRequest(r))
+		env.AuditLogger.TokenCreated(user.Email, log.WithRequest(r))
+		env.AuditLogger.LoginSuccess(user.Email, log.WithRequest(r))
 
 		http.Redirect(w, r, "/", http.StatusFound)
 	}

@@ -1,4 +1,4 @@
-package encryption_backend
+package encryption
 
 // NoEncryptionBackend is a no-op implementation of the EncryptionBackend interface.
 // It used when encryption backend is configured to none.

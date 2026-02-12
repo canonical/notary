@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/canonical/notary/internal/logging"
+	"github.com/canonical/notary/internal/backends/observability/log"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -29,7 +29,7 @@ func New(opts *ServerOpts) (*Server, error) {
 	cfg.JWTSecret = opts.Database.JWTSecret
 	cfg.ExternalHostname = opts.ExternalHostname
 	cfg.SystemLogger = opts.SystemLogger
-	cfg.AuditLogger = logging.NewAuditLogger(opts.AuditLogger)
+	cfg.AuditLogger = log.NewAuditLogger(opts.AuditLogger)
 	cfg.Tracer = opts.Tracer
 	cfg.PublicConfig = *opts.PublicConfig
 	cfg.DB = opts.Database

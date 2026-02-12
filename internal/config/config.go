@@ -12,8 +12,8 @@ import (
 	"strconv"
 
 	"github.com/MicahParks/keyfunc/v3"
-	eb "github.com/canonical/notary/internal/encryption_backend"
-	"github.com/canonical/notary/internal/tracing"
+	eb "github.com/canonical/notary/internal/backends/encryption"
+	"github.com/canonical/notary/internal/backends/observability/tracing"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -77,6 +77,11 @@ func CreateAppContext(cmdFlags *pflag.FlagSet, configFilePath string) (*NotaryAp
 	if err != nil {
 		return nil, fmt.Errorf("couldn't initialize OIDC config: %w", err)
 	}
+	// initialize openfga server TODO
+	// openFGAConfig, err := initializeOpenFGAServer(cfg.Sub("openfga"), systemLogger)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("couldn't initialize OpenFGA server: %w", err)
+	// }
 
 	appContext.TLSCertificate = cert
 	appContext.TLSPrivateKey = key

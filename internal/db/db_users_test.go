@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/canonical/notary/internal/db"
-	"github.com/canonical/notary/internal/hashing"
 	tu "github.com/canonical/notary/internal/testutils"
+	"github.com/canonical/notary/internal/utils"
 )
 
 func TestUsersEndToEnd(t *testing.T) {
@@ -58,7 +58,7 @@ func TestUsersEndToEnd(t *testing.T) {
 	if retrievedUser.Email != userNormanEmail {
 		t.Fatalf("The user from the database doesn't match the user that was given")
 	}
-	if err := hashing.CompareHashAndPassword(*retrievedUser.HashedPassword, "pw456"); err != nil {
+	if err := utils.CompareHashAndPassword(*retrievedUser.HashedPassword, "pw456"); err != nil {
 		t.Fatalf("The user's password doesn't match the one stored in the database")
 	}
 
@@ -75,7 +75,7 @@ func TestUsersEndToEnd(t *testing.T) {
 		t.Fatalf("Couldn't complete Update: %s", err)
 	}
 	retrievedUser, _ = database.GetUser(db.ByEmail(userNormanEmail))
-	if err := hashing.CompareHashAndPassword(*retrievedUser.HashedPassword, "thebestpassword"); err != nil {
+	if err := utils.CompareHashAndPassword(*retrievedUser.HashedPassword, "thebestpassword"); err != nil {
 		t.Fatalf("The new password that was given does not match the password that was stored.")
 	}
 }
@@ -397,7 +397,7 @@ func TestUpdateUserPasswordFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete GetUser: %s", err)
 	}
-	if err := hashing.CompareHashAndPassword(*retrievedUser.HashedPassword, originalPassword); err != nil {
+	if err := utils.CompareHashAndPassword(*retrievedUser.HashedPassword, originalPassword); err != nil {
 		t.Fatalf("The user's password doesn't match the one stored in the database")
 	}
 	num, err := database.NumUsers()
@@ -419,7 +419,7 @@ func TestUpdateUserPasswordFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete GetUser: %s", err)
 	}
-	if err := hashing.CompareHashAndPassword(*retrievedUser.HashedPassword, originalPassword); err != nil {
+	if err := utils.CompareHashAndPassword(*retrievedUser.HashedPassword, originalPassword); err != nil {
 		t.Fatalf("The user's password doesn't match the one stored in the database")
 	}
 }

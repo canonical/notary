@@ -1,4 +1,4 @@
-package encryption_backend
+package encryption
 
 // EncryptionBackend defines the interface for encryption operations.
 // Implementations should handle the encryption and decryption of sensitive data.

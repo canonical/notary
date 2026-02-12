@@ -3,9 +3,9 @@ package server
 import (
 	"net/http"
 
+	"github.com/canonical/notary/internal/backends/observability/log"
 	"github.com/canonical/notary/internal/config"
 	"github.com/canonical/notary/internal/db"
-	"github.com/canonical/notary/internal/logging"
 	"go.uber.org/zap"
 )
 
@@ -42,7 +42,7 @@ type ServerOpts struct {
 type HandlerConfig struct {
 	DB                      *db.Database
 	SystemLogger            *zap.Logger
-	AuditLogger             *logging.AuditLogger
+	AuditLogger             *log.AuditLogger
 	Tracer                  *config.Tracer
 	ExternalHostname        string
 	JWTSecret               []byte

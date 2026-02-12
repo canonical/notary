@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/canonical/notary/internal/backends/encryption"
 	"github.com/canonical/notary/internal/config"
-	"github.com/canonical/notary/internal/encryption_backend"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/spf13/pflag"
@@ -36,7 +36,7 @@ func TestValidConfig(t *testing.T) {
 			PebbleNotificationsEnabled: false,
 			SystemLogger:               nil,
 			AuditLogger:                nil,
-			EncryptionBackend:          encryption_backend.NoEncryptionBackend{},
+			EncryptionBackend:          encryption.NoEncryptionBackend{},
 			EncryptionBackendType:      config.EncryptionBackendTypeNone,
 		}}, // This case tests the expected default values for missing fields are filled correctly
 		{"full config", validFullConfig, &config.NotaryAppContext{
@@ -54,7 +54,7 @@ func TestValidConfig(t *testing.T) {
 			PebbleNotificationsEnabled: false,
 			SystemLogger:               nil,
 			AuditLogger:                nil,
-			EncryptionBackend:          encryption_backend.NoEncryptionBackend{},
+			EncryptionBackend:          encryption.NoEncryptionBackend{},
 			EncryptionBackendType:      config.EncryptionBackendTypeNone,
 		}}, // This case tests that the variables from the yaml are correctly copied to the final config
 	}

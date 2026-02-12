@@ -3,7 +3,7 @@ package server
 import (
 	"net/http"
 
-	"github.com/canonical/notary/internal/metrics"
+	"github.com/canonical/notary/internal/backends/observability/metrics"
 	"go.uber.org/zap"
 )
 

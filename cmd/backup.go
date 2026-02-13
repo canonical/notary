@@ -54,7 +54,7 @@ The database configuration is read from the specified config file.`,
 		if err != nil {
 			return fmt.Errorf("failed to initialize logger: %w", err)
 		}
-		defer logger.Sync()
+		defer func() { _ = logger.Sync() }()
 
 		database, err := db.NewDatabase(&db.DatabaseOpts{
 			DatabasePath:    backupConfigPath,
@@ -81,6 +81,6 @@ func init() {
 	backupCmd.Flags().StringVarP(&backupFile, "file", "f", "", "path where the backup archive will be created (directory path)")
 	backupCmd.Flags().StringVarP(&backupConfigPath, "db-path", "d", "", "path to the database file")
 
-	backupCmd.MarkFlagRequired("file")
-	backupCmd.MarkFlagRequired("db-path")
+	_ = backupCmd.MarkFlagRequired("file")
+	_ = backupCmd.MarkFlagRequired("db-path")
 }

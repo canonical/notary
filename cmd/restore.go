@@ -51,7 +51,7 @@ your current database before restoring.`,
 		if err != nil {
 			return fmt.Errorf("failed to initialize logger: %w", err)
 		}
-		defer logger.Sync()
+		defer func() { _ = logger.Sync() }()
 
 		database, err := db.NewDatabase(&db.DatabaseOpts{
 			DatabasePath:    restoreConfigPath,
@@ -77,6 +77,6 @@ func init() {
 	restoreCmd.Flags().StringVarP(&restoreFile, "file", "f", "", "path to the backup archive file to restore")
 	restoreCmd.Flags().StringVarP(&restoreConfigPath, "db-path", "d", "", "path to the database file")
 
-	restoreCmd.MarkFlagRequired("file")
-	restoreCmd.MarkFlagRequired("db-path")
+	_ = restoreCmd.MarkFlagRequired("file")
+	_ = restoreCmd.MarkFlagRequired("db-path")
 }

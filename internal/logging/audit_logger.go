@@ -419,39 +419,3 @@ func (a *AuditLogger) CertificateRevoked(csrID string, opts ...AuditOption) {
 
 	a.logger.Warn("Certificate revoked", fields...)
 }
-
-// Backup Events
-
-// BackupCreated logs when a database backup is successfully created.
-func (a *AuditLogger) BackupCreated(backupPath string, opts ...AuditOption) {
-	ctx := &auditContext{severity: SeverityInfo}
-	for _, opt := range opts {
-		opt(ctx)
-	}
-
-	fields := []zap.Field{
-		zap.String("type", "security"),
-		zap.String("event", "backup_created"),
-		zap.String("backup_path", backupPath),
-	}
-	fields = append(fields, ctx.toZapFields()...)
-
-	a.logger.Info("Database backup created", fields...)
-}
-
-// BackupRestored logs when a database backup is successfully restored.
-func (a *AuditLogger) BackupRestored(backupFile string, opts ...AuditOption) {
-    ctx := &auditContext{severity: SeverityInfo}
-	for _, opt := range opts {
-		opt(ctx)
-	}
-
-	fields := []zap.Field{
-		zap.String("type", "security"),
-		zap.String("event", "backup_restored"),
-		zap.String("backup_file", backupFile),
-	}
-	fields = append(fields, ctx.toZapFields()...)
-
-    a.logger.Info("Database backup restored", fields...)
-}

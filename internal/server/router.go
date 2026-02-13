@@ -47,9 +47,6 @@ func NewRouter(config *HandlerConfig) http.Handler {
 
 	apiV1Router.HandleFunc("GET /config", requirePermission([]string{PermReadConfig}, config.JWTSecret, config.OIDCConfig, GetConfigContent(config), config.SystemLogger, config.AuditLogger))
 
-	apiV1Router.HandleFunc("POST /backup", requirePermission([]string{PermCreateBackup}, config.JWTSecret, config.OIDCConfig, CreateBackup(config), config.SystemLogger, config.AuditLogger))
-	apiV1Router.HandleFunc("POST /restore", requirePermission([]string{PermRestoreBackup}, config.JWTSecret, config.OIDCConfig, RestoreBackup(config), config.SystemLogger, config.AuditLogger))
-
 	m := metrics.NewMetricsSubsystem(config.DB, config.SystemLogger)
 	frontendHandler, err := newFrontendFileServer()
 	if err != nil {

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -77,6 +78,10 @@ func init() {
 	restoreCmd.Flags().StringVarP(&restoreFile, "file", "f", "", "path to the backup archive file to restore")
 	restoreCmd.Flags().StringVarP(&restoreConfigPath, "db-path", "d", "", "path to the database file")
 
-	_ = restoreCmd.MarkFlagRequired("file")
-	_ = restoreCmd.MarkFlagRequired("db-path")
+	if err := restoreCmd.MarkFlagRequired("file"); err != nil {
+		log.Fatalf("Error marking file flag as required: %v", err)
+	}
+	if err := restoreCmd.MarkFlagRequired("db-path"); err != nil {
+		log.Fatalf("Error marking db-path flag as required: %v", err)
+	}
 }

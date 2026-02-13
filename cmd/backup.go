@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -81,6 +82,10 @@ func init() {
 	backupCmd.Flags().StringVarP(&backupFile, "file", "f", "", "path where the backup archive will be created (directory path)")
 	backupCmd.Flags().StringVarP(&backupConfigPath, "db-path", "d", "", "path to the database file")
 
-	_ = backupCmd.MarkFlagRequired("file")
-	_ = backupCmd.MarkFlagRequired("db-path")
+	if err := backupCmd.MarkFlagRequired("file"); err != nil {
+		log.Fatalf("Error marking file flag as required: %v", err)
+	}
+	if err := backupCmd.MarkFlagRequired("db-path"); err != nil {
+		log.Fatalf("Error marking db-path flag as required: %v", err)
+	}
 }

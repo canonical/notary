@@ -260,7 +260,7 @@ func generateCertPair(daysRemaining int) (string, string, string) {
 	return csr, cert, ca
 }
 
-func initializeTestDBWithCerts(t *testing.T, database *db.Database) {
+func initializeTestDBWithCerts(t *testing.T, database *db.DatabaseRepository) {
 	userEmail := "testuser@example.com"
 	_, err := database.CreateUser(userEmail, "whateverPassword", 0)
 	if err != nil {
@@ -279,7 +279,7 @@ func initializeTestDBWithCerts(t *testing.T, database *db.Database) {
 	}
 }
 
-func initializeTestDBWithCaCerts(t *testing.T, database *db.Database) {
+func initializeTestDBWithCaCerts(t *testing.T, database *db.DatabaseRepository) {
 	// Create user
 	userEmail := "testuser@example.com"
 	_, err := database.CreateUser(userEmail, "whateverPassword", 0)

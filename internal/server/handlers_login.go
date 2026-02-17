@@ -46,7 +46,7 @@ func generateJWT(id int64, email string, jwtSecret []byte, roleID RoleID) (strin
 	return tokenString, nil
 }
 
-func Login(env *HandlerConfig) http.HandlerFunc {
+func Login(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var loginParams LoginParams
 		if err := json.NewDecoder(r.Body).Decode(&loginParams); err != nil {
@@ -63,7 +63,7 @@ func Login(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Password is required", err, env.SystemLogger)
 			return
 		}
-		userAccount, err := env.DB.GetUser(db.ByEmail(loginParams.Email))
+		userAccount, err := env.Database.GetUser(db.ByEmail(loginParams.Email))
 		if err != nil {
 			if !errors.Is(err, db.ErrNotFound) && !errors.Is(err, db.ErrInvalidFilter) {
 				writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
@@ -82,7 +82,7 @@ func Login(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusUnauthorized, "The email or password is incorrect", err, env.SystemLogger)
 			return
 		}
-		jwt, err := generateJWT(userAccount.ID, userAccount.Email, env.JWTSecret, RoleID(userAccount.RoleID))
+		jwt, err := generateJWT(userAccount.ID, userAccount.Email, env.Database.JWTSecret, RoleID(userAccount.RoleID))
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
@@ -107,7 +107,7 @@ func Login(env *HandlerConfig) http.HandlerFunc {
 }
 
 // Expire both cookies if logging out
-func Logout(env *HandlerConfig) http.HandlerFunc {
+func Logout(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, &http.Cookie{
 			Name:    CookieSessionTokenKey,

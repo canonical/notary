@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func MustPrepareEmptyDB(t *testing.T) *db.Database {
+func MustPrepareEmptyDB(t *testing.T) *db.DatabaseRepository {
 	t.Helper()
 
 	tempDir := t.TempDir()

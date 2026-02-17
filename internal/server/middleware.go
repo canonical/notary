@@ -14,8 +14,7 @@ import (
 	"github.com/canonical/notary/internal/backends/authentication"
 	"github.com/canonical/notary/internal/backends/observability/log"
 	"github.com/canonical/notary/internal/backends/observability/metrics"
-	"github.com/canonical/notary/internal/config"
-	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/backends/observability/tracing"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -33,7 +32,7 @@ type middlewareContext struct {
 	jwtSecret          []byte
 	systemLogger       *zap.Logger
 	auditLogger        *log.AuditLogger
-	tracer             *config.Tracer
+	tracer             *tracing.TracingRepository
 }
 
 // createMiddlewareStack chains the given middleware functions to wrap the api.
@@ -232,7 +231,7 @@ func extractResourceType(path string) string {
 func requirePermission(
 	requiredPermissions []string,
 	jwtSecret []byte,
-	oidcConfig *config.OIDCConfig,
+	oidcConfig *authentication.OIDCRepository,
 	handler http.HandlerFunc,
 	systemLogger *zap.Logger,
 	auditLogger *log.AuditLogger,
@@ -270,44 +269,7 @@ func requirePermission(
 	}
 }
 
-// TODO: lets get rid of this. lets have the backend create the first account and output it ni the initialization stage of the CLI.
-func requirePermissionOrFirstUser(permission string, jwtSecret []byte, oidcConfig *config.OIDCConfig, db *db.Database, handler http.HandlerFunc, systemLogger *zap.Logger, auditLogger *log.AuditLogger) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		numUsers, err := db.NumUsers()
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, systemLogger)
-			return
-		}
-
-		if numUsers == 0 {
-			handler(w, r)
-			return
-		}
-
-		claims, err := getClaimsFromCookie(r, jwtSecret, oidcConfig)
-		if err != nil {
-			auditLogger.UnauthorizedAccess(
-				log.WithRequest(r),
-				log.WithReason("invalid or missing JWT token"),
-			)
-			writeError(w, http.StatusUnauthorized, "Unauthorized", err, systemLogger)
-			return
-		}
-
-		if !slices.Contains(claims.Permissions, permission) {
-			auditLogger.AccessDenied(claims.Email, r.URL.Path, permission,
-				log.WithRequest(r),
-				log.WithReason("insufficient permissions"),
-			)
-			writeError(w, http.StatusForbidden, "forbidden: insufficient permissions", errors.New("missing required permission"), systemLogger)
-			return
-		}
-
-		handler(w, r)
-	}
-}
-
-func getClaimsFromCookie(r *http.Request, jwtSecret []byte, oidcConfig *config.OIDCConfig) (*authentication.NotaryJWTClaims, error) {
+func getClaimsFromCookie(r *http.Request, jwtSecret []byte, oidcConfig *authentication.OIDCRepository) (*authentication.NotaryJWTClaims, error) {
 	c, err := r.Cookie(CookieSessionTokenKey)
 	if err != nil {
 		return nil, fmt.Errorf("cookie not found")
@@ -323,7 +285,7 @@ func getClaimsFromCookie(r *http.Request, jwtSecret []byte, oidcConfig *config.O
 	return claims, nil
 }
 
-func getClaimsFromJWT(rawToken string, jwtSecret []byte, oidcConfig *config.OIDCConfig) (*authentication.NotaryJWTClaims, error) {
+func getClaimsFromJWT(rawToken string, jwtSecret []byte, oidcConfig *authentication.OIDCRepository) (*authentication.NotaryJWTClaims, error) {
 	v := authentication.NewVerifier([]authentication.ProviderConfig{
 		{
 			Provider: oidcConfig,

@@ -7,7 +7,7 @@ import (
 )
 
 // GetDecryptedPrivateKey gets a private key row from the repository from a given ID or PEM.
-func (db *Database) GetDecryptedPrivateKey(filter PrivateKeyFilter) (*PrivateKey, error) {
+func (db *DatabaseRepository) GetDecryptedPrivateKey(filter PrivateKeyFilter) (*PrivateKey, error) {
 	pkRow := filter.AsPrivateKey()
 	pk, err := GetOneEntity[PrivateKey](db, db.stmts.GetPrivateKey, *pkRow)
 	if err != nil {
@@ -22,7 +22,7 @@ func (db *Database) GetDecryptedPrivateKey(filter PrivateKeyFilter) (*PrivateKey
 }
 
 // CreatePrivateKey creates a new private key entry in the repository. The string must be a valid private key and unique.
-func (db *Database) CreatePrivateKey(pk string) (int64, error) {
+func (db *DatabaseRepository) CreatePrivateKey(pk string) (int64, error) {
 	if err := ValidatePrivateKey(pk); err != nil {
 		return 0, err
 	}
@@ -38,7 +38,7 @@ func (db *Database) CreatePrivateKey(pk string) (int64, error) {
 }
 
 // DeletePrivateKey deletes a private key from the database.
-func (db *Database) DeletePrivateKey(filter PrivateKeyFilter) error {
+func (db *DatabaseRepository) DeletePrivateKey(filter PrivateKeyFilter) error {
 	pkRow := filter.AsPrivateKey()
 	return DeleteEntity(db, db.stmts.DeletePrivateKey, pkRow)
 }

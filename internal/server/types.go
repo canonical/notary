@@ -3,10 +3,7 @@ package server
 import (
 	"net/http"
 
-	"github.com/canonical/notary/internal/backends/observability/log"
 	"github.com/canonical/notary/internal/config"
-	"github.com/canonical/notary/internal/db"
-	"go.uber.org/zap"
 )
 
 const (
@@ -14,42 +11,17 @@ const (
 )
 
 type ServerOpts struct {
-	TLSCertificate []byte
-	TLSPrivateKey  []byte
-
-	ExternalHostname string
-	Port             int
-
-	// OIDC Configuration
-	OIDCConfig *config.OIDCConfig
-
-	// Config data to be returned in the API response.
-	PublicConfig *config.PublicConfigData
-
-	// Database object to run SQL queries on
-	Database *db.Database
-
-	// Sends a notification to Pebble when an action is taken on a CSR.
-	EnablePebbleNotifications bool
-
-	SystemLogger *zap.Logger // For operational/system logs
-	AuditLogger  *zap.Logger // For audit/compliance logs
-	Tracer       *config.Tracer
+	*config.AppConfig
+	*config.AppEnvironment
 }
 
-// HandlerConfig holds the dependencies to be injected into the HTTP handlers for use during
+// HandlerDependencies holds the dependencies to be injected into the HTTP handlers for use during
 // request processing.
-type HandlerConfig struct {
-	DB                      *db.Database
-	SystemLogger            *zap.Logger
-	AuditLogger             *log.AuditLogger
-	Tracer                  *config.Tracer
-	ExternalHostname        string
-	JWTSecret               []byte
-	SendPebbleNotifications bool
-	PublicConfig            config.PublicConfigData
-	OIDCConfig              *config.OIDCConfig
-	StateStore              *StateStore
+type HandlerDependencies struct {
+	*config.AppConfig
+	*config.AppEnvironment
+
+	StateStore *StateStore
 }
 
 type Server struct {

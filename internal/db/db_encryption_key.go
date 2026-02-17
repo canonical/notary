@@ -11,7 +11,7 @@ type AES256GCMEncryptionKey struct {
 }
 
 // GetEncryptionKey retrieves the only encryption key from the database.
-func (db *Database) GetEncryptionKey() ([]byte, error) {
+func (db *DatabaseRepository) GetEncryptionKey() ([]byte, error) {
 	encryptionKeyRow := AES256GCMEncryptionKey{
 		EncryptionKeyID: 1,
 	}
@@ -28,7 +28,7 @@ func (db *Database) GetEncryptionKey() ([]byte, error) {
 }
 
 // CreateEncryptionKey creates a new encryption key in the database, there can only be one encryption key.
-func (db *Database) CreateEncryptionKey(encryptionKey []byte) error {
+func (db *DatabaseRepository) CreateEncryptionKey(encryptionKey []byte) error {
 	key := AES256GCMEncryptionKey{
 		EncryptionKey:   base64.StdEncoding.EncodeToString(encryptionKey),
 		EncryptionKeyID: 1,
@@ -38,6 +38,6 @@ func (db *Database) CreateEncryptionKey(encryptionKey []byte) error {
 }
 
 // DeleteEncryptionKey deletes the only encryption key from the database.
-func (db *Database) DeleteEncryptionKey() error {
+func (db *DatabaseRepository) DeleteEncryptionKey() error {
 	return DeleteEntity[AES256GCMEncryptionKey](db, db.stmts.DeleteEncryptionKey, AES256GCMEncryptionKey{EncryptionKeyID: 1})
 }

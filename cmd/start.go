@@ -24,44 +24,24 @@ Read more about what's required in the config file at
 https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/`,
 
 	Run: func(cmd *cobra.Command, args []string) {
-		appContext, err := config.CreateAppContext(cmd.Flags(), configFilePath)
+		appConfig, err := config.ParseConfig(cmd.Flags(), configFilePath)
 		if err != nil {
-			log.Fatalf("couldn't create app context: %s", err)
+			log.Fatalf("couldn't parse and validate config: %s", err)
 		}
-		l := appContext.SystemLogger
-
-		// Initialize the database connection
-		db, err := db.NewDatabase(&db.DatabaseOpts{
-			DatabasePath:    appContext.DBPath,
-			ApplyMigrations: appContext.ApplyMigrations,
-			Backend:         appContext.EncryptionBackend,
-			Logger:          appContext.SystemLogger,
+		database, err := db.NewDatabase(&db.DatabaseOpts{
+			DatabasePath:    appConfig.DBPath,
+			Logger:          zap.L(),
+			ApplyMigrations: appConfig.ShouldApplyMigrations,
 		})
 		if err != nil {
-			l.Fatal("couldn't initialize database", zap.Error(err))
+			log.Fatalf("couldn't initialize database: %s", err)
 		}
-
-		// Initialize authorization config after database creation
-		authzConfig, err := config.InitializeAuthorizationConfig(db, appContext.SystemLogger)
+		appEnv, err := config.InitializeAppEnvironment(appConfig, database)
 		if err != nil {
-			l.Fatal("couldn't initialize authorization", zap.Error(err))
+			log.Fatalf("couldn't initialize app environment: %s", err)
 		}
-		appContext.AuthorizationConfig = authzConfig
-
-		// Initialize and run the API and webserver
-		srv, err := server.New(&server.ServerOpts{
-			TLSCertificate:            appContext.TLSCertificate,
-			TLSPrivateKey:             appContext.TLSPrivateKey,
-			Port:                      appContext.Port,
-			Database:                  db,
-			OIDCConfig:                appContext.OIDCConfig,
-			ExternalHostname:          appContext.ExternalHostname,
-			EnablePebbleNotifications: appContext.PebbleNotificationsEnabled,
-			SystemLogger:              appContext.SystemLogger,
-			AuditLogger:               appContext.AuditLogger,
-			Tracer:                    appContext.Tracer,
-			PublicConfig:              appContext.PublicConfig,
-		})
+		l := appEnv.SystemLogger
+		srv, err := server.New(appConfig, appEnv)
 		if err != nil {
 			l.Fatal("couldn't initialize server", zap.Error(err))
 		}

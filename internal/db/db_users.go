@@ -9,19 +9,19 @@ import (
 )
 
 // ListUsers returns all of the users and their fields available in the database.
-func (db *Database) ListUsers() ([]User, error) {
+func (db *DatabaseRepository) ListUsers() ([]User, error) {
 	return ListEntities[User](db, db.stmts.ListUsers)
 }
 
 // GetUser retrieves the name, password and the role ID of a user.
-func (db *Database) GetUser(filter UserFilter) (*User, error) {
+func (db *DatabaseRepository) GetUser(filter UserFilter) (*User, error) {
 	userRow := filter.AsUser()
 	return GetOneEntity[User](db, db.stmts.GetUser, *userRow)
 }
 
 // CreateUser creates a new user from a given email, password and role ID.
 // The password passed in should be in plaintext. This function handles hashing and salting the password before storing it in the database.
-func (db *Database) CreateUser(email string, password string, roleID RoleID) (int64, error) {
+func (db *DatabaseRepository) CreateUser(email string, password string, roleID RoleID) (int64, error) {
 	err := ValidateUser(email, roleID)
 	if err != nil {
 		return 0, err
@@ -48,7 +48,7 @@ func (db *Database) CreateUser(email string, password string, roleID RoleID) (in
 
 // CreateOIDCUser creates a new user from OIDC login (no password required)
 // Email is optional - the oidcSubject is the primary identifier
-func (db *Database) CreateOIDCUser(email, oidcSubject string, roleID RoleID) (*User, error) {
+func (db *DatabaseRepository) CreateOIDCUser(email, oidcSubject string, roleID RoleID) (*User, error) {
 	err := ValidateOIDCUser(oidcSubject, roleID)
 	if err != nil {
 		return nil, err
@@ -71,7 +71,7 @@ func (db *Database) CreateOIDCUser(email, oidcSubject string, roleID RoleID) (*U
 
 // UpdateUser updates the password of the given user.
 // Just like with CreateUser, this function handles hashing and salting the password before storage.
-func (db *Database) UpdateUserPassword(filter UserFilter, password string) error {
+func (db *DatabaseRepository) UpdateUserPassword(filter UserFilter, password string) error {
 	userRow := filter.AsUser()
 	hashedPassword, err := utils.HashPassword(password)
 	if err != nil {
@@ -85,13 +85,13 @@ func (db *Database) UpdateUserPassword(filter UserFilter, password string) error
 }
 
 // DeleteUserByID removes a user from the table.
-func (db *Database) DeleteUser(filter UserFilter) error {
+func (db *DatabaseRepository) DeleteUser(filter UserFilter) error {
 	userRow := filter.AsUser()
 	return DeleteEntity(db, db.stmts.DeleteUser, userRow)
 }
 
 // NumUsers returns the number of users in the database.
-func (db *Database) NumUsers() (int, error) {
+func (db *DatabaseRepository) NumUsers() (int, error) {
 	result := NumUsers{}
 	err := db.Conn.Query(context.Background(), db.stmts.GetNumUsers).Get(&result)
 	if err != nil {

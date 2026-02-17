@@ -38,7 +38,7 @@ type PrometheusMetrics struct {
 }
 
 // NewMetricsSubsystem returns the metrics endpoint HTTP handler and the Prometheus metrics collectors for the server and middleware.
-func NewMetricsSubsystem(db *db.Database, logger *zap.Logger) *PrometheusMetrics {
+func NewMetricsSubsystem(db *db.DatabaseRepository, logger *zap.Logger) *PrometheusMetrics {
 	metricsBackend := newPrometheusMetrics()
 	metricsBackend.Handler = promhttp.HandlerFor(metricsBackend.registry, promhttp.HandlerOpts{})
 
@@ -69,7 +69,7 @@ func NewMetricsSubsystem(db *db.Database, logger *zap.Logger) *PrometheusMetrics
 }
 
 // Helper function to collect metrics and handle errors properly
-func collectMetrics(db *db.Database, metrics *PrometheusMetrics) error {
+func collectMetrics(db *db.DatabaseRepository, metrics *PrometheusMetrics) error {
 	csrs, err := db.ListCertificateRequestWithCertificates()
 	if err != nil {
 		return fmt.Errorf("collecting certificate metrics: %w", err)

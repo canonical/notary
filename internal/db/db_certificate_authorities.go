@@ -12,32 +12,32 @@ import (
 )
 
 // ListCertificateAuthorities gets every Certificate Authority entry in the table.
-func (db *Database) ListCertificateAuthorities() ([]CertificateAuthority, error) {
+func (db *DatabaseRepository) ListCertificateAuthorities() ([]CertificateAuthority, error) {
 	return ListEntities[CertificateAuthority](db, db.stmts.ListCertificateAuthorities)
 }
 
 // ListDenormalizedCertificateAuthorities gets every CertificateAuthority entry in the table
 // but instead of returning ID's that reference other table rows, it embeds the row data directly into the response object.
-func (db *Database) ListDenormalizedCertificateAuthorities() ([]CertificateAuthorityDenormalized, error) {
+func (db *DatabaseRepository) ListDenormalizedCertificateAuthorities() ([]CertificateAuthorityDenormalized, error) {
 	return ListEntities[CertificateAuthorityDenormalized](db, db.stmts.ListDenormalizedCertificateAuthorities)
 }
 
 // GetCertificateAuthority gets a certificate authority row from the database.
-func (db *Database) GetCertificateAuthority(filter CertificateAuthorityFilter) (*CertificateAuthority, error) {
+func (db *DatabaseRepository) GetCertificateAuthority(filter CertificateAuthorityFilter) (*CertificateAuthority, error) {
 	caRow := filter.AsCertificateAuthority()
 	return GetOneEntity[CertificateAuthority](db, db.stmts.GetCertificateAuthority, *caRow)
 }
 
 // GetDenormalizedCertificateAuthority gets a certificate authority row from the database
 // but instead of returning ID's that reference other table rows, it embeds the row data directly into the response object.
-func (db *Database) GetDenormalizedCertificateAuthority(filter CertificateAuthorityDenormalizedFilter) (*CertificateAuthorityDenormalized, error) {
+func (db *DatabaseRepository) GetDenormalizedCertificateAuthority(filter CertificateAuthorityDenormalizedFilter) (*CertificateAuthorityDenormalized, error) {
 	CARow := filter.AsCertificateAuthorityDenormalized()
 	return GetOneEntity[CertificateAuthorityDenormalized](db, db.stmts.GetDenormalizedCertificateAuthority, *CARow)
 }
 
 // CreateCertificateAuthority creates a new certificate authority in the database from a given CSR, private key, and certificate chain.
 // The certificate chain is optional and can be empty.
-func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, crlPEM string, certChainPEM string, userEmail string) (int64, error) {
+func (db *DatabaseRepository) CreateCertificateAuthority(csrPEM string, privPEM string, crlPEM string, certChainPEM string, userEmail string) (int64, error) {
 	csrID, err := db.CreateCertificateRequest(csrPEM, userEmail)
 	if err != nil {
 		return 0, err
@@ -75,7 +75,7 @@ func (db *Database) CreateCertificateAuthority(csrPEM string, privPEM string, cr
 }
 
 // UpdateCertificateAuthorityCertificate updates the certificate chain associated with a certificate authority.
-func (db *Database) UpdateCertificateAuthorityCertificate(filter CertificateAuthorityDenormalizedFilter, certChainPEM string) error {
+func (db *DatabaseRepository) UpdateCertificateAuthorityCertificate(filter CertificateAuthorityDenormalizedFilter, certChainPEM string) error {
 	ca, err := db.GetDenormalizedCertificateAuthority(filter)
 	if err != nil {
 		return err
@@ -130,7 +130,7 @@ func (db *Database) UpdateCertificateAuthorityCertificate(filter CertificateAuth
 }
 
 // UpdateCertificateAuthorityStatus updates the status of a certificate authority.
-func (db *Database) UpdateCertificateAuthorityEnabledStatus(filter CertificateAuthorityFilter, enabled bool) error {
+func (db *DatabaseRepository) UpdateCertificateAuthorityEnabledStatus(filter CertificateAuthorityFilter, enabled bool) error {
 	ca, err := db.GetCertificateAuthority(filter)
 	if err != nil {
 		return err
@@ -140,7 +140,7 @@ func (db *Database) UpdateCertificateAuthorityEnabledStatus(filter CertificateAu
 }
 
 // UpdateCertificateAuthorityCRL updates the CRL of a certificate authority.
-func (db *Database) UpdateCertificateAuthorityCRL(filter CertificateAuthorityFilter, crl string) error {
+func (db *DatabaseRepository) UpdateCertificateAuthorityCRL(filter CertificateAuthorityFilter, crl string) error {
 	ca, err := db.GetCertificateAuthority(filter)
 	if err != nil {
 		return err
@@ -150,7 +150,7 @@ func (db *Database) UpdateCertificateAuthorityCRL(filter CertificateAuthorityFil
 }
 
 // DeleteCertificateAuthority removes a certificate authority from the database.
-func (db *Database) DeleteCertificateAuthority(filter CertificateAuthorityFilter) error {
+func (db *DatabaseRepository) DeleteCertificateAuthority(filter CertificateAuthorityFilter) error {
 	caRow, err := db.GetCertificateAuthority(filter)
 	if err != nil {
 		return err
@@ -168,7 +168,7 @@ func (db *Database) DeleteCertificateAuthority(filter CertificateAuthorityFilter
 
 // SignCertificateRequest receives a CSR and a certificate authority.
 // The CSR filter finds the CSR to sign. the CA Filter finds the CA that will issue the certificate.
-func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter CertificateAuthorityDenormalizedFilter, externalHostname string) error {
+func (db *DatabaseRepository) SignCertificateRequest(csrFilter CSRFilter, caFilter CertificateAuthorityDenormalizedFilter, externalHostname string) error {
 	csrRow, err := db.GetCertificateRequest(csrFilter)
 	if err != nil {
 		return err
@@ -276,7 +276,7 @@ func (db *Database) SignCertificateRequest(csrFilter CSRFilter, caFilter Certifi
 }
 
 // RevokeCertificate revokes a certificate previously signed by a Notary CA by placing the serial number of the certificate in its issuer's CRL.
-func (db *Database) RevokeCertificate(filter CSRFilter) error {
+func (db *DatabaseRepository) RevokeCertificate(filter CSRFilter) error {
 	oldRow, err := db.GetCertificateRequestAndChain(filter)
 	if err != nil {
 		return err

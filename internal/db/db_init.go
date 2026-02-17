@@ -15,7 +15,7 @@ import (
 )
 
 // Close closes the connection to the repository cleanly.
-func (db *Database) Close() error {
+func (db *DatabaseRepository) Close() error {
 	if db.Conn == nil {
 		return nil
 	}
@@ -30,7 +30,7 @@ func (db *Database) Close() error {
 // stores the connection information and returns an object containing the information.
 // The database path must be a valid file path or ":memory:".
 // The table will be created if it doesn't exist in the format expected by the package.
-func NewDatabase(dbOpts *DatabaseOpts) (*Database, error) {
+func NewDatabase(dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
 	sqlConnection, err := sql.Open("sqlite", dbOpts.DatabasePath)
 	if err != nil {
 		return nil, err
@@ -56,18 +56,9 @@ func NewDatabase(dbOpts *DatabaseOpts) (*Database, error) {
 			return nil, errors.New("database migrations not applied. please migrate database using `notary migrate up`")
 		}
 	}
-	db := new(Database)
+	db := new(DatabaseRepository)
 	db.stmts = PrepareStatements()
 	db.Conn = sqlair.NewDB(sqlConnection)
-
-	db.EncryptionKey, err = setUpEncryptionKey(db, dbOpts.Backend, dbOpts.Logger)
-	if err != nil {
-		return nil, err
-	}
-	db.JWTSecret, err = setUpJWTSecret(db)
-	if err != nil {
-		return nil, fmt.Errorf("failed to set up JWT secret: %w", err)
-	}
 
 	// Create default admin account if this is a fresh database
 	if version < 1 {
@@ -81,7 +72,8 @@ func NewDatabase(dbOpts *DatabaseOpts) (*Database, error) {
 
 // createDefaultAdminUser creates a default admin account with a known username and password
 // This account should be used to bootstrap the system and then change the password
-func createDefaultAdminUser(db *Database) error {
+// TODO: this should have a randomly generated password
+func createDefaultAdminUser(db *DatabaseRepository) error {
 	// Check if any admin users already exist
 	users, err := db.ListUsers()
 	if err != nil && err != ErrNotFound {
@@ -105,7 +97,7 @@ func createDefaultAdminUser(db *Database) error {
 }
 
 // ListEntities retrieves all entities of a given type from the database.
-func ListEntities[T any](db *Database, stmt *sqlair.Statement, inputArgs ...any) ([]T, error) {
+func ListEntities[T any](db *DatabaseRepository, stmt *sqlair.Statement, inputArgs ...any) ([]T, error) {
 	var entities []T
 	err := db.Conn.Query(context.Background(), stmt, inputArgs...).GetAll(&entities)
 	if err != nil && !errors.Is(err, sqlair.ErrNoRows) {
@@ -115,7 +107,7 @@ func ListEntities[T any](db *Database, stmt *sqlair.Statement, inputArgs ...any)
 }
 
 // GetOneEntity retrieves a single entity of a given type from the database.
-func GetOneEntity[T any](db *Database, stmt *sqlair.Statement, inputArgs ...any) (*T, error) {
+func GetOneEntity[T any](db *DatabaseRepository, stmt *sqlair.Statement, inputArgs ...any) (*T, error) {
 	var result T
 	err := db.Conn.Query(context.Background(), stmt, inputArgs...).Get(&result)
 	if err != nil {
@@ -128,7 +120,7 @@ func GetOneEntity[T any](db *Database, stmt *sqlair.Statement, inputArgs ...any)
 	return &result, nil
 }
 
-func CreateEntity[T any](db *Database, stmt *sqlair.Statement, new_entity T) (int64, error) {
+func CreateEntity[T any](db *DatabaseRepository, stmt *sqlair.Statement, new_entity T) (int64, error) {
 	var outcome sqlair.Outcome
 	err := db.Conn.Query(context.Background(), stmt, new_entity).Get(&outcome)
 	if err != nil {
@@ -144,7 +136,7 @@ func CreateEntity[T any](db *Database, stmt *sqlair.Statement, new_entity T) (in
 	return insertedRowID, nil
 }
 
-func UpdateEntity[T any](db *Database, stmt *sqlair.Statement, updated_entity T) error {
+func UpdateEntity[T any](db *DatabaseRepository, stmt *sqlair.Statement, updated_entity T) error {
 	var outcome sqlair.Outcome
 	err := db.Conn.Query(context.Background(), stmt, updated_entity).Get(&outcome)
 	if err != nil {
@@ -160,7 +152,7 @@ func UpdateEntity[T any](db *Database, stmt *sqlair.Statement, updated_entity T)
 	return nil
 }
 
-func DeleteEntity[T any](db *Database, stmt *sqlair.Statement, entity_to_delete T) error {
+func DeleteEntity[T any](db *DatabaseRepository, stmt *sqlair.Statement, entity_to_delete T) error {
 	var outcome sqlair.Outcome
 	err := db.Conn.Query(context.Background(), stmt, entity_to_delete).Get(&outcome)
 	if err != nil {

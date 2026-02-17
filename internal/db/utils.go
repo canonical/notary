@@ -6,14 +6,8 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
-	"fmt"
 	"reflect"
 	"time"
-
-	"github.com/canonical/notary/internal/backends/encryption"
-	"github.com/canonical/notary/internal/utils"
-	"go.uber.org/zap"
 )
 
 // ParseCertificateChain receives a PEM string chain and returns an x.509.Certificate list.
@@ -110,34 +104,4 @@ func isSelfSigned(certBundle []string) bool {
 func getTypeName[T any]() string {
 	var t T
 	return reflect.TypeOf(t).Name()
-}
-
-func setUpEncryptionKey(database *Database, backend encryption.EncryptionBackend, logger *zap.Logger) ([]byte, error) {
-	encryptionKeyFromDb, err := database.GetEncryptionKey()
-	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			encryptionKey, err := utils.GenerateAES256GCMEncryptionKey()
-			if err != nil {
-				return nil, fmt.Errorf("failed to generate encryption key: %w", err)
-			}
-			logger.Info("Encryption key generated successfully")
-			encryptedEncryptionKey, err := backend.Encrypt(encryptionKey)
-			if err != nil {
-				return nil, fmt.Errorf("failed to encrypt encryption key: %w", err)
-			}
-			logger.Info("Encryption key encrypted successfully using the configured encryption backend")
-			err = database.CreateEncryptionKey(encryptedEncryptionKey)
-			if err != nil {
-				return nil, fmt.Errorf("failed to store encryption key: %w", err)
-			}
-			return encryptionKey, nil
-		}
-		return nil, err
-	}
-	logger.Info("Encryption key found in database")
-	decryptedEncryptionKey, err := backend.Decrypt(encryptionKeyFromDb)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt encryption key: %w", err)
-	}
-	return decryptedEncryptionKey, nil
 }

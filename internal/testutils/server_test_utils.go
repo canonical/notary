@@ -38,7 +38,7 @@ func MustPrepareServer(t *testing.T) (*httptest.Server, *observer.ObservedLogs) 
 		EnablePebbleNotifications: false,
 		SystemLogger:              logger,
 		AuditLogger:               auditZap,
-		PublicConfig:              &PublicConfig,
+		AppConfig:                 &PublicConfig,
 	})
 	if err != nil {
 		t.Fatalf("Couldn't get server: %s", err)

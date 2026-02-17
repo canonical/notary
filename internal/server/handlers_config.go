@@ -12,14 +12,14 @@ type GetConfigContentResponse struct {
 	EncryptionBackendType string `json:"encryption_backend_type"`
 }
 
-func GetConfigContent(env *HandlerConfig) http.HandlerFunc {
+func GetConfigContent(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		configContent := GetConfigContentResponse{
-			Port:                  env.PublicConfig.Port,
-			PebbleNotifications:   env.PublicConfig.PebbleNotifications,
-			LoggingLevel:          env.PublicConfig.LoggingLevel,
-			LoggingOutput:         env.PublicConfig.LoggingOutput,
-			EncryptionBackendType: string(env.PublicConfig.EncryptionBackendType),
+			Port:                  env.AppConfig.Port,
+			PebbleNotifications:   env.AppConfig.ShouldEnablePebbleNotifications,
+			LoggingLevel:          env.SystemLogger.Level().String(),
+			LoggingOutput:         env.AppConfig.LoggingConfig.GetString("system.output"),
+			EncryptionBackendType: "TODO: place this once you start injecting all of the app",
 		}
 		err := writeResponse(w, configContent, http.StatusOK)
 		if err != nil {

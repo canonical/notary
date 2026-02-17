@@ -107,9 +107,9 @@ func validateEmail(email string) bool {
 }
 
 // ListAccounts returns all accounts from the database
-func ListAccounts(env *HandlerConfig) http.HandlerFunc {
+func ListAccounts(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		accounts, err := env.DB.ListUsers()
+		accounts, err := env.Database.ListUsers()
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
@@ -130,13 +130,13 @@ func ListAccounts(env *HandlerConfig) http.HandlerFunc {
 // returns the corresponding User Account
 // It can only return accounts that exist in the database
 // If the account was logged in with OIDC, it will only return the email
-func GetAccount(env *HandlerConfig) http.HandlerFunc {
+func GetAccount(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		var account *db.User
 		var err error
 		if id == "me" {
-			claims, jwtErr := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+			claims, jwtErr := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 			if jwtErr != nil {
 				writeError(w, http.StatusUnauthorized, "Unauthorized", jwtErr, env.SystemLogger)
 			}
@@ -150,7 +150,7 @@ func GetAccount(env *HandlerConfig) http.HandlerFunc {
 				writeError(w, http.StatusBadRequest, "Invalid ID", err, env.SystemLogger)
 				return
 			}
-			account, err = env.DB.GetUser(db.ByUserID(idNum))
+			account, err = env.Database.GetUser(db.ByUserID(idNum))
 		}
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
@@ -172,14 +172,14 @@ func GetAccount(env *HandlerConfig) http.HandlerFunc {
 // GetMyAccount receives "me" as a path parameter, and
 // returns the corresponding User Account. Unlike GetAccount,
 // it uses the JWT claims to retrieve the account information.
-func GetMyAccount(env *HandlerConfig) http.HandlerFunc {
+func GetMyAccount(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		claims, jwtErr := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		claims, jwtErr := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 		if jwtErr != nil {
 			writeError(w, http.StatusUnauthorized, "Unauthorized", jwtErr, env.SystemLogger)
 			return
 		}
-		account, err := env.DB.GetUser(db.ByEmail(claims.Email))
+		account, err := env.Database.GetUser(db.ByEmail(claims.Email))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
@@ -199,7 +199,7 @@ func GetMyAccount(env *HandlerConfig) http.HandlerFunc {
 }
 
 // CreateAccount creates a new Account, and returns the id of the created row
-func CreateAccount(env *HandlerConfig) http.HandlerFunc {
+func CreateAccount(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var createAccountParams CreateAccountParams
 		if err := json.NewDecoder(r.Body).Decode(&createAccountParams); err != nil {
@@ -211,7 +211,7 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.SystemLogger)
 			return
 		}
-		newUserID, err := env.DB.CreateUser(createAccountParams.Email, createAccountParams.Password, db.RoleID(createAccountParams.RoleID))
+		newUserID, err := env.Database.CreateUser(createAccountParams.Email, createAccountParams.Password, db.RoleID(createAccountParams.RoleID))
 		if err != nil {
 			if errors.Is(err, db.ErrAlreadyExists) {
 				writeError(w, http.StatusBadRequest, "account with given email already exists", err, env.SystemLogger)
@@ -222,7 +222,7 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 		}
 
 		var actor string
-		claims, claimsErr := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		claims, claimsErr := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 		if claimsErr == nil {
 			actor = claims.Email
 		}
@@ -244,7 +244,7 @@ func CreateAccount(env *HandlerConfig) http.HandlerFunc {
 
 // DeleteAccount handler receives an id as a path parameter,
 // deletes the corresponding User Account, and returns a http.StatusNoContent on success
-func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
+func DeleteAccount(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		idInt, err := strconv.ParseInt(id, 10, 64)
@@ -252,7 +252,7 @@ func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid ID", err, env.SystemLogger)
 			return
 		}
-		account, err := env.DB.GetUser(db.ByUserID(idInt))
+		account, err := env.Database.GetUser(db.ByUserID(idInt))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
@@ -267,13 +267,13 @@ func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 
-		claims, err := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		claims, err := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 		if err != nil {
 			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.SystemLogger)
 			return
 		}
 
-		err = env.DB.DeleteUser(db.ByUserID(idInt))
+		err = env.Database.DeleteUser(db.ByUserID(idInt))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
@@ -297,7 +297,7 @@ func DeleteAccount(env *HandlerConfig) http.HandlerFunc {
 	}
 }
 
-func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
+func ChangeAccountPassword(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		var idNum int64
@@ -308,7 +308,7 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 		}
 		idNum = idInt
 
-		targetAccount, err := env.DB.GetUser(db.ByUserID(idNum))
+		targetAccount, err := env.Database.GetUser(db.ByUserID(idNum))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
@@ -318,7 +318,7 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 			return
 		}
 
-		claims, err := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		claims, err := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 		if err != nil {
 			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.SystemLogger)
 			return
@@ -339,7 +339,7 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.SystemLogger)
 			return
 		}
-		err = env.DB.UpdateUserPassword(db.ByUserID(idNum), changeAccountParams.Password)
+		err = env.Database.UpdateUserPassword(db.ByUserID(idNum), changeAccountParams.Password)
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				env.AuditLogger.PasswordChangeFailed(targetAccount.Email,
@@ -377,15 +377,15 @@ func ChangeAccountPassword(env *HandlerConfig) http.HandlerFunc {
 	}
 }
 
-func ChangeMyPassword(env *HandlerConfig) http.HandlerFunc {
+func ChangeMyPassword(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var idNum int64
-		claims, err := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		claims, err := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 		if err != nil {
 			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.SystemLogger)
 			return
 		}
-		account, err := env.DB.GetUser(db.ByEmail(claims.Email))
+		account, err := env.Database.GetUser(db.ByEmail(claims.Email))
 		if err != nil {
 			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.SystemLogger)
 			return
@@ -405,7 +405,7 @@ func ChangeMyPassword(env *HandlerConfig) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.SystemLogger)
 			return
 		}
-		err = env.DB.UpdateUserPassword(db.ByUserID(idNum), changeAccountParams.Password)
+		err = env.Database.UpdateUserPassword(db.ByUserID(idNum), changeAccountParams.Password)
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				env.AuditLogger.PasswordChangeFailed(account.Email,

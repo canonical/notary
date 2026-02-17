@@ -26,7 +26,7 @@ func TestNewSuccess(t *testing.T) {
 		EnablePebbleNotifications: false,
 		SystemLogger:              l,
 		AuditLogger:               l,
-		PublicConfig:              &tu.PublicConfig,
+		AppConfig:                 &tu.PublicConfig,
 	})
 	if err != nil {
 		t.Errorf("Error occurred: %s", err)
@@ -50,7 +50,7 @@ func TestInvalidKeyFailure(t *testing.T) {
 		ExternalHostname:          "example.com",
 		EnablePebbleNotifications: false,
 		SystemLogger:              l,
-		PublicConfig:              &tu.PublicConfig,
+		AppConfig:                 &tu.PublicConfig,
 	})
 	if err == nil {
 		t.Errorf("No error was thrown for invalid key")

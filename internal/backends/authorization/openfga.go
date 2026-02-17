@@ -21,8 +21,8 @@ const (
 	AuthorizationModeRemote AuthorizationMode = "remote"
 )
 
-// OpenFGAConfig holds the OpenFGA server and mode
-type OpenFGAConfig struct {
+// OpenFGARepository holds the OpenFGA server and mode
+type OpenFGARepository struct {
 	Mode      AuthorizationMode
 	FGAClient *ofgaServer.Server
 }
@@ -30,7 +30,7 @@ type OpenFGAConfig struct {
 // InitializeLocalOpenFGA initializes a local OpenFGA server with SQLite storage
 // The OpenFGA datastore will automatically create its own tables and run migrations
 // as needed when the datastore is first created.
-func InitializeLocalOpenFGA(database *db.Database, logger *zap.Logger) (*OpenFGAConfig, error) {
+func InitializeLocalOpenFGA(database *db.DatabaseRepository, logger *zap.Logger) (*OpenFGARepository, error) {
 	// Wrap the zap logger using OpenFGA's logger implementation
 	ofgaLog := &ofgaLogger.ZapLogger{Logger: logger}
 
@@ -72,7 +72,7 @@ func InitializeLocalOpenFGA(database *db.Database, logger *zap.Logger) (*OpenFGA
 
 	logger.Info("OpenFGA local server initialized successfully with SQLite storage")
 
-	return &OpenFGAConfig{
+	return &OpenFGARepository{
 		Mode:      AuthorizationModeLocal,
 		FGAClient: server,
 	}, nil

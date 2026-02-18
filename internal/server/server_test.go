@@ -17,17 +17,12 @@ func TestNewSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot create logger: %s", err)
 	}
-	s, err := server.New(&server.ServerOpts{
-		Port:                      8000,
-		TLSCertificate:            []byte(tu.TestServerCertificate),
-		TLSPrivateKey:             []byte(tu.TestServerKey),
-		Database:                  db,
-		ExternalHostname:          "example.com",
-		EnablePebbleNotifications: false,
-		SystemLogger:              l,
-		AuditLogger:               l,
-		AppConfig:                 &tu.PublicConfig,
-	})
+	appCfg := tu.MustCreateTestAppConfig(t)
+	appEnv := tu.MustCreateTestAppEnvironment(t, db)
+	appEnv.SystemLogger = l
+	appEnv.AuditLogger = nil
+
+	s, err := server.New(appCfg, appEnv)
 	if err != nil {
 		t.Errorf("Error occurred: %s", err)
 	}
@@ -42,16 +37,12 @@ func TestInvalidKeyFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot create logger: %s", err)
 	}
-	_, err = server.New(&server.ServerOpts{
-		Port:                      8000,
-		Database:                  db,
-		TLSCertificate:            []byte(tu.TestServerCertificate),
-		TLSPrivateKey:             []byte{},
-		ExternalHostname:          "example.com",
-		EnablePebbleNotifications: false,
-		SystemLogger:              l,
-		AppConfig:                 &tu.PublicConfig,
-	})
+	appCfg := tu.MustCreateTestAppConfig(t)
+	appCfg.TLSPrivateKey = []byte{} // Set invalid key
+	appEnv := tu.MustCreateTestAppEnvironment(t, db)
+	appEnv.SystemLogger = l
+
+	_, err = server.New(appCfg, appEnv)
 	if err == nil {
 		t.Errorf("No error was thrown for invalid key")
 	}

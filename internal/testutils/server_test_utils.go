@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	internalLog "github.com/canonical/notary/internal/backends/observability/log"
 	"github.com/canonical/notary/internal/server"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -29,17 +30,11 @@ func MustPrepareServer(t *testing.T) (*httptest.Server, *observer.ObservedLogs) 
 	core, logs := observer.New(zapcore.InfoLevel)
 	auditZap := zap.New(core)
 
-	srv, err := server.New(&server.ServerOpts{
-		Port:                      8000,
-		TLSCertificate:            []byte(TestServerCertificate),
-		TLSPrivateKey:             []byte(TestServerKey),
-		Database:                  db,
-		ExternalHostname:          "example.com",
-		EnablePebbleNotifications: false,
-		SystemLogger:              logger,
-		AuditLogger:               auditZap,
-		AppConfig:                 &PublicConfig,
-	})
+	appCfg := MustCreateTestAppConfig(t)
+	appEnv := MustCreateTestAppEnvironment(t, db)
+	appEnv.AuditLogger = internalLog.NewAuditLogger(auditZap)
+
+	srv, err := server.New(appCfg, appEnv)
 	if err != nil {
 		t.Fatalf("Couldn't get server: %s", err)
 	}
@@ -50,8 +45,31 @@ func MustPrepareServer(t *testing.T) (*httptest.Server, *observer.ObservedLogs) 
 	return testServer, logs
 }
 
+// MustGetDefaultAdminToken logs in with the default admin account and returns the token
+func MustGetDefaultAdminToken(t *testing.T, ts *httptest.Server) string {
+	t.Helper()
+
+	adminLoginParams := &LoginParams{
+		Email:    "admin@notary.local",
+		Password: "admin",
+	}
+	statusCode, loginResponse, err := Login(ts.URL, ts.Client(), adminLoginParams)
+	if err != nil {
+		t.Fatalf("couldn't login default admin account: %s", err)
+	}
+	if statusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+	}
+	return loginResponse.Result.Token
+}
+
 func MustPrepareAccount(t *testing.T, ts *httptest.Server, email string, roleID RoleID, token string) string {
 	t.Helper()
+
+	// If token is empty, get the default admin token
+	if token == "" {
+		token = MustGetDefaultAdminToken(t, ts)
+	}
 
 	accountParams := &CreateAccountParams{
 		Email:    email,
@@ -915,12 +933,32 @@ func GetCertificateAuthorityCRLRequest(url string, client *http.Client, token st
 
 // sign a csr with a self signed ca
 func SignCSR(csr string) string {
-	csrDER, _ := pem.Decode([]byte(csr))                             //nolint: errcheck
-	csrTemplate, _ := x509.ParseCertificateRequest(csrDER.Bytes)     //nolint: errcheck
-	signingCertDER, _ := pem.Decode([]byte(SelfSignedCACertificate)) //nolint: errcheck
-	signingCert, _ := x509.ParseCertificate(signingCertDER.Bytes)    //nolint: errcheck
-	pkDER, _ := pem.Decode([]byte(SelfSignedCACertificatePK))        //nolint: errcheck
-	pk, _ := x509.ParsePKCS1PrivateKey(pkDER.Bytes)                  //nolint: errcheck
+	csrDER, _ := pem.Decode([]byte(csr))
+	if csrDER == nil {
+		panic("failed to decode CSR PEM")
+	}
+	csrTemplate, err := x509.ParseCertificateRequest(csrDER.Bytes)
+	if err != nil {
+		panic("failed to parse CSR: " + err.Error())
+	}
+
+	signingCertDER, _ := pem.Decode([]byte(SelfSignedCACertificate))
+	if signingCertDER == nil {
+		panic("failed to decode signing certificate PEM")
+	}
+	signingCert, err := x509.ParseCertificate(signingCertDER.Bytes)
+	if err != nil {
+		panic("failed to parse signing certificate: " + err.Error())
+	}
+
+	pkDER, _ := pem.Decode([]byte(SelfSignedCACertificatePK))
+	if pkDER == nil {
+		panic("failed to decode private key PEM")
+	}
+	pk, err := x509.ParsePKCS1PrivateKey(pkDER.Bytes)
+	if err != nil {
+		panic("failed to parse private key: " + err.Error())
+	}
 
 	certTemplate := x509.Certificate{
 		SerialNumber:          big.NewInt(time.Now().UnixNano()),
@@ -937,12 +975,19 @@ func SignCSR(csr string) string {
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 	}
 
-	finalCert, _ := x509.CreateCertificate(rand.Reader, &certTemplate, signingCert, csrTemplate.PublicKey, pk) //nolint: errcheck
+	finalCert, err := x509.CreateCertificate(rand.Reader, &certTemplate, signingCert, csrTemplate.PublicKey, pk)
+	if err != nil {
+		panic("failed to create certificate: " + err.Error())
+	}
+
 	certPEM := new(bytes.Buffer)
-	pem.Encode(certPEM, &pem.Block{ //nolint: errcheck
+	err = pem.Encode(certPEM, &pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: finalCert,
 	})
+	if err != nil {
+		panic("failed to encode certificate PEM: " + err.Error())
+	}
 
 	return certPEM.String()
 }

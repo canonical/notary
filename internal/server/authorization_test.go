@@ -69,7 +69,7 @@ func TestAuthorizationAdminAuthorized(t *testing.T) {
 		{
 			desc:   "admin can delete nonuser",
 			method: "DELETE",
-			path:   "/api/v1/accounts/2",
+			path:   "/api/v1/accounts/3",
 			status: http.StatusAccepted,
 		},
 	}

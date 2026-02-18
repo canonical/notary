@@ -13,7 +13,7 @@ func TestUsersEndToEnd(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)
 
 	userAdminEmail := "admin@canonical.com"
-	_, err := database.CreateUser(userAdminEmail, "pw123", 0)
+	userAdminID, err := database.CreateUser(userAdminEmail, "pw123", 0)
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
@@ -23,15 +23,15 @@ func TestUsersEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete Create: %s", err)
 	}
-	if userNormanID != 2 {
-		t.Fatalf("Couldn't complete Create: expected user id 2, but got %d", userNormanID)
+	if userNormanID != userAdminID+1 {
+		t.Fatalf("Couldn't complete Create: expected user id %d, but got %d", userAdminID+1, userNormanID)
 	}
 
 	res, err := database.ListUsers()
 	if err != nil {
 		t.Fatalf("Couldn't complete RetrieveAll: %s", err)
 	}
-	if len(res) != 2 {
+	if len(res) != 3 {
 		t.Fatalf("One or more users weren't found in DB")
 	}
 
@@ -39,7 +39,7 @@ func TestUsersEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete NumUsers: %s", err)
 	}
-	if num != 2 {
+	if num != 3 {
 		t.Fatalf("NumUsers didn't return the correct number of users")
 	}
 
@@ -62,15 +62,15 @@ func TestUsersEndToEnd(t *testing.T) {
 		t.Fatalf("The user's password doesn't match the one stored in the database")
 	}
 
-	if err = database.DeleteUser(db.ByUserID(1)); err != nil {
+	if err = database.DeleteUser(db.ByUserID(userAdminID)); err != nil {
 		t.Fatalf("Couldn't complete Delete: %s", err)
 	}
 	res, _ = database.ListUsers()
-	if len(res) != 1 {
+	if len(res) != 2 {
 		t.Fatalf("users weren't deleted from the DB properly")
 	}
 
-	err = database.UpdateUserPassword(db.ByUserID(2), "thebestpassword")
+	err = database.UpdateUserPassword(db.ByUserID(userNormanID), "thebestpassword")
 	if err != nil {
 		t.Fatalf("Couldn't complete Update: %s", err)
 	}
@@ -282,13 +282,13 @@ func TestMixedAuthenticationScenarios(t *testing.T) {
 		t.Fatal("Local user should have password only")
 	}
 
-	// Verify all three users exist
+	// Verify all three users exist (plus the default admin)
 	users, err := database.ListUsers()
 	if err != nil {
 		t.Fatalf("Failed to list users: %s", err)
 	}
-	if len(users) != 3 {
-		t.Fatalf("Expected 3 users, got %d", len(users))
+	if len(users) != 4 {
+		t.Fatalf("Expected 4 users, got %d", len(users))
 	}
 }
 
@@ -317,10 +317,10 @@ func TestCreateUserFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete NumUsers: %s", err)
 	}
-	if num != 1 {
-		t.Fatalf("The number of users should be 1.")
+	if num != 2 {
+		t.Fatalf("The number of users should be 2 (default admin + created user).")
 	}
-	_, err = database.GetUser(db.ByUserID(2))
+	_, err = database.GetUser(db.ByUserID(100))
 	if err == nil {
 		t.Fatalf("An error should have been returned when getting a non-existent user.")
 	}
@@ -335,8 +335,8 @@ func TestCreateUserFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete NumUsers: %s", err)
 	}
-	if num != 1 {
-		t.Fatalf("The number of users should be 1.")
+	if num != 2 {
+		t.Fatalf("The number of users should be 2 (default admin + created user).")
 	}
 	_, err = database.CreateUser("newUser", "", 0)
 	if err == nil {
@@ -349,8 +349,8 @@ func TestCreateUserFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete NumUsers: %s", err)
 	}
-	if num != 1 {
-		t.Fatalf("The number of users should be 1.")
+	if num != 2 {
+		t.Fatalf("The number of users should be 2 (default admin + created user).")
 	}
 	_, err = database.CreateUser("newUser", "pw456", 32)
 	if err == nil {
@@ -369,7 +369,7 @@ func TestGetUserFails(t *testing.T) {
 		t.Fatalf("Couldn't complete CreateUser: %s", err)
 	}
 
-	_, err = database.GetUser(db.ByUserID(2))
+	_, err = database.GetUser(db.ByUserID(100))
 	if err == nil {
 		t.Fatalf("An error should have been returned when getting a non-existent user.")
 	}
@@ -384,16 +384,16 @@ func TestUpdateUserPasswordFails(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)
 
 	originalPassword := "pw123"
-	_, err := database.CreateUser("admin@canonical.com", originalPassword, 1)
+	userID, err := database.CreateUser("admin@canonical.com", originalPassword, 1)
 	if err != nil {
 		t.Fatalf("Couldn't complete CreateUser: %s", err)
 	}
 
-	err = database.UpdateUserPassword(db.ByUserID(2), "pw456")
+	err = database.UpdateUserPassword(db.ByUserID(100), "pw456")
 	if err == nil {
 		t.Fatalf("An error should have been returned when updating a non-existent user.")
 	}
-	retrievedUser, err := database.GetUser(db.ByUserID(1))
+	retrievedUser, err := database.GetUser(db.ByUserID(userID))
 	if err != nil {
 		t.Fatalf("Couldn't complete GetUser: %s", err)
 	}
@@ -404,18 +404,18 @@ func TestUpdateUserPasswordFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete NumUsers: %s", err)
 	}
-	if num != 1 {
-		t.Fatalf("The number of users should be 1.")
+	if num != 2 {
+		t.Fatalf("The number of users should be 2 (default admin + created user).")
 	}
 
-	err = database.UpdateUserPassword(db.ByUserID(1), "")
+	err = database.UpdateUserPassword(db.ByUserID(userID), "")
 	if err == nil {
 		t.Fatalf("An error should have been returned when updating a user with an empty password.")
 	}
 	if !errors.Is(err, db.ErrInvalidInput) {
 		t.Fatalf("An ErrInvalidInput should have been returned when updating a user with an empty password.")
 	}
-	retrievedUser, err = database.GetUser(db.ByUserID(1))
+	retrievedUser, err = database.GetUser(db.ByUserID(userID))
 	if err != nil {
 		t.Fatalf("Couldn't complete GetUser: %s", err)
 	}
@@ -436,7 +436,7 @@ func TestDeleteUserFails(t *testing.T) {
 		t.Fatalf("Couldn't complete CreateUser: %s", err)
 	}
 
-	err = database.DeleteUser(db.ByUserID(3))
+	err = database.DeleteUser(db.ByUserID(100))
 	if err == nil {
 		t.Fatalf("An error should have been returned when deleting a non-existent user.")
 	}
@@ -445,7 +445,7 @@ func TestDeleteUserFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete NumUsers: %s", err)
 	}
-	if num != 2 {
-		t.Fatalf("The number of users should be 2.")
+	if num != 3 {
+		t.Fatalf("The number of users should be 3 (default admin + 2 created users).")
 	}
 }

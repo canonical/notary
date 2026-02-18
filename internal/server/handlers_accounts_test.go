@@ -13,7 +13,10 @@ import (
 func TestAccountsEndToEnd(t *testing.T) {
 	ts, logs := tu.MustPrepareServer(t)
 	client := ts.Client()
-	adminToken := tu.MustPrepareAccount(t, ts, "testadmin@canonical.com", tu.RoleAdmin, "")
+	// Use the default admin account (ID 1) instead of creating a new one
+	adminToken := tu.MustGetDefaultAdminToken(t, ts)
+	// Create a second admin account for testing purposes
+	tu.MustPrepareAccount(t, ts, "testadmin@canonical.com", tu.RoleAdmin, adminToken)
 	nonAdminToken := tu.MustPrepareAccount(t, ts, "whatever@canonical.com", tu.RoleCertificateManager, adminToken)
 
 	t.Run("1. Get admin account - admin token", func(t *testing.T) {
@@ -30,8 +33,8 @@ func TestAccountsEndToEnd(t *testing.T) {
 		if response.Result.ID != 1 {
 			t.Fatalf("expected ID 1, got %d", response.Result.ID)
 		}
-		if response.Result.Email != "testadmin@canonical.com" {
-			t.Fatalf("expected email testadmin@canonical.com, got %s", response.Result.Email)
+		if response.Result.Email != "admin@notary.local" {
+			t.Fatalf("expected email admin@notary.local, got %s", response.Result.Email)
 		}
 		if response.Result.RoleID != 0 {
 			t.Fatalf("expected role ID 0, got %d", response.Result.RoleID)
@@ -86,7 +89,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 	})
 
 	t.Run("4. Get account", func(t *testing.T) {
-		statusCode, response, err := tu.GetAccount(ts.URL, client, adminToken, 3)
+		statusCode, response, err := tu.GetAccount(ts.URL, client, adminToken, 4)
 		if err != nil {
 			t.Fatalf("couldn't get account: %s", err)
 		}
@@ -96,8 +99,8 @@ func TestAccountsEndToEnd(t *testing.T) {
 		if response.Error != "" {
 			t.Fatalf("expected error %q, got %q", "", response.Error)
 		}
-		if response.Result.ID != 3 {
-			t.Fatalf("expected ID 3, got %d", response.Result.ID)
+		if response.Result.ID != 4 {
+			t.Fatalf("expected ID 4, got %d", response.Result.ID)
 		}
 		if response.Result.Email != "nopass@canonical.com" {
 			t.Fatalf("expected email nopass@canonical.com, got %s", response.Result.Email)
@@ -125,7 +128,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 		changeAccountPasswordParams := &tu.ChangeAccountPasswordParams{
 			Password: "newPassword1",
 		}
-		statusCode, response, err := tu.ChangeAccountPassword(ts.URL, client, adminToken, 1, changeAccountPasswordParams)
+		statusCode, response, err := tu.ChangeAccountPassword(ts.URL, client, adminToken, 2, changeAccountPasswordParams)
 		if err != nil {
 			t.Fatalf("couldn't create account: %s", err)
 		}
@@ -175,7 +178,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 
 	t.Run("8. Delete account - success", func(t *testing.T) {
 		_ = logs.TakeAll()
-		statusCode, response, err := tu.DeleteAccount(ts.URL, client, adminToken, 2)
+		statusCode, response, err := tu.DeleteAccount(ts.URL, client, adminToken, 3)
 		if err != nil {
 			t.Fatalf("couldn't delete account: %s", err)
 		}
@@ -229,8 +232,8 @@ func TestAccountsEndToEnd(t *testing.T) {
 		if response.Result.ID != 1 {
 			t.Fatalf("expected ID 1, got %d", response.Result.ID)
 		}
-		if response.Result.Email != "testadmin@canonical.com" {
-			t.Fatalf("expected email testadmin@canonical.com, got %s", response.Result.Email)
+		if response.Result.Email != "admin@notary.local" {
+			t.Fatalf("expected email admin@notary.local, got %s", response.Result.Email)
 		}
 		if response.Result.RoleID != int(tu.RoleAdmin) {
 			t.Fatalf("expected role ID %d, got %d", tu.RoleAdmin, response.Result.RoleID)

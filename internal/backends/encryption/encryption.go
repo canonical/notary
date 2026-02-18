@@ -27,6 +27,8 @@ func SetUpEncryptionKey(database *db.DatabaseRepository, backend EncryptionServi
 			if err != nil {
 				return fmt.Errorf("failed to store encryption key: %w", err)
 			}
+			// Set the encryption key on the database instance
+			database.EncryptionKey = encryptionKey
 			return nil
 		}
 		return fmt.Errorf("failed to get encryption key: %w", err)

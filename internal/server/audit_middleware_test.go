@@ -65,6 +65,9 @@ func TestAuditMiddleware_LogsFailureAndReason(t *testing.T) {
 func TestAuditMiddleware_LogsSuccessfulRead(t *testing.T) {
 	ts, logs := tu.MustPrepareServer(t)
 
+	// Get the default admin token
+	token := tu.MustGetDefaultAdminToken(t, ts)
+
 	createBody := map[string]any{
 		"email":    "admin@example.com",
 		"password": "Admin123",
@@ -76,6 +79,14 @@ func TestAuditMiddleware_LogsSuccessfulRead(t *testing.T) {
 		t.Fatalf("new request: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{
+		Name:     "user_token",
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err := ts.Client().Do(req)
 	if err != nil {
 		t.Fatalf("do request: %v", err)
@@ -84,43 +95,20 @@ func TestAuditMiddleware_LogsSuccessfulRead(t *testing.T) {
 		t.Fatalf("expected %d, got %d", http.StatusCreated, res.StatusCode)
 	}
 
-	loginBody := map[string]any{
-		"email":    "admin@example.com",
-		"password": "Admin123",
-	}
-	loginPayload, _ := json.Marshal(loginBody)
-	req, err = http.NewRequest("POST", ts.URL+"/login", bytes.NewReader(loginPayload))
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	res, err = ts.Client().Do(req)
-	if err != nil {
-		t.Fatalf("do request: %v", err)
-	}
-	if res.StatusCode != http.StatusOK {
-		t.Fatalf("expected %d, got %d", http.StatusOK, res.StatusCode)
-	}
-
-	// Extract session cookie from login response
-	var sessionCookie *http.Cookie
-	for _, c := range res.Cookies() {
-		if c.Name == "user_token" {
-			sessionCookie = c
-			break
-		}
-	}
-	if sessionCookie == nil {
-		t.Fatal("expected session cookie from login response")
-	}
-
 	_ = logs.TakeAll()
 
 	req, err = http.NewRequest("GET", ts.URL+"/api/v1/certificate_requests", nil)
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}
-	req.AddCookie(sessionCookie)
+	req.AddCookie(&http.Cookie{
+		Name:     "user_token",
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
 	res, err = ts.Client().Do(req)
 	if err != nil {
 		t.Fatalf("do request: %v", err)

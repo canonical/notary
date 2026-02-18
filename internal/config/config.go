@@ -112,8 +112,43 @@ func validateServerConfig(cfg *viper.Viper) error {
 	if cfg.IsSet("logging.system.level") && !slices.Contains(validLogLevels, cfg.GetString("logging.system.level")) {
 		return fmt.Errorf("invalid log level: %s", cfg.GetString("logging.system.level"))
 	}
-	if !cfg.IsSet("encryption_backend") {
-		return errors.New("`encryption_backend` is empty")
+	if err := validateEncryptionBackendConfig(cfg.Sub("encryption_backend")); err != nil {
+		return err
+	}
+	return nil
+}
+
+// validateEncryptionBackendConfig validates the encryption backend configuration.
+func validateEncryptionBackendConfig(encryptionCfg *viper.Viper) error {
+	backendType := encryptionCfg.GetString("type")
+	switch backendType {
+	case "vault":
+		if !encryptionCfg.IsSet("endpoint") {
+			return errors.New("endpoint is missing")
+		}
+		if !encryptionCfg.IsSet("mount") {
+			return errors.New("mount is missing")
+		}
+		if !encryptionCfg.IsSet("key_name") {
+			return errors.New("key_name is missing")
+		}
+		if (!encryptionCfg.IsSet("approle_role_id") || !encryptionCfg.IsSet("secret_role_id")) && !encryptionCfg.IsSet("token") {
+			return errors.New("provide either approle_role_id and approle_secret_id or token, not both")
+		}
+	case "pkcs11":
+		if !encryptionCfg.IsSet("lib_path") {
+			return errors.New("lib_path is missing")
+		}
+		if !encryptionCfg.IsSet("pin") {
+			return errors.New("pin is missing")
+		}
+		if !encryptionCfg.IsSet("aes_encryption_key_id") {
+			return errors.New("aes_encryption_key_id is missing")
+		}
+	case "none":
+		// No validation needed for "none" backend
+	default:
+		return errors.New("invalid encryption backend type; must be 'none', 'vault' or 'pkcs11'")
 	}
 	return nil
 }

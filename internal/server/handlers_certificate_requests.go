@@ -347,7 +347,7 @@ func PostCertificateRequestCertificate(env *HandlerDependencies) http.HandlerFun
 			log.WithRequest(r),
 		)
 
-		if env.SendPebbleNotifications {
+		if env.ShouldEnablePebbleNotifications {
 			err := SendPebbleNotification(CertificateUpdate, idNum)
 			if err != nil {
 				env.SystemLogger.Warn("pebble notify failed", zap.Error(err))
@@ -405,7 +405,7 @@ func RejectCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 			log.WithReason("rejected by administrator"),
 		)
 
-		if env.SendPebbleNotifications {
+		if env.ShouldEnablePebbleNotifications {
 			err := SendPebbleNotification(CertificateUpdate, idNum)
 			if err != nil {
 				env.SystemLogger.Warn("pebble notify failed", zap.Error(err))
@@ -448,7 +448,7 @@ func DeleteCertificate(env *HandlerDependencies) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
 		}
-		if env.SendPebbleNotifications {
+		if env.ShouldEnablePebbleNotifications {
 			err := SendPebbleNotification(CertificateUpdate, idNum)
 			if err != nil {
 				env.SystemLogger.Warn("pebble notify failed", zap.Error(err))
@@ -505,7 +505,7 @@ func RevokeCertificate(env *HandlerDependencies) http.HandlerFunc {
 			log.WithRequest(r),
 		)
 
-		if env.SendPebbleNotifications {
+		if env.ShouldEnablePebbleNotifications {
 			err := SendPebbleNotification(CertificateUpdate, idNum)
 			if err != nil {
 				env.SystemLogger.Warn("pebble notify failed", zap.Error(err))
@@ -560,7 +560,7 @@ func SignCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
 		}
-		if env.SendPebbleNotifications {
+		if env.ShouldEnablePebbleNotifications {
 			err := SendPebbleNotification(CertificateUpdate, idNum)
 			if err != nil {
 				env.SystemLogger.Warn("pebble notify failed", zap.Error(err))

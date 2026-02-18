@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/canonical/notary/internal/backends/encryption"
 	"github.com/canonical/notary/internal/config"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -19,43 +18,25 @@ func TestValidConfig(t *testing.T) {
 	cases := []struct {
 		desc       string
 		configYAML string
-		wantCfg    *config.NotaryAppContext
+		wantCfg    *config.AppConfig
 	}{
-		{"minimal config", validMinimalConfig, &config.NotaryAppContext{
-			PublicConfig: &config.PublicConfigData{
-				Port:                  8000,
-				LoggingLevel:          "debug",
-				LoggingOutput:         "stdout",
-				EncryptionBackendType: "none",
-			},
-			TLSCertificate:             []byte(validCert),
-			TLSPrivateKey:              []byte(validPK),
-			ExternalHostname:           "localhost",
-			DBPath:                     "./notary.db",
-			Port:                       8000,
-			PebbleNotificationsEnabled: false,
-			SystemLogger:               nil,
-			AuditLogger:                nil,
-			EncryptionBackend:          encryption.NoEncryptionBackend{},
-			EncryptionBackendType:      config.EncryptionBackendTypeNone,
+		{"minimal config", validMinimalConfig, &config.AppConfig{
+			Port:                            8000,
+			ExternalHostname:                "localhost",
+			DBPath:                          "./notary.db",
+			ShouldApplyMigrations:           false,
+			ShouldEnablePebbleNotifications: false,
+			TLSCertificate:                  []byte(validCert),
+			TLSPrivateKey:                   []byte(validPK),
 		}}, // This case tests the expected default values for missing fields are filled correctly
-		{"full config", validFullConfig, &config.NotaryAppContext{
-			PublicConfig: &config.PublicConfigData{
-				Port:                  8000,
-				LoggingLevel:          "info",
-				LoggingOutput:         "stdout",
-				EncryptionBackendType: "none",
-			},
-			TLSCertificate:             []byte(validCert),
-			TLSPrivateKey:              []byte(validPK),
-			ExternalHostname:           "example.com",
-			DBPath:                     "./notary.db",
-			Port:                       8000,
-			PebbleNotificationsEnabled: false,
-			SystemLogger:               nil,
-			AuditLogger:                nil,
-			EncryptionBackend:          encryption.NoEncryptionBackend{},
-			EncryptionBackendType:      config.EncryptionBackendTypeNone,
+		{"full config", validFullConfig, &config.AppConfig{
+			Port:                            8000,
+			ExternalHostname:                "example.com",
+			DBPath:                          "./notary.db",
+			ShouldApplyMigrations:           false,
+			ShouldEnablePebbleNotifications: false,
+			TLSCertificate:                  []byte(validCert),
+			TLSPrivateKey:                   []byte(validPK),
 		}}, // This case tests that the variables from the yaml are correctly copied to the final config
 	}
 	for _, tc := range cases {
@@ -64,13 +45,13 @@ func TestValidConfig(t *testing.T) {
 			if err != nil {
 				t.Errorf("Error writing config file")
 			}
-			gotCfg, err := config.CreateAppContext(&pflag.FlagSet{}, "config.yaml")
+			gotCfg, err := config.ParseConfig(&pflag.FlagSet{}, "config.yaml")
 			if err != nil {
-				t.Errorf("ValidateConfig(%q) = %v, want nil", "config.yaml", err)
+				t.Errorf("ParseConfig(%q) = %v, want nil", "config.yaml", err)
 				return
 			}
-			if !cmp.Equal(gotCfg, tc.wantCfg, cmpopts.IgnoreFields(config.NotaryAppContext{}, "SystemLogger", "AuditLogger", "AuthorizationConfig")) {
-				t.Errorf("ValidateConfig returned unexpected diff (-want+got):\n%v", cmp.Diff(tc.wantCfg, gotCfg))
+			if !cmp.Equal(gotCfg, tc.wantCfg, cmpopts.IgnoreFields(config.AppConfig{}, "LoggingConfig", "TracingConfig", "OIDCConfig", "EncryptionConfig")) {
+				t.Errorf("ParseConfig returned unexpected diff (-want+got):\n%v", cmp.Diff(tc.wantCfg, gotCfg))
 			}
 		})
 	}
@@ -100,9 +81,9 @@ func TestInvalidConfig(t *testing.T) {
 			if err != nil {
 				t.Errorf("Failed writing config file: %v", err)
 			}
-			_, err = config.CreateAppContext(&pflag.FlagSet{}, "config.yaml")
+			_, err = config.ParseConfig(&pflag.FlagSet{}, "config.yaml")
 			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
-				t.Errorf("config.Validate(%v) = %v, want %v", tc.configYAML, err, tc.wantErr)
+				t.Errorf("config.ParseConfig(%v) = %v, want %v", tc.configYAML, err, tc.wantErr)
 			}
 		})
 	}

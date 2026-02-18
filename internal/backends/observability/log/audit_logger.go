@@ -266,9 +266,10 @@ func (a *AuditLogger) UserCreated(username string, roleID int, opts ...AuditOpti
 	}
 
 	roleName := fmt.Sprintf("role_%d", roleID)
-	if roleID == 1 {
+	switch roleID {
+	case 1:
 		roleName = "admin"
-	} else if roleID == 2 {
+	case 2:
 		roleName = "user"
 	}
 

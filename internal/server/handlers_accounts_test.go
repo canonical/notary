@@ -267,42 +267,42 @@ func TestCreateAccountInvalidInputs(t *testing.T) {
 			email:    "",
 			password: "password",
 			roleID:   tu.RoleCertificateManager,
-			error:    "Invalid request: email is required",
+			error:    "invalid request: email is required",
 		},
 		{
 			testName: "Invalid email - Missing @ symbol",
 			email:    "invalid",
 			password: "password",
 			roleID:   tu.RoleCertificateManager,
-			error:    "Invalid request: invalid email format",
+			error:    "invalid request: invalid email format",
 		},
 		{
 			testName: "Invalid email - Missing local part",
 			email:    "@missinglocal.org",
 			password: "password",
 			roleID:   tu.RoleCertificateManager,
-			error:    "Invalid request: invalid email format",
+			error:    "invalid request: invalid email format",
 		},
 		{
 			testName: "Invalid email - Domain starts with a dot",
 			email:    "username@.com",
 			password: "password",
 			roleID:   tu.RoleCertificateManager,
-			error:    "Invalid request: invalid email format",
+			error:    "invalid request: invalid email format",
 		},
 		{
 			testName: "Invalid email - Double dot",
 			email:    "username@domain..com",
 			password: "password",
 			roleID:   tu.RoleCertificateManager,
-			error:    "Invalid request: invalid email format",
+			error:    "invalid request: invalid email format",
 		},
 		{
 			testName: "Invalid email - Ends with dot",
 			email:    "username@domain.com.",
 			password: "password",
 			roleID:   tu.RoleCertificateManager,
-			error:    "Invalid request: invalid email format",
+			error:    "invalid request: invalid email format",
 		},
 
 		{
@@ -310,28 +310,28 @@ func TestCreateAccountInvalidInputs(t *testing.T) {
 			email:    "test@canonical.com",
 			password: "",
 			roleID:   tu.RoleCertificateManager,
-			error:    "Invalid request: password is required",
+			error:    "invalid request: password is required",
 		},
 		{
 			testName: "bad password",
 			email:    "test@canonical.com",
 			password: "123",
 			roleID:   tu.RoleCertificateManager,
-			error:    "Invalid request: password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol",
+			error:    "invalid request: password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol",
 		},
 		{
 			testName: "invalid role ID (negative)",
 			email:    "test@canonical.com",
 			password: "Pizza123!",
 			roleID:   -1,
-			error:    "Invalid request: invalid role ID: -1",
+			error:    "invalid request: invalid role ID: -1",
 		},
 		{
 			testName: "invalid role ID (no matching role)",
 			email:    "test@canonical.com",
 			password: "Pizza123!",
 			roleID:   999,
-			error:    "Invalid request: invalid role ID: 999",
+			error:    "invalid request: invalid role ID: 999",
 		},
 	}
 
@@ -369,12 +369,12 @@ func TestChangeAccountPasswordInvalidInputs(t *testing.T) {
 		{
 			testName: "No password",
 			password: "",
-			error:    "Invalid request: password is required",
+			error:    "invalid request: password is required",
 		},
 		{
 			testName: "bad password",
 			password: "123",
-			error:    "Invalid request: password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol",
+			error:    "invalid request: password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol",
 		},
 	}
 

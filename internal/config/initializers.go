@@ -152,7 +152,9 @@ func initializeEncryptionBackend(encryptionCfg *viper.Viper, database *db.Databa
 	default:
 		return nil, errors.New("invalid encryption backend type; must be 'none', 'vault' or 'pkcs11'")
 	}
-	encryption.SetUpEncryptionKey(database, encryptionRepo.Service, logger)
+	if err := encryption.SetUpEncryptionKey(database, encryptionRepo.Service, logger); err != nil {
+		return nil, fmt.Errorf("failed to set up encryption key: %w", err)
+	}
 	return encryptionRepo, nil
 }
 

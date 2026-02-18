@@ -15,10 +15,10 @@ type GetConfigContentResponse struct {
 func GetConfigContent(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		configContent := GetConfigContentResponse{
-			Port:                  env.AppConfig.Port,
-			PebbleNotifications:   env.AppConfig.ShouldEnablePebbleNotifications,
+			Port:                  env.Port,
+			PebbleNotifications:   env.ShouldEnablePebbleNotifications,
 			LoggingLevel:          env.SystemLogger.Level().String(),
-			LoggingOutput:         env.AppConfig.LoggingConfig.GetString("system.output"),
+			LoggingOutput:         env.LoggingConfig.GetString("system.output"),
 			EncryptionBackendType: "TODO: place this once you start injecting all of the app",
 		}
 		err := writeResponse(w, configContent, http.StatusOK)

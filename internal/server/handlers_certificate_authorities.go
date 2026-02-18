@@ -269,7 +269,7 @@ func CreateCertificateAuthority(env *HandlerDependencies) http.HandlerFunc {
 		}
 		valid, err := params.IsValid()
 		if !valid {
-			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.SystemLogger)
+			writeError(w, http.StatusBadRequest, fmt.Errorf("invalid request: %s", err).Error(), err, env.SystemLogger)
 			return
 		}
 		claims, cookieErr := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
@@ -458,7 +458,7 @@ func PostCertificateAuthorityCertificate(env *HandlerDependencies) http.HandlerF
 		}
 		valid, err := UploadCertificateToCertificateAuthorityParams.IsValid()
 		if !valid {
-			writeError(w, http.StatusBadRequest, fmt.Errorf("Invalid request: %s", err).Error(), err, env.SystemLogger)
+			writeError(w, http.StatusBadRequest, fmt.Errorf("invalid request: %s", err).Error(), err, env.SystemLogger)
 			return
 		}
 

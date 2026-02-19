@@ -42,6 +42,17 @@ type ChangeAccountParams struct {
 	Password string `json:"password"`
 }
 
+type UpdateAccountRoleParams struct {
+	RoleID RoleID `json:"role_id"`
+}
+
+func (params *UpdateAccountRoleParams) IsValid() (bool, error) {
+	if !params.RoleID.IsValid() {
+		return false, fmt.Errorf("invalid role ID: %d", params.RoleID)
+	}
+	return true, nil
+}
+
 func (params *ChangeAccountParams) IsValid() (bool, error) {
 	if params.Password == "" {
 		return false, errors.New("password is required")
@@ -429,6 +440,70 @@ func ChangeMyPassword(env *HandlerConfig) http.HandlerFunc {
 		successResponse := SuccessResponse{Message: "success"}
 		err = writeResponse(w, successResponse, http.StatusCreated)
 		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
+			return
+		}
+	}
+}
+
+// UpdateAccountRole updates an existing account's role.
+func UpdateAccountRole(env *HandlerConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		idNum, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "Invalid ID", err, env.SystemLogger)
+			return
+		}
+
+		account, err := env.DB.GetUser(db.ByUserID(idNum))
+		if err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			return
+		}
+		if idNum == 1 {
+			err = errors.New("updating the default admin account role is not allowed")
+			writeError(w, http.StatusBadRequest, "updating the default admin account role is not allowed.", err, env.SystemLogger)
+			return
+		}
+
+		claims, err := getClaimsFromCookie(r, env.JWTSecret, env.OIDCConfig)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.SystemLogger)
+			return
+		}
+
+		var params UpdateAccountRoleParams
+		if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+			writeError(w, http.StatusBadRequest, "Invalid JSON format", err, env.SystemLogger)
+			return
+		}
+		valid, err := params.IsValid()
+		if !valid {
+			writeError(w, http.StatusBadRequest, fmt.Sprintf("Invalid request: %s", err), err, env.SystemLogger)
+			return
+		}
+
+		if err := env.DB.UpdateUserRole(db.ByUserID(idNum), db.RoleID(params.RoleID)); err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			return
+		}
+
+		env.AuditLogger.UserUpdated(account.Email, "role_change",
+			logging.WithActor(claims.Email),
+			logging.WithRequest(r),
+		)
+
+		successResponse := SuccessResponse{Message: "success"}
+		if err := writeResponse(w, successResponse, http.StatusCreated); err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
 			return
 		}

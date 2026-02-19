@@ -245,6 +245,62 @@ func TestAccountsEndToEnd(t *testing.T) {
 			t.Fatalf("expected auth methods [local], got %v", response.Result.AuthMethods)
 		}
 	})
+
+	t.Run("11. Update account role - success", func(t *testing.T) {
+		_ = logs.TakeAll()
+		statusCode, response, err := tu.UpdateAccountRole(ts.URL, client, adminToken, 3, &tu.UpdateAccountRoleParams{RoleID: tu.RoleReadOnly})
+		if err != nil {
+			t.Fatalf("couldn't update account role: %s", err)
+		}
+		if statusCode != http.StatusCreated {
+			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
+		}
+		if response.Error != "" {
+			t.Fatalf("unexpected error :%q", response.Error)
+		}
+
+		statusCode, getResponse, err := tu.GetAccount(ts.URL, client, adminToken, 3)
+		if err != nil {
+			t.Fatalf("couldn't get account: %s", err)
+		}
+		if statusCode != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+		}
+		if getResponse.Error != "" {
+			t.Fatalf("expected error %q, got %q", "", getResponse.Error)
+		}
+		if getResponse.Result.RoleID != int(tu.RoleReadOnly) {
+			t.Fatalf("expected role ID %d, got %d", tu.RoleReadOnly, getResponse.Result.RoleID)
+		}
+
+		entries := logs.TakeAll()
+		var haveUserUpdated bool
+		for _, e := range entries {
+			if e.LoggerName != "audit" {
+				continue
+			}
+			if findStringField(e, "event") == "user_updated:nopass@canonical.com,role_change" {
+				haveUserUpdated = true
+				break
+			}
+		}
+		if !haveUserUpdated {
+			t.Fatalf("expected UserUpdated audit entry for role_change")
+		}
+	})
+
+	t.Run("12. Update account role - forbidden for non-admin", func(t *testing.T) {
+		statusCode, response, err := tu.UpdateAccountRole(ts.URL, client, nonAdminToken, 3, &tu.UpdateAccountRoleParams{RoleID: tu.RoleCertificateManager})
+		if err != nil {
+			t.Fatalf("couldn't update account role: %s", err)
+		}
+		if statusCode != http.StatusForbidden {
+			t.Fatalf("expected status %d, got %d", http.StatusForbidden, statusCode)
+		}
+		if response.Error != "forbidden: insufficient permissions" {
+			t.Fatalf("expected error %q, got %q", "forbidden: insufficient permissions", response.Error)
+		}
+	})
 }
 
 func TestCreateAccountInvalidInputs(t *testing.T) {

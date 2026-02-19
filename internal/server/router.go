@@ -39,6 +39,7 @@ func NewRouter(config *HandlerConfig) http.Handler {
 	apiV1Router.HandleFunc("DELETE /accounts/{id}", requirePermission([]string{PermDeleteUser}, config.JWTSecret, config.OIDCConfig, DeleteAccount(config), config.SystemLogger, config.AuditLogger))
 	apiV1Router.HandleFunc("POST /accounts/{id}/change_password", requirePermission([]string{PermUpdateUserPassword}, config.JWTSecret, config.OIDCConfig, ChangeAccountPassword(config), config.SystemLogger, config.AuditLogger))
 	apiV1Router.HandleFunc("POST /accounts/me/change_password", requirePermission([]string{PermUpdateMyPassword}, config.JWTSecret, config.OIDCConfig, ChangeMyPassword(config), config.SystemLogger, config.AuditLogger))
+	apiV1Router.HandleFunc("PUT /accounts/{id}/role", requirePermission([]string{PermUpdateUserRole}, config.JWTSecret, config.OIDCConfig, UpdateAccountRole(config), config.SystemLogger, config.AuditLogger))
 
 	if config.OIDCConfig != nil {
 		apiV1Router.HandleFunc("GET /oauth/login", LoginOIDC(config))

@@ -214,7 +214,7 @@ func initializeAuditLogger(cfg *viper.Viper) (*log.AuditLogger, error) {
 
 // InitializeAuthorizationConfig initializes the authorization config after database creation
 // This needs to be called from cmd/start.go after the database is created
-func InitializeAuthorizationConfig(database *db.DatabaseRepository, logger *zap.Logger) (*authz.OpenFGARepository, error) {
+func InitializeAuthorizationConfig(database *db.DatabaseRepository, logger *zap.Logger) (*authz.AuthzRepository, error) {
 	ofgaConfig, err := authz.InitializeLocalOpenFGA(database, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize OpenFGA: %w", err)

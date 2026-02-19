@@ -3,77 +3,84 @@ package authorization
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/canonical/notary/internal/db"
+	"github.com/oklog/ulid/v2"
+	openfgav1 "github.com/openfga/api/proto/openfga/v1"
+	"github.com/openfga/language/pkg/go/transformer"
 	ofgaLogger "github.com/openfga/openfga/pkg/logger"
 	ofgaServer "github.com/openfga/openfga/pkg/server"
 	"github.com/openfga/openfga/pkg/storage/sqlcommon"
-	"github.com/openfga/openfga/pkg/storage/sqlite"
+	ofgaSqlite "github.com/openfga/openfga/pkg/storage/sqlite"
 	"go.uber.org/zap"
 )
 
-// AuthorizationMode represents the mode of authorization
-type AuthorizationMode string
+var dummyDatastoreULID = ulid.Make().String()
 
-const (
-	AuthorizationModeLocal  AuthorizationMode = "local"
-	AuthorizationModeRemote AuthorizationMode = "remote"
-)
-
-// OpenFGARepository holds the OpenFGA server and mode
-type OpenFGARepository struct {
-	Mode      AuthorizationMode
+// AuthzRepository holds the OpenFGA server and mode
+type AuthzRepository struct {
 	FGAClient *ofgaServer.Server
+	StoreID   string
 }
 
 // InitializeLocalOpenFGA initializes a local OpenFGA server with SQLite storage
 // The OpenFGA datastore will automatically create its own tables and run migrations
 // as needed when the datastore is first created.
-func InitializeLocalOpenFGA(database *db.DatabaseRepository, logger *zap.Logger) (*OpenFGARepository, error) {
+func InitializeLocalOpenFGA(database *db.DatabaseRepository, logger *zap.Logger) (*AuthzRepository, error) {
 	// Wrap the zap logger using OpenFGA's logger implementation
 	ofgaLog := &ofgaLogger.ZapLogger{Logger: logger}
 
-	// Get the raw SQL connection from the notary database
-	sqlConn := database.Conn.PlainDB()
-
-	// Create OpenFGA SQLite datastore configuration
-	config := sqlcommon.NewConfig(
+	// Create sqlcommon config for database connection
+	cfg := sqlcommon.NewConfig(
 		sqlcommon.WithLogger(ofgaLog),
 	)
-
-	// Create the SQLite datastore using the notary database connection
-	datastore, err := sqlite.NewWithDB(sqlConn, config)
+	// Make datastore from database
+	ds, err := ofgaSqlite.NewWithDB(database.Conn.PlainDB(), cfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create OpenFGA SQLite datastore: %w", err)
+		return nil, fmt.Errorf("failed to create ofga Sqlite datastore: %s", err)
 	}
 
-	// Check if the datastore is ready (will run migrations if needed)
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	readinessStatus, err := datastore.IsReady(ctx)
+	// start server with datastore
+	openfga, err := ofgaServer.NewServerWithOpts(ofgaServer.WithDatastore(ds))
 	if err != nil {
-		return nil, fmt.Errorf("failed to check OpenFGA datastore readiness: %w", err)
+		return nil, fmt.Errorf("failed to create new ofga server: %s", err)
 	}
 
-	if !readinessStatus.IsReady {
-		return nil, fmt.Errorf("OpenFGA datastore is not ready: %s", readinessStatus.Message)
-	}
-
-	// Create the OpenFGA server with the SQLite datastore
-	server, err := ofgaServer.NewServerWithOpts(
-		ofgaServer.WithDatastore(datastore),
-		ofgaServer.WithLogger(ofgaLog),
-	)
+	// if the store already exists, just return the server, otherwise create the store and write the model and tuples
+	stores, err := openfga.ListStores(context.Background(), &openfgav1.ListStoresRequest{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create OpenFGA server: %w", err)
+		return nil, fmt.Errorf("failed to list stores: %s", err)
+	}
+	for _, store := range stores.Stores {
+		if store.GetName() == "notary" {
+			return &AuthzRepository{
+				FGAClient: openfga,
+				StoreID:   store.Id,
+			}, nil
+		}
 	}
 
-	logger.Info("OpenFGA local server initialized successfully with SQLite storage")
+	newStore, err := openfga.CreateStore(context.Background(), &openfgav1.CreateStoreRequest{Name: "notary"})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create notary openfga store: %s", err)
+	}
 
-	return &OpenFGARepository{
-		Mode:      AuthorizationModeLocal,
-		FGAClient: server,
+	// transform dsl to proto
+	protoModel, err := transformer.TransformDSLToProto(OFGAModel)
+	if err != nil {
+		return nil, fmt.Errorf("failed to transform dsl to proto: %s", err)
+	}
+	// write model to server
+	authorizationModel, err := openfga.WriteAuthorizationModel(context.Background(), &openfgav1.WriteAuthorizationModelRequest{
+		StoreId:         newStore.GetId(),
+		TypeDefinitions: protoModel.GetTypeDefinitions(),
+		Conditions:      protoModel.GetConditions(),
+		SchemaVersion:   protoModel.GetSchemaVersion(),
+	})
+	// write default admin tuple to server
+
+	return &AuthzRepository{
+		FGAClient: openfga,
+		StoreID:   newStore.GetId(),
 	}, nil
 }

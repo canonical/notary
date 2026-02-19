@@ -49,6 +49,6 @@ type AppEnvironment struct {
 
 	TracingRepository    *tracing.TracingRepository
 	EncryptionRepository *encryption.EncryptionRepository
-	AuthzRepository      *authz.OpenFGARepository
+	AuthzRepository      *authz.AuthzRepository
 	AuthnRepository      *authn.OIDCRepository
 }

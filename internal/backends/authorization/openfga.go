@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/canonical/notary/internal/db"
-	"github.com/oklog/ulid/v2"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/openfga/language/pkg/go/transformer"
 	"github.com/openfga/openfga/assets"
@@ -17,8 +16,6 @@ import (
 	"go.uber.org/zap"
 	_ "modernc.org/sqlite"
 )
-
-var dummyDatastoreULID = ulid.Make().String()
 
 // AuthzRepository holds the OpenFGA server and store/model references.
 type AuthzRepository struct {

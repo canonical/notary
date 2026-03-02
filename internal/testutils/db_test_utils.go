@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/canonical/notary/internal/backends/authentication"
+	"github.com/canonical/notary/internal/backends/authorization"
 	"github.com/canonical/notary/internal/backends/encryption"
 	"github.com/canonical/notary/internal/config"
 	"github.com/canonical/notary/internal/db"
@@ -73,7 +74,7 @@ func MustCreateTestAppConfig(t *testing.T) *config.AppConfig {
 }
 
 // MustCreateTestAppEnvironment creates a test AppEnvironment with reasonable defaults
-func MustCreateTestAppEnvironment(t *testing.T, db *db.DatabaseRepository) *config.AppEnvironment {
+func MustCreateTestAppEnvironment(t *testing.T, database *db.DatabaseRepository) *config.AppEnvironment {
 	t.Helper()
 	encryptionRepo := &encryption.EncryptionRepository{
 		Type:    encryption.EncryptionBackendTypeNone,
@@ -81,15 +82,21 @@ func MustCreateTestAppEnvironment(t *testing.T, db *db.DatabaseRepository) *conf
 	}
 
 	// Set up the encryption key in the database
-	err := encryption.SetUpEncryptionKey(db, encryptionRepo.Service, logger)
+	err := encryption.SetUpEncryptionKey(database, encryptionRepo.Service, logger)
 	if err != nil {
 		t.Fatalf("failed to set up encryption key: %s", err)
 	}
 
+	authzRepo, err := authorization.InitializeLocalOpenFGA(database, logger)
+	if err != nil {
+		t.Fatalf("failed to initialize OpenFGA: %s", err)
+	}
+
 	return &config.AppEnvironment{
-		Database:             db,
+		Database:             database,
 		SystemLogger:         logger,
 		AuditLogger:          nil, // Can be set up as needed
 		EncryptionRepository: encryptionRepo,
+		AuthzRepository:      authzRepo,
 	}
 }

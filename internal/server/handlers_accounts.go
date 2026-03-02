@@ -9,8 +9,10 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/canonical/notary/internal/backends/authorization"
 	"github.com/canonical/notary/internal/backends/observability/log"
 	"github.com/canonical/notary/internal/db"
+	"go.uber.org/zap"
 )
 
 type CreateAccountParams struct {
@@ -56,7 +58,6 @@ type GetAccountResponse struct {
 	ID          int64    `json:"id,omitempty"`
 	Email       string   `json:"email"`
 	RoleID      RoleID   `json:"role_id"` // Removed omitempty - role_id=0 (Admin) must be included
-	Permissions []string `json:"permissions,omitempty"`
 	HasPassword bool     `json:"has_password"`
 	HasOIDC     bool     `json:"has_oidc"`
 	OIDCSubject *string  `json:"oidc_subject,omitempty"`
@@ -189,7 +190,6 @@ func GetMyAccount(env *HandlerDependencies) http.HandlerFunc {
 			return
 		}
 		accountResponse := userToAccountResponse(account)
-		accountResponse.Permissions = claims.Permissions
 		err = writeResponse(w, accountResponse, http.StatusOK)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
@@ -219,6 +219,14 @@ func CreateAccount(env *HandlerDependencies) http.HandlerFunc {
 			}
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
+		}
+
+		if env.AuthzRepository != nil {
+			relation := RoleIDToRelation(db.RoleID(createAccountParams.RoleID))
+			userID := authorization.UserID(createAccountParams.Email)
+			if err := env.AuthzRepository.WriteTuple("system:notary", relation, userID); err != nil {
+				env.SystemLogger.Error("Failed to write role tuple to OpenFGA", zap.Error(err), zap.String("user", userID), zap.String("relation", relation))
+			}
 		}
 
 		var actor string
@@ -281,6 +289,14 @@ func DeleteAccount(env *HandlerDependencies) http.HandlerFunc {
 			}
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
+		}
+
+		if env.AuthzRepository != nil {
+			relation := RoleIDToRelation(account.RoleID)
+			userID := authorization.UserID(account.Email)
+			if err := env.AuthzRepository.DeleteTuple("system:notary", relation, userID); err != nil {
+				env.SystemLogger.Error("Failed to delete role tuple from OpenFGA", zap.Error(err), zap.String("user", userID), zap.String("relation", relation))
+			}
 		}
 
 		env.AuditLogger.UserDeleted(account.Email,

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/canonical/notary/internal/backends/authorization"
 	"github.com/canonical/notary/internal/backends/observability/log"
 	"github.com/canonical/notary/internal/db"
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -159,6 +160,13 @@ func CallbackOIDC(env *HandlerDependencies) http.HandlerFunc {
 					zap.String("subject", sub))
 				writeError(w, http.StatusInternalServerError, "failed to create OIDC user", err, env.SystemLogger)
 				return
+			}
+
+			if env.AuthzRepository != nil {
+				userID := authorization.UserID(email)
+				if err := env.AuthzRepository.WriteTuple("system:notary", RoleNameReader, userID); err != nil {
+					env.SystemLogger.Error("Failed to write reader tuple for OIDC user", zap.Error(err), zap.String("user", userID))
+				}
 			}
 
 			env.SystemLogger.Info("New OIDC user auto-provisioned successfully",

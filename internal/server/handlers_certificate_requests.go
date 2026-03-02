@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -82,7 +81,7 @@ func ListCertificateRequests(env *HandlerDependencies) http.HandlerFunc {
 		var err error
 
 		filter := &db.CSRFilter{}
-		if !slices.Contains(claims.Permissions, PermReadCertificateRequest) {
+		if RoleID(claims.RoleID) == RoleCertificateRequestor {
 			filter.UserEmail = &claims.Email
 		}
 
@@ -199,7 +198,7 @@ func GetCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 		}
 
 		// Restrict access to certificate requestors' own requests
-		if !slices.Contains(claims.Permissions, PermReadCertificateRequest) && claims.Email != csr.UserEmail {
+		if RoleID(claims.RoleID) == RoleCertificateRequestor && claims.Email != csr.UserEmail {
 			writeError(w, http.StatusForbidden, "Access denied", fmt.Errorf("user does not have permission to access this certificate request"), env.SystemLogger)
 			return
 		}

@@ -29,11 +29,9 @@ type LoginResponse struct {
 // Helper function to generate a JWT
 func generateJWT(id int64, email string, jwtSecret []byte, roleID RoleID) (string, error) {
 	expiresAt := jwt.NewNumericDate(expireAfter())
-	permissionList := getPermissionsFromRoleID(roleID)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, authentication.NotaryJWTClaims{
-		Email:       email,
-		Permissions: permissionList,
-		RoleID:      int(roleID),
+		Email:  email,
+		RoleID: int(roleID),
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: expiresAt,
 		},

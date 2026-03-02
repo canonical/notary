@@ -38,6 +38,8 @@ func NewDatabase(dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
 	if _, err := sqlConnection.Exec("PRAGMA foreign_keys = ON;"); err != nil {
 		return nil, err
 	}
+	sqlConnection.SetMaxIdleConns(2)
+	sqlConnection.SetMaxOpenConns(2)
 	err = goose.SetDialect("sqlite")
 	if err != nil {
 		return nil, err
@@ -60,8 +62,12 @@ func NewDatabase(dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
 	db.stmts = PrepareStatements()
 	db.Conn = sqlair.NewDB(sqlConnection)
 
-	// Create default admin account if this is a fresh database
-	if version < 1 {
+	// Create default admin account if no users exist
+	users, err := db.ListUsers()
+	if err != nil && err != ErrNotFound {
+		return nil, fmt.Errorf("failed to check for existing users: %w", err)
+	}
+	if len(users) == 0 {
 		if err := createDefaultAdminUser(db); err != nil {
 			return nil, fmt.Errorf("failed to create default admin user: %w", err)
 		}

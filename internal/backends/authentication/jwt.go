@@ -111,24 +111,12 @@ func verifyOIDCAccessToken(ctx context.Context, p ProviderConfig, raw string) (*
 			return nil, fmt.Errorf("oidc token audience invalid")
 		}
 	}
-	rawPermissions, ok := claims[p.Provider.PermissionsClaimKey].([]any)
-	if !ok {
-		return nil, fmt.Errorf("oidc permissions claim could not be parsed")
-	}
-	var permissions []string
-	for _, v := range rawPermissions {
-		s, ok := v.(string)
-		if ok {
-			permissions = append(permissions, s)
-		}
-	}
 	email, _ := claims[p.Provider.EmailClaimKey].(string)
 	if email == "" {
 		return nil, fmt.Errorf("oidc email claim missing or invalid")
 	}
 	return &NotaryJWTClaims{
-		Permissions: permissions,
-		Email:       email,
+		Email: email,
 	}, nil
 }
 
@@ -151,7 +139,6 @@ func verifyLocalJWT(ctx context.Context, p ProviderConfig, raw string) (*NotaryJ
 	}
 
 	return &NotaryJWTClaims{
-		Permissions:      claims.Permissions,
 		Email:            claims.Email,
 		RoleID:           claims.RoleID,
 		RegisteredClaims: claims.RegisteredClaims,

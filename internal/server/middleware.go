@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/canonical/notary/internal/backends/authentication"
+	"github.com/canonical/notary/internal/backends/authorization"
 	"github.com/canonical/notary/internal/backends/observability/log"
 	"github.com/canonical/notary/internal/backends/observability/metrics"
 	"github.com/canonical/notary/internal/backends/observability/tracing"
@@ -226,42 +226,52 @@ func extractResourceType(path string) string {
 	return ""
 }
 
-// requirePermission authorizes a request based on OpenFGA or JWT permissions.
-// At least one of the required permissions must be present in the user's permissions.
+// requirePermission authorizes a request by verifying the caller's JWT then performing an
+// OpenFGA Check against "system:notary" for each of the allowedRoles. The first matching
+// role grants access; if none match, 403 Forbidden is returned.
 func requirePermission(
-	requiredPermissions []string,
-	jwtSecret []byte,
-	oidcConfig *authentication.OIDCRepository,
+	allowedRoles []string,
+	env *HandlerDependencies,
 	handler http.HandlerFunc,
-	systemLogger *zap.Logger,
-	auditLogger *log.AuditLogger,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		claims, err := getClaimsFromCookie(r, jwtSecret, oidcConfig)
+		claims, err := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 		if err != nil {
-			auditLogger.UnauthorizedAccess(
+			env.AuditLogger.UnauthorizedAccess(
 				log.WithRequest(r),
 				log.WithReason("invalid or missing JWT token"),
 			)
-			writeError(w, http.StatusUnauthorized, "Unauthorized", err, systemLogger)
+			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.SystemLogger)
 			return
 		}
 
-		// Check if user has required permission
-		hasPermission := false
-		for _, perm := range requiredPermissions {
-			if slices.Contains(claims.Permissions, perm) {
-				hasPermission = true
+		userID := authorization.UserID(claims.Email)
+		const systemObject = "system:notary"
+
+		if env.AuthzRepository == nil {
+			handler(w, r)
+			return
+		}
+
+		allowed := false
+		for _, role := range allowedRoles {
+			ok, checkErr := env.AuthzRepository.Check(systemObject, role, userID)
+			if checkErr != nil {
+				writeError(w, http.StatusInternalServerError, "authorization check failed", checkErr, env.SystemLogger)
+				return
+			}
+			if ok {
+				allowed = true
 				break
 			}
 		}
 
-		if !hasPermission {
-			auditLogger.AccessDenied(claims.Email, r.URL.Path, strings.Join(requiredPermissions, ","),
+		if !allowed {
+			env.AuditLogger.AccessDenied(claims.Email, r.URL.Path, strings.Join(allowedRoles, ","),
 				log.WithRequest(r),
 				log.WithReason("insufficient permissions"),
 			)
-			writeError(w, http.StatusForbidden, "forbidden: insufficient permissions", errors.New("missing permission"), systemLogger)
+			writeError(w, http.StatusForbidden, "forbidden: insufficient permissions", errors.New("missing role"), env.SystemLogger)
 			return
 		}
 

@@ -16,6 +16,7 @@ type DatabaseRepository struct {
 	Conn  *sqlair.DB
 	stmts *Statements
 
+	Path          string
 	EncryptionKey []byte
 	JWTSecret     []byte
 }

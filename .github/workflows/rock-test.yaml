@@ -61,7 +61,7 @@ jobs:
           curl -fsS -XPOST -k \
             --header 'Content-Type: application/json' \
             -d '{"email":"admin@canonical.com", "password": "Admin1234"}' \
-            https://localhost:3000/api/v1/accounts
+            https://localhost:3000/api/v1/initialize
 
           curl -fsS -k -c "$COOKIE_JAR" -XPOST \
             --header 'Content-Type: application/json' \

@@ -22,7 +22,6 @@ type AppConfig struct {
 
 	// ExternalHostname is used in the CRLDistributionPoint extension of the certificate
 	// It is also used in the OIDC configuration as the audience for the IDP to identify the Notary server with the correct API scopes
-	// TODO: this should be moved for separation of concerns
 	ExternalHostname string
 
 	// Path to store the sqlite database

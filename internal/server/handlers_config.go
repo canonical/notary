@@ -19,7 +19,7 @@ func GetConfigContent(env *HandlerDependencies) http.HandlerFunc {
 			PebbleNotifications:   env.ShouldEnablePebbleNotifications,
 			LoggingLevel:          env.SystemLogger.Level().String(),
 			LoggingOutput:         env.LoggingConfig.GetString("system.output"),
-			EncryptionBackendType: "TODO: place this once you start injecting all of the app",
+			EncryptionBackendType: string(env.EncryptionRepository.Type),
 		}
 		err := writeResponse(w, configContent, http.StatusOK)
 		if err != nil {

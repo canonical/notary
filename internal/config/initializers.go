@@ -51,7 +51,7 @@ func InitializeAppEnvironment(appConfig *AppConfig, database *db.DatabaseReposit
 		return nil, fmt.Errorf("couldn't initialize encryption subsystem: %w", err)
 	}
 
-	// initialize OIDC config TODO: jwt key should be set up here
+	// initialize OIDC config
 	authnRepo, err := initializeOIDC(appConfig.OIDCConfig, database, appConfig.ExternalHostname)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't initialize OIDC subsystem: %w", err)

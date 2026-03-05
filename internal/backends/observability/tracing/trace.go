@@ -39,7 +39,7 @@ func SetupTracing(ctx context.Context, endpoint string, serviceName string, samp
 
 	client := otlptracegrpc.NewClient(
 		otlptracegrpc.WithEndpoint(endpoint),
-		otlptracegrpc.WithInsecure(), // TODO: support TLS
+		otlptracegrpc.WithInsecure(),
 	)
 	exporter, err := otlptrace.New(ctx, client)
 	if err != nil {

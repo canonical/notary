@@ -140,6 +140,7 @@ func GetAccount(env *HandlerDependencies) http.HandlerFunc {
 			claims, jwtErr := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 			if jwtErr != nil {
 				writeError(w, http.StatusUnauthorized, "Unauthorized", jwtErr, env.SystemLogger)
+				return
 			}
 			account = &db.User{
 				Email: claims.Email,

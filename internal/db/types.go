@@ -1,7 +1,6 @@
 package db
 
 import (
-	"github.com/canonical/notary/internal/encryption_backend"
 	"github.com/canonical/sqlair"
 	"go.uber.org/zap"
 )
@@ -9,12 +8,11 @@ import (
 type DatabaseOpts struct {
 	DatabasePath    string
 	ApplyMigrations bool
-	Backend         encryption_backend.EncryptionBackend
 	Logger          *zap.Logger
 }
 
-// Database is the object used to communicate with the established repository.
-type Database struct {
+// DatabaseRepository is the object used to communicate with the established repository.
+type DatabaseRepository struct {
 	Conn  *sqlair.DB
 	stmts *Statements
 

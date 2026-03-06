@@ -500,26 +500,26 @@ func TestCreateCertificateRequestInvalidInputs(t *testing.T) {
 		{
 			testName: "No csr",
 			csr:      "",
-			error:    "Invalid request: csr is required",
+			error:    "invalid request: csr is required",
 		},
 		{
 			testName: "Bad format",
 			csr:      "Bad format",
-			error:    "Invalid request: could not decode PEM block",
+			error:    "invalid request: could not decode PEM block",
 		},
 		{
 			testName: "Wrong PEM block type",
 			csr: `-----BEGIN PRIVATE KEY-----
 MIIBVwIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAuQ==
 -----END PRIVATE KEY-----`,
-			error: "Invalid request: expected PEM block type 'CERTIFICATE REQUEST'",
+			error: "invalid request: expected PEM block type 'CERTIFICATE REQUEST'",
 		},
 		{
 			testName: "Bad CSR content",
 			csr: `-----BEGIN CERTIFICATE REQUEST-----
 MIIBVwIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAuQ==
 -----END CERTIFICATE REQUEST-----`,
-			error: "Invalid request: could not parse CSR",
+			error: "invalid request: could not parse CSR",
 		},
 	}
 
@@ -555,26 +555,26 @@ func TestCreateCertificateInvalidInputs(t *testing.T) {
 		{
 			testName:    "No certificate",
 			certificate: "",
-			error:       "Invalid request: certificate is required",
+			error:       "invalid request: certificate is required",
 		},
 		{
 			testName:    "Bad format",
 			certificate: "Bad format",
-			error:       "Invalid request: could not decode PEM block",
+			error:       "invalid request: could not decode PEM block",
 		},
 		{
 			testName: "Bad PEM block type",
 			certificate: `-----BEGIN PRIVATE KEY-----
 MIICfjCCAeegAwIBAgIBADANBgkqhkiG9w0BAQ0FADBcMQswCQYDVQQGEwJjYTEL
 -----END PRIVATE KEY-----`,
-			error: "Invalid request: expected PEM block type 'CERTIFICATE'",
+			error: "invalid request: expected PEM block type 'CERTIFICATE'",
 		},
 		{
 			testName: "Bad Certificate content",
 			certificate: `-----BEGIN CERTIFICATE-----
 MIICfjCCAeegAwIBAgIBADANBgkqhkiG9w0BAQ0FADBcMQswCQYDVQQGEwJjYTEL
 -----END CERTIFICATE-----`,
-			error: "Invalid request: could not parse certificate",
+			error: "invalid request: could not parse certificate",
 		},
 	}
 

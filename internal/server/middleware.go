@@ -7,15 +7,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"slices"
 	"strconv"
 	"strings"
 
-	"github.com/canonical/notary/internal/auth"
-	"github.com/canonical/notary/internal/config"
-	"github.com/canonical/notary/internal/db"
-	"github.com/canonical/notary/internal/logging"
-	"github.com/canonical/notary/internal/metrics"
+	"github.com/canonical/notary/internal/backends/authentication"
+	"github.com/canonical/notary/internal/backends/authorization"
+	"github.com/canonical/notary/internal/backends/observability/log"
+	"github.com/canonical/notary/internal/backends/observability/metrics"
+	"github.com/canonical/notary/internal/backends/observability/tracing"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -32,8 +31,8 @@ type middlewareContext struct {
 	responseStatusCode int
 	jwtSecret          []byte
 	systemLogger       *zap.Logger
-	auditLogger        *logging.AuditLogger
-	tracer             *config.Tracer
+	auditLogger        *log.AuditLogger
+	tracer             *tracing.TracingRepository
 }
 
 // createMiddlewareStack chains the given middleware functions to wrap the api.
@@ -160,19 +159,19 @@ func auditLoggingMiddleware(ctx *middlewareContext) middleware {
 			resourceID := extractResourceID(r.URL.Path)
 			resourceType := extractResourceType(r.URL.Path)
 
-			opts := []logging.AuditOption{logging.WithRequest(r)}
+			opts := []log.AuditOption{log.WithRequest(r)}
 			if actor != "" {
-				opts = append(opts, logging.WithActor(actor))
+				opts = append(opts, log.WithActor(actor))
 			}
 			if resourceID != "" {
-				opts = append(opts, logging.WithResourceID(resourceID))
+				opts = append(opts, log.WithResourceID(resourceID))
 			}
 			if resourceType != "" {
-				opts = append(opts, logging.WithResourceType(resourceType))
+				opts = append(opts, log.WithResourceType(resourceType))
 			}
 
 			if ctx.responseStatusCode >= 400 {
-				opts = append(opts, logging.WithReason(fmt.Sprintf("HTTP %d: %s", ctx.responseStatusCode, http.StatusText(ctx.responseStatusCode))))
+				opts = append(opts, log.WithReason(fmt.Sprintf("HTTP %d: %s", ctx.responseStatusCode, http.StatusText(ctx.responseStatusCode))))
 				ctx.auditLogger.APIAction(action+" (failed)", opts...)
 			}
 			if ctx.responseStatusCode < 400 && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
@@ -227,70 +226,52 @@ func extractResourceType(path string) string {
 	return ""
 }
 
-// requirePermission authorizes a request based on the user's given permissions.
-// At least one of the required permissions must be present in the user's permissions.
+// requirePermission authorizes a request by verifying the caller's JWT then performing an
+// OpenFGA Check against "system:notary" for each of the allowedRoles. The first matching
+// role grants access; if none match, 403 Forbidden is returned.
 func requirePermission(
-	requiredPermissions []string,
-	jwtSecret []byte,
-	oidcConfig *config.OIDCConfig,
+	allowedRoles []string,
+	env *HandlerDependencies,
 	handler http.HandlerFunc,
-	systemLogger *zap.Logger,
-	auditLogger *logging.AuditLogger,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		claims, err := getClaimsFromCookie(r, jwtSecret, oidcConfig)
+		claims, err := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 		if err != nil {
-			auditLogger.UnauthorizedAccess(
-				logging.WithRequest(r),
-				logging.WithReason("invalid or missing JWT token"),
+			env.AuditLogger.UnauthorizedAccess(
+				log.WithRequest(r),
+				log.WithReason("invalid or missing JWT token"),
 			)
-			writeError(w, http.StatusUnauthorized, "Unauthorized", err, systemLogger)
+			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.SystemLogger)
 			return
 		}
 
-		for _, perm := range requiredPermissions {
-			if slices.Contains(claims.Permissions, perm) {
-				handler(w, r)
-				return
-			}
-		}
-		auditLogger.AccessDenied(claims.Email, r.URL.Path, strings.Join(requiredPermissions, ","),
-			logging.WithRequest(r),
-			logging.WithReason("insufficient permissions"),
-		)
-		writeError(w, http.StatusForbidden, "forbidden: insufficient permissions", errors.New("missing permission"), systemLogger)
-	}
-}
+		userID := authorization.UserID(claims.Email)
+		const systemObject = "system:notary"
 
-func requirePermissionOrFirstUser(permission string, jwtSecret []byte, oidcConfig *config.OIDCConfig, db *db.Database, handler http.HandlerFunc, systemLogger *zap.Logger, auditLogger *logging.AuditLogger) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		numUsers, err := db.NumUsers()
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, systemLogger)
-			return
-		}
-
-		if numUsers == 0 {
+		if env.AuthzRepository == nil {
 			handler(w, r)
 			return
 		}
 
-		claims, err := getClaimsFromCookie(r, jwtSecret, oidcConfig)
-		if err != nil {
-			auditLogger.UnauthorizedAccess(
-				logging.WithRequest(r),
-				logging.WithReason("invalid or missing JWT token"),
-			)
-			writeError(w, http.StatusUnauthorized, "Unauthorized", err, systemLogger)
-			return
+		allowed := false
+		for _, role := range allowedRoles {
+			ok, checkErr := env.AuthzRepository.Check(systemObject, role, userID)
+			if checkErr != nil {
+				writeError(w, http.StatusInternalServerError, "authorization check failed", checkErr, env.SystemLogger)
+				return
+			}
+			if ok {
+				allowed = true
+				break
+			}
 		}
 
-		if !slices.Contains(claims.Permissions, permission) {
-			auditLogger.AccessDenied(claims.Email, r.URL.Path, permission,
-				logging.WithRequest(r),
-				logging.WithReason("insufficient permissions"),
+		if !allowed {
+			env.AuditLogger.AccessDenied(claims.Email, r.URL.Path, strings.Join(allowedRoles, ","),
+				log.WithRequest(r),
+				log.WithReason("insufficient permissions"),
 			)
-			writeError(w, http.StatusForbidden, "forbidden: insufficient permissions", errors.New("missing required permission"), systemLogger)
+			writeError(w, http.StatusForbidden, "forbidden: insufficient permissions", errors.New("missing role"), env.SystemLogger)
 			return
 		}
 
@@ -298,7 +279,7 @@ func requirePermissionOrFirstUser(permission string, jwtSecret []byte, oidcConfi
 	}
 }
 
-func getClaimsFromCookie(r *http.Request, jwtSecret []byte, oidcConfig *config.OIDCConfig) (*auth.NotaryJWTClaims, error) {
+func getClaimsFromCookie(r *http.Request, jwtSecret []byte, oidcConfig *authentication.OIDCRepository) (*authentication.NotaryJWTClaims, error) {
 	c, err := r.Cookie(CookieSessionTokenKey)
 	if err != nil {
 		return nil, fmt.Errorf("cookie not found")
@@ -314,15 +295,15 @@ func getClaimsFromCookie(r *http.Request, jwtSecret []byte, oidcConfig *config.O
 	return claims, nil
 }
 
-func getClaimsFromJWT(rawToken string, jwtSecret []byte, oidcConfig *config.OIDCConfig) (*auth.NotaryJWTClaims, error) {
-	v := auth.NewVerifier([]auth.ProviderConfig{
+func getClaimsFromJWT(rawToken string, jwtSecret []byte, oidcConfig *authentication.OIDCRepository) (*authentication.NotaryJWTClaims, error) {
+	v := authentication.NewVerifier([]authentication.ProviderConfig{
 		{
 			Provider: oidcConfig,
-			Type:     auth.ProviderOIDC,
+			Type:     authentication.ProviderOIDC,
 		},
 		{
 			Secret: jwtSecret,
-			Type:   auth.ProviderLocal,
+			Type:   authentication.ProviderLocal,
 		},
 	})
 	claims, err := v.VerifyToken(context.Background(), rawToken)

@@ -329,7 +329,7 @@ func TestCreateCertificateAuthorityInvalidInputs(t *testing.T) {
 			organizationalUnit:  "Identity",
 			notValidAfter:       "2030-01-01T00:00:00Z",
 
-			error: "Invalid request: country_name must be a 2-letter ISO code",
+			error: "invalid request: country_name must be a 2-letter ISO code",
 		},
 		{
 			testName:            "Invalid notValidAfter format - Not RFC3339",
@@ -343,7 +343,7 @@ func TestCreateCertificateAuthorityInvalidInputs(t *testing.T) {
 			organizationalUnit:  "Identity",
 			notValidAfter:       "2010-01-01 00:00:00Z",
 
-			error: "Invalid request: not_valid_after must be a valid RFC3339 timestamp",
+			error: "invalid request: not_valid_after must be a valid RFC3339 timestamp",
 		},
 		{
 			testName:            "Invalid notValidAfter format - Past time",
@@ -357,7 +357,7 @@ func TestCreateCertificateAuthorityInvalidInputs(t *testing.T) {
 			organizationalUnit:  "Identity",
 			notValidAfter:       "2010-01-01T00:00:00Z",
 
-			error: "Invalid request: not_valid_after must be a future time",
+			error: "invalid request: not_valid_after must be a future time",
 		},
 	}
 
@@ -420,26 +420,26 @@ func TestUploadCertificateToCertificateAuthorityInvalidInputs(t *testing.T) {
 		{
 			testName:         "Empty certificate chain",
 			certificateChain: "",
-			expectedError:    "Invalid request: certificate_chain is required",
+			expectedError:    "invalid request: certificate_chain is required",
 		},
 		{
 			testName:         "Non-PEM input",
 			certificateChain: "not a pem block",
-			expectedError:    "Invalid request: no valid certificate found in certificate_chain",
+			expectedError:    "invalid request: no valid certificate found in certificate_chain",
 		},
 		{
 			testName: "Wrong PEM block type",
 			certificateChain: `-----BEGIN PRIVATE KEY-----
 MIIBVwIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAuQ==
 -----END PRIVATE KEY-----`,
-			expectedError: "Invalid request: unexpected PEM block type: expected CERTIFICATE",
+			expectedError: "invalid request: unexpected PEM block type: expected CERTIFICATE",
 		},
 		{
 			testName: "Invalid certificate PEM content",
 			certificateChain: `-----BEGIN CERTIFICATE-----
 invalid
 -----END CERTIFICATE-----`,
-			expectedError: "Invalid request: no valid certificate found in certificate_chain",
+			expectedError: "invalid request: no valid certificate found in certificate_chain",
 		},
 	}
 

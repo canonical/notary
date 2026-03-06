@@ -18,10 +18,11 @@ import (
 	"github.com/canonical/sqlair"
 	"github.com/mattn/go-sqlite3"
 	"github.com/pressly/goose/v3"
+	_ "modernc.org/sqlite"
 )
 
 // Close closes the connection to the repository cleanly.
-func (db *Database) Close() error {
+func (db *DatabaseRepository) Close() error {
 	if db.Conn == nil {
 		return nil
 	}
@@ -36,14 +37,16 @@ func (db *Database) Close() error {
 // stores the connection information and returns an object containing the information.
 // The database path must be a valid file path or ":memory:".
 // The table will be created if it doesn't exist in the format expected by the package.
-func NewDatabase(dbOpts *DatabaseOpts) (*Database, error) {
-	sqlConnection, err := sql.Open("sqlite3", dbOpts.DatabasePath)
+func NewDatabase(dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
+	sqlConnection, err := sql.Open("sqlite", dbOpts.DatabasePath)
 	if err != nil {
 		return nil, err
 	}
 	if _, err := sqlConnection.Exec("PRAGMA foreign_keys = ON;"); err != nil {
 		return nil, err
 	}
+	sqlConnection.SetMaxIdleConns(2)
+	sqlConnection.SetMaxOpenConns(2)
 	err = goose.SetDialect("sqlite")
 	if err != nil {
 		return nil, err
@@ -62,25 +65,53 @@ func NewDatabase(dbOpts *DatabaseOpts) (*Database, error) {
 			return nil, errors.New("database migrations not applied. please migrate database using `notary migrate up`")
 		}
 	}
-	db := new(Database)
+	db := new(DatabaseRepository)
 	db.stmts = PrepareStatements()
 	db.Conn = sqlair.NewDB(sqlConnection)
 	db.Path = dbOpts.DatabasePath
 
-	db.EncryptionKey, err = setUpEncryptionKey(db, dbOpts.Backend, dbOpts.Logger)
-	if err != nil {
-		return nil, err
+	// Create default admin account if no users exist
+	users, err := db.ListUsers()
+	if err != nil && err != ErrNotFound {
+		return nil, fmt.Errorf("failed to check for existing users: %w", err)
 	}
-	db.JWTSecret, err = setUpJWTSecret(db)
-	if err != nil {
-		return nil, fmt.Errorf("failed to set up JWT secret: %w", err)
+	if len(users) == 0 {
+		if err := createDefaultAdminUser(db); err != nil {
+			return nil, fmt.Errorf("failed to create default admin user: %w", err)
+		}
 	}
 
 	return db, nil
 }
 
+// createDefaultAdminUser creates a default admin account with a known username and password
+// This account should be used to bootstrap the system and then change the password
+// TODO: this should have a randomly generated password
+func createDefaultAdminUser(db *DatabaseRepository) error {
+	// Check if any admin users already exist
+	users, err := db.ListUsers()
+	if err != nil && err != ErrNotFound {
+		return err
+	}
+	if len(users) > 0 {
+		// Users already exist, skip creation
+		return nil
+	}
+
+	// Create default admin user
+	const defaultAdminEmail = "admin@notary.local"
+	const defaultAdminPassword = "admin"
+
+	_, err = db.CreateUser(defaultAdminEmail, defaultAdminPassword, RoleAdmin)
+	if err != nil {
+		return fmt.Errorf("failed to create default admin user: %w", err)
+	}
+
+	return nil
+}
+
 // ListEntities retrieves all entities of a given type from the database.
-func ListEntities[T any](db *Database, stmt *sqlair.Statement, inputArgs ...any) ([]T, error) {
+func ListEntities[T any](db *DatabaseRepository, stmt *sqlair.Statement, inputArgs ...any) ([]T, error) {
 	var entities []T
 	err := db.Conn.Query(context.Background(), stmt, inputArgs...).GetAll(&entities)
 	if err != nil && !errors.Is(err, sqlair.ErrNoRows) {
@@ -90,7 +121,7 @@ func ListEntities[T any](db *Database, stmt *sqlair.Statement, inputArgs ...any)
 }
 
 // GetOneEntity retrieves a single entity of a given type from the database.
-func GetOneEntity[T any](db *Database, stmt *sqlair.Statement, inputArgs ...any) (*T, error) {
+func GetOneEntity[T any](db *DatabaseRepository, stmt *sqlair.Statement, inputArgs ...any) (*T, error) {
 	var result T
 	err := db.Conn.Query(context.Background(), stmt, inputArgs...).Get(&result)
 	if err != nil {
@@ -103,7 +134,7 @@ func GetOneEntity[T any](db *Database, stmt *sqlair.Statement, inputArgs ...any)
 	return &result, nil
 }
 
-func CreateEntity[T any](db *Database, stmt *sqlair.Statement, new_entity T) (int64, error) {
+func CreateEntity[T any](db *DatabaseRepository, stmt *sqlair.Statement, new_entity T) (int64, error) {
 	var outcome sqlair.Outcome
 	err := db.Conn.Query(context.Background(), stmt, new_entity).Get(&outcome)
 	if err != nil {
@@ -119,7 +150,7 @@ func CreateEntity[T any](db *Database, stmt *sqlair.Statement, new_entity T) (in
 	return insertedRowID, nil
 }
 
-func UpdateEntity[T any](db *Database, stmt *sqlair.Statement, updated_entity T) error {
+func UpdateEntity[T any](db *DatabaseRepository, stmt *sqlair.Statement, updated_entity T) error {
 	var outcome sqlair.Outcome
 	err := db.Conn.Query(context.Background(), stmt, updated_entity).Get(&outcome)
 	if err != nil {
@@ -135,7 +166,7 @@ func UpdateEntity[T any](db *Database, stmt *sqlair.Statement, updated_entity T)
 	return nil
 }
 
-func DeleteEntity[T any](db *Database, stmt *sqlair.Statement, entity_to_delete T) error {
+func DeleteEntity[T any](db *DatabaseRepository, stmt *sqlair.Statement, entity_to_delete T) error {
 	var outcome sqlair.Outcome
 	err := db.Conn.Query(context.Background(), stmt, entity_to_delete).Get(&outcome)
 	if err != nil {
@@ -151,72 +182,71 @@ func DeleteEntity[T any](db *Database, stmt *sqlair.Statement, entity_to_delete 
 	return nil
 }
 
-
 // CreateBackup creates a compressed archive of the database and returns the archive path.
-func CreateBackup(db *Database, backupDir string) (string, error) {
-    timestamp := time.Now().UTC().Format("20060102_150405")
-    backupFileName := fmt.Sprintf("notary_backup_%s.db", timestamp)
-    backupPath := filepath.Join(backupDir, backupFileName)
-    archivePath := filepath.Join(backupDir, fmt.Sprintf("backup_%s.tar.gz", timestamp))
+func CreateBackup(db *DatabaseRepository, backupDir string) (string, error) {
+	timestamp := time.Now().UTC().Format("20060102_150405")
+	backupFileName := fmt.Sprintf("notary_backup_%s.db", timestamp)
+	backupPath := filepath.Join(backupDir, backupFileName)
+	archivePath := filepath.Join(backupDir, fmt.Sprintf("backup_%s.tar.gz", timestamp))
 
-    vacuumQuery := fmt.Sprintf("VACUUM INTO '%s'", strings.ReplaceAll(backupPath, "'", "''"))
-    if _, err := db.Conn.PlainDB().ExecContext(context.Background(), vacuumQuery); err != nil {
-        return "", fmt.Errorf("failed to create backup: %w", err)
-    }
-    defer os.Remove(backupPath)
+	vacuumQuery := fmt.Sprintf("VACUUM INTO '%s'", strings.ReplaceAll(backupPath, "'", "''"))
+	if _, err := db.Conn.PlainDB().ExecContext(context.Background(), vacuumQuery); err != nil {
+		return "", fmt.Errorf("failed to create backup: %w", err)
+	}
+	defer os.Remove(backupPath)
 
-    archiveFile, err := os.Create(archivePath)
-    if err != nil {
-        return "", fmt.Errorf("failed to create archive: %w", err)
-    }
-    defer archiveFile.Close()
+	archiveFile, err := os.Create(archivePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to create archive: %w", err)
+	}
+	defer archiveFile.Close()
 
-    gzWriter := gzip.NewWriter(archiveFile)
-    defer gzWriter.Close()
+	gzWriter := gzip.NewWriter(archiveFile)
+	defer gzWriter.Close()
 
-    tarWriter := tar.NewWriter(gzWriter)
-    defer tarWriter.Close()
+	tarWriter := tar.NewWriter(gzWriter)
+	defer tarWriter.Close()
 
-    backupFile, err := os.Open(backupPath)
-    if err != nil {
-        return "", fmt.Errorf("failed to open backup: %w", err)
-    }
-    defer backupFile.Close()
+	backupFile, err := os.Open(backupPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open backup: %w", err)
+	}
+	defer backupFile.Close()
 
-    stat, err := backupFile.Stat()
-    if err != nil {
-        return "", fmt.Errorf("failed to stat backup: %w", err)
-    }
+	stat, err := backupFile.Stat()
+	if err != nil {
+		return "", fmt.Errorf("failed to stat backup: %w", err)
+	}
 
-    header := &tar.Header{
-        Name:    backupFileName,
-        Mode:    0600,
-        Size:    stat.Size(),
-        ModTime: stat.ModTime(),
-    }
-    if err := tarWriter.WriteHeader(header); err != nil {
-        return "", fmt.Errorf("failed to write tar header: %w", err)
-    }
-    if _, err := io.Copy(tarWriter, backupFile); err != nil {
-        return "", fmt.Errorf("failed to write tar contents: %w", err)
-    }
+	header := &tar.Header{
+		Name:    backupFileName,
+		Mode:    0600,
+		Size:    stat.Size(),
+		ModTime: stat.ModTime(),
+	}
+	if err := tarWriter.WriteHeader(header); err != nil {
+		return "", fmt.Errorf("failed to write tar header: %w", err)
+	}
+	if _, err := io.Copy(tarWriter, backupFile); err != nil {
+		return "", fmt.Errorf("failed to write tar contents: %w", err)
+	}
 
-    return archivePath, nil
+	return archivePath, nil
 }
 
-func RestoreBackup(db *Database, archivePath string) error {
+func RestoreBackup(db *DatabaseRepository, archivePath string) error {
 	absPath, err := filepath.Abs(archivePath)
 	if err != nil {
 		return fmt.Errorf("failed to resolve archive path %q: %w", archivePath, err)
 	}
-	
+
 	if _, err := os.Stat(absPath); err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf("backup archive not found at %q", absPath)
 		}
 		return fmt.Errorf("cannot access backup archive at %q: %w", absPath, err)
 	}
-	
+
 	archivePath = absPath
 
 	if db.Path == "" || db.Path == ":memory:" {
@@ -244,7 +274,7 @@ func RestoreBackup(db *Database, archivePath string) error {
 
 	tempDir := os.TempDir()
 	tempDBPath := filepath.Join(tempDir, fmt.Sprintf("restore_%d.db", time.Now().UnixNano()))
-	
+
 	tempFile, err := os.Create(tempDBPath)
 	if err != nil {
 		return fmt.Errorf("failed to create temp file: %w", err)
@@ -336,4 +366,3 @@ func RestoreBackup(db *Database, archivePath string) error {
 
 	return nil
 }
-

@@ -1,43 +1,16 @@
 package server
 
+import "github.com/canonical/notary/internal/db"
+
+// Role name constants used in OpenFGA tuples and checks against "system:notary".
 const (
-	// User permissions
-	PermListUsers          = "user:list"
-	PermCreateUser         = "user:create"
-	PermUpdateUser         = "user:update"
-	PermUpdateUserPassword = "user:update_password"
-	PermUpdateMyPassword   = "user:update_my_password"
-	PermReadUser           = "user:read"
-	PermReadMyUser         = "user:read_my_user"
-	PermDeleteUser         = "user:delete"
-
-	// Config permissions
-	PermReadConfig = "config:read"
-
-	// Certificate request permissions
-	PermListCertificateRequests             = "certificate_request:list"
-	PermListMyCertificateRequests           = "certificate_request:list_my"
-	PermCreateCertificateRequest            = "certificate_request:create"
-	PermReadCertificateRequest              = "certificate_request:read"
-	PermReadMyCertificateRequest            = "certificate_request:read_my"
-	PermDeleteCertificateRequest            = "certificate_request:delete"
-	PermRejectCertificateRequest            = "certificate_request:reject"
-	PermSignCertificateRequest              = "certificate_request:sign"
-	PermCreateCertificateRequestCertificate = "certificate_request:certificate:create"
-	PermDeleteCertificateRequestCertificate = "certificate_request:certificate:delete"
-	PermRevokeCertificateRequestCertificate = "certificate_request:certificate:revoke"
-
-	// Certificate authority permissions
-	PermListCertificateAuthorities            = "certificate_authority:list"
-	PermCreateCertificateAuthority            = "certificate_authority:create"
-	PermReadCertificateAuthority              = "certificate_authority:read"
-	PermUpdateCertificateAuthority            = "certificate_authority:update"
-	PermDeleteCertificateAuthority            = "certificate_authority:delete"
-	PermSignCertificateAuthorityCertificate   = "certificate_authority:sign"
-	PermCreateCertificateAuthorityCertificate = "certificate_authority:certificate:create"
-	PermRevokeCertificateAuthorityCertificate = "certificate_authority:certificate:revoke"
+	RoleNameAdmin                = "admin"
+	RoleNameCertificateManager   = "certificate_manager"
+	RoleNameCertificateRequestor = "certificate_requestor"
+	RoleNameReader               = "reader"
 )
 
+// RoleID mirrors db.RoleID for use within the server package.
 type RoleID int
 
 const (
@@ -56,83 +29,16 @@ func (r RoleID) IsValid() bool {
 	}
 }
 
-var PermissionsByRole = map[RoleID][]string{
-	RoleAdmin: {
-		PermListUsers,
-		PermCreateUser,
-		PermUpdateUser,
-		PermUpdateUserPassword,
-		PermUpdateMyPassword,
-		PermReadUser,
-		PermReadMyUser,
-		PermDeleteUser,
-		PermReadConfig,
-		PermListCertificateRequests,
-		PermListMyCertificateRequests,
-		PermCreateCertificateRequest,
-		PermReadCertificateRequest,
-		PermReadMyCertificateRequest,
-		PermDeleteCertificateRequest,
-		PermRejectCertificateRequest,
-		PermSignCertificateRequest,
-		PermCreateCertificateRequestCertificate,
-		PermDeleteCertificateRequestCertificate,
-		PermRevokeCertificateRequestCertificate,
-		PermListCertificateAuthorities,
-		PermCreateCertificateAuthority,
-		PermReadCertificateAuthority,
-		PermUpdateCertificateAuthority,
-		PermDeleteCertificateAuthority,
-		PermSignCertificateAuthorityCertificate,
-		PermCreateCertificateAuthorityCertificate,
-		PermRevokeCertificateAuthorityCertificate,
-	},
-
-	RoleCertificateManager: {
-		PermReadMyUser,
-		PermReadConfig,
-		PermUpdateMyPassword,
-		PermListCertificateRequests,
-		PermCreateCertificateRequest,
-		PermReadCertificateRequest,
-		PermDeleteCertificateRequest,
-		PermRejectCertificateRequest,
-		PermSignCertificateRequest,
-		PermCreateCertificateRequestCertificate,
-		PermDeleteCertificateRequestCertificate,
-		PermRevokeCertificateRequestCertificate,
-		PermListCertificateAuthorities,
-		PermCreateCertificateAuthority,
-		PermReadCertificateAuthority,
-		PermUpdateCertificateAuthority,
-		PermDeleteCertificateAuthority,
-		PermSignCertificateAuthorityCertificate,
-		PermCreateCertificateAuthorityCertificate,
-		PermRevokeCertificateAuthorityCertificate,
-	},
-
-	RoleCertificateRequestor: {
-		PermReadMyUser,
-		PermUpdateMyPassword,
-		PermCreateCertificateRequest,
-		PermReadMyCertificateRequest,
-		PermListMyCertificateRequests,
-	},
-
-	RoleReadOnly: {
-		PermReadMyUser,
-		PermUpdateMyPassword,
-		PermListCertificateRequests,
-		PermReadCertificateRequest,
-		PermListCertificateAuthorities,
-		PermReadCertificateAuthority,
-		PermReadConfig,
-	},
-}
-
-func getPermissionsFromRoleID(roleID RoleID) []string {
-	if roleID.IsValid() {
-		return PermissionsByRole[roleID]
+// RoleIDToRelation maps a db.RoleID to the corresponding OpenFGA relation name on "system:notary".
+func RoleIDToRelation(roleID db.RoleID) string {
+	switch roleID {
+	case db.RoleAdmin:
+		return RoleNameAdmin
+	case db.RoleCertificateManager:
+		return RoleNameCertificateManager
+	case db.RoleCertificateRequestor:
+		return RoleNameCertificateRequestor
+	default:
+		return RoleNameReader
 	}
-	return nil
 }

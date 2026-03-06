@@ -1,29 +1,44 @@
-package auth
+package authentication
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
+	"slices"
 
-	"github.com/canonical/notary/internal/config"
+	"github.com/canonical/notary/internal/db"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-type ProviderType int
-
-const (
-	ProviderLocal ProviderType = iota
-	ProviderOIDC
-)
-
-type ProviderConfig struct {
-	Type     ProviderType
-	Provider *config.OIDCConfig // for OIDC key verification
-	Secret   []byte             // for HMAC local tokens (if used)
+// setUpJWTSecret checks if a JWT secret exists in the database, if not, it generates a new one and stores it.
+func SetUpJWTSecret(database *db.DatabaseRepository) error {
+	jwtSecret, err := database.GetJWTSecret()
+	if err != nil && errors.Is(err, db.ErrNotFound) {
+		// Generate new JWT secret if none exists
+		jwtSecret, err = generateJWTSecret()
+		if err != nil {
+			return err
+		}
+		if err := database.CreateJWTSecret(jwtSecret); err != nil {
+			return fmt.Errorf("failed to store JWT secret: %w", err)
+		}
+		return nil
+	}
+	if err != nil && !errors.Is(err, db.ErrNotFound) {
+		return fmt.Errorf("failed to get JWT secret: %w", err)
+	}
+	database.JWTSecret = jwtSecret
+	return nil
 }
 
-type Verifier struct {
-	providers []ProviderConfig
+// This secret should be generated once and stored in the database, encrypted.
+func generateJWTSecret() ([]byte, error) {
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return bytes, fmt.Errorf("failed to generate JWT secret: %w", err)
+	}
+	return bytes, nil
 }
 
 func NewVerifier(providers []ProviderConfig) *Verifier {
@@ -88,26 +103,12 @@ func verifyOIDCAccessToken(ctx context.Context, p ProviderConfig, raw string) (*
 				}
 			}
 		case []string:
-			for _, s := range aud {
-				if s == expectedAud {
-					audOk = true
-					break
-				}
+			if slices.Contains(aud, expectedAud) {
+				audOk = true
 			}
 		}
 		if !audOk {
 			return nil, fmt.Errorf("oidc token audience invalid")
-		}
-	}
-	rawPermissions, ok := claims[p.Provider.PermissionsClaimKey].([]any)
-	if !ok {
-		return nil, fmt.Errorf("oidc permissions claim could not be parsed")
-	}
-	var permissions []string
-	for _, v := range rawPermissions {
-		s, ok := v.(string)
-		if ok {
-			permissions = append(permissions, s)
 		}
 	}
 	email, _ := claims[p.Provider.EmailClaimKey].(string)
@@ -115,8 +116,7 @@ func verifyOIDCAccessToken(ctx context.Context, p ProviderConfig, raw string) (*
 		return nil, fmt.Errorf("oidc email claim missing or invalid")
 	}
 	return &NotaryJWTClaims{
-		Permissions: permissions,
-		Email:       email,
+		Email: email,
 	}, nil
 }
 
@@ -139,7 +139,6 @@ func verifyLocalJWT(ctx context.Context, p ProviderConfig, raw string) (*NotaryJ
 	}
 
 	return &NotaryJWTClaims{
-		Permissions:      claims.Permissions,
 		Email:            claims.Email,
 		RoleID:           claims.RoleID,
 		RegisteredClaims: claims.RegisteredClaims,

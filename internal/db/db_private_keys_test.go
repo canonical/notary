@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/canonical/notary/internal/db"
-	"github.com/canonical/notary/internal/encryption"
 	tu "github.com/canonical/notary/internal/testutils"
+	"github.com/canonical/notary/internal/utils"
 )
 
 func TestPrivateKeysEndToEnd(t *testing.T) {
@@ -98,7 +98,7 @@ func TestPrivateKeyEncryption(t *testing.T) {
 			decryptedPK.PrivateKeyPEM, tu.RootCAPrivateKey)
 	}
 
-	decryptedManually, err := encryption.Decrypt(pk.PrivateKeyPEM, database.EncryptionKey)
+	decryptedManually, err := utils.Decrypt(pk.PrivateKeyPEM, database.EncryptionKey)
 	if err != nil {
 		t.Fatalf("Couldn't manually decrypt secret: %s", err)
 	}

@@ -13,12 +13,14 @@ func TestLoginEndToEnd(t *testing.T) {
 	client := ts.Client()
 
 	t.Run("Create admin user", func(t *testing.T) {
+		// Get default admin token to create a new admin user
+		defaultAdminToken := tu.MustGetDefaultAdminToken(t, ts)
 		adminUser := &tu.CreateAccountParams{
 			Email:    "testadmin@canonical.com",
 			Password: "Admin123",
 			RoleID:   tu.RoleAdmin,
 		}
-		statusCode, _, err := tu.CreateAccount(ts.URL, client, "", adminUser)
+		statusCode, _, err := tu.CreateAccount(ts.URL, client, defaultAdminToken, adminUser)
 		if err != nil {
 			t.Fatalf("couldn't create admin user: %s", err)
 		}
@@ -48,8 +50,8 @@ func TestLoginEndToEnd(t *testing.T) {
 			t.Fatalf("couldn't parse token: %s", err)
 		}
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			if claims["Email"] != "testadmin@canonical.com" {
-				t.Fatalf("expected email %q, got %q", "testadmin@canonical.com", claims["Email"])
+			if claims["email"] != "testadmin@canonical.com" {
+				t.Fatalf("expected email %q, got %q", "testadmin@canonical.com", claims["email"])
 			}
 		}
 

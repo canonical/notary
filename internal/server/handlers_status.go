@@ -13,9 +13,9 @@ type StatusResponse struct {
 
 // the GET status endpoint returns a http.StatusOK alongside info about the server
 // initialized means the first user has been created
-func GetStatus(env *HandlerConfig) http.HandlerFunc {
+func GetStatus(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		numUsers, err := env.DB.NumUsers()
+		numUsers, err := env.Database.NumUsers()
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "couldn't generate status", err, env.SystemLogger)
 			return

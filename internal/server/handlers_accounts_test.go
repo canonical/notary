@@ -13,7 +13,10 @@ import (
 func TestAccountsEndToEnd(t *testing.T) {
 	ts, logs := tu.MustPrepareServer(t)
 	client := ts.Client()
-	adminToken := tu.MustPrepareAccount(t, ts, "testadmin@canonical.com", tu.RoleAdmin, "")
+	// Use the default admin account (ID 1) instead of creating a new one
+	adminToken := tu.MustGetDefaultAdminToken(t, ts)
+	// Create a second admin account for testing purposes
+	tu.MustPrepareAccount(t, ts, "testadmin@canonical.com", tu.RoleAdmin, adminToken)
 	nonAdminToken := tu.MustPrepareAccount(t, ts, "whatever@canonical.com", tu.RoleCertificateManager, adminToken)
 
 	t.Run("1. Get admin account - admin token", func(t *testing.T) {
@@ -30,8 +33,8 @@ func TestAccountsEndToEnd(t *testing.T) {
 		if response.Result.ID != 1 {
 			t.Fatalf("expected ID 1, got %d", response.Result.ID)
 		}
-		if response.Result.Email != "testadmin@canonical.com" {
-			t.Fatalf("expected email testadmin@canonical.com, got %s", response.Result.Email)
+		if response.Result.Email != "admin@notary.local" {
+			t.Fatalf("expected email admin@notary.local, got %s", response.Result.Email)
 		}
 		if response.Result.RoleID != 0 {
 			t.Fatalf("expected role ID 0, got %d", response.Result.RoleID)
@@ -86,7 +89,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 	})
 
 	t.Run("4. Get account", func(t *testing.T) {
-		statusCode, response, err := tu.GetAccount(ts.URL, client, adminToken, 3)
+		statusCode, response, err := tu.GetAccount(ts.URL, client, adminToken, 4)
 		if err != nil {
 			t.Fatalf("couldn't get account: %s", err)
 		}
@@ -96,8 +99,8 @@ func TestAccountsEndToEnd(t *testing.T) {
 		if response.Error != "" {
 			t.Fatalf("expected error %q, got %q", "", response.Error)
 		}
-		if response.Result.ID != 3 {
-			t.Fatalf("expected ID 3, got %d", response.Result.ID)
+		if response.Result.ID != 4 {
+			t.Fatalf("expected ID 4, got %d", response.Result.ID)
 		}
 		if response.Result.Email != "nopass@canonical.com" {
 			t.Fatalf("expected email nopass@canonical.com, got %s", response.Result.Email)
@@ -125,7 +128,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 		changeAccountPasswordParams := &tu.ChangeAccountPasswordParams{
 			Password: "newPassword1",
 		}
-		statusCode, response, err := tu.ChangeAccountPassword(ts.URL, client, adminToken, 1, changeAccountPasswordParams)
+		statusCode, response, err := tu.ChangeAccountPassword(ts.URL, client, adminToken, 2, changeAccountPasswordParams)
 		if err != nil {
 			t.Fatalf("couldn't create account: %s", err)
 		}
@@ -175,7 +178,7 @@ func TestAccountsEndToEnd(t *testing.T) {
 
 	t.Run("8. Delete account - success", func(t *testing.T) {
 		_ = logs.TakeAll()
-		statusCode, response, err := tu.DeleteAccount(ts.URL, client, adminToken, 2)
+		statusCode, response, err := tu.DeleteAccount(ts.URL, client, adminToken, 3)
 		if err != nil {
 			t.Fatalf("couldn't delete account: %s", err)
 		}
@@ -229,8 +232,8 @@ func TestAccountsEndToEnd(t *testing.T) {
 		if response.Result.ID != 1 {
 			t.Fatalf("expected ID 1, got %d", response.Result.ID)
 		}
-		if response.Result.Email != "testadmin@canonical.com" {
-			t.Fatalf("expected email testadmin@canonical.com, got %s", response.Result.Email)
+		if response.Result.Email != "admin@notary.local" {
+			t.Fatalf("expected email admin@notary.local, got %s", response.Result.Email)
 		}
 		if response.Result.RoleID != int(tu.RoleAdmin) {
 			t.Fatalf("expected role ID %d, got %d", tu.RoleAdmin, response.Result.RoleID)
@@ -264,42 +267,42 @@ func TestCreateAccountInvalidInputs(t *testing.T) {
 			email:    "",
 			password: "password",
 			roleID:   tu.RoleCertificateManager,
-			error:    "Invalid request: email is required",
+			error:    "invalid request: email is required",
 		},
 		{
 			testName: "Invalid email - Missing @ symbol",
 			email:    "invalid",
 			password: "password",
 			roleID:   tu.RoleCertificateManager,
-			error:    "Invalid request: invalid email format",
+			error:    "invalid request: invalid email format",
 		},
 		{
 			testName: "Invalid email - Missing local part",
 			email:    "@missinglocal.org",
 			password: "password",
 			roleID:   tu.RoleCertificateManager,
-			error:    "Invalid request: invalid email format",
+			error:    "invalid request: invalid email format",
 		},
 		{
 			testName: "Invalid email - Domain starts with a dot",
 			email:    "username@.com",
 			password: "password",
 			roleID:   tu.RoleCertificateManager,
-			error:    "Invalid request: invalid email format",
+			error:    "invalid request: invalid email format",
 		},
 		{
 			testName: "Invalid email - Double dot",
 			email:    "username@domain..com",
 			password: "password",
 			roleID:   tu.RoleCertificateManager,
-			error:    "Invalid request: invalid email format",
+			error:    "invalid request: invalid email format",
 		},
 		{
 			testName: "Invalid email - Ends with dot",
 			email:    "username@domain.com.",
 			password: "password",
 			roleID:   tu.RoleCertificateManager,
-			error:    "Invalid request: invalid email format",
+			error:    "invalid request: invalid email format",
 		},
 
 		{
@@ -307,28 +310,28 @@ func TestCreateAccountInvalidInputs(t *testing.T) {
 			email:    "test@canonical.com",
 			password: "",
 			roleID:   tu.RoleCertificateManager,
-			error:    "Invalid request: password is required",
+			error:    "invalid request: password is required",
 		},
 		{
 			testName: "bad password",
 			email:    "test@canonical.com",
 			password: "123",
 			roleID:   tu.RoleCertificateManager,
-			error:    "Invalid request: password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol",
+			error:    "invalid request: password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol",
 		},
 		{
 			testName: "invalid role ID (negative)",
 			email:    "test@canonical.com",
 			password: "Pizza123!",
 			roleID:   -1,
-			error:    "Invalid request: invalid role ID: -1",
+			error:    "invalid request: invalid role ID: -1",
 		},
 		{
 			testName: "invalid role ID (no matching role)",
 			email:    "test@canonical.com",
 			password: "Pizza123!",
 			roleID:   999,
-			error:    "Invalid request: invalid role ID: 999",
+			error:    "invalid request: invalid role ID: 999",
 		},
 	}
 
@@ -366,12 +369,12 @@ func TestChangeAccountPasswordInvalidInputs(t *testing.T) {
 		{
 			testName: "No password",
 			password: "",
-			error:    "Invalid request: password is required",
+			error:    "invalid request: password is required",
 		},
 		{
 			testName: "bad password",
 			password: "123",
-			error:    "Invalid request: password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol",
+			error:    "invalid request: password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol",
 		},
 	}
 

@@ -7,24 +7,24 @@ import (
 )
 
 // ListCertificateRequests gets every CertificateRequest entry in the table.
-func (db *Database) ListCertificates() ([]Certificate, error) {
+func (db *DatabaseRepository) ListCertificates() ([]Certificate, error) {
 	return ListEntities[Certificate](db, db.stmts.ListCertificates)
 }
 
 // GetCertificateByID gets a certificate row from the repository from a given ID.
-func (db *Database) GetCertificate(filter CertificateFilter) (*Certificate, error) {
+func (db *DatabaseRepository) GetCertificate(filter CertificateFilter) (*Certificate, error) {
 	certRow := filter.AsCertificate()
 	return GetOneEntity[Certificate](db, db.stmts.GetCertificate, *certRow)
 }
 
 // DeleteCertificate removes a certificate from the database.
-func (db *Database) DeleteCertificate(filter CertificateFilter) error {
+func (db *DatabaseRepository) DeleteCertificate(filter CertificateFilter) error {
 	certRow := filter.AsCertificate()
 	return DeleteEntity(db, db.stmts.DeleteCertificate, certRow)
 }
 
 // AddCertificateChainToCertificateRequestByCSR adds a new certificate chain to a row for a given CSR string.
-func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter, certPEM string) (int64, error) {
+func (db *DatabaseRepository) AddCertificateChainToCertificateRequest(csrFilter CSRFilter, certPEM string) (int64, error) {
 	csr, err := db.GetCertificateRequest(csrFilter)
 	if err != nil {
 		return 0, err
@@ -89,7 +89,7 @@ func (db *Database) AddCertificateChainToCertificateRequest(csrFilter CSRFilter,
 }
 
 // GetCertificateChainByID gets a certificate chain row from the repository from a given ID.
-func (db *Database) GetCertificateChain(filter CertificateFilter) ([]Certificate, error) {
+func (db *DatabaseRepository) GetCertificateChain(filter CertificateFilter) ([]Certificate, error) {
 	certRow := filter.AsCertificate()
 	certChain, err := ListEntities[Certificate](db, db.stmts.GetCertificateChain, *certRow)
 	if err != nil {

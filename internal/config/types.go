@@ -1,84 +1,53 @@
 package config
 
 import (
-	"github.com/MicahParks/keyfunc/v3"
-	"github.com/canonical/notary/internal/encryption_backend"
-	"github.com/canonical/notary/internal/tracing"
-	"github.com/coreos/go-oidc/v3/oidc"
-	"go.opentelemetry.io/otel/trace"
+	authn "github.com/canonical/notary/internal/backends/authentication"
+	authz "github.com/canonical/notary/internal/backends/authorization"
+	"github.com/canonical/notary/internal/backends/encryption"
+	"github.com/canonical/notary/internal/backends/observability/log"
+	"github.com/canonical/notary/internal/backends/observability/tracing"
+	"github.com/canonical/notary/internal/db"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
-	"golang.org/x/oauth2"
 )
 
-type EncryptionBackendType string
-
-const (
-	EncryptionBackendTypeVault  = "vault"
-	EncryptionBackendTypePKCS11 = "pkcs11"
-	EncryptionBackendTypeNone   = "none"
-)
-
-type Tracer struct {
-	Tracer       trace.Tracer
-	ShutdownFunc tracing.TracerShutdownFunc
-}
-
-// PublicConfigData contains non-sensitive configuration fields that are safe to expose
-type PublicConfigData struct {
-	Port                  int
-	PebbleNotifications   bool
-	LoggingLevel          string
-	LoggingOutput         string
-	EncryptionBackendType EncryptionBackendType
-}
-
-type NotaryAppContext struct {
-	PublicConfig *PublicConfigData
-
+// AppConfig contains parsed and validated configuration data without initialized subsystems
+type AppConfig struct {
 	// TLSPrivateKey and Certificate for the webserver and the listener port
 	TLSPrivateKey  []byte
 	TLSCertificate []byte
 
 	// Port to be used for the Notary server
 	Port int
+
 	// ExternalHostname is used in the CRLDistributionPoint extension of the certificate
+	// It is also used in the OIDC configuration as the audience for the IDP to identify the Notary server with the correct API scopes
 	ExternalHostname string
 
-	// Path to store the database
+	// Path to store the sqlite database
 	DBPath string
 	// Whether to apply database migrations automatically on startup if the database is outdated
-	ApplyMigrations bool
+	ShouldApplyMigrations bool
 
 	// Send pebble notifications if enabled. Read more at github.com/canonical/pebble
-	PebbleNotificationsEnabled bool
+	ShouldEnablePebbleNotifications bool
 
-	// Options for the loggers and tracer
-	SystemLogger *zap.Logger
-	AuditLogger  *zap.Logger
-	Tracer       *Tracer
-
-	// Encryption backend to be used for encrypting and decrypting sensitive data
-	EncryptionBackendType
-	EncryptionBackend encryption_backend.EncryptionBackend
-
-	// OIDC configuration
-	OIDCConfig *OIDCConfig
+	// Configurations for Subsystems
+	LoggingConfig    *viper.Viper
+	TracingConfig    *viper.Viper
+	OIDCConfig       *viper.Viper
+	EncryptionConfig *viper.Viper
 }
 
-// This is the configuration for OIDC authentication
-type OIDCConfig struct {
-	// This is the OIDC configuration of the configured server
-	OIDCProvider *oidc.Provider
-	// This is the oauth2 configuration for the IDP
-	OAuth2Config *oauth2.Config
-	// The audience is the value that the IDP will use to identify the Notary server with the correct API scopes
-	Audience string
-	// The issuer identifier for the OIDC provider, captured from discovery
-	Issuer string
-	// This is the key for the email claim in the access token
-	EmailClaimKey string
-	// This is the key for the permissions claim in the access token
-	PermissionsClaimKey string
-	// This is the key function for verifying the access token coming from the IDP
-	KeyFunc keyfunc.Keyfunc
+// AppEnvironment contains repositories and connections to external services that the application needs to run.
+type AppEnvironment struct {
+	Database *db.DatabaseRepository
+
+	SystemLogger *zap.Logger
+	AuditLogger  *log.AuditLogger
+
+	TracingRepository    *tracing.TracingRepository
+	EncryptionRepository *encryption.EncryptionRepository
+	AuthzRepository      *authz.AuthzRepository
+	AuthnRepository      *authn.OIDCRepository
 }

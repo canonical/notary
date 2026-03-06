@@ -1,4 +1,4 @@
-package encryption_backend
+package encryption
 
 import (
 	"context"

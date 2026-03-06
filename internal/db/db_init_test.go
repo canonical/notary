@@ -8,7 +8,6 @@ import (
 
 	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/db/migrations"
-	eb "github.com/canonical/notary/internal/encryption_backend"
 	"github.com/pressly/goose/v3"
 	"go.uber.org/zap"
 )
@@ -17,7 +16,7 @@ func TestConnect(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	tempDir := t.TempDir()
 
-	sqlConnection, err := sql.Open("sqlite3", filepath.Join(tempDir, "db.sqlite3"))
+	sqlConnection, err := sql.Open("sqlite", filepath.Join(tempDir, "db.sqlite"))
 	if err != nil {
 		t.Fatalf("Couldn't create temporary database: %s", err)
 	}
@@ -31,9 +30,9 @@ func TestConnect(t *testing.T) {
 		t.Fatalf("Couldn't apply database migrations: %s", err)
 	}
 	db, err := db.NewDatabase(&db.DatabaseOpts{
-		DatabasePath: filepath.Join(tempDir, "db.sqlite3"),
-		Backend:      &eb.NoEncryptionBackend{},
-		Logger:       logger,
+		DatabasePath:    filepath.Join(tempDir, "db.sqlite"),
+		ApplyMigrations: false,
+		Logger:          logger,
 	})
 	if err != nil {
 		t.Fatalf("Can't connect to SQLite: %s", err)
@@ -47,9 +46,9 @@ func TestConnect(t *testing.T) {
 func Example() {
 	logger, _ := zap.NewDevelopment()
 	database, err := db.NewDatabase(&db.DatabaseOpts{
-		DatabasePath: "./notary.db",
-		Backend:      &eb.NoEncryptionBackend{},
-		Logger:       logger,
+		DatabasePath:    "./notary.db",
+		ApplyMigrations: false,
+		Logger:          logger,
 	})
 	if err != nil {
 		log.Fatalln(err)

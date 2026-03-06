@@ -1,4 +1,4 @@
-package hashing
+package utils
 
 import (
 	"crypto/rand"

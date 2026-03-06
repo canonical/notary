@@ -13,11 +13,18 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
 // TracerShutdownFunc is a function that can be called to clean up tracing resources.
 type TracerShutdownFunc func(context.Context) error
+
+// Repository for the Tracer
+type TracingRepository struct {
+	Tracer       trace.Tracer
+	ShutdownFunc TracerShutdownFunc
+}
 
 // SetupTracing initializes OpenTelemetry tracing with configuration from the app config
 func SetupTracing(ctx context.Context, endpoint string, serviceName string, samplingRate float64, logger *zap.Logger) (TracerShutdownFunc, error) {
@@ -32,7 +39,7 @@ func SetupTracing(ctx context.Context, endpoint string, serviceName string, samp
 
 	client := otlptracegrpc.NewClient(
 		otlptracegrpc.WithEndpoint(endpoint),
-		otlptracegrpc.WithInsecure(), // TODO: support TLS
+		otlptracegrpc.WithInsecure(),
 	)
 	exporter, err := otlptrace.New(ctx, client)
 	if err != nil {

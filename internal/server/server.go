@@ -7,35 +7,30 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/canonical/notary/internal/logging"
+	"github.com/canonical/notary/internal/config"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
 // New creates an environment and an http server with handlers that Go can start listening to
-func New(opts *ServerOpts) (*Server, error) {
-	serverCerts, err := tls.X509KeyPair(opts.TLSCertificate, opts.TLSPrivateKey)
+func New(appCfg *config.AppConfig, appEnv *config.AppEnvironment) (*Server, error) {
+	serverCerts, err := tls.X509KeyPair(appCfg.TLSCertificate, appCfg.TLSPrivateKey)
 	if err != nil {
 		return nil, err
 	}
-	stdErrLog, err := zap.NewStdLogAt(opts.SystemLogger, zapcore.ErrorLevel)
+	stdErrLog, err := zap.NewStdLogAt(appEnv.SystemLogger, zapcore.ErrorLevel)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create logger for http server: %w", err)
 	}
 
-	cfg := &HandlerConfig{}
-	cfg.SendPebbleNotifications = opts.EnablePebbleNotifications
-	cfg.JWTSecret = opts.Database.JWTSecret
-	cfg.ExternalHostname = opts.ExternalHostname
-	cfg.SystemLogger = opts.SystemLogger
-	cfg.AuditLogger = logging.NewAuditLogger(opts.AuditLogger)
-	cfg.Tracer = opts.Tracer
-	cfg.PublicConfig = *opts.PublicConfig
-	cfg.DB = opts.Database
-	cfg.OIDCConfig = opts.OIDCConfig
+	cfg := &HandlerDependencies{
+		AppConfig:      appCfg,
+		AppEnvironment: appEnv,
+	}
+	router := NewRouter(cfg)
 
-	if opts.OIDCConfig != nil {
+	if appEnv.AuthnRepository != nil {
 		cfg.StateStore = NewStateStore()
 
 		go func() {
@@ -43,16 +38,14 @@ func New(opts *ServerOpts) (*Server, error) {
 			defer ticker.Stop()
 			for range ticker.C {
 				cfg.StateStore.Cleanup()
-				opts.SystemLogger.Debug("cleaned up expired OIDC states",
+				appEnv.SystemLogger.Debug("cleaned up expired OIDC states",
 					zap.Int("remaining_states", cfg.StateStore.Size()))
 			}
 		}()
 
-		opts.SystemLogger.Info("OIDC authentication enabled with state store")
+		appEnv.SystemLogger.Info("OIDC authentication enabled with state store")
 	}
-
-	router := NewRouter(cfg)
-	if cfg.Tracer != nil {
+	if appEnv.TracingRepository != nil {
 		router = otelhttp.NewHandler(
 			router,
 			"http_server",
@@ -63,7 +56,7 @@ func New(opts *ServerOpts) (*Server, error) {
 		)
 	}
 	s := &http.Server{
-		Addr:           fmt.Sprintf(":%d", opts.Port),
+		Addr:           fmt.Sprintf(":%d", appCfg.Port),
 		ErrorLog:       stdErrLog,
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,

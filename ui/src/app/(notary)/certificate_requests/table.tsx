@@ -218,7 +218,7 @@ export function CertificateRequestsTable({
                 <SuccessNotification
                   successMessage={
                     successNotificationType === "cert"
-                      ? "Certificate copied to clipboard"
+                      ? "Certificate chain copied to clipboard"
                       : "CSR copied to clipboard"
                   }
                 />
@@ -278,7 +278,7 @@ export function CertificateRequestsTable({
                     disabled={csr_status != "Active"}
                     onClick={() => handleCopy(certificate_chain, id, "cert")}
                   >
-                    Copy Certificate to Clipboard
+                    Copy Certificate Chain to Clipboard
                   </Button>
                   <Button
                     className="p-contextual-menu__link"
@@ -291,7 +291,7 @@ export function CertificateRequestsTable({
                       )
                     }
                   >
-                    Download Certificate
+                    Download Certificate Chain
                   </Button>
                   {canManageCertificates && (
                     <>

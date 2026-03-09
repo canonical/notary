@@ -29,7 +29,7 @@ Notary's API responses are JSON objects with the following structure:
 ```
 
 ```{note}
-GET calls to the `/metrics` endpoint don't follow this rule; they return text response in the [Prometheus exposition format](https://prometheus.io/docs/instrumenting/exposition_formats/#text-format-details).
+GET calls to the `/metrics` endpoint don't follow this rule; they return text response in the [Prometheus exposition format](https://prometheus.io/docs/instrumenting/exposition_formats/).
 ```
 
 ## Table of contents

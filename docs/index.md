@@ -2,7 +2,7 @@
 
 Notary is an open-source TLS Certificate Management software. It provides a secure, reliable, and simple way to manage x.509 certificates for your applications and services.
 
-We designed Notary for Enterprise environments where users need to securely manage the lifecycle of a large number of certificates. 
+We designed Notary for Enterprise environments where users need to securely manage the lifecycle of a large number of certificates.
 
 ## Key features
 
@@ -13,7 +13,6 @@ We designed Notary for Enterprise environments where users need to securely mana
 - **Extensive HTTP API**: Accomplish all the tasks you can do in the UI via the HTTP API.
 - **Metrics**: Monitor the state of your certificates and the health of your Notary instance with Prometheus metrics.
 - **Encryption Backend Support**: Secure Notary's private keys using a PKCS#11 compliant Hardware Security Module (HSM) or HashiCorp Vault.
-
 
 ## In this documentation
 
@@ -38,7 +37,6 @@ How-to guides
 ```
 
 ````
-
 
 ````{grid} 1 1 2 2
 
@@ -66,7 +64,7 @@ Explanation
 
 Notary is a member of the Ubuntu family. It’s an open source project that warmly welcomes community projects, contributions, suggestions, fixes and constructive feedback.
 
-- [Ubuntu Code of conduct](https://ubuntu.com/community/ethos/code-of-conduct)
+- [Ubuntu Code of conduct](https://ubuntu.com/community/docs/ethos/code-of-conduct)
 - Meet the community and chat with us on [Matrix](https://matrix.to/#/!yAkGlrYcBFYzYRvOlQ:ubuntu.com?via=ubuntu.com)
 - [Open a bug](https://github.com/canonical/notary/issues)
 - [Contribute](https://github.com/canonical/notary/)

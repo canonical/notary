@@ -10,8 +10,8 @@ jobs:
   analyze:
     runs-on: [self-hosted, linux, amd64, tiobe, jammy]
     steps: 
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
           go-version-file: "go.mod"
       - name: generate coverage

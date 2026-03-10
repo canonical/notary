@@ -40,6 +40,9 @@ export function CertificateRequestsTable({
   const [successNotificationId, setSuccessNotificationId] = useState<
     number | null
   >(null);
+  const [successNotificationType, setSuccessNotificationType] = useState<
+    "csr" | "cert"
+  >("csr");
 
   const canManageCSRs = [
     RoleID.Admin,
@@ -52,8 +55,9 @@ export function CertificateRequestsTable({
     RoleID.CertificateManager,
   ].includes(auth.user?.role_id as RoleID);
 
-  const handleCopy = (csr: string, id: number) => {
-    void navigator.clipboard.writeText(csr).then(() => {
+  const handleCopy = (content: string, id: number, type: "csr" | "cert") => {
+    void navigator.clipboard.writeText(content).then(() => {
+      setSuccessNotificationType(type);
       setSuccessNotificationId(id);
       setTimeout(() => setSuccessNotificationId(null), 2500);
     });
@@ -68,6 +72,19 @@ export function CertificateRequestsTable({
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = `csr-${csrObj.commonName?.toLowerCase() || id}.pem`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
+  const handleCertDownload = (
+    cert: string,
+    id: number,
+    commonName?: string,
+  ) => {
+    const blob = new Blob([cert], { type: "text/plain" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `cert-${commonName?.toLowerCase() || id}.pem`;
     link.click();
     URL.revokeObjectURL(link.href);
   };
@@ -198,7 +215,13 @@ export function CertificateRequestsTable({
           content: (
             <>
               {successNotificationId === id && (
-                <SuccessNotification successMessage="CSR copied to clipboard" />
+                <SuccessNotification
+                  successMessage={
+                    successNotificationType === "cert"
+                      ? "Certificate chain copied to clipboard"
+                      : "CSR copied to clipboard"
+                  }
+                />
               )}
               <ContextualMenu hasToggleIcon position="right">
                 <span className="p-contextual-menu__group">
@@ -212,7 +235,7 @@ export function CertificateRequestsTable({
                   </Button>
                   <Button
                     className="p-contextual-menu__link"
-                    onClick={() => handleCopy(csr, id)}
+                    onClick={() => handleCopy(csr, id, "csr")}
                   >
                     Copy CSR to Clipboard
                   </Button>
@@ -249,6 +272,26 @@ export function CertificateRequestsTable({
                     {isCertContentVisible
                       ? "Hide Certificate Content"
                       : "Show Certificate Content"}
+                  </Button>
+                  <Button
+                    className="p-contextual-menu__link"
+                    disabled={csr_status != "Active"}
+                    onClick={() => handleCopy(certificate_chain, id, "cert")}
+                  >
+                    Copy Certificate Chain to Clipboard
+                  </Button>
+                  <Button
+                    className="p-contextual-menu__link"
+                    disabled={csr_status != "Active"}
+                    onClick={() =>
+                      handleCertDownload(
+                        certificate_chain,
+                        id,
+                        certObj?.commonName,
+                      )
+                    }
+                  >
+                    Download Certificate Chain
                   </Button>
                   {canManageCertificates && (
                     <>

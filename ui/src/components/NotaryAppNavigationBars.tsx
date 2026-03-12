@@ -120,25 +120,32 @@ export function SideBar({
                       </a>
                     </li>
                   )}
-                  {auth.user && (
-                    <li className="p-side-navigation__item">
-                      <a
-                        className="p-side-navigation__link"
-                        href="/configuration"
-                        aria-current={
-                          path.startsWith("/configuration") ? "page" : "false"
-                        }
-                        style={{ cursor: "pointer" }}
-                      >
-                        <i className="p-icon--information is-light p-side-navigation__icon"></i>
-                        <span className="p-side-navigation__label">
+                  {auth.user &&
+                    auth.user?.role_id !== undefined &&
+                    [
+                      RoleID.Admin,
+                      RoleID.CertificateManager,
+                      RoleID.CertificateRequestor,
+                      RoleID.ReadOnly,
+                    ].includes(auth.user.role_id) && (
+                      <li className="p-side-navigation__item">
+                        <a
+                          className="p-side-navigation__link"
+                          href="/configuration"
+                          aria-current={
+                            path.startsWith("/configuration") ? "page" : "false"
+                          }
+                          style={{ cursor: "pointer" }}
+                        >
+                          <i className="p-icon--information is-light p-side-navigation__icon"></i>
                           <span className="p-side-navigation__label">
-                            Server Info
+                            <span className="p-side-navigation__label">
+                              Server Info
+                            </span>
                           </span>
-                        </span>
-                      </a>
-                    </li>
-                  )}
+                        </a>
+                      </li>
+                    )}
                 </ul>
                 <ul
                   className="p-side-navigation__list"

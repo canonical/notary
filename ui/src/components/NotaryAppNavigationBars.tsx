@@ -120,6 +120,25 @@ export function SideBar({
                       </a>
                     </li>
                   )}
+                  {auth.user && (
+                    <li className="p-side-navigation__item">
+                      <a
+                        className="p-side-navigation__link"
+                        href="/configuration"
+                        aria-current={
+                          path.startsWith("/configuration") ? "page" : "false"
+                        }
+                        style={{ cursor: "pointer" }}
+                      >
+                        <i className="p-icon--information is-light p-side-navigation__icon"></i>
+                        <span className="p-side-navigation__label">
+                          <span className="p-side-navigation__label">
+                            Server Info
+                          </span>
+                        </span>
+                      </a>
+                    </li>
+                  )}
                 </ul>
                 <ul
                   className="p-side-navigation__list"
@@ -145,7 +164,7 @@ export function SideBar({
                             </span>
                           </span>
                           <div className="p-side-navigation__status">
-                            <i className="p-icon--menu"></i>
+                            <i className="p-icon--settings is-light"></i>
                             <span
                               className="p-contextual-menu__dropdown"
                               id="menu-3"

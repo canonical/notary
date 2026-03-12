@@ -1,7 +1,12 @@
 // FIXME: Update the response and param types to match the actual API response when they are standardized
 /* eslint-disable */
 
-import { CertificateAuthorityEntry, CSREntry, UserEntry } from "@/types";
+import {
+  CertificateAuthorityEntry,
+  ConfigEntry,
+  CSREntry,
+  UserEntry,
+} from "@/types";
 import { HTTPStatus } from "@/utils";
 
 export type RequiredCSRParams = {
@@ -455,6 +460,17 @@ export async function signCA(
       body: JSON.stringify(reqParams),
     },
   );
+  const respData = await response.json();
+  if (!response.ok) {
+    throw new Error(
+      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
+    );
+  }
+  return respData.result;
+}
+
+export async function getConfig(): Promise<ConfigEntry> {
+  const response = await fetch("/api/v1/config");
   const respData = await response.json();
   if (!response.ok) {
     throw new Error(

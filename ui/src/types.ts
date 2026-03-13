@@ -48,6 +48,14 @@ export type UserEntry = {
   role_id: RoleID;
 };
 
+export type ConfigEntry = {
+  port: number;
+  pebble_notifications: boolean;
+  logging_level: string;
+  logging_output: string;
+  encryption_backend_type: string;
+};
+
 export type AsideFormData = {
   formTitle: string;
   user?: {

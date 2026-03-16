@@ -15,4 +15,4 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run Gosec Security Scanner
-        uses: securego/gosec@136f6c00402b11775d4f4a45d5a21e2f6dd99db2 # v2.22.2
+        uses: securego/gosec@bb17e422fc34bf4c0a2e5cab9d07dc45a68c040c # v2.24.7

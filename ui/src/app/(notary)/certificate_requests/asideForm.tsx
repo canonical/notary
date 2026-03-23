@@ -7,6 +7,7 @@ import {
   useEffect,
   Dispatch,
   SetStateAction,
+  ReactElement,
 } from "react";
 import {
   Textarea,
@@ -22,7 +23,7 @@ type AsideProps = {
 
 export default function CertificateRequestsAsidePanel({
   setAsideOpen,
-}: AsideProps): JSX.Element {
+}: AsideProps): ReactElement {
   const [errorText, setErrorText] = useState<string>("");
   const [CSRPEMString, setCSRPEMString] = useState<string>("");
   const queryClient = useQueryClient();

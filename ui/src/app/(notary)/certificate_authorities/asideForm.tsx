@@ -1,6 +1,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { postCA } from "@/queries";
-import { ChangeEvent, useState, Dispatch, SetStateAction } from "react";
+import {
+  ChangeEvent,
+  useState,
+  Dispatch,
+  SetStateAction,
+  ReactElement,
+} from "react";
 import {
   Button,
   Input,
@@ -25,7 +31,7 @@ type AsideProps = {
 
 export default function CertificateAuthoritiesAsidePanel({
   setAsideOpen,
-}: AsideProps): JSX.Element {
+}: AsideProps): ReactElement {
   const queryClient = useQueryClient();
 
   const [isSelfSigned, setIsSelfSigned] = useState<boolean | null>(null);

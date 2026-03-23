@@ -10,7 +10,7 @@ const nextConfig = {
     output: "export",
     env: {
         VERSION: version
-    }
+    },
 };
 
 export default nextConfig;

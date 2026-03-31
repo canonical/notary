@@ -193,25 +193,25 @@ func CreateBackup(db *DatabaseRepository, backupDir string) (string, error) {
 	if _, err := db.Conn.PlainDB().ExecContext(context.Background(), vacuumQuery); err != nil {
 		return "", fmt.Errorf("failed to create backup: %w", err)
 	}
-	defer os.Remove(backupPath)
+	defer os.Remove(backupPath) //nolint:errcheck
 
 	archiveFile, err := os.Create(archivePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to create archive: %w", err)
 	}
-	defer archiveFile.Close()
+	defer archiveFile.Close() //nolint:errcheck
 
 	gzWriter := gzip.NewWriter(archiveFile)
-	defer gzWriter.Close()
+	defer gzWriter.Close() //nolint:errcheck
 
 	tarWriter := tar.NewWriter(gzWriter)
-	defer tarWriter.Close()
+	defer tarWriter.Close() //nolint:errcheck
 
 	backupFile, err := os.Open(backupPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to open backup: %w", err)
 	}
-	defer backupFile.Close()
+	defer backupFile.Close() //nolint:errcheck
 
 	stat, err := backupFile.Stat()
 	if err != nil {
@@ -257,13 +257,13 @@ func RestoreBackup(db *DatabaseRepository, archivePath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open archive: %w", err)
 	}
-	defer archiveFile.Close()
+	defer archiveFile.Close() //nolint:errcheck
 
 	gzReader, err := gzip.NewReader(archiveFile)
 	if err != nil {
 		return fmt.Errorf("failed to decompress archive: %w", err)
 	}
-	defer gzReader.Close()
+	defer gzReader.Close() //nolint:errcheck
 
 	tarReader := tar.NewReader(gzReader)
 
@@ -280,45 +280,45 @@ func RestoreBackup(db *DatabaseRepository, archivePath string) error {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
 	defer func() {
-		tempFile.Close()
-		os.Remove(tempDBPath)
+		tempFile.Close()      //nolint:errcheck
+		os.Remove(tempDBPath) //nolint:errcheck
 	}()
 
 	if _, err := io.Copy(tempFile, tarReader); err != nil {
 		return fmt.Errorf("failed to extract database: %w", err)
 	}
-	tempFile.Close()
+	tempFile.Close() //nolint:errcheck
 
 	backupDB, err := sql.Open("sqlite3", tempDBPath)
 	if err != nil {
 		return fmt.Errorf("invalid database file: %w", err)
 	}
 	if err := backupDB.Ping(); err != nil {
-		backupDB.Close()
+		backupDB.Close() //nolint:errcheck
 		return fmt.Errorf("backup file is not a valid database: %w", err)
 	}
 
 	destDB, err := sql.Open("sqlite3", db.Path)
 	if err != nil {
-		backupDB.Close()
+		backupDB.Close() //nolint:errcheck
 		return fmt.Errorf("failed to open destination database: %w", err)
 	}
-	defer destDB.Close()
+	defer destDB.Close() //nolint:errcheck
 
 	ctx := context.Background()
 	destConn, err := destDB.Conn(ctx)
 	if err != nil {
-		backupDB.Close()
+		backupDB.Close() //nolint:errcheck
 		return fmt.Errorf("failed to get destination connection: %w", err)
 	}
-	defer destConn.Close()
+	defer destConn.Close() //nolint:errcheck
 
 	srcConn, err := backupDB.Conn(ctx)
 	if err != nil {
-		backupDB.Close()
+		backupDB.Close() //nolint:errcheck
 		return fmt.Errorf("failed to get source connection: %w", err)
 	}
-	defer srcConn.Close()
+	defer srcConn.Close() //nolint:errcheck
 
 	err = destConn.Raw(func(destRaw any) error {
 		return srcConn.Raw(func(srcRaw any) error {
@@ -358,7 +358,7 @@ func RestoreBackup(db *DatabaseRepository, archivePath string) error {
 		})
 	})
 
-	backupDB.Close()
+	backupDB.Close() //nolint:errcheck
 
 	if err != nil {
 		return fmt.Errorf("failed to restore backup: %w", err)

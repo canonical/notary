@@ -281,9 +281,14 @@ func DeleteAccount(env *HandlerDependencies) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
 		}
-		if account.RoleID == db.RoleID(RoleAdmin) {
-			err = errors.New("deleting an Admin account is not allowed")
-			writeError(w, http.StatusBadRequest, "deleting an Admin account is not allowed.", err, env.SystemLogger)
+		numUsers, err := env.Database.NumUsers()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			return
+		}
+		if numUsers <= 1 && env.AuthnRepository == nil {
+			err = errors.New("cannot delete the last user account when OIDC is not enabled")
+			writeError(w, http.StatusBadRequest, "cannot delete the last user account when OIDC is not enabled", err, env.SystemLogger)
 			return
 		}
 

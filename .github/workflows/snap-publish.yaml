@@ -29,7 +29,6 @@ jobs:
         uses: canonical/action-publish@v1.2.0
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
-        if: ${{ github.ref_name == 'main' }}
         with:
           snap: ${{ steps.find-snap.outputs.snap_file }}
-          release: edge
+          release: 1/edge

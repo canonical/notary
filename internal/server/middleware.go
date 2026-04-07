@@ -279,6 +279,26 @@ func requirePermission(
 	}
 }
 
+// firstUserOrAdmin allows unauthenticated access when zero users exist (first-run setup).
+// This enables the initial admin account to be created without pre-existing credentials.
+// Once any user exists, it falls back to requirePermission with adminOnly access.
+func firstUserOrAdmin(env *HandlerDependencies, handler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		numUsers, err := env.Database.NumUsers()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to check user count", err, env.SystemLogger)
+			return
+		}
+		if numUsers == 0 {
+			// First user — allow without authentication
+			handler(w, r)
+			return
+		}
+		// Otherwise, require admin permission
+		requirePermission(adminOnly, env, handler)(w, r)
+	}
+}
+
 func getClaimsFromCookie(r *http.Request, jwtSecret []byte, oidcConfig *authentication.OIDCRepository) (*authentication.NotaryJWTClaims, error) {
 	c, err := r.Cookie(CookieSessionTokenKey)
 	if err != nil {

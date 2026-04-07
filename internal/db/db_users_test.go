@@ -31,7 +31,7 @@ func TestUsersEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete RetrieveAll: %s", err)
 	}
-	if len(res) != 3 {
+	if len(res) != 2 {
 		t.Fatalf("One or more users weren't found in DB")
 	}
 
@@ -39,7 +39,7 @@ func TestUsersEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete NumUsers: %s", err)
 	}
-	if num != 3 {
+	if num != 2 {
 		t.Fatalf("NumUsers didn't return the correct number of users")
 	}
 
@@ -66,7 +66,7 @@ func TestUsersEndToEnd(t *testing.T) {
 		t.Fatalf("Couldn't complete Delete: %s", err)
 	}
 	res, _ = database.ListUsers()
-	if len(res) != 2 {
+	if len(res) != 1 {
 		t.Fatalf("users weren't deleted from the DB properly")
 	}
 
@@ -282,13 +282,13 @@ func TestMixedAuthenticationScenarios(t *testing.T) {
 		t.Fatal("Local user should have password only")
 	}
 
-	// Verify all three users exist (plus the default admin)
+	// Verify all three users exist
 	users, err := database.ListUsers()
 	if err != nil {
 		t.Fatalf("Failed to list users: %s", err)
 	}
-	if len(users) != 4 {
-		t.Fatalf("Expected 4 users, got %d", len(users))
+	if len(users) != 3 {
+		t.Fatalf("Expected 3 users, got %d", len(users))
 	}
 }
 
@@ -317,8 +317,8 @@ func TestCreateUserFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete NumUsers: %s", err)
 	}
-	if num != 2 {
-		t.Fatalf("The number of users should be 2 (default admin + created user).")
+	if num != 1 {
+		t.Fatalf("The number of users should be 1.")
 	}
 	_, err = database.GetUser(db.ByUserID(100))
 	if err == nil {
@@ -335,8 +335,8 @@ func TestCreateUserFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete NumUsers: %s", err)
 	}
-	if num != 2 {
-		t.Fatalf("The number of users should be 2 (default admin + created user).")
+	if num != 1 {
+		t.Fatalf("The number of users should be 1.")
 	}
 	_, err = database.CreateUser("newUser", "", 0)
 	if err == nil {
@@ -349,8 +349,8 @@ func TestCreateUserFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete NumUsers: %s", err)
 	}
-	if num != 2 {
-		t.Fatalf("The number of users should be 2 (default admin + created user).")
+	if num != 1 {
+		t.Fatalf("The number of users should be 1.")
 	}
 	_, err = database.CreateUser("newUser", "pw456", 32)
 	if err == nil {
@@ -404,8 +404,8 @@ func TestUpdateUserPasswordFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete NumUsers: %s", err)
 	}
-	if num != 2 {
-		t.Fatalf("The number of users should be 2 (default admin + created user).")
+	if num != 1 {
+		t.Fatalf("The number of users should be 1.")
 	}
 
 	err = database.UpdateUserPassword(db.ByUserID(userID), "")
@@ -445,7 +445,7 @@ func TestDeleteUserFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't complete NumUsers: %s", err)
 	}
-	if num != 3 {
-		t.Fatalf("The number of users should be 3 (default admin + 2 created users).")
+	if num != 2 {
+		t.Fatalf("The number of users should be 2.")
 	}
 }

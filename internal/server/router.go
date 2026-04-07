@@ -68,7 +68,7 @@ func NewRouter(config *HandlerDependencies) http.Handler {
 
 	// Account endpoints
 	apiV1Router.HandleFunc("GET /accounts", requirePermission(adminOnly, config, ListAccounts(config)))
-	apiV1Router.HandleFunc("POST /accounts", requirePermission(adminOnly, config, CreateAccount(config)))
+	apiV1Router.HandleFunc("POST /accounts", firstUserOrAdmin(config, CreateAccount(config)))
 	apiV1Router.HandleFunc("GET /accounts/{id}", requirePermission(adminOnly, config, GetAccount(config)))
 	apiV1Router.HandleFunc("GET /accounts/me", requirePermission(allRoles, config, GetMyAccount(config)))
 	apiV1Router.HandleFunc("DELETE /accounts/{id}", requirePermission(adminOnly, config, DeleteAccount(config)))

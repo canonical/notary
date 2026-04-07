@@ -1,7 +1,7 @@
 "use client";
 
-import { login } from "@/queries";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { getStatus, login } from "@/queries";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, ChangeEvent } from "react";
 import {
   Input,
@@ -14,6 +14,11 @@ import {
 
 export default function LoginPage() {
   const queryClient = useQueryClient();
+  const statusQ = useQuery({
+    queryKey: ["status"],
+    queryFn: getStatus,
+    retry: false,
+  });
   const loginMutation = useMutation({
     mutationFn: login,
     onSuccess: async () => {
@@ -72,15 +77,17 @@ export default function LoginPage() {
           >
             Log In
           </Button>
-          <Button
-            appearance="positive"
-            onClick={(event) => {
-              event.preventDefault();
-              window.location.href = "/api/v1/oauth/login";
-            }}
-          >
-            Log In with OIDC
-          </Button>
+          {statusQ.data?.oidc_enabled && (
+            <Button
+              appearance="positive"
+              onClick={(event) => {
+                event.preventDefault();
+                window.location.href = "/api/v1/oauth/login";
+              }}
+            >
+              Log In with OIDC
+            </Button>
+          )}
         </Form>
       </LoginPageLayout>
     </>

@@ -212,6 +212,17 @@ func CreateAccount(env *HandlerDependencies) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("invalid request: %s", err).Error(), err, env.SystemLogger)
 			return
 		}
+		// Force admin role for the first user in the system
+		numUsers, err := env.Database.NumUsers()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to check user count", err, env.SystemLogger)
+			return
+		}
+		if numUsers == 0 {
+			createAccountParams.RoleID = RoleID(db.RoleAdmin)
+			env.SystemLogger.Info("First user in system — granting admin role",
+				zap.String("email", createAccountParams.Email))
+		}
 		newUserID, err := env.Database.CreateUser(createAccountParams.Email, createAccountParams.Password, db.RoleID(createAccountParams.RoleID))
 		if err != nil {
 			if errors.Is(err, db.ErrAlreadyExists) {

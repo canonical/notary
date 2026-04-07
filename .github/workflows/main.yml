@@ -4,9 +4,11 @@ on:
   pull_request:
     branches:
       - main
+      - release-*
   push:
     branches:
       - main
+      - release-*
 
 jobs: 
   frontend-unit-test:
@@ -29,18 +31,18 @@ jobs:
     needs: [rock-build]
     uses: ./.github/workflows/rock-test.yaml
   rock-scan:
-    if: github.ref_name == 'main'
+    if: github.ref_name == 'main' || startsWith(github.ref_name, 'release-')
     needs: [rock-build]
     uses: ./.github/workflows/rock-scan.yaml
   rock-publish:
-    if: github.ref_name == 'main'
+    if: github.ref_name == 'main' || startsWith(github.ref_name, 'release-')
     needs: [rock-build]
     uses: ./.github/workflows/rock-publish.yaml
   snap-build:
     needs: [go-build, go-unit-test, go-vet, go-lint]
     uses: ./.github/workflows/snap-build.yaml
   snap-publish:
-    if: github.ref_name == 'main'
+    if: github.ref_name == 'main' || startsWith(github.ref_name, 'release-')
     needs: [snap-build]
     uses: ./.github/workflows/snap-publish.yaml
     secrets: inherit

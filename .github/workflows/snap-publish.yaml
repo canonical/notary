@@ -25,11 +25,20 @@ jobs:
           echo "Found snap file: $SNAP_FILE"
           echo "snap_file=${SNAP_FILE}" >>$GITHUB_OUTPUT
 
+      - name: Determine snap channel
+        id: channel
+        run: |
+          if [[ "${{ github.ref_name }}" == "main" ]]; then
+            echo "channel=edge" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref_name }}" =~ ^release-([0-9]+)$ ]]; then
+            TRACK="${BASH_REMATCH[1]}"
+            echo "channel=${TRACK}/edge" >> $GITHUB_OUTPUT
+          fi
+
       - name: Publish snap
         uses: canonical/action-publish@v1.2.0
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
-        if: ${{ github.ref_name == 'main' }}
         with:
           snap: ${{ steps.find-snap.outputs.snap_file }}
-          release: edge
+          release: ${{ steps.channel.outputs.channel }}

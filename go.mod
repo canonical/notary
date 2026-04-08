@@ -1,6 +1,6 @@
 module github.com/canonical/notary
 
-go 1.24.4
+go 1.26.0
 
 require (
 	github.com/MicahParks/keyfunc/v3 v3.8.0

@@ -36,8 +36,10 @@ parts:
     source: .
     source-type: local
     build-snaps:
-      - go/1.24/stable
+      - go/1.26/stable
       - node/20/stable
+    build-environment:
+      - GOTOOLCHAIN: local
     override-build: |
       npm install --prefix ui
       npm run build --prefix ui

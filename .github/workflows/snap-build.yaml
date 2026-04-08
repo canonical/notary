@@ -5,9 +5,9 @@ on:
 
 jobs:
   build-snap:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Build snap
         uses: snapcore/action-build@v1
@@ -15,7 +15,7 @@ jobs:
       
       - name: Upload locally built snap artifact
         if: ${{ github.ref_name == 'main' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: snap
           path: ${{ steps.build.outputs.snap }}

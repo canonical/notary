@@ -15,7 +15,7 @@ jobs:
     runs-on: ${{ matrix.arch.runner }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install rockcraft
         run: |
@@ -25,7 +25,7 @@ jobs:
         run: |
           sudo snap install yq
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: rock-${{ matrix.arch.arch }}
 
@@ -50,6 +50,6 @@ jobs:
           output: "trivy-results.sarif"
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: "trivy-results.sarif"

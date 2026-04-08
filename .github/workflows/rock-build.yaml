@@ -15,12 +15,12 @@ jobs:
     runs-on: ${{ matrix.arch.runner }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - uses: canonical/craft-actions/rockcraft-pack@main
         id: rockcraft
         with:
           rockcraft-channel: edge
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: rock-${{ matrix.arch.arch }}
           path: ${{ steps.rockcraft.outputs.rock }}

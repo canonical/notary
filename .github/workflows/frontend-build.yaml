@@ -10,9 +10,9 @@ jobs:
       run:
         working-directory: ui
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: use npm
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
 
       - name: check format
         run: |
@@ -23,7 +23,7 @@ jobs:
           npm install
           npm run build
       - name: Upload frontend files
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-static-files
           path: ui/out

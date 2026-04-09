@@ -419,3 +419,173 @@ func (a *AuditLogger) CertificateRevoked(csrID string, opts ...AuditOption) {
 
 	a.logger.Warn("Certificate revoked", fields...)
 }
+
+// CertificateSigned logs when a certificate request is signed by a CA.
+func (a *AuditLogger) CertificateSigned(csrID string, caID string, opts ...AuditOption) {
+	ctx := &auditContext{severity: SeverityInfo}
+	for _, opt := range opts {
+		opt(ctx)
+	}
+
+	fields := []zap.Field{
+		zap.String("type", "security"),
+		zap.String("event", "cert_signed"),
+		zap.String("csr_id", csrID),
+		zap.String("ca_id", caID),
+	}
+	fields = append(fields, ctx.toZapFields()...)
+
+	a.logger.Info("Certificate request signed by CA", fields...)
+}
+
+// CertificateDeleted logs when a certificate is deleted.
+func (a *AuditLogger) CertificateDeleted(csrID string, opts ...AuditOption) {
+	ctx := &auditContext{severity: SeverityWarn}
+	for _, opt := range opts {
+		opt(ctx)
+	}
+
+	fields := []zap.Field{
+		zap.String("type", "security"),
+		zap.String("event", "cert_deleted"),
+		zap.String("csr_id", csrID),
+	}
+	fields = append(fields, ctx.toZapFields()...)
+
+	a.logger.Warn("Certificate deleted", fields...)
+}
+
+// Logout logs when a user ends their authenticated session.
+func (a *AuditLogger) Logout(username string, opts ...AuditOption) {
+	ctx := &auditContext{severity: SeverityInfo}
+	for _, opt := range opts {
+		opt(ctx)
+	}
+
+	fields := []zap.Field{
+		zap.String("type", "security"),
+		zap.String("event", fmt.Sprintf("authn_logout:%s", username)),
+		zap.String("username", username),
+	}
+	fields = append(fields, ctx.toZapFields()...)
+
+	a.logger.Info(fmt.Sprintf("User %s logged out", username), fields...)
+}
+
+// OIDCLoginFailed logs when an OIDC authentication attempt fails.
+func (a *AuditLogger) OIDCLoginFailed(reason string, opts ...AuditOption) {
+	ctx := &auditContext{severity: SeverityWarn}
+	for _, opt := range opts {
+		opt(ctx)
+	}
+
+	fields := []zap.Field{
+		zap.String("type", "security"),
+		zap.String("event", "authn_login_fail:oidc"),
+	}
+	fields = append(fields, ctx.toZapFields()...)
+
+	a.logger.Warn(fmt.Sprintf("OIDC login failed: %s", reason), fields...)
+}
+
+// System Events
+
+// SystemStartup logs when the application starts.
+func (a *AuditLogger) SystemStartup(addr string, opts ...AuditOption) {
+	ctx := &auditContext{severity: SeverityWarn}
+	for _, opt := range opts {
+		opt(ctx)
+	}
+
+	fields := []zap.Field{
+		zap.String("type", "security"),
+		zap.String("event", "sys_startup"),
+		zap.String("listen_address", addr),
+	}
+	fields = append(fields, ctx.toZapFields()...)
+
+	a.logger.Warn("System startup", fields...)
+}
+
+// SystemShutdown logs when the application shuts down.
+func (a *AuditLogger) SystemShutdown(reason string, opts ...AuditOption) {
+	ctx := &auditContext{severity: SeverityWarn}
+	for _, opt := range opts {
+		opt(ctx)
+	}
+
+	fields := []zap.Field{
+		zap.String("type", "security"),
+		zap.String("event", "sys_shutdown"),
+	}
+	fields = append(fields, ctx.toZapFields()...)
+
+	a.logger.Warn(fmt.Sprintf("System shutdown: %s", reason), fields...)
+}
+
+// DatabaseBackupCreated logs when a database backup is created.
+func (a *AuditLogger) DatabaseBackupCreated(archivePath string, opts ...AuditOption) {
+	ctx := &auditContext{severity: SeverityWarn}
+	for _, opt := range opts {
+		opt(ctx)
+	}
+
+	fields := []zap.Field{
+		zap.String("type", "security"),
+		zap.String("event", "sys_backup_created"),
+		zap.String("archive_path", archivePath),
+	}
+	fields = append(fields, ctx.toZapFields()...)
+
+	a.logger.Warn("Database backup created", fields...)
+}
+
+// DatabaseBackupFailed logs when a database backup attempt fails.
+func (a *AuditLogger) DatabaseBackupFailed(reason string, opts ...AuditOption) {
+	ctx := &auditContext{severity: SeverityCritical}
+	for _, opt := range opts {
+		opt(ctx)
+	}
+
+	fields := []zap.Field{
+		zap.String("type", "security"),
+		zap.String("event", "sys_backup_failed"),
+	}
+	fields = append(fields, ctx.toZapFields()...)
+
+	a.logger.Error(fmt.Sprintf("Database backup failed: %s", reason), fields...)
+}
+
+// DatabaseRestored logs when a database is restored from backup.
+func (a *AuditLogger) DatabaseRestored(archivePath string, opts ...AuditOption) {
+	ctx := &auditContext{severity: SeverityWarn}
+	for _, opt := range opts {
+		opt(ctx)
+	}
+
+	fields := []zap.Field{
+		zap.String("type", "security"),
+		zap.String("event", "sys_backup_restored"),
+		zap.String("archive_path", archivePath),
+	}
+	fields = append(fields, ctx.toZapFields()...)
+
+	a.logger.Warn("Database restored from backup", fields...)
+}
+
+// DatabaseRestoreFailed logs when a database restore attempt fails.
+func (a *AuditLogger) DatabaseRestoreFailed(archivePath, reason string, opts ...AuditOption) {
+	ctx := &auditContext{severity: SeverityCritical}
+	for _, opt := range opts {
+		opt(ctx)
+	}
+
+	fields := []zap.Field{
+		zap.String("type", "security"),
+		zap.String("event", "sys_restore_failed"),
+		zap.String("archive_path", archivePath),
+	}
+	fields = append(fields, ctx.toZapFields()...)
+
+	a.logger.Error(fmt.Sprintf("Database restore failed: %s", reason), fields...)
+}

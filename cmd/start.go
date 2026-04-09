@@ -45,10 +45,12 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 		if err != nil {
 			l.Fatal("couldn't initialize server", zap.Error(err))
 		}
+		appEnv.AuditLogger.SystemStartup(srv.Addr)
 		l.Info("Starting server at", zap.String("url", srv.Addr))
 		if err := srv.ListenAndServeTLS("", ""); err != http.ErrServerClosed {
 			l.Fatal("HTTP server ListenAndServe", zap.Error(err))
 		}
+		appEnv.AuditLogger.SystemShutdown("server stopped")
 		l.Info("Shutting down server")
 
 		// Listen for SIGINT to begin graceful shutdown

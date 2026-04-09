@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	auditlog "github.com/canonical/notary/internal/backends/observability/log"
 	"github.com/canonical/notary/internal/db"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -56,6 +57,7 @@ The database configuration is read from the specified config file.`,
 			return fmt.Errorf("failed to initialize logger: %w", err)
 		}
 		defer func() { _ = logger.Sync() }()
+		auditLogger := auditlog.NewAuditLogger(logger)
 
 		database, err := db.NewDatabase(&db.DatabaseOpts{
 			DatabasePath:    backupConfigPath,
@@ -68,9 +70,11 @@ The database configuration is read from the specified config file.`,
 
 		archivePath, err := db.CreateBackup(database, backupDir)
 		if err != nil {
+			auditLogger.DatabaseBackupFailed(err.Error())
 			return fmt.Errorf("failed to create backup: %w", err)
 		}
 
+		auditLogger.DatabaseBackupCreated(archivePath)
 		fmt.Printf("Backup created successfully: %s\n", archivePath)
 		return nil
 	},

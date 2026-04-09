@@ -507,6 +507,13 @@ func SignCertificateAuthority(env *HandlerDependencies) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format", err, env.SystemLogger)
 			return
 		}
+
+		claims, cookieErr := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
+		if cookieErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.SystemLogger)
+			return
+		}
+
 		caIDInt, err := strconv.ParseInt(signCertificateAuthorityParams.CertificateAuthorityID, 10, 64)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
@@ -526,6 +533,12 @@ func SignCertificateAuthority(env *HandlerDependencies) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
 		}
+
+		env.AuditLogger.CertificateSigned(id, signCertificateAuthorityParams.CertificateAuthorityID,
+			log.WithActor(claims.Email),
+			log.WithRequest(r),
+		)
+
 		if env.ShouldEnablePebbleNotifications {
 			err := SendPebbleNotification(CertificateUpdate, idNum)
 			if err != nil {

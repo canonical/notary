@@ -38,6 +38,10 @@ func CallbackOIDC(env *HandlerDependencies) http.HandlerFunc {
 				zap.String("state_prefix", state[:min(8, len(state))]+"..."),
 				zap.String("user_agent", r.UserAgent()),
 				zap.String("remote_addr", r.RemoteAddr))
+			env.AuditLogger.OIDCLoginFailed("invalid or expired state parameter",
+				log.WithRequest(r),
+				log.WithReason("invalid or expired state parameter"),
+			)
 			writeError(w, http.StatusBadRequest, "invalid or expired state parameter", nil, env.SystemLogger)
 			return
 		}
@@ -61,6 +65,10 @@ func CallbackOIDC(env *HandlerDependencies) http.HandlerFunc {
 		verifier := env.AuthnRepository.OIDCProvider.Verifier(&oidc.Config{ClientID: env.AuthnRepository.OAuth2Config.ClientID})
 		idToken, err := verifier.Verify(r.Context(), rawIDToken)
 		if err != nil {
+			env.AuditLogger.OIDCLoginFailed("failed to verify id_token",
+				log.WithRequest(r),
+				log.WithReason("failed to verify id_token"),
+			)
 			writeError(w, http.StatusUnauthorized, "failed to verify id_token", err, env.SystemLogger)
 			return
 		}

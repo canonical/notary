@@ -429,6 +429,13 @@ func DeleteCertificate(env *HandlerDependencies) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid ID", err, env.SystemLogger)
 			return
 		}
+
+		claims, cookieErr := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
+		if cookieErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.SystemLogger)
+			return
+		}
+
 		_, err = env.Database.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
 		if rowFound(err) {
 			writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
@@ -447,6 +454,12 @@ func DeleteCertificate(env *HandlerDependencies) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
 		}
+
+		env.AuditLogger.CertificateDeleted(id,
+			log.WithActor(claims.Email),
+			log.WithRequest(r),
+		)
+
 		if env.ShouldEnablePebbleNotifications {
 			err := SendPebbleNotification(CertificateUpdate, idNum)
 			if err != nil {
@@ -535,6 +548,13 @@ func SignCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "Invalid JSON format", err, env.SystemLogger)
 			return
 		}
+
+		claims, cookieErr := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
+		if cookieErr != nil {
+			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.SystemLogger)
+			return
+		}
+
 		_, err = env.Database.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
 		if rowFound(err) {
 			err = fmt.Errorf("certificate authority %d not found", idNum)
@@ -559,6 +579,12 @@ func SignCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
 		}
+
+		env.AuditLogger.CertificateSigned(id, signCertificateRequestParams.CertificateAuthorityID,
+			log.WithActor(claims.Email),
+			log.WithRequest(r),
+		)
+
 		if env.ShouldEnablePebbleNotifications {
 			err := SendPebbleNotification(CertificateUpdate, idNum)
 			if err != nil {

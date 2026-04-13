@@ -9,6 +9,7 @@ import (
 type StatusResponse struct {
 	Initialized bool   `json:"initialized"`
 	Version     string `json:"version"`
+	OIDCEnabled bool   `json:"oidc_enabled"`
 }
 
 // the GET status endpoint returns a http.StatusOK alongside info about the server
@@ -23,6 +24,7 @@ func GetStatus(env *HandlerDependencies) http.HandlerFunc {
 		statusResponse := StatusResponse{
 			Initialized: numUsers > 0,
 			Version:     version.GetVersion(),
+			OIDCEnabled: env.AuthnRepository != nil,
 		}
 		err = writeResponse(w, statusResponse, http.StatusOK)
 		if err != nil {

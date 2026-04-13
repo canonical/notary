@@ -12,8 +12,7 @@ func TestStatus(t *testing.T) {
 	ts, _ := tu.MustPrepareServer(t)
 	client := ts.Client()
 
-	t.Run("status initialized", func(t *testing.T) {
-		// Server is already initialized since the default admin account is created during DB init
+	t.Run("status not initialized on fresh server", func(t *testing.T) {
 		statusCode, statusResponse, err := getStatus(ts.URL, client, "")
 		if err != nil {
 			t.Fatalf("couldn't get status: %s", err)
@@ -27,17 +26,19 @@ func TestStatus(t *testing.T) {
 			t.Fatalf("expected error %q, got %q", "", statusResponse.Error)
 		}
 
-		if !statusResponse.Result.Initialized {
-			t.Fatalf("expected initialized to be true")
+		if statusResponse.Result.Initialized {
+			t.Fatalf("expected initialized to be false on fresh server")
 		}
 
 		if statusResponse.Result.Version == "" {
 			t.Fatalf("expected version to be set")
 		}
 	})
+
+	// Create the first admin account (triggers initialization)
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 
-	t.Run("status still initialized after creating new account", func(t *testing.T) {
+	t.Run("status initialized after first user created", func(t *testing.T) {
 		statusCode, statusResponse, err := getStatus(ts.URL, client, adminToken)
 		if err != nil {
 			t.Fatalf("couldn't get status: %s", err)
@@ -52,7 +53,7 @@ func TestStatus(t *testing.T) {
 		}
 
 		if !statusResponse.Result.Initialized {
-			t.Fatalf("expected initialized to be true")
+			t.Fatalf("expected initialized to be true after creating user")
 		}
 
 		if statusResponse.Result.Version == "" {

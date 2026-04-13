@@ -103,7 +103,6 @@ export function UsersTable({ users, setAsideOpen, setFormData }: TableProps) {
                     links={[
                       {
                         children: "Delete User",
-                        disabled: user.id === 1,
                         onClick: () =>
                           handleDelete(user.id.toString(), user.email),
                       },

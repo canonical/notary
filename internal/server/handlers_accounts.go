@@ -212,6 +212,17 @@ func CreateAccount(env *HandlerDependencies) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, fmt.Errorf("invalid request: %s", err).Error(), err, env.SystemLogger)
 			return
 		}
+		// Force admin role for the first user in the system
+		numUsers, err := env.Database.NumUsers()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to check user count", err, env.SystemLogger)
+			return
+		}
+		if numUsers == 0 {
+			createAccountParams.RoleID = RoleID(db.RoleAdmin)
+			env.SystemLogger.Info("First user in system — granting admin role",
+				zap.String("email", createAccountParams.Email))
+		}
 		newUserID, err := env.Database.CreateUser(createAccountParams.Email, createAccountParams.Password, db.RoleID(createAccountParams.RoleID))
 		if err != nil {
 			if errors.Is(err, db.ErrAlreadyExists) {
@@ -270,9 +281,14 @@ func DeleteAccount(env *HandlerDependencies) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
 			return
 		}
-		if account.RoleID == db.RoleID(RoleAdmin) {
-			err = errors.New("deleting an Admin account is not allowed")
-			writeError(w, http.StatusBadRequest, "deleting an Admin account is not allowed.", err, env.SystemLogger)
+		numUsers, err := env.Database.NumUsers()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			return
+		}
+		if numUsers <= 1 && env.AuthnRepository == nil {
+			err = errors.New("cannot delete the last user account when OIDC is not enabled")
+			writeError(w, http.StatusBadRequest, "cannot delete the last user account when OIDC is not enabled", err, env.SystemLogger)
 			return
 		}
 

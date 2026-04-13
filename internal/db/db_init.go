@@ -70,44 +70,7 @@ func NewDatabase(dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
 	db.Conn = sqlair.NewDB(sqlConnection)
 	db.Path = dbOpts.DatabasePath
 
-	// Create default admin account if no users exist
-	users, err := db.ListUsers()
-	if err != nil && err != ErrNotFound {
-		return nil, fmt.Errorf("failed to check for existing users: %w", err)
-	}
-	if len(users) == 0 {
-		if err := createDefaultAdminUser(db); err != nil {
-			return nil, fmt.Errorf("failed to create default admin user: %w", err)
-		}
-	}
-
 	return db, nil
-}
-
-// createDefaultAdminUser creates a default admin account with a known username and password
-// This account should be used to bootstrap the system and then change the password
-// TODO: this should have a randomly generated password
-func createDefaultAdminUser(db *DatabaseRepository) error {
-	// Check if any admin users already exist
-	users, err := db.ListUsers()
-	if err != nil && err != ErrNotFound {
-		return err
-	}
-	if len(users) > 0 {
-		// Users already exist, skip creation
-		return nil
-	}
-
-	// Create default admin user
-	const defaultAdminEmail = "admin@notary.local"
-	const defaultAdminPassword = "admin"
-
-	_, err = db.CreateUser(defaultAdminEmail, defaultAdminPassword, RoleAdmin)
-	if err != nil {
-		return fmt.Errorf("failed to create default admin user: %w", err)
-	}
-
-	return nil
 }
 
 // ListEntities retrieves all entities of a given type from the database.

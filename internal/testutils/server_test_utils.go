@@ -45,17 +45,31 @@ func MustPrepareServer(t *testing.T) (*httptest.Server, *observer.ObservedLogs) 
 	return testServer, logs
 }
 
-// MustGetDefaultAdminToken logs in with the default admin account and returns the token
+// MustGetDefaultAdminToken creates the first admin account (no auth required when zero users exist)
+// then logs in and returns the token.
 func MustGetDefaultAdminToken(t *testing.T, ts *httptest.Server) string {
 	t.Helper()
 
+	adminParams := &CreateAccountParams{
+		Email:    "admin@notary.local",
+		Password: "Admin1234!",
+		RoleID:   RoleAdmin,
+	}
+	statusCode, _, err := CreateAccount(ts.URL, ts.Client(), "", adminParams)
+	if err != nil {
+		t.Fatalf("couldn't create first admin account: %s", err)
+	}
+	if statusCode != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
+	}
+
 	adminLoginParams := &LoginParams{
 		Email:    "admin@notary.local",
-		Password: "admin",
+		Password: "Admin1234!",
 	}
 	statusCode, loginResponse, err := Login(ts.URL, ts.Client(), adminLoginParams)
 	if err != nil {
-		t.Fatalf("couldn't login default admin account: %s", err)
+		t.Fatalf("couldn't login admin account: %s", err)
 	}
 	if statusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
@@ -303,6 +317,7 @@ func DeleteAccount(url string, client *http.Client, token string, id int) (int, 
 type GetStatusResponseResult struct {
 	Initialized bool   `json:"initialized"`
 	Version     string `json:"version"`
+	OIDCEnabled bool   `json:"oidc_enabled"`
 }
 
 type GetStatusResponse struct {

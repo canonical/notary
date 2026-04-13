@@ -148,19 +148,35 @@ func CallbackOIDC(env *HandlerDependencies) http.HandlerFunc {
 				}
 			}
 
-			// Auto-provision new OIDC user with RoleReadOnly (ID=3)
+			// Auto-provision new OIDC user
 			// Email is optional - the OIDC subject is the primary identifier
 			emailOrPlaceholder := email
 			if emailOrPlaceholder == "" {
 				emailOrPlaceholder = "(none)"
 			}
 
+			// Determine role: first user gets admin, subsequent users get read-only
+			numUsers, countErr := env.Database.NumUsers()
+			if countErr != nil {
+				writeError(w, http.StatusInternalServerError, "failed to check user count", countErr, env.SystemLogger)
+				return
+			}
+			role := db.RoleReadOnly
+			ofgaRelation := RoleNameReader
+			if numUsers == 0 {
+				role = db.RoleAdmin
+				ofgaRelation = RoleNameAdmin
+				env.SystemLogger.Info("First user in system — granting admin role via OIDC",
+					zap.String("email", emailOrPlaceholder),
+					zap.String("subject", sub))
+			}
+
 			env.SystemLogger.Info("Auto-provisioning new OIDC user",
 				zap.String("email", emailOrPlaceholder),
 				zap.String("subject", sub),
-				zap.Int("role_id", int(db.RoleReadOnly)))
+				zap.Int("role_id", int(role)))
 
-			user, err = env.Database.CreateOIDCUser(email, sub, db.RoleReadOnly)
+			user, err = env.Database.CreateOIDCUser(email, sub, role)
 			if err != nil {
 				env.SystemLogger.Error("Failed to create OIDC user",
 					zap.Error(err),
@@ -172,16 +188,16 @@ func CallbackOIDC(env *HandlerDependencies) http.HandlerFunc {
 
 			if env.AuthzRepository != nil {
 				userID := authorization.UserID(email)
-				if err := env.AuthzRepository.WriteTuple("system:notary", RoleNameReader, userID); err != nil {
-					env.SystemLogger.Error("Failed to write reader tuple for OIDC user", zap.Error(err), zap.String("user", userID))
+				if err := env.AuthzRepository.WriteTuple("system:notary", ofgaRelation, userID); err != nil {
+					env.SystemLogger.Error("Failed to write role tuple for OIDC user", zap.Error(err), zap.String("user", userID))
 				}
 			}
 
 			env.SystemLogger.Info("New OIDC user auto-provisioned successfully",
 				zap.String("email", emailOrPlaceholder),
 				zap.Int64("user_id", user.ID),
-				zap.String("role", "RoleReadOnly"))
-			env.AuditLogger.UserCreated(emailOrPlaceholder, int(db.RoleReadOnly), log.WithRequest(r))
+				zap.Int("role_id", int(role)))
+			env.AuditLogger.UserCreated(emailOrPlaceholder, int(role), log.WithRequest(r))
 		}
 
 		// Generate local JWT with user's database role permissions

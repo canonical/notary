@@ -1,7 +1,7 @@
 "use client";
 
 import { passwordIsValid } from "@/utils";
-import { login, postFirstUser } from "@/queries";
+import { getStatus, login, postFirstUser } from "@/queries";
 import {
   Input,
   PasswordToggle,
@@ -9,13 +9,18 @@ import {
   Form,
   LoginPageLayout,
 } from "@canonical/react-components";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, ChangeEvent } from "react";
 import { RoleID } from "@/types";
 import { z } from "zod";
 
 export default function Initialize() {
   const queryClient = useQueryClient();
+  const statusQ = useQuery({
+    queryKey: ["status"],
+    queryFn: getStatus,
+    retry: false,
+  });
   const loginMutation = useMutation({
     mutationFn: login,
     onSuccess: async () => {
@@ -113,6 +118,21 @@ export default function Initialize() {
           >
             Submit
           </Button>
+          {statusQ.data?.oidc_enabled && (
+            <>
+              <hr />
+              <p style={{ textAlign: "center" }}>or</p>
+              <Button
+                appearance="positive"
+                onClick={(event) => {
+                  event.preventDefault();
+                  window.location.href = "/api/v1/oauth/login";
+                }}
+              >
+                Initialize with OIDC
+              </Button>
+            </>
+          )}
         </Form>
       </LoginPageLayout>
     </>

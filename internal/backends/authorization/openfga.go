@@ -108,11 +108,6 @@ func InitializeLocalOpenFGA(database *db.DatabaseRepository, logger *zap.Logger)
 		AuthorizationModelID: authModel.GetAuthorizationModelId(),
 	}
 
-	// On fresh database initialization, seed the default admin tuple.
-	if err := repo.WriteTuple("system:notary", "admin", "user:admin@notary.local"); err != nil {
-		return nil, fmt.Errorf("failed to write default admin tuple: %w", err)
-	}
-
 	return repo, nil
 }
 

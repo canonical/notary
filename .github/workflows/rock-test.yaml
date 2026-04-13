@@ -58,9 +58,14 @@ jobs:
 
           COOKIE_JAR="$(mktemp)"
 
+          curl -fsS -k -XPOST \
+            --header 'Content-Type: application/json' \
+            -d '{"email":"admin@notary.local", "password": "Admin1234!", "role_id": 0}' \
+            https://localhost:3000/api/v1/accounts >/dev/null
+
           curl -fsS -k -c "$COOKIE_JAR" -XPOST \
             --header 'Content-Type: application/json' \
-            -d '{"email":"admin@notary.local", "password": "admin"}' \
+            -d '{"email":"admin@notary.local", "password": "Admin1234!"}' \
             https://localhost:3000/login >/dev/null
 
           curl -fsS -k --location 'https://localhost:3000/api/v1/certificate_requests' \

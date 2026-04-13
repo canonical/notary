@@ -27,6 +27,7 @@ export type Response<T> = {
 type GETStatus = {
   initialized: boolean;
   version: string;
+  oidc_enabled: boolean;
 };
 
 export async function getStatus(): Promise<GETStatus> {

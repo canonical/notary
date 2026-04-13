@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	auditlog "github.com/canonical/notary/internal/backends/observability/log"
 	"github.com/canonical/notary/internal/db"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -53,6 +54,7 @@ your current database before restoring.`,
 			return fmt.Errorf("failed to initialize logger: %w", err)
 		}
 		defer func() { _ = logger.Sync() }()
+		auditLogger := auditlog.NewAuditLogger(logger)
 
 		database, err := db.NewDatabase(&db.DatabaseOpts{
 			DatabasePath:    restoreConfigPath,
@@ -64,9 +66,11 @@ your current database before restoring.`,
 		}
 
 		if err := db.RestoreBackup(database, absPath); err != nil {
+			auditLogger.DatabaseRestoreFailed(absPath, err.Error())
 			return fmt.Errorf("failed to restore backup: %w", err)
 		}
 
+		auditLogger.DatabaseRestored(absPath)
 		fmt.Println("Backup restored successfully")
 		return nil
 	},

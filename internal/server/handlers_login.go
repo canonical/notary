@@ -107,13 +107,23 @@ func Login(env *HandlerDependencies) http.HandlerFunc {
 // Expire both cookies if logging out
 func Logout(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Extract user identity before expiring the cookie
+		var username string
+		claims, err := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
+		if err == nil {
+			username = claims.Email
+		}
+
 		http.SetCookie(w, &http.Cookie{
 			Name:    CookieSessionTokenKey,
 			Value:   "",
 			Path:    "/",
 			Expires: time.Unix(0, 0),
 		})
-		err := writeResponse(w, SuccessResponse{Message: "success"}, http.StatusOK)
+
+		env.AuditLogger.Logout(username, log.WithRequest(r))
+
+		err = writeResponse(w, SuccessResponse{Message: "success"}, http.StatusOK)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
 			return

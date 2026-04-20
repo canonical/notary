@@ -11,6 +11,7 @@ import (
 	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/utils"
 	"github.com/golang-jwt/jwt/v5"
+	"go.uber.org/zap"
 )
 
 func expireAfter() time.Time {
@@ -48,23 +49,22 @@ func Login(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var loginParams LoginParams
 		if err := json.NewDecoder(r.Body).Decode(&loginParams); err != nil {
-			writeError(w, http.StatusBadRequest, "Invalid JSON format", err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, "invalid JSON format", nil, env.SystemLogger)
 			return
 		}
 		if loginParams.Email == "" {
-			err := errors.New("email is required")
-			writeError(w, http.StatusBadRequest, "Email is required", err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, "email is required", nil, env.SystemLogger)
 			return
 		}
 		if loginParams.Password == "" {
-			err := errors.New("password is required")
-			writeError(w, http.StatusBadRequest, "Password is required", err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, "password is required", nil, env.SystemLogger)
 			return
 		}
 		userAccount, err := env.Database.GetUser(db.ByEmail(loginParams.Email))
 		if err != nil {
 			if !errors.Is(err, db.ErrNotFound) && !errors.Is(err, db.ErrInvalidFilter) {
-				writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+				env.SystemLogger.Error("failed to get user during login", zap.Error(err))
+				writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 				return
 			}
 		}
@@ -77,12 +77,13 @@ func Login(env *HandlerDependencies) http.HandlerFunc {
 				log.WithRequest(r),
 				log.WithReason("invalid credentials"),
 			)
-			writeError(w, http.StatusUnauthorized, "The email or password is incorrect", err, env.SystemLogger)
+			writeResponse(w, http.StatusUnauthorized, "the email or password is incorrect", nil, env.SystemLogger)
 			return
 		}
 		jwt, err := generateJWT(userAccount.ID, userAccount.Email, env.Database.JWTSecret, RoleID(userAccount.RoleID))
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to generate JWT during login", zap.Error(err))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 		http.SetCookie(w, &http.Cookie{
@@ -96,11 +97,7 @@ func Login(env *HandlerDependencies) http.HandlerFunc {
 		})
 		env.AuditLogger.TokenCreated(userAccount.Email, log.WithRequest(r))
 		env.AuditLogger.LoginSuccess(userAccount.Email, log.WithRequest(r))
-		err = writeResponse(w, SuccessResponse{Message: "success"}, http.StatusOK)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
-			return
-		}
+		writeResponse(w, http.StatusOK, "", nil, env.SystemLogger)
 	}
 }
 
@@ -123,10 +120,6 @@ func Logout(env *HandlerDependencies) http.HandlerFunc {
 
 		env.AuditLogger.Logout(username, log.WithRequest(r))
 
-		err = writeResponse(w, SuccessResponse{Message: "success"}, http.StatusOK)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
-			return
-		}
+		writeResponse(w, http.StatusOK, "", nil, env.SystemLogger)
 	}
 }

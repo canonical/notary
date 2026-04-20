@@ -21,10 +21,6 @@ func GetConfigContent(env *HandlerDependencies) http.HandlerFunc {
 			LoggingOutput:         env.LoggingConfig.GetString("system.output"),
 			EncryptionBackendType: string(env.EncryptionRepository.Type),
 		}
-		err := writeResponse(w, configContent, http.StatusOK)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
-			return
-		}
+		writeResponse(w, http.StatusOK, "", configContent, env.SystemLogger)
 	}
 }

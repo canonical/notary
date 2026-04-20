@@ -42,7 +42,7 @@ func CallbackOIDC(env *HandlerDependencies) http.HandlerFunc {
 				log.WithRequest(r),
 				log.WithReason("invalid or expired state parameter"),
 			)
-			writeError(w, http.StatusBadRequest, "invalid or expired state parameter", nil, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, "invalid or expired state parameter", nil, env.SystemLogger)
 			return
 		}
 
@@ -52,13 +52,15 @@ func CallbackOIDC(env *HandlerDependencies) http.HandlerFunc {
 		aud := oauth2.SetAuthURLParam("audience", env.AuthnRepository.Audience)
 		oauth2Token, err := env.AuthnRepository.OAuth2Config.Exchange(r.Context(), code, aud)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to exchange oauth2 token", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to exchange oauth2 token", zap.Error(err))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 		rawIDToken, ok := oauth2Token.Extra("id_token").(string)
 
 		if !ok {
-			writeError(w, http.StatusInternalServerError, "failed to get id_token", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to get id_token from oauth2 token response")
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 
@@ -69,14 +71,16 @@ func CallbackOIDC(env *HandlerDependencies) http.HandlerFunc {
 				log.WithRequest(r),
 				log.WithReason("failed to verify id_token"),
 			)
-			writeError(w, http.StatusUnauthorized, "failed to verify id_token", err, env.SystemLogger)
+			env.SystemLogger.Warn("failed to verify id_token", zap.Error(err))
+			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 			return
 		}
 
 		// Extract all claims for debugging
 		var allClaims map[string]interface{}
 		if err := idToken.Claims(&allClaims); err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to extract claims from id_token", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to extract claims from id_token", zap.Error(err))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 
@@ -85,7 +89,7 @@ func CallbackOIDC(env *HandlerDependencies) http.HandlerFunc {
 		if !ok || sub == "" {
 			env.SystemLogger.Error("OIDC ID token missing required 'sub' claim",
 				zap.Any("all_claims", allClaims))
-			writeError(w, http.StatusBadRequest, "ID token missing required 'sub' claim", nil, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, "invalid identity token", nil, env.SystemLogger)
 			return
 		}
 
@@ -110,7 +114,8 @@ func CallbackOIDC(env *HandlerDependencies) http.HandlerFunc {
 		user, err := env.Database.GetUser(db.ByOIDCSubject(sub))
 		if err != nil {
 			if !errors.Is(err, db.ErrNotFound) {
-				writeError(w, http.StatusInternalServerError, "failed to query user", err, env.SystemLogger)
+				env.SystemLogger.Error("failed to query user", zap.Error(err))
+				writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 				return
 			}
 
@@ -158,7 +163,8 @@ func CallbackOIDC(env *HandlerDependencies) http.HandlerFunc {
 			// Determine role: first user gets admin, subsequent users get read-only
 			numUsers, countErr := env.Database.NumUsers()
 			if countErr != nil {
-				writeError(w, http.StatusInternalServerError, "failed to check user count", countErr, env.SystemLogger)
+				env.SystemLogger.Error("failed to check user count", zap.Error(countErr))
+				writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 				return
 			}
 			role := db.RoleReadOnly
@@ -182,7 +188,7 @@ func CallbackOIDC(env *HandlerDependencies) http.HandlerFunc {
 					zap.Error(err),
 					zap.String("email", emailOrPlaceholder),
 					zap.String("subject", sub))
-				writeError(w, http.StatusInternalServerError, "failed to create OIDC user", err, env.SystemLogger)
+				writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 				return
 			}
 
@@ -203,7 +209,8 @@ func CallbackOIDC(env *HandlerDependencies) http.HandlerFunc {
 		// Generate local JWT with user's database role permissions
 		jwt, err := generateJWT(user.ID, user.Email, env.Database.JWTSecret, RoleID(user.RoleID))
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to generate JWT", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to generate JWT", zap.Error(err))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 

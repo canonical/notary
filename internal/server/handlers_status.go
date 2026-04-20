@@ -12,8 +12,15 @@ type StatusResponse struct {
 	OIDCEnabled bool   `json:"oidc_enabled"`
 }
 
-// the GET status endpoint returns a http.StatusOK alongside info about the server
-// initialized means the first user has been created
+// GetStatus godoc
+//
+//	@Summary		Get server status
+//	@Description	Returns server status information, including initialization state, version, and whether OIDC is enabled.
+//	@Tags			status
+//	@Produce		json
+//	@Success		200	{object}	map[string]StatusResponse
+//	@Failure		500	{object}	map[string]string
+//	@Router			/status [get]
 func GetStatus(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		numUsers, err := env.Database.NumUsers()

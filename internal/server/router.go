@@ -3,7 +3,10 @@ package server
 import (
 	"net/http"
 
+	_ "github.com/canonical/notary/docs"
+
 	"github.com/canonical/notary/internal/backends/observability/metrics"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 	"go.uber.org/zap"
 )
 
@@ -38,6 +41,17 @@ var readerRoles = []string{
 // adminOnly restricts access to admins exclusively.
 var adminOnly = []string{RoleNameAdmin}
 
+// NewRouter godoc
+//
+//	@title			Notary API
+//	@version		1.0
+//	@description	API for managing accounts, certificate requests, and certificate authorities.
+//	@BasePath		/
+//	@schemes		https
+//	@securityDefinitions.apikey	cookieAuth
+//	@in							cookie
+//	@name						user_token
+//
 // NewRouter takes in a config struct, passes it along to any handlers that will need
 // access to it, and takes an http.Handler that will be used to handle metrics.
 // then builds and returns it for a server to consume
@@ -110,6 +124,9 @@ func NewRouter(config *HandlerDependencies) http.Handler {
 	router.HandleFunc("POST /logout", Logout(config))
 	router.HandleFunc("GET /status", GetStatus(config))
 	router.Handle("/metrics", m.Handler)
+	router.Handle("/swagger/", httpSwagger.Handler(
+		httpSwagger.URL("https://localhost:2111/swagger/doc.json"),
+	))
 	router.Handle("/api/v1/", http.StripPrefix("/api/v1", apiMiddlewareStack(apiV1Router)))
 	router.Handle("/", metricsMiddlewareStack(frontendHandler))
 

@@ -7,50 +7,32 @@ import (
 	"go.uber.org/zap"
 )
 
-type SuccessResponse struct {
-	Message string `json:"message"`
+type APIResponse struct {
+	Message string `json:"message,omitempty"`
+	Data    any    `json:"data,omitempty"`
 }
 
-type CreateSuccessResponse struct {
-	Message string `json:"message"`
-	ID      int64  `json:"id"`
-}
-
-// writeResponse is a helper function that writes a JSON response to the http.ResponseWriter
-func writeResponse(w http.ResponseWriter, v any, status int) error {
-	type response struct {
-		Result any `json:"result,omitempty"`
+// writeResponse is a helper function that writes a standardized JSON response to the http.ResponseWriter.
+// The status is an HTTP status that is mandatory.
+// The message is optional and can be used for both success and error responses.
+func writeResponse(w http.ResponseWriter, status int, message string, data any, logger *zap.Logger) {
+	resp := APIResponse{
+		Message: message,
+		Data:    data,
 	}
-	resp := response{Result: v}
+	logger.Info("API response: ", zap.Int("status", status), zap.String("message", message), zap.Any("data", data))
+
 	respBytes, err := json.Marshal(&resp)
 	if err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if _, err := w.Write(respBytes); err != nil {
-		return err
-	}
-	return nil
-}
-
-// writeError is a helper function that logs errors and writes http response for errors
-func writeError(w http.ResponseWriter, status int, message string, err error, logger *zap.Logger) {
-	logger.Info(message, zap.Error(err))
-	type errorResponse struct {
-		Error string `json:"error"`
-	}
-	resp := errorResponse{Error: message}
-	respBytes, err := json.Marshal(&resp)
-	if err != nil {
-		logger.Error("Error marshalling error response", zap.Error(err))
+		logger.Error("error marshalling response", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	_, err = w.Write(respBytes)
-	if err != nil {
-		logger.Error("Error writing error response", zap.Error(err))
+
+	if _, err := w.Write(respBytes); err != nil {
+		logger.Error("error writing response", zap.Error(err))
 	}
 }

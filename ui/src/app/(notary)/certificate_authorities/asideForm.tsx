@@ -14,6 +14,7 @@ import {
   Panel,
   Form,
   Notification,
+  Col,
 } from "@canonical/react-components";
 import {
   validationResult,
@@ -88,14 +89,7 @@ export default function CertificateAuthoritiesAsidePanel({
   };
 
   return (
-    <Panel
-      title="Add a New Certificate Authority"
-      controls={
-        <Button onClick={() => setAsideOpen(false)} hasIcon>
-          <i className="p-icon--close" />
-        </Button>
-      }
-    >
+    <Panel title="Add a New Certificate Authority">
       <Form stacked>
         {isSelfSigned === null && (
           <div className="p-form__group row">
@@ -262,29 +256,31 @@ export default function CertificateAuthoritiesAsidePanel({
                   {formError}
                 </Notification>
               )}
-              {mutation.isPending ? (
-                <Button
-                  appearance="positive"
-                  name="submit"
-                  disabled={true}
-                  hasIcon
-                >
-                  <i className="p-icon--spinner u-animation--spin"></i>
-                </Button>
-              ) : (
-                <Button
-                  appearance="positive"
-                  name="submit"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleSubmit();
-                  }}
-                >
-                  {isSelfSigned === true
-                    ? "Create Self Signed CA Certificate"
-                    : "Create Intermediate CA CSR"}
-                </Button>
-              )}
+              <Col size={12}>
+                {mutation.isPending ? (
+                  <Button
+                    appearance="positive"
+                    name="submit"
+                    disabled={true}
+                    hasIcon
+                  >
+                    <i className="p-icon--spinner u-animation--spin"></i>
+                  </Button>
+                ) : (
+                  <Button
+                    appearance="positive"
+                    name="submit"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleSubmit();
+                    }}
+                  >
+                    {isSelfSigned === true
+                      ? "Create Self Signed CA Certificate"
+                      : "Create Intermediate CA CSR"}
+                  </Button>
+                )}
+              </Col>
             </div>
           </>
         )}

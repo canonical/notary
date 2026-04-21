@@ -18,6 +18,7 @@ import {
   Input,
   Panel,
   Form,
+  Col,
 } from "@canonical/react-components";
 
 type AsideProps = {
@@ -77,14 +78,7 @@ export default function CertificateRequestsAsidePanel({
   };
 
   return (
-    <Panel
-      title="Add a New Certificate Request"
-      controls={
-        <Button onClick={() => setAsideOpen(false)} hasIcon>
-          <i className="p-icon--close" />
-        </Button>
-      }
-    >
+    <Panel title="Add a New Certificate Request">
       <Form stacked={true}>
         <div className="p-form__group row">
           <Textarea
@@ -107,15 +101,17 @@ export default function CertificateRequestsAsidePanel({
           />
         </div>
         <div className="p-form__group row">
-          <Button
-            type="button"
-            appearance="positive"
-            name="submit"
-            disabled={!csrIsValid(CSRPEMString)}
-            onClick={handleSubmit}
-          >
-            Submit
-          </Button>
+          <Col size={12}>
+            <Button
+              type="button"
+              appearance="positive"
+              name="submit"
+              disabled={!csrIsValid(CSRPEMString)}
+              onClick={handleSubmit}
+            >
+              Submit
+            </Button>
+          </Col>
         </div>
       </Form>
     </Panel>

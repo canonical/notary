@@ -31,7 +31,7 @@ export default function CertificateRequestsPanel() {
   return (
     <Application>
       <NotaryAppNavigationBars />
-      <AppAside collapsed={!asideOpen} pinned={true}>
+      <AppAside collapsed={!asideOpen}>
         <CertificateAuthoritiesAsidePanel setAsideOpen={setAsideOpen} />
       </AppAside>
       <AppMain>

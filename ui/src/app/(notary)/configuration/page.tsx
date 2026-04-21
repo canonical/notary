@@ -6,7 +6,12 @@ import { ConfigEntry, getErrorMessage } from "@/types";
 import Loading from "@/components/loading";
 import Error from "@/components/error";
 import { retryUnlessUnauthorized } from "@/utils";
-import { AppMain, MainTable, Panel } from "@canonical/react-components";
+import {
+  AppMain,
+  MainTable,
+  Panel,
+  ToastNotificationProvider,
+} from "@canonical/react-components";
 import NotaryAppNavigationBars from "@/components/NotaryAppNavigationBars";
 import { Application } from "@canonical/react-components";
 import NotaryAppStatus from "@/components/NotaryAppStatus";
@@ -64,11 +69,13 @@ export default function Configuration() {
   }
   return (
     <Application>
-      <NotaryAppNavigationBars />
-      <AppMain>
-        <ConfigTable config={query.data} />
-      </AppMain>
-      <NotaryAppStatus />
+      <ToastNotificationProvider>
+        <NotaryAppNavigationBars />
+        <AppMain>
+          <ConfigTable config={query.data} />
+        </AppMain>
+        <NotaryAppStatus />
+      </ToastNotificationProvider>
     </Application>
   );
 }

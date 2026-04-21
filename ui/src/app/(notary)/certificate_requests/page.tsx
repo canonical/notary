@@ -7,7 +7,12 @@ import { CSREntry, getErrorMessage } from "@/types";
 import Loading from "@/components/loading";
 import Error from "@/components/error";
 import { useState } from "react";
-import { AppAside, Application, AppMain } from "@canonical/react-components";
+import {
+  AppAside,
+  Application,
+  AppMain,
+  ToastNotificationProvider,
+} from "@canonical/react-components";
 import CertificateRequestsAsidePanel from "./asideForm";
 import NotaryAppNavigationBars from "@/components/NotaryAppNavigationBars";
 import NotaryAppStatus from "@/components/NotaryAppStatus";
@@ -28,14 +33,16 @@ export default function CertificateRequestsPanel() {
   const csrs = Array.from(query.data ? query.data : []);
   return (
     <Application>
-      <NotaryAppNavigationBars />
-      <AppAside collapsed={!asideOpen}>
-        <CertificateRequestsAsidePanel setAsideOpen={setAsideOpen} />
-      </AppAside>
-      <AppMain>
-        <CertificateRequestsTable csrs={csrs} setAsideOpen={setAsideOpen} />
-      </AppMain>
-      <NotaryAppStatus />
+      <ToastNotificationProvider>
+        <NotaryAppNavigationBars />
+        <AppAside collapsed={!asideOpen}>
+          <CertificateRequestsAsidePanel setAsideOpen={setAsideOpen} />
+        </AppAside>
+        <AppMain>
+          <CertificateRequestsTable csrs={csrs} setAsideOpen={setAsideOpen} />
+        </AppMain>
+        <NotaryAppStatus />
+      </ToastNotificationProvider>
     </Application>
   );
 }

@@ -15,6 +15,7 @@ import {
   Form,
   Notification,
   Col,
+  useToastNotification,
 } from "@canonical/react-components";
 import {
   validationResult,
@@ -35,6 +36,7 @@ export default function CertificateAuthoritiesAsidePanel({
   setAsideOpen,
 }: AsideProps): ReactElement {
   const queryClient = useQueryClient();
+  const toastNotify = useToastNotification();
 
   const [isSelfSigned, setIsSelfSigned] = useState<boolean | null>(null);
 
@@ -67,9 +69,23 @@ export default function CertificateAuthoritiesAsidePanel({
       setFormError("");
       setAsideOpen(false);
       void queryClient.invalidateQueries({ queryKey: ["cas"] });
+      toastNotify.success(
+        isSelfSigned
+          ? "The certificate authority certificate was created successfully."
+          : "The intermediate certificate authority CSR was created successfully.",
+        undefined,
+        isSelfSigned
+          ? "Certificate authority created"
+          : "Intermediate CA CSR created",
+      );
     },
     onError: (e: Error) => {
       setFormError(getErrorMessage(e));
+      toastNotify.failure(
+        "Certificate authority creation failed",
+        e,
+        "Failed to create the certificate authority.",
+      );
     },
   });
 

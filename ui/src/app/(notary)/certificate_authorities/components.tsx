@@ -16,6 +16,7 @@ import {
   Form,
   Modal,
   Icon,
+  useToastNotification,
 } from "@canonical/react-components";
 
 interface SubmitCertificateModalProps {
@@ -36,6 +37,7 @@ export function SubmitCertificateModal({
     useState<string>(cert);
   const [validationErrorText, setValidationErrorText] = useState<string>("");
   const queryClient = useQueryClient();
+  const toastNotify = useToastNotification();
 
   const mutation = useMutation({
     mutationFn: postCertToCA,
@@ -43,9 +45,19 @@ export function SubmitCertificateModal({
       void queryClient.invalidateQueries({ queryKey: ["cas"] });
       setErrorText("");
       setFormOpen(false);
+      toastNotify.success(
+        "The certificate was uploaded successfully.",
+        undefined,
+        "Certificate uploaded",
+      );
     },
     onError: (e: Error) => {
       setErrorText(getErrorMessage(e));
+      toastNotify.failure(
+        "Certificate upload failed",
+        e,
+        "Failed to upload the certificate.",
+      );
     },
   });
 

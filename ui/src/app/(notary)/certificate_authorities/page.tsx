@@ -7,7 +7,12 @@ import { APIError, CertificateAuthorityEntry, getErrorMessage } from "@/types";
 import Loading from "@/components/loading";
 import Error from "@/components/error";
 import { useState } from "react";
-import { AppAside, Application, AppMain } from "@canonical/react-components";
+import {
+  AppAside,
+  Application,
+  AppMain,
+  ToastNotificationProvider,
+} from "@canonical/react-components";
 import CertificateAuthoritiesAsidePanel from "./asideForm";
 import NotaryAppNavigationBars from "@/components/NotaryAppNavigationBars";
 import { retryUnlessUnauthorized } from "@/utils";
@@ -30,14 +35,16 @@ export default function CertificateRequestsPanel() {
   const cas = Array.from(query.data ? query.data : []);
   return (
     <Application>
-      <NotaryAppNavigationBars />
-      <AppAside collapsed={!asideOpen}>
-        <CertificateAuthoritiesAsidePanel setAsideOpen={setAsideOpen} />
-      </AppAside>
-      <AppMain>
-        <CertificateAuthoritiesTable cas={cas} setAsideOpen={setAsideOpen} />
-      </AppMain>
-      <NotaryAppStatus />
+      <ToastNotificationProvider>
+        <NotaryAppNavigationBars />
+        <AppAside collapsed={!asideOpen}>
+          <CertificateAuthoritiesAsidePanel setAsideOpen={setAsideOpen} />
+        </AppAside>
+        <AppMain>
+          <CertificateAuthoritiesTable cas={cas} setAsideOpen={setAsideOpen} />
+        </AppMain>
+        <NotaryAppStatus />
+      </ToastNotificationProvider>
     </Application>
   );
 }

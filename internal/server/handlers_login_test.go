@@ -123,8 +123,8 @@ func TestLoginEndToEnd(t *testing.T) {
 		if statusCode != http.StatusUnauthorized {
 			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, statusCode)
 		}
-		if loginResponse.Message != "the email or password is incorrect" {
-			t.Fatalf("expected message %q, got %q", "the email or password is incorrect", loginResponse.Message)
+		if loginResponse.Message != "invalid credentials" {
+			t.Fatalf("expected message %q, got %q", "invalid credentials", loginResponse.Message)
 		}
 		entries := logs.TakeAll()
 		var haveLoginFailed bool
@@ -155,8 +155,8 @@ func TestLoginEndToEnd(t *testing.T) {
 			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, statusCode)
 		}
 
-		if loginResponse.Message != "the email or password is incorrect" {
-			t.Fatalf("expected message %q, got %q", "the email or password is incorrect", loginResponse.Message)
+		if loginResponse.Message != "invalid credentials" {
+			t.Fatalf("expected message %q, got %q", "invalid credentials", loginResponse.Message)
 		}
 	})
 }

@@ -77,7 +77,7 @@ func Login(env *HandlerDependencies) http.HandlerFunc {
 				log.WithRequest(r),
 				log.WithReason("invalid credentials"),
 			)
-			writeResponse(w, http.StatusUnauthorized, "the email or password is incorrect", nil, env.SystemLogger)
+			writeResponse(w, http.StatusUnauthorized, "invalid credentials", nil, env.SystemLogger)
 			return
 		}
 		jwt, err := generateJWT(userAccount.ID, userAccount.Email, env.Database.JWTSecret, RoleID(userAccount.RoleID))

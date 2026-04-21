@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { CertificateAuthoritiesTable } from "./table";
 import { getCertificateAuthorities } from "@/queries";
-import { CertificateAuthorityEntry } from "@/types";
+import { APIError, CertificateAuthorityEntry, getErrorMessage } from "@/types";
 import Loading from "@/components/loading";
 import Error from "@/components/error";
 import { useState } from "react";
@@ -16,7 +16,7 @@ import NotaryAppStatus from "@/components/NotaryAppStatus";
 export default function CertificateRequestsPanel() {
   const [asideOpen, setAsideOpen] = useState<boolean>(false);
 
-  const query = useQuery<CertificateAuthorityEntry[], Error>({
+  const query = useQuery<CertificateAuthorityEntry[], APIError>({
     queryKey: ["cas"],
     queryFn: getCertificateAuthorities,
     retry: retryUnlessUnauthorized,
@@ -25,7 +25,7 @@ export default function CertificateRequestsPanel() {
     return <Loading />;
   }
   if (query.status == "error") {
-    return <Error msg={query.error.message} />;
+    return <Error msg={getErrorMessage(query.error)} />;
   }
   const cas = Array.from(query.data ? query.data : []);
   return (

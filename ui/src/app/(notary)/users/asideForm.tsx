@@ -9,8 +9,9 @@ import {
   PasswordToggle,
   Select,
   Form,
+  Notification,
 } from "@canonical/react-components";
-import { AsideFormData, RoleID } from "@/types";
+import { AsideFormData, RoleID, getErrorMessage } from "@/types";
 import { z } from "zod";
 
 type AsideProps = {
@@ -48,7 +49,7 @@ function AddNewUserForm(asideProps: AsideProps) {
       asideProps.setAsideOpen(false);
     },
     onError: (e: Error) => {
-      setErrorText(e.message);
+      setErrorText(getErrorMessage(e));
     },
   });
   const [email, setEmail] = useState<string>("");
@@ -64,7 +65,7 @@ function AddNewUserForm(asideProps: AsideProps) {
   const password2Error =
     password2 && !passwordsMatch ? "Passwords do not match" : "";
 
-  const [, setErrorText] = useState<string>("");
+  const [errorText, setErrorText] = useState<string>("");
   const handleEmailChange = (event: ChangeEvent<HTMLInputElement>) => {
     setEmail(event.target.value);
   };
@@ -132,6 +133,11 @@ function AddNewUserForm(asideProps: AsideProps) {
           required={true}
           error={password2Error}
         />
+        {errorText && (
+          <Notification severity="negative" title="Error">
+            {errorText}
+          </Notification>
+        )}
         <Button
           appearance="positive"
           disabled={
@@ -163,7 +169,7 @@ function ChangePasswordForm(asideProps: AsideProps) {
       asideProps.setAsideOpen(false);
     },
     onError: (e: Error) => {
-      setErrorText(e.message);
+      setErrorText(getErrorMessage(e));
     },
   });
   const [password1, setPassword1] = useState<string>("");
@@ -174,7 +180,7 @@ function ChangePasswordForm(asideProps: AsideProps) {
   const password2Error =
     password2 && !passwordsMatch ? "Passwords do not match" : "";
 
-  const [, setErrorText] = useState<string>("");
+  const [errorText, setErrorText] = useState<string>("");
   const handlePassword1Change = (event: ChangeEvent<HTMLInputElement>) => {
     setPassword1(event.target.value);
   };
@@ -206,6 +212,11 @@ function ChangePasswordForm(asideProps: AsideProps) {
           required={true}
           error={password2Error}
         />
+        {errorText && (
+          <Notification severity="negative" title="Error">
+            {errorText}
+          </Notification>
+        )}
         <Button
           appearance="positive"
           disabled={!passwordsMatch || !passwordIsValid(password1)}

@@ -1,6 +1,9 @@
+"use client";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { csrIsValid } from "@/utils";
 import { postCSR } from "@/queries";
+import { getErrorMessage } from "@/types";
+import { csrIsValid } from "@/utils";
 import {
   ChangeEvent,
   useState,
@@ -36,7 +39,7 @@ export default function CertificateRequestsAsidePanel({
       void queryClient.invalidateQueries({ queryKey: ["csrs"] });
     },
     onError: (e: Error) => {
-      setErrorText(e.message);
+      setErrorText(getErrorMessage(e));
     },
   });
 

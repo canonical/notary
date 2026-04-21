@@ -1,17 +1,18 @@
 "use client";
 
-import { passwordIsValid } from "@/utils";
+import { getErrorMessage, RoleID } from "@/types";
 import { getStatus, login, postFirstUser } from "@/queries";
+import { passwordIsValid } from "@/utils";
 import {
   Input,
   PasswordToggle,
   Button,
   Form,
   LoginPageLayout,
+  Notification,
 } from "@canonical/react-components";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, ChangeEvent } from "react";
-import { RoleID } from "@/types";
 import { z } from "zod";
 
 export default function Initialize() {
@@ -30,7 +31,7 @@ export default function Initialize() {
       ]);
     },
     onError: (e: Error) => {
-      setErrorText(e.message);
+      setErrorText(getErrorMessage(e));
     },
   });
   const postUserMutation = useMutation({
@@ -40,7 +41,7 @@ export default function Initialize() {
       loginMutation.mutate({ email: email, password: password1 });
     },
     onError: (e: Error) => {
-      setErrorText(e.message);
+      setErrorText(getErrorMessage(e));
     },
   });
   const [email, setEmail] = useState<string>("");
@@ -55,7 +56,7 @@ export default function Initialize() {
   const password2Error =
     password2 && !passwordsMatch ? "Passwords do not match" : "";
 
-  const [, setErrorText] = useState<string>("");
+  const [errorText, setErrorText] = useState<string>("");
   const handleEmailChange = (event: ChangeEvent<HTMLInputElement>) => {
     setEmail(event.target.value);
   };
@@ -100,6 +101,11 @@ export default function Initialize() {
             required={true}
             error={password2Error}
           />
+          {errorText && (
+            <Notification severity="negative" title="Error">
+              {errorText}
+            </Notification>
+          )}
           <Button
             appearance="positive"
             disabled={

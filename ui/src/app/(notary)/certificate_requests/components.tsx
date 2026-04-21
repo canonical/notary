@@ -8,6 +8,7 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { csrMatchesCertificate, splitBundle, validateBundle } from "@/utils";
 import { postCertToID } from "@/queries";
+import { getErrorMessage } from "@/types";
 import {
   Button,
   Input,
@@ -44,7 +45,7 @@ export function SubmitCertificateModal({
       setFormOpen(false);
     },
     onError: (e: Error) => {
-      setErrorText(e.message);
+      setErrorText(getErrorMessage(e));
     },
   });
 

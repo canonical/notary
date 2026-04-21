@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { postCA } from "@/queries";
+import { getErrorMessage } from "@/types";
 import {
   ChangeEvent,
   useState,
@@ -67,7 +68,7 @@ export default function CertificateAuthoritiesAsidePanel({
       void queryClient.invalidateQueries({ queryKey: ["cas"] });
     },
     onError: (e: Error) => {
-      setFormError(e.message);
+      setFormError(getErrorMessage(e));
     },
   });
 
@@ -258,7 +259,7 @@ export default function CertificateAuthoritiesAsidePanel({
             <div className="p-form__group row">
               {formError && (
                 <Notification severity="negative" title="Error">
-                  {formError.split("error: ")}
+                  {formError}
                 </Notification>
               )}
               {mutation.isPending ? (

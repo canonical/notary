@@ -21,6 +21,18 @@ export class APIError extends Error {
   }
 }
 
+export function getErrorMessage(error: unknown): string {
+  if (error instanceof APIError) {
+    return error.responseMessage || error.statusText;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Unknown error";
+}
+
 export type CSREntry = {
   id: number;
   csr: string;

@@ -7,6 +7,7 @@ import {
 } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { changePassword, changeSelfPassword } from "@/queries";
+import { getErrorMessage } from "@/types";
 import { passwordIsValid } from "@/utils";
 import {
   ConfirmationModal,
@@ -84,7 +85,7 @@ export function ChangePasswordModal({
       setErrorText("");
     },
     onError: (e: Error) => {
-      setErrorText(e.message);
+      setErrorText(getErrorMessage(e));
     },
   });
 

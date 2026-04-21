@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { getConfig } from "@/queries";
-import { ConfigEntry } from "@/types";
+import { ConfigEntry, getErrorMessage } from "@/types";
 import Loading from "@/components/loading";
 import Error from "@/components/error";
 import { retryUnlessUnauthorized } from "@/utils";
@@ -60,7 +60,7 @@ export default function Configuration() {
     return <Loading />;
   }
   if (query.status == "error") {
-    return <Error msg={query.error.message} />;
+    return <Error msg={getErrorMessage(query.error)} />;
   }
   return (
     <Application>

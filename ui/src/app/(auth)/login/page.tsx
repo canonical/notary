@@ -1,6 +1,7 @@
 "use client";
 
 import { getStatus, login } from "@/queries";
+import { getErrorMessage } from "@/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, ChangeEvent } from "react";
 import {
@@ -25,7 +26,7 @@ export default function LoginPage() {
       await queryClient.invalidateQueries({ queryKey: ["user"] });
     },
     onError: (e: Error) => {
-      setErrorText(e.message);
+      setErrorText(getErrorMessage(e));
     },
   });
 
@@ -64,7 +65,7 @@ export default function LoginPage() {
           />
           {errorText && (
             <Notification severity="negative" title="Error">
-              {errorText.split("error: ")}
+              {errorText}
             </Notification>
           )}
           <Button

@@ -19,6 +19,7 @@ import {
   Panel,
   Form,
   Col,
+  useToastNotification,
 } from "@canonical/react-components";
 
 type AsideProps = {
@@ -31,6 +32,7 @@ export default function CertificateRequestsAsidePanel({
   const [errorText, setErrorText] = useState<string>("");
   const [CSRPEMString, setCSRPEMString] = useState<string>("");
   const queryClient = useQueryClient();
+  const toastNotify = useToastNotification();
 
   const mutation = useMutation({
     mutationFn: postCSR,
@@ -38,9 +40,19 @@ export default function CertificateRequestsAsidePanel({
       setErrorText("");
       setAsideOpen(false);
       void queryClient.invalidateQueries({ queryKey: ["csrs"] });
+      toastNotify.success(
+        "The certificate request was created successfully.",
+        undefined,
+        "Certificate request created",
+      );
     },
     onError: (e: Error) => {
       setErrorText(getErrorMessage(e));
+      toastNotify.failure(
+        "Certificate request creation failed",
+        e,
+        "Failed to create the certificate request.",
+      );
     },
   });
 

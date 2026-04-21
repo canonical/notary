@@ -74,7 +74,7 @@ func MustGetDefaultAdminToken(t *testing.T, ts *httptest.Server) string {
 	if statusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 	}
-	return loginResponse.Result.Token
+	return loginResponse.Data.Token
 }
 
 func MustPrepareAccount(t *testing.T, ts *httptest.Server, email string, roleID RoleID, token string) string {
@@ -108,11 +108,16 @@ func MustPrepareAccount(t *testing.T, ts *httptest.Server, email string, roleID 
 	if statusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 	}
-	return loginResponse.Result.Token
+	return loginResponse.Data.Token
+}
+
+type APIResponse[T any] struct {
+	Message string `json:"message,omitempty"`
+	Data    T      `json:"data"`
 }
 
 type SuccessResponse struct {
-	Message string `json:"message"`
+	Message string `json:"message,omitempty"`
 }
 
 type GetAccountResponseResult struct {
@@ -125,10 +130,7 @@ type GetAccountResponseResult struct {
 	AuthMethods []string `json:"auth_methods"`
 }
 
-type GetAccountResponse struct {
-	Result GetAccountResponseResult `json:"result"`
-	Error  string                   `json:"error,omitempty"`
-}
+type GetAccountResponse = APIResponse[GetAccountResponseResult]
 
 type RoleID int
 
@@ -149,10 +151,7 @@ type CreateAccountResponseResult struct {
 	ID int `json:"id"`
 }
 
-type CreateAccountResponse struct {
-	Result SuccessResponse `json:"result"`
-	Error  string          `json:"error,omitempty"`
-}
+type CreateAccountResponse = APIResponse[CreateAccountResponseResult]
 
 type ChangeAccountPasswordParams struct {
 	Password string `json:"password"`
@@ -162,19 +161,13 @@ type ChangeAccountPasswordResponseResult struct {
 	ID int `json:"id"`
 }
 
-type ChangeAccountPasswordResponse struct {
-	Result ChangeAccountPasswordResponseResult `json:"result"`
-	Error  string                              `json:"error,omitempty"`
-}
+type ChangeAccountPasswordResponse = APIResponse[ChangeAccountPasswordResponseResult]
 
 type DeleteAccountResponseResult struct {
 	ID int `json:"id"`
 }
 
-type DeleteAccountResponse struct {
-	Result DeleteAccountResponseResult `json:"result"`
-	Error  string                      `json:"error,omitempty"`
-}
+type DeleteAccountResponse = APIResponse[DeleteAccountResponseResult]
 
 func GetAccount(url string, client *http.Client, token string, id int) (int, *GetAccountResponse, error) {
 	req, err := http.NewRequest("GET", url+"/api/v1/accounts/"+strconv.Itoa(id), nil)
@@ -320,10 +313,7 @@ type GetStatusResponseResult struct {
 	OIDCEnabled bool   `json:"oidc_enabled"`
 }
 
-type GetStatusResponse struct {
-	Error  string                  `json:"error,omitempty"`
-	Result GetStatusResponseResult `json:"result"`
-}
+type GetStatusResponse = APIResponse[GetStatusResponseResult]
 
 func GetStatus(url string, client *http.Client, token string) (int, *GetStatusResponse, error) {
 	req, err := http.NewRequest("GET", url+"/status", nil)
@@ -360,10 +350,7 @@ type LoginResponseResult struct {
 	Token string `json:"token"`
 }
 
-type LoginResponse struct {
-	Result LoginResponseResult `json:"result"`
-	Error  string              `json:"error,omitempty"`
-}
+type LoginResponse = APIResponse[LoginResponseResult]
 
 func Login(url string, client *http.Client, data *LoginParams) (int, *LoginResponse, error) {
 	body, err := json.Marshal(data)
@@ -382,7 +369,7 @@ func Login(url string, client *http.Client, data *LoginParams) (int, *LoginRespo
 	var loginResponse LoginResponse
 	if len(res.Cookies()) >= 1 {
 		tokenValue := res.Cookies()[0].Value
-		loginResponse.Result.Token = tokenValue
+		loginResponse.Data.Token = tokenValue
 	}
 	if err := json.NewDecoder(res.Body).Decode(&loginResponse); err != nil {
 		return 0, nil, err
@@ -390,20 +377,11 @@ func Login(url string, client *http.Client, data *LoginParams) (int, *LoginRespo
 	return res.StatusCode, &loginResponse, nil
 }
 
-type GetCertificateRequestResponse struct {
-	Result server.CertificateRequest `json:"result"`
-	Error  string                    `json:"error,omitempty"`
-}
+type GetCertificateRequestResponse = APIResponse[server.CertificateRequest]
 
-type ListCertificateRequestsResponse struct {
-	Error  string                      `json:"error,omitempty"`
-	Result []server.CertificateRequest `json:"result"`
-}
+type ListCertificateRequestsResponse = APIResponse[[]server.CertificateRequest]
 
-type CreateCertificateRequestResponse struct {
-	ID    int    `json:"id"`
-	Error string `json:"error,omitempty"`
-}
+type CreateCertificateRequestResponse = APIResponse[CreateAccountResponseResult]
 
 type CreateCertificateRequestParams struct {
 	CSR string `json:"csr"`
@@ -417,15 +395,9 @@ type GetCertificateResponseResult struct {
 	Certificate string `json:"certificate"`
 }
 
-type GetCertificateResponse struct {
-	Result GetCertificateResponseResult `json:"result"`
-	Error  string                       `json:"error,omitempty"`
-}
+type GetCertificateResponse = APIResponse[GetCertificateResponseResult]
 
-type CreateCertificateResponse struct {
-	ID    int    `json:"id"`
-	Error string `json:"error,omitempty"`
-}
+type CreateCertificateResponse = APIResponse[CreateAccountResponseResult]
 
 func ListCertificateRequests(url string, client *http.Client, token string) (int, *ListCertificateRequestsResponse, error) {
 	req, err := http.NewRequest("GET", url+"/api/v1/certificate_requests", nil)
@@ -592,10 +564,7 @@ type CreateCertificateAuthorityParams struct {
 	NotValidAfter       string `json:"not_valid_after"`
 }
 
-type CreateCertificateAuthorityResponse struct {
-	Result SuccessResponse `json:"result"`
-	Error  string          `json:"error,omitempty"`
-}
+type CreateCertificateAuthorityResponse = APIResponse[CreateAccountResponseResult]
 
 func CreateCertificateAuthority(url string, client *http.Client, token string, ca CreateCertificateAuthorityParams) (int, *CreateCertificateAuthorityResponse, error) {
 	reqData, err := json.Marshal(ca)
@@ -627,10 +596,7 @@ func CreateCertificateAuthority(url string, client *http.Client, token string, c
 	return res.StatusCode, &createCertificateAuthorityResponse, nil
 }
 
-type ListCertificateAuthoritiesResponse struct {
-	Result []server.CertificateAuthority `json:"result"`
-	Error  string                        `json:"error,omitempty"`
-}
+type ListCertificateAuthoritiesResponse = APIResponse[[]server.CertificateAuthority]
 
 func ListCertificateAuthorities(url string, client *http.Client, token string) (int, *ListCertificateAuthoritiesResponse, error) {
 	req, err := http.NewRequest("GET", url+"/api/v1/certificate_authorities", nil)
@@ -657,10 +623,7 @@ func ListCertificateAuthorities(url string, client *http.Client, token string) (
 	return res.StatusCode, &certificateAuthoritiesResponse, nil
 }
 
-type GetCertificateAuthorityResponse struct {
-	Result server.CertificateAuthority `json:"result"`
-	Error  string                      `json:"error,omitempty"`
-}
+type GetCertificateAuthorityResponse = APIResponse[server.CertificateAuthority]
 
 func GetCertificateAuthority(url string, client *http.Client, token string, id int) (int, *GetCertificateAuthorityResponse, error) {
 	req, err := http.NewRequest("GET", url+"/api/v1/certificate_authorities/"+strconv.Itoa(id), nil)
@@ -691,10 +654,7 @@ type UpdateCertificateAuthorityParams struct {
 	Status string `json:"status,omitempty"`
 }
 
-type UpdateCertificateAuthorityResponse struct {
-	Result SuccessResponse `json:"result"`
-	Error  string          `json:"error,omitempty"`
-}
+type UpdateCertificateAuthorityResponse = APIResponse[SuccessResponse]
 
 func UpdateCertificateAuthority(url string, client *http.Client, token string, id int, status UpdateCertificateAuthorityParams) (int, *UpdateCertificateAuthorityResponse, error) {
 	enabled := status.Status == "active"
@@ -751,10 +711,7 @@ func DeleteCertificateAuthority(url string, client *http.Client, token string, i
 	return res.StatusCode, nil
 }
 
-type UploadCertificateToCertificateAuthorityResponse struct {
-	Result SuccessResponse `json:"result"`
-	Error  string          `json:"error,omitempty"`
-}
+type UploadCertificateToCertificateAuthorityResponse = APIResponse[SuccessResponse]
 
 func UploadCertificateToCertificateAuthority(url string, client *http.Client, token string, id int, cert server.UploadCertificateToCertificateAuthorityParams) (int, *UploadCertificateToCertificateAuthorityResponse, error) {
 	reqData, err := json.Marshal(cert)
@@ -786,10 +743,7 @@ func UploadCertificateToCertificateAuthority(url string, client *http.Client, to
 	return res.StatusCode, &uploadCertificateToCertificateAuthorityResponse, nil
 }
 
-type SignCertificateRequestResponse struct {
-	Result SuccessResponse `json:"result"`
-	Error  string          `json:"error,omitempty"`
-}
+type SignCertificateRequestResponse = APIResponse[SuccessResponse]
 
 func SignCertificateRequest(url string, client *http.Client, token string, id int, cert server.SignCertificateRequestParams) (int, *SignCertificateRequestResponse, error) {
 	reqData, err := json.Marshal(cert)
@@ -821,10 +775,7 @@ func SignCertificateRequest(url string, client *http.Client, token string, id in
 	return res.StatusCode, &signCertificateRequestResponse, nil
 }
 
-type SignCertificateAuthorityResponse struct {
-	Result SuccessResponse `json:"result"`
-	Error  string          `json:"error,omitempty"`
-}
+type SignCertificateAuthorityResponse = APIResponse[SuccessResponse]
 
 func SignCertificateAuthority(url string, client *http.Client, token string, id int, cert server.SignCertificateAuthorityParams) (int, *SignCertificateAuthorityResponse, error) {
 	reqData, err := json.Marshal(cert)
@@ -856,10 +807,7 @@ func SignCertificateAuthority(url string, client *http.Client, token string, id 
 	return res.StatusCode, &signCertificateAuthorityResponse, nil
 }
 
-type RevokeCertificateAuthorityCertificateResponse struct {
-	Result SuccessResponse `json:"result"`
-	Error  string          `json:"error,omitempty"`
-}
+type RevokeCertificateAuthorityCertificateResponse = APIResponse[SuccessResponse]
 
 func RevokeCertificateAuthority(url string, client *http.Client, token string, id int) (int, *RevokeCertificateAuthorityCertificateResponse, error) {
 	req, err := http.NewRequest("POST", url+"/api/v1/certificate_authorities/"+strconv.Itoa(id)+"/revoke", nil)
@@ -886,10 +834,7 @@ func RevokeCertificateAuthority(url string, client *http.Client, token string, i
 	return res.StatusCode, &RevokeCertificateAuthorityResponse, nil
 }
 
-type RevokeCertificateRequestResponse struct {
-	Result SuccessResponse `json:"result"`
-	Error  string          `json:"error,omitempty"`
-}
+type RevokeCertificateRequestResponse = APIResponse[SuccessResponse]
 
 func RevokeCertificateRequest(url string, client *http.Client, token string, id int) (int, *RevokeCertificateRequestResponse, error) {
 	req, err := http.NewRequest("POST", url+"/api/v1/certificate_requests/"+strconv.Itoa(id)+"/certificate/revoke", nil)
@@ -916,10 +861,7 @@ func RevokeCertificateRequest(url string, client *http.Client, token string, id 
 	return res.StatusCode, &RevokeCertificateRequestResponse, nil
 }
 
-type GetCRLResponse struct {
-	Result server.CRL `json:"result"`
-	Error  string     `json:"error,omitempty"`
-}
+type GetCRLResponse = APIResponse[server.CRL]
 
 func GetCertificateAuthorityCRLRequest(url string, client *http.Client, token string, id int) (int, *GetCRLResponse, error) {
 	req, err := http.NewRequest("GET", url+"/api/v1/certificate_authorities/"+strconv.Itoa(id)+"/crl", nil)

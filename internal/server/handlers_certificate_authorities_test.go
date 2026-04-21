@@ -28,11 +28,11 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if listCAsResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", listCAsResponse.Error)
+		if listCAsResponse.Message != "" {
+			t.Fatalf("expected no message, got %s", listCAsResponse.Message)
 		}
-		if len(listCAsResponse.Result) != 0 {
-			t.Fatalf("expected no certificate authorities, got %d", len(listCAsResponse.Result))
+		if len(listCAsResponse.Data) != 0 {
+			t.Fatalf("expected no certificate authorities, got %d", len(listCAsResponse.Data))
 		}
 	})
 
@@ -57,8 +57,8 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		if statusCode != http.StatusCreated {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		if createCAResponse.Error != "" {
-			t.Fatalf("expected success, got %s", createCAResponse.Error)
+		if createCAResponse.Message != "" {
+			t.Fatalf("expected success, got %s", createCAResponse.Message)
 		}
 
 		entries := logs.TakeAll()
@@ -85,16 +85,16 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if listCAsResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", listCAsResponse.Error)
+		if listCAsResponse.Message != "" {
+			t.Fatalf("expected no message, got %s", listCAsResponse.Message)
 		}
-		if len(listCAsResponse.Result) != 1 {
-			t.Fatalf("expected 1 certificate authority, got %d", len(listCAsResponse.Result))
+		if len(listCAsResponse.Data) != 1 {
+			t.Fatalf("expected 1 certificate authority, got %d", len(listCAsResponse.Data))
 		}
-		if listCAsResponse.Result[0].Enabled != true {
-			t.Fatalf("expected enabled status, got %v", listCAsResponse.Result[0].Enabled)
+		if listCAsResponse.Data[0].Enabled != true {
+			t.Fatalf("expected enabled status, got %v", listCAsResponse.Data[0].Enabled)
 		}
-		if listCAsResponse.Result[0].CertificatePEM == "" {
+		if listCAsResponse.Data[0].CertificatePEM == "" {
 			t.Fatalf("expected certificate to have been created, got empty")
 		}
 	})
@@ -119,8 +119,8 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		if statusCode != http.StatusCreated {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		if createCAResponse.Error != "" {
-			t.Fatalf("expected success, got %s", createCAResponse.Error)
+		if createCAResponse.Message != "" {
+			t.Fatalf("expected success, got %s", createCAResponse.Message)
 		}
 	})
 	t.Run("5. Get all CA's - 2 should be there, one enabled one pending", func(t *testing.T) {
@@ -131,17 +131,17 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if listCAsResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", listCAsResponse.Error)
+		if listCAsResponse.Message != "" {
+			t.Fatalf("expected no message, got %s", listCAsResponse.Message)
 		}
-		if len(listCAsResponse.Result) != 2 {
-			t.Fatalf("expected 2 certificate authority, got %d", len(listCAsResponse.Result))
+		if len(listCAsResponse.Data) != 2 {
+			t.Fatalf("expected 2 certificate authority, got %d", len(listCAsResponse.Data))
 		}
-		if listCAsResponse.Result[0].Enabled != true {
-			t.Fatalf("expected enabled status, got %v", listCAsResponse.Result[0].Enabled)
+		if listCAsResponse.Data[0].Enabled != true {
+			t.Fatalf("expected enabled status, got %v", listCAsResponse.Data[0].Enabled)
 		}
-		if listCAsResponse.Result[1].Enabled != false {
-			t.Fatalf("expected pending status, got %v", listCAsResponse.Result[1].Enabled)
+		if listCAsResponse.Data[1].Enabled != false {
+			t.Fatalf("expected pending status, got %v", listCAsResponse.Data[1].Enabled)
 		}
 	})
 
@@ -154,22 +154,22 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if getCAResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", getCAResponse.Error)
+		if getCAResponse.Message != "" {
+			t.Fatalf("expected no message, got %s", getCAResponse.Message)
 		}
-		if getCAResponse.Result.ID != 2 {
-			t.Fatalf("expected ID %d, got %d", 2, getCAResponse.Result.ID)
+		if getCAResponse.Data.ID != 2 {
+			t.Fatalf("expected ID %d, got %d", 2, getCAResponse.Data.ID)
 		}
-		if getCAResponse.Result.Enabled != false {
-			t.Fatalf("expected pending status, got %v", getCAResponse.Result.Enabled)
+		if getCAResponse.Data.Enabled != false {
+			t.Fatalf("expected pending status, got %v", getCAResponse.Data.Enabled)
 		}
-		if getCAResponse.Result.CSRPEM == "" {
+		if getCAResponse.Data.CSRPEM == "" {
 			t.Fatalf("expected CSR to be set")
 		}
-		if getCAResponse.Result.CertificatePEM != "" {
+		if getCAResponse.Data.CertificatePEM != "" {
 			t.Fatalf("expected certificate to not be created yet")
 		}
-		IntermediateCACSR = getCAResponse.Result.CSRPEM
+		IntermediateCACSR = getCAResponse.Data.CSRPEM
 	})
 
 	t.Run("7. Sign the intermediate CA's CSR", func(t *testing.T) {
@@ -182,8 +182,8 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		if statusCode != http.StatusCreated {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		if uploadCertificateResponse.Error != "" {
-			t.Fatalf("expected success, got %s", uploadCertificateResponse.Error)
+		if uploadCertificateResponse.Message != "" {
+			t.Fatalf("expected success, got %s", uploadCertificateResponse.Message)
 		}
 
 		entries := logs.TakeAll()
@@ -209,16 +209,16 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if listCAsResponse.Error != "" {
-			t.Fatalf("expected success, got %s", listCAsResponse.Error)
+		if listCAsResponse.Message != "" {
+			t.Fatalf("expected success, got %s", listCAsResponse.Message)
 		}
-		if len(listCAsResponse.Result) != 2 {
-			t.Fatalf("expected 2 certificates, got %d", len(listCAsResponse.Result))
+		if len(listCAsResponse.Data) != 2 {
+			t.Fatalf("expected 2 certificates, got %d", len(listCAsResponse.Data))
 		}
-		if listCAsResponse.Result[0].Enabled != true {
+		if listCAsResponse.Data[0].Enabled != true {
 			t.Fatalf("expected first CA to be enabled")
 		}
-		if listCAsResponse.Result[1].Enabled != true {
+		if listCAsResponse.Data[1].Enabled != true {
 			t.Fatalf("expected second CA to be enabled")
 		}
 	})
@@ -230,8 +230,8 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if makeLegacyResponse.Error != "" {
-			t.Fatalf("expected success, got %s", makeLegacyResponse.Error)
+		if makeLegacyResponse.Message != "" {
+			t.Fatalf("expected success, got %s", makeLegacyResponse.Message)
 		}
 	})
 	t.Run("10. Get all CA's - 1 enabled 1 disabled should be there", func(t *testing.T) {
@@ -242,16 +242,16 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if listCAsResponse.Error != "" {
-			t.Fatalf("expected success, got %s", listCAsResponse.Error)
+		if listCAsResponse.Message != "" {
+			t.Fatalf("expected success, got %s", listCAsResponse.Message)
 		}
-		if len(listCAsResponse.Result) != 2 {
-			t.Fatalf("expected 2 certificates, got %d", len(listCAsResponse.Result))
+		if len(listCAsResponse.Data) != 2 {
+			t.Fatalf("expected 2 certificates, got %d", len(listCAsResponse.Data))
 		}
-		if listCAsResponse.Result[0].Enabled != false {
+		if listCAsResponse.Data[0].Enabled != false {
 			t.Fatalf("expected first CA to be disabled")
 		}
-		if listCAsResponse.Result[1].Enabled != true {
+		if listCAsResponse.Data[1].Enabled != true {
 			t.Fatalf("expected second CA to be enabled")
 		}
 	})
@@ -287,13 +287,13 @@ func TestSelfSignedCertificateAuthorityEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if listCAsResponse.Error != "" {
-			t.Fatalf("expected success, got %s", listCAsResponse.Error)
+		if listCAsResponse.Message != "" {
+			t.Fatalf("expected success, got %s", listCAsResponse.Message)
 		}
-		if len(listCAsResponse.Result) != 1 {
-			t.Fatalf("expected 1 certificate, got %d", len(listCAsResponse.Result))
+		if len(listCAsResponse.Data) != 1 {
+			t.Fatalf("expected 1 certificate, got %d", len(listCAsResponse.Data))
 		}
-		if listCAsResponse.Result[0].Enabled != true {
+		if listCAsResponse.Data[0].Enabled != true {
 			t.Fatalf("expected first CA to be enabled")
 		}
 	})
@@ -381,8 +381,8 @@ func TestCreateCertificateAuthorityInvalidInputs(t *testing.T) {
 			if statusCode != http.StatusBadRequest {
 				t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
 			}
-			if createCertResponse.Error != test.error {
-				t.Fatalf("expected error %s, got %s", test.error, createCertResponse.Error)
+			if createCertResponse.Message != test.error {
+				t.Fatalf("expected error %s, got %s", test.error, createCertResponse.Message)
 			}
 		})
 	}
@@ -455,8 +455,8 @@ invalid
 			if statusCode != http.StatusBadRequest {
 				t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
 			}
-			if uploadResponse.Error != tc.expectedError {
-				t.Fatalf("expected error %q, got %q", tc.expectedError, uploadResponse.Error)
+			if uploadResponse.Message != tc.expectedError {
+				t.Fatalf("expected error %q, got %q", tc.expectedError, uploadResponse.Message)
 			}
 		})
 	}
@@ -475,11 +475,11 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if listCAsResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", listCAsResponse.Error)
+		if listCAsResponse.Message != "" {
+			t.Fatalf("expected no message, got %s", listCAsResponse.Message)
 		}
-		if len(listCAsResponse.Result) != 0 {
-			t.Fatalf("expected no certificate authorities, got %d", len(listCAsResponse.Result))
+		if len(listCAsResponse.Data) != 0 {
+			t.Fatalf("expected no certificate authorities, got %d", len(listCAsResponse.Data))
 		}
 	})
 
@@ -503,8 +503,8 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if statusCode != http.StatusCreated {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		if createCAResponse.Error != "" {
-			t.Fatalf("expected success, got %s", createCAResponse.Error)
+		if createCAResponse.Message != "" {
+			t.Fatalf("expected success, got %s", createCAResponse.Message)
 		}
 	})
 
@@ -516,16 +516,16 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if listCAsResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", listCAsResponse.Error)
+		if listCAsResponse.Message != "" {
+			t.Fatalf("expected no message, got %s", listCAsResponse.Message)
 		}
-		if len(listCAsResponse.Result) != 1 {
-			t.Fatalf("expected 1 certificate authority, got %d", len(listCAsResponse.Result))
+		if len(listCAsResponse.Data) != 1 {
+			t.Fatalf("expected 1 certificate authority, got %d", len(listCAsResponse.Data))
 		}
-		if listCAsResponse.Result[0].Enabled != true {
-			t.Fatalf("expected enabled status, got %v", listCAsResponse.Result[0].Enabled)
+		if listCAsResponse.Data[0].Enabled != true {
+			t.Fatalf("expected enabled status, got %v", listCAsResponse.Data[0].Enabled)
 		}
-		if listCAsResponse.Result[0].CertificatePEM == "" {
+		if listCAsResponse.Data[0].CertificatePEM == "" {
 			t.Fatalf("expected certificate to have been created, got empty")
 		}
 	})
@@ -549,8 +549,8 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if statusCode != http.StatusCreated {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		if createCAResponse.Error != "" {
-			t.Fatalf("expected success, got %s", createCAResponse.Error)
+		if createCAResponse.Message != "" {
+			t.Fatalf("expected success, got %s", createCAResponse.Message)
 		}
 	})
 	t.Run("5. Get all CA's - 2 should be there, one enabled one disabled", func(t *testing.T) {
@@ -561,17 +561,17 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if listCAsResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", listCAsResponse.Error)
+		if listCAsResponse.Message != "" {
+			t.Fatalf("expected no message, got %s", listCAsResponse.Message)
 		}
-		if len(listCAsResponse.Result) != 2 {
-			t.Fatalf("expected 2 certificate authority, got %d", len(listCAsResponse.Result))
+		if len(listCAsResponse.Data) != 2 {
+			t.Fatalf("expected 2 certificate authority, got %d", len(listCAsResponse.Data))
 		}
-		if listCAsResponse.Result[0].Enabled != true {
-			t.Fatalf("expected active status, got %v", listCAsResponse.Result[0].Enabled)
+		if listCAsResponse.Data[0].Enabled != true {
+			t.Fatalf("expected active status, got %v", listCAsResponse.Data[0].Enabled)
 		}
-		if listCAsResponse.Result[1].Enabled != false {
-			t.Fatalf("expected disabled status, got %v", listCAsResponse.Result[1].Enabled)
+		if listCAsResponse.Data[1].Enabled != false {
+			t.Fatalf("expected disabled status, got %v", listCAsResponse.Data[1].Enabled)
 		}
 	})
 
@@ -583,19 +583,19 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if getCAResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", getCAResponse.Error)
+		if getCAResponse.Message != "" {
+			t.Fatalf("expected no message, got %s", getCAResponse.Message)
 		}
-		if getCAResponse.Result.ID != 2 {
-			t.Fatalf("expected ID %d, got %d", 2, getCAResponse.Result.ID)
+		if getCAResponse.Data.ID != 2 {
+			t.Fatalf("expected ID %d, got %d", 2, getCAResponse.Data.ID)
 		}
-		if getCAResponse.Result.Enabled != false {
-			t.Fatalf("expected pending status, got %v", getCAResponse.Result.Enabled)
+		if getCAResponse.Data.Enabled != false {
+			t.Fatalf("expected pending status, got %v", getCAResponse.Data.Enabled)
 		}
-		if getCAResponse.Result.CSRPEM == "" {
+		if getCAResponse.Data.CSRPEM == "" {
 			t.Fatalf("expected CSR to be set")
 		}
-		if getCAResponse.Result.CertificatePEM != "" {
+		if getCAResponse.Data.CertificatePEM != "" {
 			t.Fatalf("expected certificate to not be created yet")
 		}
 	})
@@ -608,8 +608,8 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if statusCode != http.StatusCreated {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		if createCertResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", createCertResponse.Error)
+		if createCertResponse.Message != "" {
+			t.Fatalf("expected no error, got %s", createCertResponse.Message)
 		}
 		statusCode, signCertificateRequestResponse, err := tu.SignCertificateRequest(ts.URL, client, adminToken, 3, server.SignCertificateRequestParams{CertificateAuthorityID: "2"})
 		if err != nil {
@@ -618,8 +618,8 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if statusCode != http.StatusNotFound {
 			t.Fatalf("expected status %d, got %d", http.StatusNotFound, statusCode)
 		}
-		if signCertificateRequestResponse.Error != "Not Found" {
-			t.Fatalf("expected Not Found, got %s", signCertificateRequestResponse.Error)
+		if signCertificateRequestResponse.Message != "not found" {
+			t.Fatalf("expected not found, got %s", signCertificateRequestResponse.Message)
 		}
 	})
 
@@ -631,8 +631,8 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if statusCode != http.StatusAccepted {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		if uploadCertificateResponse.Error != "" {
-			t.Fatalf("expected success, got %s", uploadCertificateResponse.Error)
+		if uploadCertificateResponse.Message != "" {
+			t.Fatalf("expected success, got %s", uploadCertificateResponse.Message)
 		}
 	})
 	t.Run("9. Get all CA's - 2 should be there and both active", func(t *testing.T) {
@@ -643,19 +643,19 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if listCAsResponse.Error != "" {
-			t.Fatalf("expected success, got %s", listCAsResponse.Error)
+		if listCAsResponse.Message != "" {
+			t.Fatalf("expected success, got %s", listCAsResponse.Message)
 		}
-		if len(listCAsResponse.Result) != 2 {
-			t.Fatalf("expected 2 certificates, got %d", len(listCAsResponse.Result))
+		if len(listCAsResponse.Data) != 2 {
+			t.Fatalf("expected 2 certificates, got %d", len(listCAsResponse.Data))
 		}
-		if listCAsResponse.Result[0].Enabled != true {
+		if listCAsResponse.Data[0].Enabled != true {
 			t.Fatalf("expected first CA to be active")
 		}
-		if listCAsResponse.Result[1].Enabled != true {
+		if listCAsResponse.Data[1].Enabled != true {
 			t.Fatalf("expected second CA to be active")
 		}
-		if strings.Count(listCAsResponse.Result[1].CertificatePEM, "BEGIN CERTIFICATE") != 2 {
+		if strings.Count(listCAsResponse.Data[1].CertificatePEM, "BEGIN CERTIFICATE") != 2 {
 			t.Fatalf("expected second CA to have a chain with 2 certificates")
 		}
 	})
@@ -669,8 +669,8 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected %d, got %d", http.StatusOK, statusCode)
 		}
-		if updateResp.Error != "" {
-			t.Fatalf("expected success, got %s", updateResp.Error)
+		if updateResp.Message != "" {
+			t.Fatalf("expected success, got %s", updateResp.Message)
 		}
 		entries := logs.TakeAll()
 		var haveCAUpdated bool
@@ -696,8 +696,8 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if statusCode != http.StatusCreated {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		if createCertResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", createCertResponse.Error)
+		if createCertResponse.Message != "" {
+			t.Fatalf("expected no error, got %s", createCertResponse.Message)
 		}
 	})
 	t.Run("11. Try Signing a CA CSR - should fail", func(t *testing.T) {
@@ -708,8 +708,8 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if statusCode != http.StatusNotFound {
 			t.Fatalf("expected status %d, got %d", http.StatusNotFound, statusCode)
 		}
-		if signCertificateRequestResponse.Error != "Not Found" {
-			t.Fatalf("expected not found, got %s", signCertificateRequestResponse.Error)
+		if signCertificateRequestResponse.Message != "not found" {
+			t.Fatalf("expected not found, got %s", signCertificateRequestResponse.Message)
 		}
 	})
 	t.Run("12. Sign CSRs with each CA", func(t *testing.T) {
@@ -720,8 +720,8 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if statusCode != http.StatusAccepted {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if signCertificateRequestResponse.Error != "" {
-			t.Fatalf("expected success, got %s", signCertificateRequestResponse.Error)
+		if signCertificateRequestResponse.Message != "" {
+			t.Fatalf("expected success, got %s", signCertificateRequestResponse.Message)
 		}
 		statusCode, signCertificateRequestResponse, err = tu.SignCertificateRequest(ts.URL, client, adminToken, 4, server.SignCertificateRequestParams{CertificateAuthorityID: "2"})
 		if err != nil {
@@ -730,8 +730,8 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if statusCode != http.StatusAccepted {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if signCertificateRequestResponse.Error != "" {
-			t.Fatalf("expected success, got %s", signCertificateRequestResponse.Error)
+		if signCertificateRequestResponse.Message != "" {
+			t.Fatalf("expected success, got %s", signCertificateRequestResponse.Message)
 		}
 	})
 	t.Run("13. Validate CSRs", func(t *testing.T) {
@@ -742,22 +742,22 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if listCSRsResponse.Error != "" {
-			t.Fatalf("expected success, got %s", listCSRsResponse.Error)
+		if listCSRsResponse.Message != "" {
+			t.Fatalf("expected success, got %s", listCSRsResponse.Message)
 		}
-		if len(listCSRsResponse.Result) != 2 {
-			t.Fatalf("expected 2 certificates, got %d", len(listCSRsResponse.Result))
+		if len(listCSRsResponse.Data) != 2 {
+			t.Fatalf("expected 2 certificates, got %d", len(listCSRsResponse.Data))
 		}
-		if listCSRsResponse.Result[0].Status != "Active" {
-			t.Fatalf("expected first csr to be active, got %s", listCSRsResponse.Result[0].Status)
+		if listCSRsResponse.Data[0].Status != "Active" {
+			t.Fatalf("expected first csr to be active, got %s", listCSRsResponse.Data[0].Status)
 		}
-		if strings.Count(listCSRsResponse.Result[0].CertificateChain, "BEGIN CERTIFICATE") != 2 {
+		if strings.Count(listCSRsResponse.Data[0].CertificateChain, "BEGIN CERTIFICATE") != 2 {
 			t.Fatalf("expected first csr to have a chain with 2 certificates")
 		}
-		if listCSRsResponse.Result[1].Status != "Active" {
+		if listCSRsResponse.Data[1].Status != "Active" {
 			t.Fatalf("expected second csr to be active")
 		}
-		if strings.Count(listCSRsResponse.Result[1].CertificateChain, "BEGIN CERTIFICATE") != 3 {
+		if strings.Count(listCSRsResponse.Data[1].CertificateChain, "BEGIN CERTIFICATE") != 3 {
 			t.Fatalf("expected second csr to have a chain with 3 certificates")
 		}
 	})
@@ -788,8 +788,8 @@ func TestUnsuccessfulRequestsMadeToCACSRs(t *testing.T) {
 		if statusCode != http.StatusCreated {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		if createCAResponse.Error != "" {
-			t.Fatalf("expected success, got %s", createCAResponse.Error)
+		if createCAResponse.Message != "" {
+			t.Fatalf("expected success, got %s", createCAResponse.Message)
 		}
 	})
 
@@ -813,8 +813,8 @@ func TestUnsuccessfulRequestsMadeToCACSRs(t *testing.T) {
 		if statusCode != http.StatusCreated {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		if createCAResponse.Error != "" {
-			t.Fatalf("expected success, got %s", createCAResponse.Error)
+		if createCAResponse.Message != "" {
+			t.Fatalf("expected success, got %s", createCAResponse.Message)
 		}
 	})
 
@@ -827,8 +827,8 @@ func TestUnsuccessfulRequestsMadeToCACSRs(t *testing.T) {
 		if statusCode != http.StatusCreated {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		if createCSRResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", createCSRResponse.Error)
+		if createCSRResponse.Message != "" {
+			t.Fatalf("expected no error, got %s", createCSRResponse.Message)
 		}
 	})
 
@@ -840,14 +840,14 @@ func TestUnsuccessfulRequestsMadeToCACSRs(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if len(listCertsResponse.Result) != 1 {
-			t.Fatalf("expected 1 CSR in list, got %d", len(listCertsResponse.Result))
+		if len(listCertsResponse.Data) != 1 {
+			t.Fatalf("expected 1 CSR in list, got %d", len(listCertsResponse.Data))
 		}
-		if listCertsResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", listCertsResponse.Error)
+		if listCertsResponse.Message != "" {
+			t.Fatalf("expected no error, got %s", listCertsResponse.Message)
 		}
-		if listCertsResponse.Result[0].CertificateChain != "" {
-			t.Fatalf("expected no certificate, got '%s'", listCertsResponse.Result[0].CertificateChain)
+		if listCertsResponse.Data[0].CertificateChain != "" {
+			t.Fatalf("expected no certificate, got '%s'", listCertsResponse.Data[0].CertificateChain)
 		}
 	})
 	t.Run("5. Get CSR - should fail", func(t *testing.T) {
@@ -858,8 +858,8 @@ func TestUnsuccessfulRequestsMadeToCACSRs(t *testing.T) {
 		if statusCode != http.StatusNotFound {
 			t.Fatalf("expected status %d, got %d", http.StatusNotFound, statusCode)
 		}
-		if getCertResponse.Error != "Not Found" {
-			t.Fatalf("expected correct error, got %s", getCertResponse.Error)
+		if getCertResponse.Message != "not found" {
+			t.Fatalf("expected correct error, got %s", getCertResponse.Message)
 		}
 	})
 	t.Run("6. Delete CA CSR - should fail", func(t *testing.T) {
@@ -888,8 +888,8 @@ func TestUnsuccessfulRequestsMadeToCACSRs(t *testing.T) {
 		if statusCode != http.StatusNotFound {
 			t.Fatalf("expected status %d, got %d", http.StatusNotFound, statusCode)
 		}
-		if signCertificateRequestResponse.Error != "Not Found" {
-			t.Fatalf("expected correct error, got %s", signCertificateRequestResponse.Error)
+		if signCertificateRequestResponse.Message != "not found" {
+			t.Fatalf("expected correct error, got %s", signCertificateRequestResponse.Message)
 		}
 	})
 }
@@ -918,8 +918,8 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusCreated {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		if createCAResponse.Error != "" {
-			t.Fatalf("expected success, got %s", createCAResponse.Error)
+		if createCAResponse.Message != "" {
+			t.Fatalf("expected success, got %s", createCAResponse.Message)
 		}
 	})
 	t.Run("2. Create Intermediate CA", func(t *testing.T) {
@@ -941,8 +941,8 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusCreated {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		if createCAResponse.Error != "" {
-			t.Fatalf("expected success, got %s", createCAResponse.Error)
+		if createCAResponse.Message != "" {
+			t.Fatalf("expected success, got %s", createCAResponse.Message)
 		}
 	})
 
@@ -954,13 +954,13 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if err != nil {
 			t.Fatal("expected no error, got: ", err)
 		}
-		if len(cas.Result) != 2 {
-			t.Fatalf("expected 2 certificate authorities, got %d", len(cas.Result))
+		if len(cas.Data) != 2 {
+			t.Fatalf("expected 2 certificate authorities, got %d", len(cas.Data))
 		}
-		if cas.Result[0].CRL == "" {
+		if cas.Data[0].CRL == "" {
 			t.Fatalf("expected root CA to have a CRL")
 		}
-		if cas.Result[1].CRL != "" {
+		if cas.Data[1].CRL != "" {
 			t.Fatalf("expected intermediate CA to not have a CRL")
 		}
 	})
@@ -973,8 +973,8 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusAccepted {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		if signCAResponse.Error != "" {
-			t.Fatalf("expected success, got %s", signCAResponse.Error)
+		if signCAResponse.Message != "" {
+			t.Fatalf("expected success, got %s", signCAResponse.Message)
 		}
 	})
 
@@ -986,13 +986,13 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if err != nil {
 			t.Fatal("expected no error, got: ", err)
 		}
-		if len(cas.Result) != 2 {
-			t.Fatalf("expected 2 certificate authorities, got %d", len(cas.Result))
+		if len(cas.Data) != 2 {
+			t.Fatalf("expected 2 certificate authorities, got %d", len(cas.Data))
 		}
-		if cas.Result[0].CRL == "" {
+		if cas.Data[0].CRL == "" {
 			t.Fatalf("expected root CA to have a CRL")
 		}
-		if cas.Result[1].CRL == "" {
+		if cas.Data[1].CRL == "" {
 			t.Fatalf("expected intermediate CA to have a CRL")
 		}
 	})
@@ -1007,8 +1007,8 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusCreated {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		if createCertResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", createCertResponse.Error)
+		if createCertResponse.Message != "" {
+			t.Fatalf("expected no error, got %s", createCertResponse.Message)
 		}
 		createCertificateRequestRequest = tu.CreateCertificateRequestParams{CSR: tu.StrawberryCSR}
 		statusCode, createCertResponse, err = tu.CreateCertificateRequest(ts.URL, client, adminToken, createCertificateRequestRequest)
@@ -1018,8 +1018,8 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusCreated {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		if createCertResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", createCertResponse.Error)
+		if createCertResponse.Message != "" {
+			t.Fatalf("expected no error, got %s", createCertResponse.Message)
 		}
 		statusCode, signCertificateRequestResponse, err := tu.SignCertificateRequest(ts.URL, client, adminToken, 3, server.SignCertificateRequestParams{CertificateAuthorityID: "1"})
 		if err != nil {
@@ -1028,8 +1028,8 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusAccepted {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if signCertificateRequestResponse.Error != "" {
-			t.Fatalf("expected success, got %s", signCertificateRequestResponse.Error)
+		if signCertificateRequestResponse.Message != "" {
+			t.Fatalf("expected success, got %s", signCertificateRequestResponse.Message)
 		}
 		statusCode, signCertificateRequestResponse, err = tu.SignCertificateRequest(ts.URL, client, adminToken, 4, server.SignCertificateRequestParams{CertificateAuthorityID: "2"})
 		if err != nil {
@@ -1038,8 +1038,8 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusAccepted {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if signCertificateRequestResponse.Error != "" {
-			t.Fatalf("expected success, got %s", signCertificateRequestResponse.Error)
+		if signCertificateRequestResponse.Message != "" {
+			t.Fatalf("expected success, got %s", signCertificateRequestResponse.Message)
 		}
 	})
 	t.Run("7. Get CSR's. Both should have the correct CRLDistributionPoint extension.", func(t *testing.T) {
@@ -1050,10 +1050,10 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got: %s", err)
 		}
-		if len(listCSRsResponse.Result) != 2 {
-			t.Fatalf("expected 2 certificates, got %d", len(listCSRsResponse.Result))
+		if len(listCSRsResponse.Data) != 2 {
+			t.Fatalf("expected 2 certificates, got %d", len(listCSRsResponse.Data))
 		}
-		for i, csr := range listCSRsResponse.Result {
+		for i, csr := range listCSRsResponse.Data {
 			certs, err := db.ParseCertificateChain(csr.CertificateChain)
 			if err != nil {
 				t.Fatalf("expected no error, got: %s", err)
@@ -1078,8 +1078,8 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusAccepted {
 			t.Fatalf("expected status %d, got %d", http.StatusAccepted, statusCode)
 		}
-		if response.Error != "" {
-			t.Fatalf("expected success, got %s", response.Error)
+		if response.Message != "" {
+			t.Fatalf("expected success, got %s", response.Message)
 		}
 		statusCode, response, err = tu.RevokeCertificateRequest(ts.URL, client, adminToken, 4)
 		if err != nil {
@@ -1088,8 +1088,8 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusAccepted {
 			t.Fatalf("expected status %d, got %d", http.StatusAccepted, statusCode)
 		}
-		if response.Error != "" {
-			t.Fatalf("expected success, got %s", response.Error)
+		if response.Message != "" {
+			t.Fatalf("expected success, got %s", response.Message)
 		}
 		statusCode, listCSRsResponse, err := tu.ListCertificateRequests(ts.URL, client, adminToken)
 		if statusCode != http.StatusOK {
@@ -1098,10 +1098,10 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got: %s", err)
 		}
-		if len(listCSRsResponse.Result) != 2 {
-			t.Fatalf("expected 2 certificates, got %d", len(listCSRsResponse.Result))
+		if len(listCSRsResponse.Data) != 2 {
+			t.Fatalf("expected 2 certificates, got %d", len(listCSRsResponse.Data))
 		}
-		for _, csr := range listCSRsResponse.Result {
+		for _, csr := range listCSRsResponse.Data {
 			if csr.CertificateChain != "" {
 				t.Fatalf("expected no certificate, got '%s'", csr.CertificateChain)
 			}
@@ -1113,14 +1113,14 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d when checking CAs, got %d", http.StatusOK, statusCode)
 		}
-		if len(cas.Result) != 2 {
-			t.Fatalf("expected 2 certificate authorities, got %d", len(cas.Result))
+		if len(cas.Data) != 2 {
+			t.Fatalf("expected 2 certificate authorities, got %d", len(cas.Data))
 		}
-		if cas.Result[0].Enabled != true {
-			t.Fatalf("expected root CA to remain active after certificate revocation, got %v", cas.Result[0].Enabled)
+		if cas.Data[0].Enabled != true {
+			t.Fatalf("expected root CA to remain active after certificate revocation, got %v", cas.Data[0].Enabled)
 		}
-		if cas.Result[1].Enabled != true {
-			t.Fatalf("expected intermediate CA to remain active after certificate revocation, got %v", cas.Result[1].Enabled)
+		if cas.Data[1].Enabled != true {
+			t.Fatalf("expected intermediate CA to remain active after certificate revocation, got %v", cas.Data[1].Enabled)
 		}
 	})
 
@@ -1132,10 +1132,10 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got: %s", err)
 		}
-		if len(cas.Result) != 2 {
-			t.Fatalf("expected 2 certificate authorities, got %d", len(cas.Result))
+		if len(cas.Data) != 2 {
+			t.Fatalf("expected 2 certificate authorities, got %d", len(cas.Data))
 		}
-		for _, ca := range cas.Result {
+		for _, ca := range cas.Data {
 			crl, err := db.ParseCRL(ca.CRL)
 			if err != nil {
 				t.Fatalf("expected no error when parsing CRL, got: %s", err)
@@ -1158,8 +1158,8 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusAccepted {
 			t.Fatalf("expected status %d, got %d", http.StatusAccepted, statusCode)
 		}
-		if response.Error != "" {
-			t.Fatalf("expected success, got %s", response.Error)
+		if response.Message != "" {
+			t.Fatalf("expected success, got %s", response.Message)
 		}
 		entries := logs.TakeAll()
 		var haveCARevoked bool
@@ -1182,13 +1182,13 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got: %s", err)
 		}
-		if cas.Result[1].Enabled != false {
+		if cas.Data[1].Enabled != false {
 			t.Fatalf("expected revoked intermediate CA to have pending status")
 		}
-		if cas.Result[1].CertificatePEM != "" {
+		if cas.Data[1].CertificatePEM != "" {
 			t.Fatalf("expected revoked intermediate CA to not have a certificate")
 		}
-		crl, err := db.ParseCRL(cas.Result[0].CRL)
+		crl, err := db.ParseCRL(cas.Data[0].CRL)
 		if err != nil {
 			t.Fatalf("expected no error when parsing CRL, got: %s", err)
 		}
@@ -1204,10 +1204,10 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if result.Error != "" {
-			t.Fatalf("expected no error, got %s", result.Error)
+		if result.Message != "" {
+			t.Fatalf("expected no error, got %s", result.Message)
 		}
-		if result.Result.CRL == "" {
+		if result.Data.CRL == "" {
 			t.Fatalf("expected CRL to be available")
 		}
 	})

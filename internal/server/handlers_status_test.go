@@ -22,15 +22,15 @@ func TestStatus(t *testing.T) {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
 
-		if statusResponse.Error != "" {
-			t.Fatalf("expected error %q, got %q", "", statusResponse.Error)
+		if statusResponse.Message != "" {
+			t.Fatalf("expected message %q, got %q", "", statusResponse.Message)
 		}
 
-		if statusResponse.Result.Initialized {
+		if statusResponse.Data.Initialized {
 			t.Fatalf("expected initialized to be false on fresh server")
 		}
 
-		if statusResponse.Result.Version == "" {
+		if statusResponse.Data.Version == "" {
 			t.Fatalf("expected version to be set")
 		}
 	})
@@ -48,15 +48,15 @@ func TestStatus(t *testing.T) {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
 
-		if statusResponse.Error != "" {
-			t.Fatalf("expected error %q, got %q", "", statusResponse.Error)
+		if statusResponse.Message != "" {
+			t.Fatalf("expected message %q, got %q", "", statusResponse.Message)
 		}
 
-		if !statusResponse.Result.Initialized {
+		if !statusResponse.Data.Initialized {
 			t.Fatalf("expected initialized to be true after creating user")
 		}
 
-		if statusResponse.Result.Version == "" {
+		if statusResponse.Data.Version == "" {
 			t.Fatalf("expected version to be set")
 		}
 	})
@@ -68,8 +68,8 @@ type GetStatusResponseResult struct {
 }
 
 type GetStatusResponse struct {
-	Error  string                  `json:"error,omitempty"`
-	Result GetStatusResponseResult `json:"result"`
+	Message string                  `json:"message,omitempty"`
+	Data    GetStatusResponseResult `json:"data"`
 }
 
 func getStatus(url string, client *http.Client, adminToken string) (int, *GetStatusResponse, error) {

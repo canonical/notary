@@ -1,7 +1,9 @@
-// FIXME: Update the response and param types to match the actual API response when they are standardized
 /* eslint-disable */
 
 import {
+  APIError,
+  APIErrorResponse,
+  APIResponse,
   CertificateAuthorityEntry,
   ConfigEntry,
   CSREntry,
@@ -19,37 +21,44 @@ export type RequiredCAParams = {
   id: string;
 };
 
-export type Response<T> = {
-  result: T;
-  error: string;
-};
-
 type GETStatus = {
   initialized: boolean;
   version: string;
   oidc_enabled: boolean;
 };
 
-export async function getStatus(): Promise<GETStatus> {
-  const response = await fetch("/status");
-  const respData = (await response.json()) as Response<GETStatus>;
+async function parseAPIResponse<T>(response: globalThis.Response) {
+  const respData = (await response.json()) as APIResponse<T> | APIErrorResponse;
+
   if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
+    const errorResponse = respData as APIErrorResponse;
+    throw new APIError(
+      response.status,
+      HTTPStatus(response.status),
+      errorResponse.message ?? "",
     );
   }
-  return respData.result;
+
+  return respData as APIResponse<T>;
+}
+
+async function fetchAPI<T>(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<T | undefined> {
+  const response = await fetch(input, init);
+  const respData = await parseAPIResponse<T>(response);
+  return respData.data;
+}
+
+export async function getStatus(): Promise<GETStatus> {
+  return (await fetchAPI<GETStatus>("/status")) as GETStatus;
 }
 
 export async function getCertificateRequests(): Promise<CSREntry[]> {
-  const response = await fetch("/api/v1/certificate_requests");
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
+  return (await fetchAPI<CSREntry[]>(
+    "/api/v1/certificate_requests",
+  )) as CSREntry[];
 }
 
 export async function postCSR(params: { csr: string }) {
@@ -59,20 +68,13 @@ export async function postCSR(params: { csr: string }) {
   const reqParams = {
     csr: params.csr.trim(),
   };
-  const response = await fetch("/api/v1/certificate_requests", {
+  return fetchAPI<{ id: number }>("/api/v1/certificate_requests", {
     method: "post",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(reqParams),
   });
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
 }
 
 export async function postCertToID(params: RequiredCSRParams) {
@@ -82,7 +84,7 @@ export async function postCertToID(params: RequiredCSRParams) {
   const reqParams = {
     certificate: params.cert.trim(),
   };
-  const response = await fetch(
+  return fetchAPI(
     "/api/v1/certificate_requests/" + params.id + "/certificate",
     {
       method: "post",
@@ -92,26 +94,12 @@ export async function postCertToID(params: RequiredCSRParams) {
       body: JSON.stringify(reqParams),
     },
   );
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
 }
 
 export async function deleteCSR(params: RequiredCSRParams) {
-  const response = await fetch("/api/v1/certificate_requests/" + params.id, {
+  return fetchAPI("/api/v1/certificate_requests/" + params.id, {
     method: "delete",
   });
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
 }
 
 export async function signCSR(
@@ -123,57 +111,32 @@ export async function signCSR(
   const reqParams = {
     certificate_authority_id: params.certificate_authority_id.toString(),
   };
-  const response = await fetch(
-    "/api/v1/certificate_requests/" + params.id + "/sign",
-    {
-      method: "post",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(reqParams),
+  return fetchAPI("/api/v1/certificate_requests/" + params.id + "/sign", {
+    method: "post",
+    headers: {
+      "Content-Type": "application/json",
     },
-  );
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
+    body: JSON.stringify(reqParams),
+  });
 }
 
 export async function rejectCSR(params: RequiredCSRParams) {
-  const response = await fetch(
-    "/api/v1/certificate_requests/" + params.id + "/reject",
-    { method: "post" },
-  );
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
+  return fetchAPI("/api/v1/certificate_requests/" + params.id + "/reject", {
+    method: "post",
+  });
 }
 
 export async function revokeCertificate(params: RequiredCSRParams) {
-  const response = await fetch(
+  return fetchAPI(
     "/api/v1/certificate_requests/" + params.id + "/certificate/revoke",
     {
       method: "post",
     },
   );
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
 }
 
 export async function login(userForm: { email: string; password: string }) {
-  const response = await fetch("/login", {
+  return fetchAPI("/login", {
     method: "POST",
 
     body: JSON.stringify({
@@ -181,95 +144,46 @@ export async function login(userForm: { email: string; password: string }) {
       password: userForm.password,
     }),
   });
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
 }
 
 export async function logout() {
-  const response = await fetch("/logout", { method: "POST" });
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
+  return fetchAPI("/logout", { method: "POST" });
 }
 
 export async function changeSelfPassword(changePasswordForm: {
   password: string;
 }) {
-  const response = await fetch("/api/v1/accounts/me/change_password", {
+  return fetchAPI("/api/v1/accounts/me/change_password", {
     method: "POST",
     body: JSON.stringify({ password: changePasswordForm.password }),
   });
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
 }
 
 export async function changePassword(changePasswordForm: {
   id: string;
   password: string;
 }) {
-  const response = await fetch(
+  return fetchAPI(
     "/api/v1/accounts/" + changePasswordForm.id + "/change_password",
     {
       method: "POST",
       body: JSON.stringify({ password: changePasswordForm.password }),
     },
   );
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
 }
 
 export async function ListUsers(params: {}): Promise<UserEntry[]> {
-  const response = await fetch("/api/v1/accounts");
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
+  return (await fetchAPI<UserEntry[]>("/api/v1/accounts")) as UserEntry[];
 }
 
 export async function getSelfAccount(): Promise<UserEntry> {
-  const response = await fetch("/api/v1/accounts/me");
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
+  return (await fetchAPI<UserEntry>("/api/v1/accounts/me")) as UserEntry;
 }
 
 export async function deleteUser(params: { id: string }) {
-  const response = await fetch("/api/v1/accounts/" + params.id, {
+  return fetchAPI("/api/v1/accounts/" + params.id, {
     method: "delete",
   });
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
 }
 
 export async function postFirstUser(userForm: {
@@ -277,7 +191,7 @@ export async function postFirstUser(userForm: {
   password: string;
   role_id: number;
 }) {
-  const response = await fetch("/api/v1/accounts", {
+  return fetchAPI<{ id: number }>("/api/v1/accounts", {
     method: "POST",
     body: JSON.stringify({
       email: userForm.email,
@@ -285,13 +199,6 @@ export async function postFirstUser(userForm: {
       role_id: userForm.role_id,
     }),
   });
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
 }
 
 export async function postUser(userForm: {
@@ -299,7 +206,7 @@ export async function postUser(userForm: {
   password: string;
   role_id: number;
 }) {
-  const response = await fetch("/api/v1/accounts", {
+  return fetchAPI<{ id: number }>("/api/v1/accounts", {
     method: "POST",
     body: JSON.stringify({
       email: userForm.email,
@@ -307,26 +214,14 @@ export async function postUser(userForm: {
       role_id: userForm.role_id,
     }),
   });
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
 }
 
 export async function getCertificateAuthorities(): Promise<
   CertificateAuthorityEntry[]
 > {
-  const response = await fetch("/api/v1/certificate_authorities");
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
+  return (await fetchAPI<CertificateAuthorityEntry[]>(
+    "/api/v1/certificate_authorities",
+  )) as CertificateAuthorityEntry[];
 }
 
 export async function postCA(params: {
@@ -352,66 +247,35 @@ export async function postCA(params: {
     organizational_unit_name: params.OrganizationalUnit,
     not_valid_after: NotValidAfterDate?.toISOString(),
   };
-  const response = await fetch("/api/v1/certificate_authorities", {
+  return fetchAPI<{ id: number }>("/api/v1/certificate_authorities", {
     method: "post",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(reqParams),
   });
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
 }
 
 export async function deleteCA(params: RequiredCAParams) {
-  const response = await fetch("/api/v1/certificate_authorities/" + params.id, {
+  return fetchAPI("/api/v1/certificate_authorities/" + params.id, {
     method: "delete",
   });
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
 }
 
 export async function revokeCA(params: RequiredCAParams) {
-  const response = await fetch(
-    "/api/v1/certificate_authorities/" + params.id + "/revoke",
-    {
-      method: "post",
-    },
-  );
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
+  return fetchAPI("/api/v1/certificate_authorities/" + params.id + "/revoke", {
+    method: "post",
+  });
 }
 
 export async function disableCA(params: RequiredCAParams) {
-  const response = await fetch("/api/v1/certificate_authorities/" + params.id, {
+  return fetchAPI("/api/v1/certificate_authorities/" + params.id, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ enabled: false }),
   });
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
 }
 
 export async function postCertToCA(
@@ -423,7 +287,7 @@ export async function postCertToCA(
   const reqParams = {
     certificate_chain: params.certificate_chain.trim(),
   };
-  const response = await fetch(
+  return fetchAPI(
     "/api/v1/certificate_authorities/" + params.id + "/certificate",
     {
       method: "post",
@@ -433,13 +297,6 @@ export async function postCertToCA(
       body: JSON.stringify(reqParams),
     },
   );
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
 }
 
 export async function signCA(
@@ -451,32 +308,15 @@ export async function signCA(
   const reqParams = {
     certificate_authority_id: params.certificate_authority_id.toString(),
   };
-  const response = await fetch(
-    "/api/v1/certificate_authorities/" + params.id + "/sign",
-    {
-      method: "post",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(reqParams),
+  return fetchAPI("/api/v1/certificate_authorities/" + params.id + "/sign", {
+    method: "post",
+    headers: {
+      "Content-Type": "application/json",
     },
-  );
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
+    body: JSON.stringify(reqParams),
+  });
 }
 
 export async function getConfig(): Promise<ConfigEntry> {
-  const response = await fetch("/api/v1/config");
-  const respData = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `${response.status}: ${HTTPStatus(response.status)}. ${respData.error}`,
-    );
-  }
-  return respData.result;
+  return (await fetchAPI<ConfigEntry>("/api/v1/config")) as ConfigEntry;
 }

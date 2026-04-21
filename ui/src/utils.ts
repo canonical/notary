@@ -6,7 +6,7 @@ import {
 } from "pkijs";
 import { fromBER } from "asn1js";
 import * as pvutils from "pvutils";
-import { CertificateSigningRequest } from "./types";
+import { APIError, CertificateSigningRequest } from "./types";
 
 export const oidToName = (oid: string) => {
   const map: { [key: string]: string } = {
@@ -353,6 +353,16 @@ export const retryUnlessUnauthorized = (
   failureCount: number,
   error: Error,
 ): boolean => {
+  if (error instanceof APIError) {
+    if (error.status === 401) {
+      return false;
+    }
+    if (error.status === 403) {
+      return false;
+    }
+    return true;
+  }
+
   if (error.message.includes("401")) {
     return false;
   }

@@ -45,6 +45,10 @@ function AddNewUserForm(asideProps: AsideProps) {
     mutationFn: postUser,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["users"] });
+      setEmail("");
+      setRoleID(RoleID.Admin);
+      setPassword1("");
+      setPassword2("");
       setErrorText("");
       asideProps.setAsideOpen(false);
     },
@@ -86,6 +90,7 @@ function AddNewUserForm(asideProps: AsideProps) {
           label="Email"
           type="text"
           required={true}
+          value={email}
           onChange={handleEmailChange}
           error={emailError}
         />
@@ -122,6 +127,7 @@ function AddNewUserForm(asideProps: AsideProps) {
           help="Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol."
           id="password1"
           label="Password"
+          value={password1}
           onChange={handlePassword1Change}
           required={true}
           error={password1Error}
@@ -129,6 +135,7 @@ function AddNewUserForm(asideProps: AsideProps) {
         <PasswordToggle
           id="password2"
           label="Confirm Password"
+          value={password2}
           onChange={handlePassword2Change}
           required={true}
           error={password2Error}

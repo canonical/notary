@@ -128,7 +128,7 @@ function AddNewUserForm(asideProps: AsideProps) {
         />
         <PasswordToggle
           id="password2"
-          label="Password"
+          label="Confirm Password"
           onChange={handlePassword2Change}
           required={true}
           error={password2Error}

@@ -83,6 +83,7 @@ export function ChangePasswordModal({
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["users"] });
       setErrorText("");
+      setChangePasswordModalVisible(false);
     },
     onError: (e: Error) => {
       setErrorText(getErrorMessage(e));

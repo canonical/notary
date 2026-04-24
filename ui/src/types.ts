@@ -1,3 +1,38 @@
+export type APIResponse<T = undefined> = {
+  message?: string;
+  data?: T;
+};
+
+export type APIErrorResponse = APIResponse<undefined> & {
+  message: string;
+};
+
+export class APIError extends Error {
+  status: number;
+  statusText: string;
+  responseMessage: string;
+
+  constructor(status: number, statusText: string, responseMessage = "") {
+    super(responseMessage || `${status}: ${statusText}`);
+    this.name = "APIError";
+    this.status = status;
+    this.statusText = statusText;
+    this.responseMessage = responseMessage;
+  }
+}
+
+export function getErrorMessage(error: unknown): string {
+  if (error instanceof APIError) {
+    return error.responseMessage || error.statusText;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Unknown error";
+}
+
 export type CSREntry = {
   id: number;
   csr: string;

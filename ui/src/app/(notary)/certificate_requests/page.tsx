@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { CertificateRequestsTable } from "./table";
 import { getCertificateRequests } from "@/queries";
-import { CSREntry } from "@/types";
+import { CSREntry, getErrorMessage } from "@/types";
 import Loading from "@/components/loading";
 import Error from "@/components/error";
 import { useState } from "react";
@@ -23,7 +23,7 @@ export default function CertificateRequestsPanel() {
     return <Loading />;
   }
   if (query.status == "error") {
-    return <Error msg={query.error.message} />;
+    return <Error msg={getErrorMessage(query.error)} />;
   }
   const csrs = Array.from(query.data ? query.data : []);
   return (

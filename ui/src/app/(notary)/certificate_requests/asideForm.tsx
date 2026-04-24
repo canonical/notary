@@ -1,6 +1,9 @@
+"use client";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { csrIsValid } from "@/utils";
 import { postCSR } from "@/queries";
+import { getErrorMessage } from "@/types";
+import { csrIsValid } from "@/utils";
 import {
   ChangeEvent,
   useState,
@@ -15,6 +18,7 @@ import {
   Input,
   Panel,
   Form,
+  Col,
 } from "@canonical/react-components";
 
 type AsideProps = {
@@ -36,7 +40,7 @@ export default function CertificateRequestsAsidePanel({
       void queryClient.invalidateQueries({ queryKey: ["csrs"] });
     },
     onError: (e: Error) => {
-      setErrorText(e.message);
+      setErrorText(getErrorMessage(e));
     },
   });
 
@@ -104,15 +108,17 @@ export default function CertificateRequestsAsidePanel({
           />
         </div>
         <div className="p-form__group row">
-          <Button
-            type="button"
-            appearance="positive"
-            name="submit"
-            disabled={!csrIsValid(CSRPEMString)}
-            onClick={handleSubmit}
-          >
-            Submit
-          </Button>
+          <Col size={12}>
+            <Button
+              type="button"
+              appearance="positive"
+              name="submit"
+              disabled={!csrIsValid(CSRPEMString)}
+              onClick={handleSubmit}
+            >
+              Submit
+            </Button>
+          </Col>
         </div>
       </Form>
     </Panel>

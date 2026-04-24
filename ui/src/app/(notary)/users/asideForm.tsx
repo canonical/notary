@@ -9,8 +9,9 @@ import {
   PasswordToggle,
   Select,
   Form,
+  Notification,
 } from "@canonical/react-components";
-import { AsideFormData, RoleID } from "@/types";
+import { AsideFormData, RoleID, getErrorMessage } from "@/types";
 import { z } from "zod";
 
 type AsideProps = {
@@ -44,11 +45,15 @@ function AddNewUserForm(asideProps: AsideProps) {
     mutationFn: postUser,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["users"] });
+      setEmail("");
+      setRoleID(RoleID.Admin);
+      setPassword1("");
+      setPassword2("");
       setErrorText("");
       asideProps.setAsideOpen(false);
     },
     onError: (e: Error) => {
-      setErrorText(e.message);
+      setErrorText(getErrorMessage(e));
     },
   });
   const [email, setEmail] = useState<string>("");
@@ -64,7 +69,7 @@ function AddNewUserForm(asideProps: AsideProps) {
   const password2Error =
     password2 && !passwordsMatch ? "Passwords do not match" : "";
 
-  const [, setErrorText] = useState<string>("");
+  const [errorText, setErrorText] = useState<string>("");
   const handleEmailChange = (event: ChangeEvent<HTMLInputElement>) => {
     setEmail(event.target.value);
   };
@@ -85,6 +90,7 @@ function AddNewUserForm(asideProps: AsideProps) {
           label="Email"
           type="text"
           required={true}
+          value={email}
           onChange={handleEmailChange}
           error={emailError}
         />
@@ -121,17 +127,24 @@ function AddNewUserForm(asideProps: AsideProps) {
           help="Password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol."
           id="password1"
           label="Password"
+          value={password1}
           onChange={handlePassword1Change}
           required={true}
           error={password1Error}
         />
         <PasswordToggle
           id="password2"
-          label="Password"
+          label="Confirm Password"
+          value={password2}
           onChange={handlePassword2Change}
           required={true}
           error={password2Error}
         />
+        {errorText && (
+          <Notification severity="negative" title="Error">
+            {errorText}
+          </Notification>
+        )}
         <Button
           appearance="positive"
           disabled={
@@ -163,7 +176,7 @@ function ChangePasswordForm(asideProps: AsideProps) {
       asideProps.setAsideOpen(false);
     },
     onError: (e: Error) => {
-      setErrorText(e.message);
+      setErrorText(getErrorMessage(e));
     },
   });
   const [password1, setPassword1] = useState<string>("");
@@ -174,7 +187,7 @@ function ChangePasswordForm(asideProps: AsideProps) {
   const password2Error =
     password2 && !passwordsMatch ? "Passwords do not match" : "";
 
-  const [, setErrorText] = useState<string>("");
+  const [errorText, setErrorText] = useState<string>("");
   const handlePassword1Change = (event: ChangeEvent<HTMLInputElement>) => {
     setPassword1(event.target.value);
   };
@@ -206,6 +219,11 @@ function ChangePasswordForm(asideProps: AsideProps) {
           required={true}
           error={password2Error}
         />
+        {errorText && (
+          <Notification severity="negative" title="Error">
+            {errorText}
+          </Notification>
+        )}
         <Button
           appearance="positive"
           disabled={!passwordsMatch || !passwordIsValid(password1)}

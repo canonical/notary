@@ -42,10 +42,10 @@ func TestLoginEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if loginResponse.Result.Token == "" {
+		if loginResponse.Data.Token == "" {
 			t.Fatalf("expected token, got empty string")
 		}
-		token, _, err := jwt.NewParser().ParseUnverified(loginResponse.Result.Token, jwt.MapClaims{})
+		token, _, err := jwt.NewParser().ParseUnverified(loginResponse.Data.Token, jwt.MapClaims{})
 		if err != nil {
 			t.Fatalf("couldn't parse token: %s", err)
 		}
@@ -88,8 +88,8 @@ func TestLoginEndToEnd(t *testing.T) {
 		if statusCode != http.StatusBadRequest {
 			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
 		}
-		if loginResponse.Error != "Email is required" {
-			t.Fatalf("expected error %q, got %q", "Email is required", loginResponse.Error)
+		if loginResponse.Message != "email is required" {
+			t.Fatalf("expected message %q, got %q", "email is required", loginResponse.Message)
 		}
 	})
 
@@ -105,8 +105,8 @@ func TestLoginEndToEnd(t *testing.T) {
 		if statusCode != http.StatusBadRequest {
 			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
 		}
-		if loginResponse.Error != "Password is required" {
-			t.Fatalf("expected error %q, got %q", "Password is required", loginResponse.Error)
+		if loginResponse.Message != "password is required" {
+			t.Fatalf("expected message %q, got %q", "password is required", loginResponse.Message)
 		}
 	})
 
@@ -123,8 +123,8 @@ func TestLoginEndToEnd(t *testing.T) {
 		if statusCode != http.StatusUnauthorized {
 			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, statusCode)
 		}
-		if loginResponse.Error != "The email or password is incorrect" {
-			t.Fatalf("expected error %q, got %q", "The email or password is incorrect", loginResponse.Error)
+		if loginResponse.Message != "invalid credentials" {
+			t.Fatalf("expected message %q, got %q", "invalid credentials", loginResponse.Message)
 		}
 		entries := logs.TakeAll()
 		var haveLoginFailed bool
@@ -155,8 +155,8 @@ func TestLoginEndToEnd(t *testing.T) {
 			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, statusCode)
 		}
 
-		if loginResponse.Error != "The email or password is incorrect" {
-			t.Fatalf("expected error %q, got %q", "The email or password is incorrect", loginResponse.Error)
+		if loginResponse.Message != "invalid credentials" {
+			t.Fatalf("expected message %q, got %q", "invalid credentials", loginResponse.Message)
 		}
 	})
 }

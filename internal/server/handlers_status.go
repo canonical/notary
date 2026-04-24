@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/canonical/notary/version"
+	"go.uber.org/zap"
 )
 
 type StatusResponse struct {
@@ -18,7 +19,8 @@ func GetStatus(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		numUsers, err := env.Database.NumUsers()
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "couldn't generate status", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to generate status", zap.Error(err))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 		statusResponse := StatusResponse{
@@ -26,10 +28,6 @@ func GetStatus(env *HandlerDependencies) http.HandlerFunc {
 			Version:     version.GetVersion(),
 			OIDCEnabled: env.AuthnRepository != nil,
 		}
-		err = writeResponse(w, statusResponse, http.StatusOK)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
-			return
-		}
+		writeResponse(w, http.StatusOK, "", statusResponse, env.SystemLogger)
 	}
 }

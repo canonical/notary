@@ -3,7 +3,6 @@ package server
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -61,7 +60,8 @@ func limitRequestSize(maxKilobytes int64, logger *zap.Logger) middleware {
 			r.Body = http.MaxBytesReader(w, r.Body, maxKilobytes<<10)
 			body, err := io.ReadAll(r.Body)
 			if err != nil {
-				writeError(w, http.StatusRequestEntityTooLarge, http.StatusText(http.StatusRequestEntityTooLarge), err, logger)
+				logger.Warn("request body exceeds maximum size", zap.Error(err), zap.Int64("max_kilobytes", maxKilobytes))
+				writeResponse(w, http.StatusRequestEntityTooLarge, http.StatusText(http.StatusRequestEntityTooLarge), nil, logger)
 				return
 			}
 
@@ -241,7 +241,8 @@ func requirePermission(
 				log.WithRequest(r),
 				log.WithReason("invalid or missing JWT token"),
 			)
-			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.SystemLogger)
+			env.SystemLogger.Warn("invalid or missing JWT token", zap.Error(err))
+			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 			return
 		}
 
@@ -257,7 +258,8 @@ func requirePermission(
 		for _, role := range allowedRoles {
 			ok, checkErr := env.AuthzRepository.Check(systemObject, role, userID)
 			if checkErr != nil {
-				writeError(w, http.StatusInternalServerError, "authorization check failed", checkErr, env.SystemLogger)
+				env.SystemLogger.Error("authorization check failed", zap.Error(checkErr))
+				writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 				return
 			}
 			if ok {
@@ -271,7 +273,11 @@ func requirePermission(
 				log.WithRequest(r),
 				log.WithReason("insufficient permissions"),
 			)
-			writeError(w, http.StatusForbidden, "forbidden: insufficient permissions", errors.New("missing role"), env.SystemLogger)
+			env.SystemLogger.Warn("access denied due to insufficient permissions",
+				zap.String("email", claims.Email),
+				zap.Strings("allowed_roles", allowedRoles),
+			)
+			writeResponse(w, http.StatusForbidden, "forbidden: insufficient permissions", nil, env.SystemLogger)
 			return
 		}
 
@@ -286,7 +292,8 @@ func firstUserOrAdmin(env *HandlerDependencies, handler http.HandlerFunc) http.H
 	return func(w http.ResponseWriter, r *http.Request) {
 		numUsers, err := env.Database.NumUsers()
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to check user count", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to check user count", zap.Error(err))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 		if numUsers == 0 {

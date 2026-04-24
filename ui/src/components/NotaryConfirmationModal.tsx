@@ -3,6 +3,7 @@
 import { ConfirmationModal, Notification } from "@canonical/react-components";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { getErrorMessage } from "@/types";
 
 export type NotaryConfirmationModalData<T> = {
   queryFn: (params: T) => Promise<T>;
@@ -27,7 +28,7 @@ export function NotaryConfirmationModal(
       data.closeFn();
     },
     onError: (e: Error) => {
-      setErrorText(e.message);
+      setErrorText(getErrorMessage(e));
     },
   });
   return (

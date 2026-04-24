@@ -27,17 +27,17 @@ func TestAccountsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if response.Error != "" {
-			t.Fatalf("expected error %q, got %q", "", response.Error)
+		if response.Message != "" {
+			t.Fatalf("expected message %q, got %q", "", response.Message)
 		}
-		if response.Result.ID != 1 {
-			t.Fatalf("expected ID 1, got %d", response.Result.ID)
+		if response.Data.ID != 1 {
+			t.Fatalf("expected ID 1, got %d", response.Data.ID)
 		}
-		if response.Result.Email != "admin@notary.local" {
-			t.Fatalf("expected email admin@notary.local, got %s", response.Result.Email)
+		if response.Data.Email != "admin@notary.local" {
+			t.Fatalf("expected email admin@notary.local, got %s", response.Data.Email)
 		}
-		if response.Result.RoleID != 0 {
-			t.Fatalf("expected role ID 0, got %d", response.Result.RoleID)
+		if response.Data.RoleID != 0 {
+			t.Fatalf("expected role ID 0, got %d", response.Data.RoleID)
 		}
 	})
 
@@ -49,8 +49,8 @@ func TestAccountsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusForbidden {
 			t.Fatalf("expected status %d, got %d", http.StatusForbidden, statusCode)
 		}
-		if response.Error != "forbidden: insufficient permissions" {
-			t.Fatalf("expected error %q, got %q", "forbidden: insufficient permissions", response.Error)
+		if response.Message != "forbidden: insufficient permissions" {
+			t.Fatalf("expected message %q, got %q", "forbidden: insufficient permissions", response.Message)
 		}
 	})
 
@@ -68,8 +68,8 @@ func TestAccountsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusCreated {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		if response.Error != "" {
-			t.Fatalf("unexpected error :%q", response.Error)
+		if response.Message != "" {
+			t.Fatalf("unexpected message :%q", response.Message)
 		}
 
 		entries := logs.TakeAll()
@@ -96,17 +96,17 @@ func TestAccountsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if response.Error != "" {
-			t.Fatalf("expected error %q, got %q", "", response.Error)
+		if response.Message != "" {
+			t.Fatalf("expected message %q, got %q", "", response.Message)
 		}
-		if response.Result.ID != 4 {
-			t.Fatalf("expected ID 4, got %d", response.Result.ID)
+		if response.Data.ID != 4 {
+			t.Fatalf("expected ID 4, got %d", response.Data.ID)
 		}
-		if response.Result.Email != "nopass@canonical.com" {
-			t.Fatalf("expected email nopass@canonical.com, got %s", response.Result.Email)
+		if response.Data.Email != "nopass@canonical.com" {
+			t.Fatalf("expected email nopass@canonical.com, got %s", response.Data.Email)
 		}
-		if response.Result.RoleID != 1 {
-			t.Fatalf("expected role ID 1, got %d", response.Result.RoleID)
+		if response.Data.RoleID != 1 {
+			t.Fatalf("expected role ID 1, got %d", response.Data.RoleID)
 		}
 	})
 
@@ -118,8 +118,8 @@ func TestAccountsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusNotFound {
 			t.Fatalf("expected status %d, got %d", http.StatusNotFound, statusCode)
 		}
-		if response.Error != "Not Found" {
-			t.Fatalf("expected error %q, got %q", "Not Found", response.Error)
+		if response.Message != "not found" {
+			t.Fatalf("expected message %q, got %q", "not found", response.Message)
 		}
 	})
 
@@ -135,8 +135,8 @@ func TestAccountsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusCreated {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		if response.Error != "" {
-			t.Fatalf("unexpected error :%q", response.Error)
+		if response.Message != "" {
+			t.Fatalf("unexpected message :%q", response.Message)
 		}
 
 		entries := logs.TakeAll()
@@ -171,8 +171,8 @@ func TestAccountsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusNotFound {
 			t.Fatalf("expected status %d, got %d", http.StatusNotFound, statusCode)
 		}
-		if response.Error != "Not Found" {
-			t.Fatalf("expected error %q, got %q", "Not Found", response.Error)
+		if response.Message != "not found" {
+			t.Fatalf("expected message %q, got %q", "not found", response.Message)
 		}
 	})
 
@@ -185,8 +185,8 @@ func TestAccountsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusAccepted {
 			t.Fatalf("expected status %d, got %d", http.StatusAccepted, statusCode)
 		}
-		if response.Error != "" {
-			t.Fatalf("expected error %q, got %q", "", response.Error)
+		if response.Message != "" {
+			t.Fatalf("expected message %q, got %q", "", response.Message)
 		}
 
 		entries := logs.TakeAll()
@@ -213,8 +213,8 @@ func TestAccountsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusNotFound {
 			t.Fatalf("expected status %d, got %d", http.StatusNotFound, statusCode)
 		}
-		if response.Error != "Not Found" {
-			t.Fatalf("expected error %q, got %q", "Not Found", response.Error)
+		if response.Message != "not found" {
+			t.Fatalf("expected message %q, got %q", "not found", response.Message)
 		}
 	})
 
@@ -226,26 +226,26 @@ func TestAccountsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if response.Error != "" {
-			t.Fatalf("expected error %q, got %q", "", response.Error)
+		if response.Message != "" {
+			t.Fatalf("expected message %q, got %q", "", response.Message)
 		}
-		if response.Result.ID != 1 {
-			t.Fatalf("expected ID 1, got %d", response.Result.ID)
+		if response.Data.ID != 1 {
+			t.Fatalf("expected ID 1, got %d", response.Data.ID)
 		}
-		if response.Result.Email != "admin@notary.local" {
-			t.Fatalf("expected email admin@notary.local, got %s", response.Result.Email)
+		if response.Data.Email != "admin@notary.local" {
+			t.Fatalf("expected email admin@notary.local, got %s", response.Data.Email)
 		}
-		if response.Result.RoleID != int(tu.RoleAdmin) {
-			t.Fatalf("expected role ID %d, got %d", tu.RoleAdmin, response.Result.RoleID)
+		if response.Data.RoleID != int(tu.RoleAdmin) {
+			t.Fatalf("expected role ID %d, got %d", tu.RoleAdmin, response.Data.RoleID)
 		}
-		if !response.Result.HasPassword {
+		if !response.Data.HasPassword {
 			t.Fatal("expected admin to have password")
 		}
-		if response.Result.HasOIDC {
+		if response.Data.HasOIDC {
 			t.Fatal("expected admin to not have OIDC")
 		}
-		if len(response.Result.AuthMethods) != 1 || response.Result.AuthMethods[0] != "local" {
-			t.Fatalf("expected auth methods [local], got %v", response.Result.AuthMethods)
+		if len(response.Data.AuthMethods) != 1 || response.Data.AuthMethods[0] != "local" {
+			t.Fatalf("expected auth methods [local], got %v", response.Data.AuthMethods)
 		}
 	})
 }
@@ -267,42 +267,42 @@ func TestCreateAccountInvalidInputs(t *testing.T) {
 			email:    "",
 			password: "password",
 			roleID:   tu.RoleCertificateManager,
-			error:    "invalid request: email is required",
+			error:    "email is required",
 		},
 		{
 			testName: "Invalid email - Missing @ symbol",
 			email:    "invalid",
 			password: "password",
 			roleID:   tu.RoleCertificateManager,
-			error:    "invalid request: invalid email format",
+			error:    "invalid email format",
 		},
 		{
 			testName: "Invalid email - Missing local part",
 			email:    "@missinglocal.org",
 			password: "password",
 			roleID:   tu.RoleCertificateManager,
-			error:    "invalid request: invalid email format",
+			error:    "invalid email format",
 		},
 		{
 			testName: "Invalid email - Domain starts with a dot",
 			email:    "username@.com",
 			password: "password",
 			roleID:   tu.RoleCertificateManager,
-			error:    "invalid request: invalid email format",
+			error:    "invalid email format",
 		},
 		{
 			testName: "Invalid email - Double dot",
 			email:    "username@domain..com",
 			password: "password",
 			roleID:   tu.RoleCertificateManager,
-			error:    "invalid request: invalid email format",
+			error:    "invalid email format",
 		},
 		{
 			testName: "Invalid email - Ends with dot",
 			email:    "username@domain.com.",
 			password: "password",
 			roleID:   tu.RoleCertificateManager,
-			error:    "invalid request: invalid email format",
+			error:    "invalid email format",
 		},
 
 		{
@@ -310,28 +310,28 @@ func TestCreateAccountInvalidInputs(t *testing.T) {
 			email:    "test@canonical.com",
 			password: "",
 			roleID:   tu.RoleCertificateManager,
-			error:    "invalid request: password is required",
+			error:    "password is required",
 		},
 		{
 			testName: "bad password",
 			email:    "test@canonical.com",
 			password: "123",
 			roleID:   tu.RoleCertificateManager,
-			error:    "invalid request: password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol",
+			error:    "password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol",
 		},
 		{
 			testName: "invalid role ID (negative)",
 			email:    "test@canonical.com",
 			password: "Pizza123!",
 			roleID:   -1,
-			error:    "invalid request: invalid role ID: -1",
+			error:    "invalid role ID: -1",
 		},
 		{
 			testName: "invalid role ID (no matching role)",
 			email:    "test@canonical.com",
 			password: "Pizza123!",
 			roleID:   999,
-			error:    "invalid request: invalid role ID: 999",
+			error:    "invalid role ID: 999",
 		},
 	}
 
@@ -349,8 +349,8 @@ func TestCreateAccountInvalidInputs(t *testing.T) {
 			if statusCode != http.StatusBadRequest {
 				t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
 			}
-			if createCertResponse.Error != test.error {
-				t.Fatalf("expected error %s, got %s", test.error, createCertResponse.Error)
+			if createCertResponse.Message != test.error {
+				t.Fatalf("expected message %s, got %s", test.error, createCertResponse.Message)
 			}
 		})
 	}
@@ -369,12 +369,12 @@ func TestChangeAccountPasswordInvalidInputs(t *testing.T) {
 		{
 			testName: "No password",
 			password: "",
-			error:    "invalid request: password is required",
+			error:    "password is required",
 		},
 		{
 			testName: "bad password",
 			password: "123",
-			error:    "invalid request: password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol",
+			error:    "password must have 8 or more characters, must include at least one capital letter, one lowercase letter, and either a number or a symbol",
 		},
 	}
 
@@ -390,8 +390,8 @@ func TestChangeAccountPasswordInvalidInputs(t *testing.T) {
 			if statusCode != http.StatusBadRequest {
 				t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
 			}
-			if createCertResponse.Error != test.error {
-				t.Fatalf("expected error %s, got %s", test.error, createCertResponse.Error)
+			if createCertResponse.Message != test.error {
+				t.Fatalf("expected message %s, got %s", test.error, createCertResponse.Message)
 			}
 		})
 	}

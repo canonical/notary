@@ -112,18 +112,15 @@ func ListAccounts(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		accounts, err := env.Database.ListUsers()
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to list users", zap.Error(err))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 		accountsResponse := make([]GetAccountResponse, len(accounts))
 		for i, account := range accounts {
 			accountsResponse[i] = userToAccountResponse(&account)
 		}
-		err = writeResponse(w, accountsResponse, http.StatusOK)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
-			return
-		}
+		writeResponse(w, http.StatusOK, "", accountsResponse, env.SystemLogger)
 	}
 }
 
@@ -139,7 +136,8 @@ func GetAccount(env *HandlerDependencies) http.HandlerFunc {
 		if id == "me" {
 			claims, jwtErr := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 			if jwtErr != nil {
-				writeError(w, http.StatusUnauthorized, "Unauthorized", jwtErr, env.SystemLogger)
+				env.SystemLogger.Error("failed to get JWT claims from cookie", zap.Error(jwtErr))
+				writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 				return
 			}
 			account = &db.User{
@@ -149,25 +147,22 @@ func GetAccount(env *HandlerDependencies) http.HandlerFunc {
 			var idNum int64
 			idNum, err = strconv.ParseInt(id, 10, 64)
 			if err != nil {
-				writeError(w, http.StatusBadRequest, "Invalid ID", err, env.SystemLogger)
+				writeResponse(w, http.StatusBadRequest, "invalid ID", nil, env.SystemLogger)
 				return
 			}
 			account, err = env.Database.GetUser(db.ByUserID(idNum))
 		}
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
-				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
+				writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to get user", zap.Error(err))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 		accountResponse := userToAccountResponse(account)
-		err = writeResponse(w, accountResponse, http.StatusOK)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
-			return
-		}
+		writeResponse(w, http.StatusOK, "", accountResponse, env.SystemLogger)
 	}
 }
 
@@ -178,24 +173,22 @@ func GetMyAccount(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, jwtErr := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 		if jwtErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", jwtErr, env.SystemLogger)
+			env.SystemLogger.Error("failed to get JWT claims from cookie", zap.Error(jwtErr))
+			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 			return
 		}
 		account, err := env.Database.GetUser(db.ByEmail(claims.Email))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
-				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
+				writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to get current user", zap.Error(err))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 		accountResponse := userToAccountResponse(account)
-		err = writeResponse(w, accountResponse, http.StatusOK)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
-			return
-		}
+		writeResponse(w, http.StatusOK, "", accountResponse, env.SystemLogger)
 	}
 }
 
@@ -204,18 +197,19 @@ func CreateAccount(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var createAccountParams CreateAccountParams
 		if err := json.NewDecoder(r.Body).Decode(&createAccountParams); err != nil {
-			writeError(w, http.StatusBadRequest, "Invalid JSON format", err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, "invalid JSON format", nil, env.SystemLogger)
 			return
 		}
 		valid, err := createAccountParams.IsValid()
 		if !valid {
-			writeError(w, http.StatusBadRequest, fmt.Errorf("invalid request: %s", err).Error(), err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, err.Error(), nil, env.SystemLogger)
 			return
 		}
 		// Force admin role for the first user in the system
 		numUsers, err := env.Database.NumUsers()
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to check user count", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to check user count", zap.Error(err))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 		if numUsers == 0 {
@@ -226,10 +220,11 @@ func CreateAccount(env *HandlerDependencies) http.HandlerFunc {
 		newUserID, err := env.Database.CreateUser(createAccountParams.Email, createAccountParams.Password, db.RoleID(createAccountParams.RoleID))
 		if err != nil {
 			if errors.Is(err, db.ErrAlreadyExists) {
-				writeError(w, http.StatusBadRequest, "account with given email already exists", err, env.SystemLogger)
+				writeResponse(w, http.StatusBadRequest, "account with given email already exists", nil, env.SystemLogger)
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to create user", zap.Error(err))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 
@@ -253,12 +248,7 @@ func CreateAccount(env *HandlerDependencies) http.HandlerFunc {
 		}
 		env.AuditLogger.UserCreated(createAccountParams.Email, int(createAccountParams.RoleID), opts...)
 
-		successResponse := CreateSuccessResponse{Message: "success", ID: newUserID}
-		err = writeResponse(w, successResponse, http.StatusCreated)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
-			return
-		}
+		writeResponse(w, http.StatusCreated, "", map[string]int64{"id": newUserID}, env.SystemLogger)
 	}
 }
 
@@ -269,42 +259,45 @@ func DeleteAccount(env *HandlerDependencies) http.HandlerFunc {
 		id := r.PathValue("id")
 		idInt, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, "Invalid ID", err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, "invalid ID", nil, env.SystemLogger)
 			return
 		}
 		account, err := env.Database.GetUser(db.ByUserID(idInt))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
-				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
+				writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to get user for deletion", zap.Error(err))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 		numUsers, err := env.Database.NumUsers()
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to count users", zap.Error(err))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 		if numUsers <= 1 && env.AuthnRepository == nil {
-			err = errors.New("cannot delete the last user account when OIDC is not enabled")
-			writeError(w, http.StatusBadRequest, "cannot delete the last user account when OIDC is not enabled", err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, "cannot delete the last user account when OIDC is not enabled", nil, env.SystemLogger)
 			return
 		}
 
 		claims, err := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 		if err != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to get JWT claims from cookie", zap.Error(err))
+			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 			return
 		}
 
 		err = env.Database.DeleteUser(db.ByUserID(idInt))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
-				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
+				writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to delete user", zap.Error(err))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 
@@ -321,12 +314,7 @@ func DeleteAccount(env *HandlerDependencies) http.HandlerFunc {
 			log.WithRequest(r),
 		)
 
-		successResponse := SuccessResponse{Message: "success"}
-		err = writeResponse(w, successResponse, http.StatusAccepted)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
-			return
-		}
+		writeResponse(w, http.StatusAccepted, "", nil, env.SystemLogger)
 	}
 }
 
@@ -336,7 +324,7 @@ func ChangeAccountPassword(env *HandlerDependencies) http.HandlerFunc {
 		var idNum int64
 		idInt, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, "Invalid ID", err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, "invalid ID", nil, env.SystemLogger)
 			return
 		}
 		idNum = idInt
@@ -344,22 +332,24 @@ func ChangeAccountPassword(env *HandlerDependencies) http.HandlerFunc {
 		targetAccount, err := env.Database.GetUser(db.ByUserID(idNum))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
-				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
+				writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to get target user for password change", zap.Error(err))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 
 		claims, err := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 		if err != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to get JWT claims from cookie", zap.Error(err))
+			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 			return
 		}
 
 		var changeAccountParams ChangeAccountParams
 		if err := json.NewDecoder(r.Body).Decode(&changeAccountParams); err != nil {
-			writeError(w, http.StatusBadRequest, "Invalid JSON format", err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, "invalid JSON format", nil, env.SystemLogger)
 			return
 		}
 		valid, err := changeAccountParams.IsValid()
@@ -369,7 +359,7 @@ func ChangeAccountPassword(env *HandlerDependencies) http.HandlerFunc {
 				log.WithRequest(r),
 				log.WithReason(err.Error()),
 			)
-			writeError(w, http.StatusBadRequest, fmt.Errorf("invalid request: %s", err).Error(), err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, err.Error(), nil, env.SystemLogger)
 			return
 		}
 		err = env.Database.UpdateUserPassword(db.ByUserID(idNum), changeAccountParams.Password)
@@ -380,7 +370,7 @@ func ChangeAccountPassword(env *HandlerDependencies) http.HandlerFunc {
 					log.WithRequest(r),
 					log.WithReason("user not found"),
 				)
-				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
+				writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
 				return
 			}
 			env.AuditLogger.PasswordChangeFailed(targetAccount.Email,
@@ -388,7 +378,8 @@ func ChangeAccountPassword(env *HandlerDependencies) http.HandlerFunc {
 				log.WithRequest(r),
 				log.WithReason("database error"),
 			)
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to update user password", zap.Error(err))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 
@@ -401,12 +392,7 @@ func ChangeAccountPassword(env *HandlerDependencies) http.HandlerFunc {
 			log.WithRequest(r),
 		)
 
-		successResponse := SuccessResponse{Message: "success"}
-		err = writeResponse(w, successResponse, http.StatusCreated)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
-			return
-		}
+		writeResponse(w, http.StatusCreated, "", nil, env.SystemLogger)
 	}
 }
 
@@ -415,18 +401,20 @@ func ChangeMyPassword(env *HandlerDependencies) http.HandlerFunc {
 		var idNum int64
 		claims, err := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 		if err != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to get JWT claims from cookie", zap.Error(err))
+			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 			return
 		}
 		account, err := env.Database.GetUser(db.ByEmail(claims.Email))
 		if err != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to get current user for password change", zap.Error(err))
+			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 			return
 		}
 		idNum = account.ID
 		var changeAccountParams ChangeAccountParams
 		if err := json.NewDecoder(r.Body).Decode(&changeAccountParams); err != nil {
-			writeError(w, http.StatusBadRequest, "Invalid JSON format", err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, "invalid JSON format", nil, env.SystemLogger)
 			return
 		}
 		valid, err := changeAccountParams.IsValid()
@@ -435,7 +423,7 @@ func ChangeMyPassword(env *HandlerDependencies) http.HandlerFunc {
 				log.WithRequest(r),
 				log.WithReason(err.Error()),
 			)
-			writeError(w, http.StatusBadRequest, fmt.Errorf("invalid request: %s", err).Error(), err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, err.Error(), nil, env.SystemLogger)
 			return
 		}
 		err = env.Database.UpdateUserPassword(db.ByUserID(idNum), changeAccountParams.Password)
@@ -445,25 +433,21 @@ func ChangeMyPassword(env *HandlerDependencies) http.HandlerFunc {
 					log.WithRequest(r),
 					log.WithReason("user not found"),
 				)
-				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
+				writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
 				return
 			}
 			env.AuditLogger.PasswordChangeFailed(account.Email,
 				log.WithRequest(r),
 				log.WithReason("database error"),
 			)
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to update current user password", zap.Error(err))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 
 		env.AuditLogger.PasswordChanged(account.Email, log.WithRequest(r))
 		env.AuditLogger.UserUpdated(account.Email, "password_change", log.WithRequest(r))
 
-		successResponse := SuccessResponse{Message: "success"}
-		err = writeResponse(w, successResponse, http.StatusCreated)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
-			return
-		}
+		writeResponse(w, http.StatusCreated, "", nil, env.SystemLogger)
 	}
 }

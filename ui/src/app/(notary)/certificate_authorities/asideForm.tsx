@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { postCA } from "@/queries";
+import { getErrorMessage } from "@/types";
 import {
   ChangeEvent,
   useState,
@@ -13,6 +14,7 @@ import {
   Panel,
   Form,
   Notification,
+  Col,
 } from "@canonical/react-components";
 import {
   validationResult,
@@ -67,7 +69,7 @@ export default function CertificateAuthoritiesAsidePanel({
       void queryClient.invalidateQueries({ queryKey: ["cas"] });
     },
     onError: (e: Error) => {
-      setFormError(e.message);
+      setFormError(getErrorMessage(e));
     },
   });
 
@@ -258,32 +260,34 @@ export default function CertificateAuthoritiesAsidePanel({
             <div className="p-form__group row">
               {formError && (
                 <Notification severity="negative" title="Error">
-                  {formError.split("error: ")}
+                  {formError}
                 </Notification>
               )}
-              {mutation.isPending ? (
-                <Button
-                  appearance="positive"
-                  name="submit"
-                  disabled={true}
-                  hasIcon
-                >
-                  <i className="p-icon--spinner u-animation--spin"></i>
-                </Button>
-              ) : (
-                <Button
-                  appearance="positive"
-                  name="submit"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleSubmit();
-                  }}
-                >
-                  {isSelfSigned === true
-                    ? "Create Self Signed CA Certificate"
-                    : "Create Intermediate CA CSR"}
-                </Button>
-              )}
+              <Col size={12}>
+                {mutation.isPending ? (
+                  <Button
+                    appearance="positive"
+                    name="submit"
+                    disabled={true}
+                    hasIcon
+                  >
+                    <i className="p-icon--spinner u-animation--spin"></i>
+                  </Button>
+                ) : (
+                  <Button
+                    appearance="positive"
+                    name="submit"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleSubmit();
+                    }}
+                  >
+                    {isSelfSigned === true
+                      ? "Create Self Signed CA Certificate"
+                      : "Create Intermediate CA CSR"}
+                  </Button>
+                )}
+              </Col>
             </div>
           </>
         )}

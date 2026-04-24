@@ -18,8 +18,8 @@ type GetConfigContentResponse struct {
 }
 
 type GetConfigResponse struct {
-	Result GetConfigContentResponse `json:"result"`
-	Error  string                   `json:"error,omitempty"`
+	Message string                   `json:"message,omitempty"`
+	Data    GetConfigContentResponse `json:"data"`
 }
 
 func getConfig(url string, client *http.Client, token string) (int, *GetConfigResponse, error) {
@@ -64,8 +64,8 @@ func TestConfigEndToEnd(t *testing.T) {
 		if statusCode != http.StatusUnauthorized {
 			t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, statusCode)
 		}
-		if response.Error == "" {
-			t.Fatalf("expected Unauthorized error when calling the config endpoint without authentication")
+		if response.Message == "" {
+			t.Fatalf("expected unauthorized message when calling the config endpoint without authentication")
 		}
 	})
 
@@ -78,21 +78,21 @@ func TestConfigEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if response.Error != "" {
-			t.Fatalf("expected no error, got %q", response.Error)
+		if response.Message != "" {
+			t.Fatalf("expected no message, got %q", response.Message)
 		}
 
-		if response.Result.Port == 0 {
-			t.Fatalf("expected port to be set, got %d", response.Result.Port)
+		if response.Data.Port == 0 {
+			t.Fatalf("expected port to be set, got %d", response.Data.Port)
 		}
-		if response.Result.LoggingLevel == "" {
-			t.Fatalf("expected logging level to be set, got %q", response.Result.LoggingLevel)
+		if response.Data.LoggingLevel == "" {
+			t.Fatalf("expected logging level to be set, got %q", response.Data.LoggingLevel)
 		}
-		if response.Result.LoggingOutput == "" {
-			t.Fatalf("expected logging output to be set, got %q", response.Result.LoggingOutput)
+		if response.Data.LoggingOutput == "" {
+			t.Fatalf("expected logging output to be set, got %q", response.Data.LoggingOutput)
 		}
-		if response.Result.EncryptionBackendType == "" {
-			t.Fatalf("expected encryption backend type to be set, got %q", response.Result.EncryptionBackendType)
+		if response.Data.EncryptionBackendType == "" {
+			t.Fatalf("expected encryption backend type to be set, got %q", response.Data.EncryptionBackendType)
 		}
 
 		entries := logs.TakeAll()
@@ -119,8 +119,8 @@ func TestConfigEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if response.Error != "" {
-			t.Fatalf("expected no error, got %q", response.Error)
+		if response.Message != "" {
+			t.Fatalf("expected no message, got %q", response.Message)
 		}
 	})
 }

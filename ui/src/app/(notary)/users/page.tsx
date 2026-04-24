@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { ListUsers } from "@/queries";
-import { AsideFormData, UserEntry } from "@/types";
+import { AsideFormData, UserEntry, getErrorMessage } from "@/types";
 import { UsersTable } from "./table";
 import Loading from "@/components/loading";
 import Error from "@/components/error";
@@ -29,7 +29,7 @@ export default function Users() {
     return <Loading />;
   }
   if (query.status == "error") {
-    return <Error msg={query.error.message} />;
+    return <Error msg={getErrorMessage(query.error)} />;
   }
   const users = Array.from(query.data ? query.data : []);
   return (

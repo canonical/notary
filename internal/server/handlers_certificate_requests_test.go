@@ -24,11 +24,11 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if listCertRequestsResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", listCertRequestsResponse.Error)
+		if listCertRequestsResponse.Message != "" {
+			t.Fatalf("expected no message, got %s", listCertRequestsResponse.Message)
 		}
-		if len(listCertRequestsResponse.Result) != 0 {
-			t.Fatalf("expected no certificate requests, got %d", len(listCertRequestsResponse.Result))
+		if len(listCertRequestsResponse.Data) != 0 {
+			t.Fatalf("expected no certificate requests, got %d", len(listCertRequestsResponse.Data))
 		}
 	})
 
@@ -45,8 +45,8 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusCreated {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		if createCertResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", createCertResponse.Error)
+		if createCertResponse.Message != "" {
+			t.Fatalf("expected no message, got %s", createCertResponse.Message)
 		}
 		entries := logs.TakeAll()
 		var haveRequested bool
@@ -72,17 +72,17 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if listCertRequestsResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", listCertRequestsResponse.Error)
+		if listCertRequestsResponse.Message != "" {
+			t.Fatalf("expected no message, got %s", listCertRequestsResponse.Message)
 		}
-		if len(listCertRequestsResponse.Result) != 1 {
-			t.Fatalf("expected 1 certificate request, got %d", len(listCertRequestsResponse.Result))
+		if len(listCertRequestsResponse.Data) != 1 {
+			t.Fatalf("expected 1 certificate request, got %d", len(listCertRequestsResponse.Data))
 		}
-		if listCertRequestsResponse.Result[0].CertificateChain != "" {
-			t.Fatalf("expected empty string for certificate chain, got %s", listCertRequestsResponse.Result[0].CertificateChain)
+		if listCertRequestsResponse.Data[0].CertificateChain != "" {
+			t.Fatalf("expected empty string for certificate chain, got %s", listCertRequestsResponse.Data[0].CertificateChain)
 		}
-		if listCertRequestsResponse.Result[0].Email != "testadmin@canonical.com" {
-			t.Fatalf("expected email 'testadmin', got %s", listCertRequestsResponse.Result[0].Email)
+		if listCertRequestsResponse.Data[0].Email != "testadmin@canonical.com" {
+			t.Fatalf("expected email 'testadmin', got %s", listCertRequestsResponse.Data[0].Email)
 		}
 	})
 
@@ -94,20 +94,20 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if getCertRequestResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", getCertRequestResponse.Error)
+		if getCertRequestResponse.Message != "" {
+			t.Fatalf("expected no message, got %s", getCertRequestResponse.Message)
 		}
-		if getCertRequestResponse.Result.ID != 1 {
-			t.Fatalf("expected ID 1, got %d", getCertRequestResponse.Result.ID)
+		if getCertRequestResponse.Data.ID != 1 {
+			t.Fatalf("expected ID 1, got %d", getCertRequestResponse.Data.ID)
 		}
-		if getCertRequestResponse.Result.CSR == "" {
+		if getCertRequestResponse.Data.CSR == "" {
 			t.Fatalf("expected CSR, got empty string")
 		}
-		if getCertRequestResponse.Result.CertificateChain != "" {
-			t.Fatalf("expected no certificate, got %s", getCertRequestResponse.Result.CertificateChain)
+		if getCertRequestResponse.Data.CertificateChain != "" {
+			t.Fatalf("expected no certificate, got %s", getCertRequestResponse.Data.CertificateChain)
 		}
-		if getCertRequestResponse.Result.Email != "testadmin@canonical.com" {
-			t.Fatalf("expected email 'testadmin', got %s", getCertRequestResponse.Result.Email)
+		if getCertRequestResponse.Data.Email != "testadmin@canonical.com" {
+			t.Fatalf("expected email 'testadmin', got %s", getCertRequestResponse.Data.Email)
 		}
 	})
 
@@ -122,8 +122,8 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusBadRequest {
 			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
 		}
-		if createCertResponse.Error != "given csr already recorded" {
-			t.Fatalf("expected error, got %s", createCertResponse.Error)
+		if createCertResponse.Message != "given csr already recorded" {
+			t.Fatalf("expected message, got %s", createCertResponse.Message)
 		}
 	})
 
@@ -135,11 +135,11 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if listCertRequestsResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", listCertRequestsResponse.Error)
+		if listCertRequestsResponse.Message != "" {
+			t.Fatalf("expected no message, got %s", listCertRequestsResponse.Message)
 		}
-		if len(listCertRequestsResponse.Result) != 1 {
-			t.Fatalf("expected 2 certificate requests, got %d", len(listCertRequestsResponse.Result))
+		if len(listCertRequestsResponse.Data) != 1 {
+			t.Fatalf("expected 2 certificate requests, got %d", len(listCertRequestsResponse.Data))
 		}
 	})
 
@@ -154,8 +154,8 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusCreated {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		if createCertResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", createCertResponse.Error)
+		if createCertResponse.Message != "" {
+			t.Fatalf("expected no message, got %s", createCertResponse.Message)
 		}
 	})
 
@@ -167,11 +167,11 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if listCertRequestsResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", listCertRequestsResponse.Error)
+		if listCertRequestsResponse.Message != "" {
+			t.Fatalf("expected no message, got %s", listCertRequestsResponse.Message)
 		}
-		if len(listCertRequestsResponse.Result) != 2 {
-			t.Fatalf("expected 2 certificate requests, got %d", len(listCertRequestsResponse.Result))
+		if len(listCertRequestsResponse.Data) != 2 {
+			t.Fatalf("expected 2 certificate requests, got %d", len(listCertRequestsResponse.Data))
 		}
 	})
 
@@ -183,20 +183,20 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if getCertRequestResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", getCertRequestResponse.Error)
+		if getCertRequestResponse.Message != "" {
+			t.Fatalf("expected no message, got %s", getCertRequestResponse.Message)
 		}
-		if getCertRequestResponse.Result.ID != 2 {
-			t.Fatalf("expected ID 2, got %d", getCertRequestResponse.Result.ID)
+		if getCertRequestResponse.Data.ID != 2 {
+			t.Fatalf("expected ID 2, got %d", getCertRequestResponse.Data.ID)
 		}
-		if getCertRequestResponse.Result.CSR == "" {
+		if getCertRequestResponse.Data.CSR == "" {
 			t.Fatalf("expected CSR, got empty string")
 		}
-		if getCertRequestResponse.Result.CertificateChain != "" {
-			t.Fatalf("expected no certificate, got %s", getCertRequestResponse.Result.CertificateChain)
+		if getCertRequestResponse.Data.CertificateChain != "" {
+			t.Fatalf("expected no certificate, got %s", getCertRequestResponse.Data.CertificateChain)
 		}
-		if getCertRequestResponse.Result.Email != "testadmin@canonical.com" {
-			t.Fatalf("expected email 'testadmin', got %s", getCertRequestResponse.Result.Email)
+		if getCertRequestResponse.Data.Email != "testadmin@canonical.com" {
+			t.Fatalf("expected email 'testadmin', got %s", getCertRequestResponse.Data.Email)
 		}
 	})
 
@@ -233,11 +233,11 @@ func TestCertificateRequestsEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if listCertRequestsResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", listCertRequestsResponse.Error)
+		if listCertRequestsResponse.Message != "" {
+			t.Fatalf("expected no message, got %s", listCertRequestsResponse.Message)
 		}
-		if len(listCertRequestsResponse.Result) != 1 {
-			t.Fatalf("expected 1 certificate request, got %d", len(listCertRequestsResponse.Result))
+		if len(listCertRequestsResponse.Data) != 1 {
+			t.Fatalf("expected 1 certificate request, got %d", len(listCertRequestsResponse.Data))
 		}
 	})
 
@@ -325,12 +325,12 @@ func TestListCertificateRequestsRequestorRole(t *testing.T) {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 	}
 
-	if listCertRequestsResponse.Error != "" {
-		t.Fatalf("expected no error, got %s", listCertRequestsResponse.Error)
+	if listCertRequestsResponse.Message != "" {
+		t.Fatalf("expected no message, got %s", listCertRequestsResponse.Message)
 	}
 
-	if len(listCertRequestsResponse.Result) != 2 {
-		t.Fatalf("expected 2 certificate requests, got %d", len(listCertRequestsResponse.Result))
+	if len(listCertRequestsResponse.Data) != 2 {
+		t.Fatalf("expected 2 certificate requests, got %d", len(listCertRequestsResponse.Data))
 	}
 }
 
@@ -353,8 +353,8 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		if statusCode != http.StatusCreated {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		if createCertResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", createCertResponse.Error)
+		if createCertResponse.Message != "" {
+			t.Fatalf("expected no message, got %s", createCertResponse.Message)
 		}
 	})
 
@@ -370,8 +370,8 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		if statusCode != http.StatusCreated {
 			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
 		}
-		if createCertResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", createCertResponse.Error)
+		if createCertResponse.Message != "" {
+			t.Fatalf("expected no message, got %s", createCertResponse.Message)
 		}
 		entries := logs.TakeAll()
 		var haveIssued bool
@@ -397,10 +397,10 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if getCertResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", getCertResponse.Error)
+		if getCertResponse.Message != "" {
+			t.Fatalf("expected no message, got %s", getCertResponse.Message)
 		}
-		if getCertResponse.Result.CertificateChain == "" {
+		if getCertResponse.Data.CertificateChain == "" {
 			t.Fatalf("expected certificate, got empty string")
 		}
 	})
@@ -438,11 +438,11 @@ func TestCertificatesEndToEnd(t *testing.T) {
 		if statusCode != http.StatusOK {
 			t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 		}
-		if getCertResponse.Error != "" {
-			t.Fatalf("expected no error, got %s", getCertResponse.Error)
+		if getCertResponse.Message != "" {
+			t.Fatalf("expected no message, got %s", getCertResponse.Message)
 		}
-		if getCertResponse.Result.Status != "Rejected" {
-			t.Fatalf("expected `Rejected` status, got %s", getCertResponse.Result.Status)
+		if getCertResponse.Data.Status != "Rejected" {
+			t.Fatalf("expected `Rejected` status, got %s", getCertResponse.Data.Status)
 		}
 	})
 
@@ -481,8 +481,8 @@ func TestCertificatesEndToEnd(t *testing.T) {
 			t.Fatalf("expected status %d, got %d", http.StatusNotFound, statusCode)
 		}
 
-		if getCertResponse.Error != "Not Found" {
-			t.Fatalf("expected error `Not Found`, got %s", getCertResponse.Error)
+		if getCertResponse.Message != "not found" {
+			t.Fatalf("expected message `not found`, got %s", getCertResponse.Message)
 		}
 	})
 }
@@ -535,8 +535,8 @@ MIIBVwIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAuQ==
 			if statusCode != http.StatusBadRequest {
 				t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
 			}
-			if createCertResponse.Error != test.error {
-				t.Fatalf("expected error %s, got %s", test.error, createCertResponse.Error)
+			if createCertResponse.Message != test.error {
+				t.Fatalf("expected message %s, got %s", test.error, createCertResponse.Message)
 			}
 		})
 	}
@@ -590,8 +590,8 @@ MIICfjCCAeegAwIBAgIBADANBgkqhkiG9w0BAQ0FADBcMQswCQYDVQQGEwJjYTEL
 			if statusCode != http.StatusBadRequest {
 				t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
 			}
-			if createCertResponse.Error != test.error {
-				t.Fatalf("expected error %s, got %s", test.error, createCertResponse.Error)
+			if createCertResponse.Message != test.error {
+				t.Fatalf("expected message %s, got %s", test.error, createCertResponse.Message)
 			}
 		})
 	}

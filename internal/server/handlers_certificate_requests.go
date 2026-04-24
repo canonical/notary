@@ -73,7 +73,8 @@ func ListCertificateRequests(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, cookieErr := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 		if cookieErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.SystemLogger)
+			env.SystemLogger.Warn("failed to get JWT claims from cookie", zap.Error(cookieErr))
+			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 			return
 		}
 
@@ -87,7 +88,8 @@ func ListCertificateRequests(env *HandlerDependencies) http.HandlerFunc {
 
 		csrs, err = env.Database.ListCertificateRequestWithCertificatesWithoutCAS(filter)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to list certificate requests", zap.Error(err))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 
@@ -101,7 +103,8 @@ func ListCertificateRequests(env *HandlerDependencies) http.HandlerFunc {
 					// Here, we're purposefully hiding the email of an account that's deleted even though we have the information
 					email = "unknown"
 				} else {
-					writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+					env.SystemLogger.Error("failed to get user for certificate request", zap.Error(err), zap.String("user_email", csr.UserEmail))
+					writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 					return
 				}
 			} else {
@@ -115,11 +118,7 @@ func ListCertificateRequests(env *HandlerDependencies) http.HandlerFunc {
 				Email:            email,
 			}
 		}
-		err = writeResponse(w, certificateRequestsResponse, http.StatusOK)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
-			return
-		}
+		writeResponse(w, http.StatusOK, "", certificateRequestsResponse, env.SystemLogger)
 	}
 }
 
@@ -128,31 +127,33 @@ func CreateCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var createCertificateRequestParams CreateCertificateRequestParams
 		if err := json.NewDecoder(r.Body).Decode(&createCertificateRequestParams); err != nil {
-			writeError(w, http.StatusBadRequest, "Invalid JSON format", err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, "invalid JSON format", nil, env.SystemLogger)
 			return
 		}
 		valid, err := createCertificateRequestParams.IsValid()
 		if !valid {
-			writeError(w, http.StatusBadRequest, fmt.Errorf("invalid request: %s", err).Error(), err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, fmt.Sprintf("invalid request: %s", err), nil, env.SystemLogger)
 			return
 		}
 		claims, cookieErr := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 		if cookieErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.SystemLogger)
+			env.SystemLogger.Warn("failed to get JWT claims from cookie", zap.Error(cookieErr))
+			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 			return
 		}
 
 		newCSRID, err := env.Database.CreateCertificateRequest(createCertificateRequestParams.CSR, claims.Email)
 		if err != nil {
 			if errors.Is(err, db.ErrAlreadyExists) {
-				writeError(w, http.StatusBadRequest, "given csr already recorded", err, env.SystemLogger)
+				writeResponse(w, http.StatusBadRequest, "given csr already recorded", nil, env.SystemLogger)
 				return
 			}
 			if errors.Is(err, db.ErrInvalidCertificateRequest) {
-				writeError(w, http.StatusBadRequest, "csr validation failed", err, env.SystemLogger)
+				writeResponse(w, http.StatusBadRequest, "csr validation failed", nil, env.SystemLogger)
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to create certificate request", zap.Error(err))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 
@@ -161,12 +162,7 @@ func CreateCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 			log.WithRequest(r),
 		)
 
-		successResponse := CreateSuccessResponse{Message: "success", ID: newCSRID}
-		err = writeResponse(w, successResponse, http.StatusCreated)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
-			return
-		}
+		writeResponse(w, http.StatusCreated, "", map[string]int64{"id": newCSRID}, env.SystemLogger)
 	}
 }
 
@@ -176,40 +172,44 @@ func GetCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, headerErr := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 		if headerErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", headerErr, env.SystemLogger)
+			env.SystemLogger.Warn("failed to get JWT claims from cookie", zap.Error(headerErr))
+			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 			return
 		}
 
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, "Invalid ID", err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, "invalid ID", nil, env.SystemLogger)
 			return
 		}
 
 		csr, err := env.Database.GetCertificateRequestAndChain(db.ByCSRID(idNum))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
-				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
+				writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to get certificate request", zap.Error(err), zap.Int64("csr_id", idNum))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 
 		// Restrict access to certificate requestors' own requests
 		if RoleID(claims.RoleID) == RoleCertificateRequestor && claims.Email != csr.UserEmail {
-			writeError(w, http.StatusForbidden, "Access denied", fmt.Errorf("user does not have permission to access this certificate request"), env.SystemLogger)
+			env.SystemLogger.Warn("certificate request access denied", zap.String("requester_email", claims.Email), zap.String("owner_email", csr.UserEmail), zap.Int64("csr_id", idNum))
+			writeResponse(w, http.StatusForbidden, "access denied", nil, env.SystemLogger)
 			return
 		}
 
 		_, err = env.Database.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(csr.CSR_ID))
 		if rowFound(err) {
-			writeError(w, http.StatusNotFound, "Not Found", fmt.Errorf("not found"), env.SystemLogger)
+			writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
 			return
 		}
 		if realError(err) {
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to check whether certificate request belongs to a certificate authority", zap.Error(err), zap.Int64("csr_id", csr.CSR_ID))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 
@@ -221,7 +221,8 @@ func GetCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 				// Here, we're purposefully hiding the email of an account that's deleted even though we have the information
 				email = "unknown"
 			} else {
-				writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+				env.SystemLogger.Error("failed to get user for certificate request", zap.Error(err), zap.String("user_email", csr.UserEmail))
+				writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 				return
 			}
 		} else {
@@ -236,11 +237,7 @@ func GetCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 			Email:            email,
 		}
 
-		err = writeResponse(w, certificateRequestResponse, http.StatusOK)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
-			return
-		}
+		writeResponse(w, http.StatusOK, "", certificateRequestResponse, env.SystemLogger)
 	}
 }
 
@@ -251,32 +248,35 @@ func DeleteCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, "invalid ID", nil, env.SystemLogger)
 			return
 		}
 
 		claims, cookieErr := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 		if cookieErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.SystemLogger)
+			env.SystemLogger.Warn("failed to get JWT claims from cookie", zap.Error(cookieErr))
+			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 			return
 		}
 
 		_, err = env.Database.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
 		if rowFound(err) {
-			writeError(w, http.StatusNotFound, "Not Found", fmt.Errorf("not found"), env.SystemLogger)
+			writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
 			return
 		}
 		if realError(err) {
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to check whether certificate request belongs to a certificate authority", zap.Error(err), zap.Int64("csr_id", idNum))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 		err = env.Database.DeleteCertificateRequest(db.ByCSRID(idNum))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
-				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
+				writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to delete certificate request", zap.Error(err), zap.Int64("csr_id", idNum))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 
@@ -285,12 +285,7 @@ func DeleteCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 			log.WithRequest(r),
 		)
 
-		successResponse := SuccessResponse{Message: "success"}
-		err = writeResponse(w, successResponse, http.StatusAccepted)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
-			return
-		}
+		writeResponse(w, http.StatusAccepted, "", nil, env.SystemLogger)
 	}
 }
 
@@ -300,44 +295,47 @@ func PostCertificateRequestCertificate(env *HandlerDependencies) http.HandlerFun
 	return func(w http.ResponseWriter, r *http.Request) {
 		var createCertificateParams CreateCertificateParams
 		if err := json.NewDecoder(r.Body).Decode(&createCertificateParams); err != nil {
-			writeError(w, http.StatusBadRequest, "Invalid JSON format", err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, "invalid JSON format", nil, env.SystemLogger)
 			return
 		}
 		valid, err := createCertificateParams.IsValid()
 		if !valid {
-			writeError(w, http.StatusBadRequest, fmt.Errorf("invalid request: %s", err).Error(), err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, fmt.Sprintf("invalid request: %s", err), nil, env.SystemLogger)
 			return
 		}
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, "Invalid ID", err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, "invalid ID", nil, env.SystemLogger)
 			return
 		}
 
 		claims, cookieErr := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 		if cookieErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.SystemLogger)
+			env.SystemLogger.Warn("failed to get JWT claims from cookie", zap.Error(cookieErr))
+			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 			return
 		}
 
 		_, err = env.Database.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
 		if rowFound(err) {
-			writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
+			writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
 			return
 		}
 		if realError(err) {
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to check whether certificate request belongs to a certificate authority", zap.Error(err), zap.Int64("csr_id", idNum))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 		newCertID, err := env.Database.AddCertificateChainToCertificateRequest(db.ByCSRID(idNum), createCertificateParams.CertificateChain)
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) ||
 				errors.Is(err, db.ErrInvalidCertificate) {
-				writeError(w, http.StatusBadRequest, "Bad Request", err, env.SystemLogger)
+				writeResponse(w, http.StatusBadRequest, "bad request", nil, env.SystemLogger)
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to add certificate chain to certificate request", zap.Error(err), zap.Int64("csr_id", idNum))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 
@@ -352,12 +350,7 @@ func PostCertificateRequestCertificate(env *HandlerDependencies) http.HandlerFun
 				env.SystemLogger.Warn("pebble notify failed", zap.Error(err))
 			}
 		}
-		successResponse := CreateSuccessResponse{Message: "success", ID: newCertID}
-		err = writeResponse(w, successResponse, http.StatusCreated)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
-			return
-		}
+		writeResponse(w, http.StatusCreated, "", map[string]int64{"id": newCertID}, env.SystemLogger)
 	}
 }
 
@@ -368,33 +361,35 @@ func RejectCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, "Invalid ID", err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, "invalid ID", nil, env.SystemLogger)
 			return
 		}
 
 		claims, cookieErr := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 		if cookieErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.SystemLogger)
+			env.SystemLogger.Warn("failed to get JWT claims from cookie", zap.Error(cookieErr))
+			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 			return
 		}
 
 		_, err = env.Database.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
 		if rowFound(err) {
-			err = fmt.Errorf("certificate request %d not found", idNum)
-			writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
+			writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
 			return
 		}
 		if realError(err) {
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to check whether certificate request belongs to a certificate authority", zap.Error(err), zap.Int64("csr_id", idNum))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 		err = env.Database.RejectCertificateRequest(db.ByCSRID(idNum))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
-				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
+				writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to reject certificate request", zap.Error(err), zap.Int64("csr_id", idNum))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 
@@ -410,12 +405,7 @@ func RejectCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 				env.SystemLogger.Warn("pebble notify failed", zap.Error(err))
 			}
 		}
-		successResponse := SuccessResponse{Message: "success"}
-		err = writeResponse(w, successResponse, http.StatusAccepted)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
-			return
-		}
+		writeResponse(w, http.StatusAccepted, "", nil, env.SystemLogger)
 	}
 }
 
@@ -426,32 +416,35 @@ func DeleteCertificate(env *HandlerDependencies) http.HandlerFunc {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, "Invalid ID", err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, "invalid ID", nil, env.SystemLogger)
 			return
 		}
 
 		claims, cookieErr := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 		if cookieErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.SystemLogger)
+			env.SystemLogger.Warn("failed to get JWT claims from cookie", zap.Error(cookieErr))
+			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 			return
 		}
 
 		_, err = env.Database.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
 		if rowFound(err) {
-			writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
+			writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
 			return
 		}
 		if realError(err) {
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to check whether certificate request belongs to a certificate authority", zap.Error(err), zap.Int64("csr_id", idNum))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 		err = env.Database.DeleteCertificateRequest(db.ByCSRID(idNum))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
-				writeError(w, http.StatusBadRequest, "Bad Request", err, env.SystemLogger)
+				writeResponse(w, http.StatusBadRequest, "bad request", nil, env.SystemLogger)
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to delete certificate", zap.Error(err), zap.Int64("csr_id", idNum))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 
@@ -466,12 +459,7 @@ func DeleteCertificate(env *HandlerDependencies) http.HandlerFunc {
 				env.SystemLogger.Warn("pebble notify failed", zap.Error(err))
 			}
 		}
-		successResponse := SuccessResponse{Message: "success"}
-		err = writeResponse(w, successResponse, http.StatusOK)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
-			return
-		}
+		writeResponse(w, http.StatusOK, "", nil, env.SystemLogger)
 	}
 }
 
@@ -483,32 +471,35 @@ func RevokeCertificate(env *HandlerDependencies) http.HandlerFunc {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, "Invalid ID", err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, "invalid ID", nil, env.SystemLogger)
 			return
 		}
 
 		claims, cookieErr := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 		if cookieErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.SystemLogger)
+			env.SystemLogger.Warn("failed to get JWT claims from cookie", zap.Error(cookieErr))
+			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 			return
 		}
 
 		_, err = env.Database.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
 		if rowFound(err) {
-			writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
+			writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
 			return
 		}
 		if realError(err) {
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to check whether certificate request belongs to a certificate authority", zap.Error(err), zap.Int64("csr_id", idNum))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 		err = env.Database.RevokeCertificate(db.ByCSRID(idNum))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
-				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
+				writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to revoke certificate", zap.Error(err), zap.Int64("csr_id", idNum))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 
@@ -523,12 +514,7 @@ func RevokeCertificate(env *HandlerDependencies) http.HandlerFunc {
 				env.SystemLogger.Warn("pebble notify failed", zap.Error(err))
 			}
 		}
-		successResponse := SuccessResponse{Message: "success"}
-		err = writeResponse(w, successResponse, http.StatusAccepted)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
-			return
-		}
+		writeResponse(w, http.StatusAccepted, "", nil, env.SystemLogger)
 	}
 }
 
@@ -540,43 +526,45 @@ func SignCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, "invalid ID", nil, env.SystemLogger)
 			return
 		}
 		var signCertificateRequestParams SignCertificateRequestParams
 		if err := json.NewDecoder(r.Body).Decode(&signCertificateRequestParams); err != nil {
-			writeError(w, http.StatusBadRequest, "Invalid JSON format", err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, "invalid JSON format", nil, env.SystemLogger)
 			return
 		}
 
 		claims, cookieErr := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 		if cookieErr != nil {
-			writeError(w, http.StatusUnauthorized, "Unauthorized", cookieErr, env.SystemLogger)
+			env.SystemLogger.Warn("failed to get JWT claims from cookie", zap.Error(cookieErr))
+			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 			return
 		}
 
 		_, err = env.Database.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(idNum))
 		if rowFound(err) {
-			err = fmt.Errorf("certificate authority %d not found", idNum)
-			writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
+			writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
 			return
 		}
 		if realError(err) {
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to check whether certificate request belongs to a certificate authority", zap.Error(err), zap.Int64("csr_id", idNum))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 		caIDInt, err := strconv.ParseInt(signCertificateRequestParams.CertificateAuthorityID, 10, 64)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, "invalid certificate authority ID", nil, env.SystemLogger)
 			return
 		}
 		err = env.Database.SignCertificateRequest(db.ByCSRID(idNum), db.ByCertificateAuthorityDenormalizedID(caIDInt), env.ExternalHostname)
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
-				writeError(w, http.StatusNotFound, "Not Found", err, env.SystemLogger)
+				writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
 				return
 			}
-			writeError(w, http.StatusInternalServerError, "Internal Error", err, env.SystemLogger)
+			env.SystemLogger.Error("failed to sign certificate request", zap.Error(err), zap.Int64("csr_id", idNum), zap.Int64("certificate_authority_id", caIDInt))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 
@@ -591,12 +579,7 @@ func SignCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 				env.SystemLogger.Warn("pebble notify failed", zap.Error(err))
 			}
 		}
-		successResponse := SuccessResponse{Message: "success"}
-		err = writeResponse(w, successResponse, http.StatusAccepted)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "internal error", err, env.SystemLogger)
-			return
-		}
+		writeResponse(w, http.StatusAccepted, "", nil, env.SystemLogger)
 	}
 }
 

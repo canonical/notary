@@ -89,7 +89,14 @@ export default function CertificateAuthoritiesAsidePanel({
   };
 
   return (
-    <Panel title="Add a New Certificate Authority">
+    <Panel
+      title="Add a New Certificate Authority"
+      controls={
+        <Button onClick={() => setAsideOpen(false)} hasIcon>
+          <i className="p-icon--close" />
+        </Button>
+      }
+    >
       <Form stacked>
         {isSelfSigned === null && (
           <div className="p-form__group row">

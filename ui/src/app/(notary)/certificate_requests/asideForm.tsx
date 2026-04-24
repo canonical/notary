@@ -78,7 +78,14 @@ export default function CertificateRequestsAsidePanel({
   };
 
   return (
-    <Panel title="Add a New Certificate Request">
+    <Panel
+      title="Add a New Certificate Request"
+      controls={
+        <Button onClick={() => setAsideOpen(false)} hasIcon>
+          <i className="p-icon--close" />
+        </Button>
+      }
+    >
       <Form stacked={true}>
         <div className="p-form__group row">
           <Textarea

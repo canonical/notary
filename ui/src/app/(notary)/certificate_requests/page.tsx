@@ -8,12 +8,11 @@ import Loading from "@/components/loading";
 import Error from "@/components/error";
 import { useState } from "react";
 import {
-  AppAside,
   Application,
   AppMain,
   ToastNotificationProvider,
 } from "@canonical/react-components";
-import CertificateRequestsAsidePanel from "./asideForm";
+import CertificateRequestsAside from "./aside";
 import NotaryAppNavigationBars from "@/components/NotaryAppNavigationBars";
 import NotaryAppStatus from "@/components/NotaryAppStatus";
 
@@ -35,9 +34,10 @@ export default function CertificateRequestsPanel() {
     <Application>
       <ToastNotificationProvider>
         <NotaryAppNavigationBars />
-        <AppAside collapsed={!asideOpen}>
-          <CertificateRequestsAsidePanel setAsideOpen={setAsideOpen} />
-        </AppAside>
+        <CertificateRequestsAside
+          asideIsOpen={asideOpen}
+          setAsideIsOpen={setAsideOpen}
+        />
         <AppMain>
           <CertificateRequestsTable csrs={csrs} setAsideOpen={setAsideOpen} />
         </AppMain>

@@ -82,10 +82,24 @@ export default function CertificateAuthoritiesAsidePanel({
   );
   const [formError, setFormError] = useState<string>("");
 
+  const resetForm = () => {
+    setStage("type");
+    setIsSelfSigned(null);
+    setCommonName("");
+    setOrganizationName("");
+    setOrganizationalUnit("");
+    setCountryName("");
+    setStateOrProvinceName("");
+    setLocalityName("");
+    setNotValidAfter("");
+    setValidation(initialValidationState());
+    setFormError("");
+  };
+
   const mutation = useMutation({
     mutationFn: postCA,
     onSuccess: () => {
-      setFormError("");
+      resetForm();
       setAsideOpen(false);
       void queryClient.invalidateQueries({ queryKey: ["cas"] });
       toastNotify.success(

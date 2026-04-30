@@ -106,6 +106,9 @@ export function CertificateRequestsTable({
       queryKey: "csrs",
       warningText: `Signing a Certificate Request means the CSR will be signed and a certificate will be generated. This CSR will be signed by "${certObj?.commonName}". This action cannot be undone.`,
       buttonConfirmText: "Sign",
+      successTitle: "Certificate request signed",
+      successMessage: "The certificate request was signed successfully.",
+      failureMessage: "Failed to sign the certificate request.",
     });
   };
 
@@ -118,6 +121,9 @@ export function CertificateRequestsTable({
       warningText:
         "Rejecting a Certificate Request means the CSR will remain in this application, but its status will be moved to rejected and the associated certificate will be deleted if there is any. This action cannot be undone.",
       buttonConfirmText: "Reject",
+      successTitle: "Certificate request rejected",
+      successMessage: "The certificate request was rejected successfully.",
+      failureMessage: "Failed to reject the certificate request.",
     });
   };
 
@@ -130,6 +136,9 @@ export function CertificateRequestsTable({
       warningText:
         "Deleting a Certificate Request means this row will be completely removed from the application. This action cannot be undone.",
       buttonConfirmText: "Delete",
+      successTitle: "Certificate request deleted",
+      successMessage: "The certificate request was deleted successfully.",
+      failureMessage: "Failed to delete the certificate request.",
     });
   };
 
@@ -142,6 +151,9 @@ export function CertificateRequestsTable({
       warningText:
         "Revoking a Certificate will delete it from the table. This action cannot be undone.",
       buttonConfirmText: "Revoke",
+      successTitle: "Certificate revoked",
+      successMessage: "The certificate was revoked successfully.",
+      failureMessage: "Failed to revoke the certificate.",
     });
   };
 

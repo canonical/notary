@@ -17,6 +17,7 @@ import {
   PasswordToggle,
   Form,
   Select,
+  useToastNotification,
 } from "@canonical/react-components";
 import { RoleID } from "@/types";
 
@@ -51,8 +52,15 @@ export function UsersConfirmationModal({
   modalData,
   setModalData,
 }: ConfirmationModalProps) {
+  const toastNotify = useToastNotification();
+
   const confirmQuery = () => {
     modalData?.onMouseDownFunc();
+    toastNotify.success(
+      "The user was deleted successfully.",
+      undefined,
+      "User deleted",
+    );
     setModalData(null);
   };
   return (
@@ -79,6 +87,7 @@ export function ChangePasswordModal({
   setChangePasswordModalVisible: Dispatch<SetStateAction<boolean>>;
 }) {
   const queryClient = useQueryClient();
+  const toastNotify = useToastNotification();
 
   const mutation = useMutation({
     mutationFn: self ? changeSelfPassword : changePassword,
@@ -86,9 +95,23 @@ export function ChangePasswordModal({
       void queryClient.invalidateQueries({ queryKey: ["users"] });
       setErrorText("");
       setChangePasswordModalVisible(false);
+      toastNotify.success(
+        self
+          ? "Your password was updated successfully."
+          : "The user's password was updated successfully.",
+        undefined,
+        self ? "Password updated" : "User password updated",
+      );
     },
     onError: (e: Error) => {
       setErrorText(getErrorMessage(e));
+      toastNotify.failure(
+        self ? "Password update failed" : "User password update failed",
+        e,
+        self
+          ? "Failed to update your password."
+          : "Failed to update the user's password.",
+      );
     },
   });
 
@@ -173,6 +196,7 @@ export function ChangeRoleModal({
   setChangeRoleModalVisible: Dispatch<SetStateAction<boolean>>;
   onSubmit: (roleID: RoleID) => void;
 }) {
+  const toastNotify = useToastNotification();
   const [roleID, setRoleID] = useState<RoleID>(currentRoleID);
 
   return (
@@ -188,6 +212,11 @@ export function ChangeRoleModal({
             onClick={(event) => {
               event.preventDefault();
               onSubmit(roleID);
+              toastNotify.success(
+                "The user's role was updated successfully.",
+                undefined,
+                "User role updated",
+              );
             }}
           >
             Submit

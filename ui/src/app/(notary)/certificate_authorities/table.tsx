@@ -80,6 +80,13 @@ export function CertificateAuthoritiesTable({
       buttonConfirmText: "Sign",
       warningText:
         "Signing a CSR will create a new certificate and replace the old one. This action cannot be undone.",
+      successTitle: override ? "Certificate renewed" : "CSR signed",
+      successMessage: override
+        ? "The certificate authority certificate was renewed successfully."
+        : "The certificate authority CSR was signed successfully.",
+      failureMessage: override
+        ? "Failed to renew the certificate authority certificate."
+        : "Failed to sign the certificate authority CSR.",
     });
   };
 
@@ -95,6 +102,10 @@ export function CertificateAuthoritiesTable({
       buttonConfirmText: "Revoke",
       warningText:
         "Revoking a CA Certificate will prevent signing CSR's and issuing a new CRL with this CA. This action cannot be undone.",
+      successTitle: "Certificate revoked",
+      successMessage:
+        "The certificate authority certificate was revoked successfully.",
+      failureMessage: "Failed to revoke the certificate authority certificate.",
     });
   };
 
@@ -110,6 +121,9 @@ export function CertificateAuthoritiesTable({
       buttonConfirmText: "Continue",
       warningText:
         "Disabling a CA Certificate will prevent signing CSR's with or renewing the CA certificate, but will not revoke any signed certificates. This action cannot be undone.",
+      successTitle: "Certificate authority disabled",
+      successMessage: "The certificate authority was disabled successfully.",
+      failureMessage: "Failed to disable the certificate authority.",
     });
   };
 
@@ -125,6 +139,9 @@ export function CertificateAuthoritiesTable({
       warningText:
         "Deleting a Certificate Authority means the private key and the subject details of this CA will be removed. Deleting the CA does not revoke this certificate, and does not revoke any certificates this CA has signed. This action cannot be undone.",
       buttonConfirmText: "Delete",
+      successTitle: "Certificate authority deleted",
+      successMessage: "The certificate authority was deleted successfully.",
+      failureMessage: "Failed to delete the certificate authority.",
     });
   };
 

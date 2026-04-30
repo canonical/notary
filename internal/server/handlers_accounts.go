@@ -466,6 +466,11 @@ func ChangeMyPassword(env *HandlerDependencies) http.HandlerFunc {
 // UpdateAccountRole updates an existing account's role.
 func UpdateAccountRole(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		claims, err := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
+		if err != nil {
+			writeResponse(w, http.StatusUnauthorized, "Unauthorized", err, env.SystemLogger)
+			return
+		}
 		id := r.PathValue("id")
 		idNum, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
@@ -485,12 +490,6 @@ func UpdateAccountRole(env *HandlerDependencies) http.HandlerFunc {
 		if idNum == 1 {
 			err = errors.New("updating the default admin account role is not allowed")
 			writeResponse(w, http.StatusBadRequest, "updating the default admin account role is not allowed.", err, env.SystemLogger)
-			return
-		}
-
-		claims, err := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
-		if err != nil {
-			writeResponse(w, http.StatusUnauthorized, "Unauthorized", err, env.SystemLogger)
 			return
 		}
 

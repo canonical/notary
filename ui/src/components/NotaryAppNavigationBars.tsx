@@ -162,15 +162,38 @@ export function SideBar({
                           className="p-side-navigation__link p-contextual-menu__toggle"
                           onClick={() => setMenuOpen(!menuOpen)}
                           aria-current={menuOpen}
-                          style={{ cursor: "pointer" }}
+                          style={{
+                            alignItems: "center",
+                            cursor: "pointer",
+                            display: "flex",
+                            gap: "0.5rem",
+                          }}
                         >
                           <i className="p-icon--user is-light p-side-navigation__icon"></i>
-                          <span className="p-side-navigation__label">
-                            <span className="p-side-navigation__label">
+                          <span
+                            className="p-side-navigation__label"
+                            style={{ flex: 1, minWidth: 0, overflow: "hidden" }}
+                          >
+                            <span
+                              className="p-side-navigation__label"
+                              style={{
+                                display: "block",
+                                maskImage:
+                                  "linear-gradient(to right, #000 0, #000 calc(100% - 1.5rem), transparent 100%)",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                WebkitMaskImage:
+                                  "linear-gradient(to right, #000 0, #000 calc(100% - 1.5rem), transparent 100%)",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
                               {auth.user.email}
                             </span>
                           </span>
-                          <div className="p-side-navigation__status">
+                          <div
+                            className="p-side-navigation__status"
+                            style={{ flex: "0 0 auto", marginLeft: "auto" }}
+                          >
                             <i className="p-icon--settings is-light"></i>
                             <span
                               className="p-contextual-menu__dropdown"

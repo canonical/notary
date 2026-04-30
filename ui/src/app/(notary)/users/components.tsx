@@ -16,7 +16,10 @@ import {
   Input,
   PasswordToggle,
   Form,
+  Select,
+  useToastNotification,
 } from "@canonical/react-components";
+import { RoleID } from "@/types";
 
 export type ConfirmationModalData = {
   onMouseDownFunc: () => void;
@@ -49,8 +52,15 @@ export function UsersConfirmationModal({
   modalData,
   setModalData,
 }: ConfirmationModalProps) {
+  const toastNotify = useToastNotification();
+
   const confirmQuery = () => {
     modalData?.onMouseDownFunc();
+    toastNotify.success(
+      "The user was deleted successfully.",
+      undefined,
+      "User deleted",
+    );
     setModalData(null);
   };
   return (
@@ -77,6 +87,7 @@ export function ChangePasswordModal({
   setChangePasswordModalVisible: Dispatch<SetStateAction<boolean>>;
 }) {
   const queryClient = useQueryClient();
+  const toastNotify = useToastNotification();
 
   const mutation = useMutation({
     mutationFn: self ? changeSelfPassword : changePassword,
@@ -87,6 +98,13 @@ export function ChangePasswordModal({
     },
     onError: (e: Error) => {
       setErrorText(getErrorMessage(e));
+      toastNotify.failure(
+        self ? "Password update failed" : "User password update failed",
+        e,
+        self
+          ? "Failed to update your password."
+          : "Failed to update the user's password.",
+      );
     },
   });
 
@@ -154,6 +172,68 @@ export function ChangePasswordModal({
           required={true}
           onChange={handlePassword2Change}
           error={password2Error}
+        />
+      </Form>
+    </Modal>
+  );
+}
+
+export function ChangeRoleModal({
+  email,
+  currentRoleID,
+  setChangeRoleModalVisible,
+  onSubmit,
+}: {
+  email: string;
+  currentRoleID: RoleID;
+  setChangeRoleModalVisible: Dispatch<SetStateAction<boolean>>;
+  onSubmit: (roleID: RoleID) => void;
+}) {
+  const [roleID, setRoleID] = useState<RoleID>(currentRoleID);
+
+  return (
+    <Modal
+      title="Change Role"
+      buttonRow={
+        <>
+          <Button onClick={() => setChangeRoleModalVisible(false)}>
+            Cancel
+          </Button>
+          <Button
+            appearance="positive"
+            onClick={(event) => {
+              event.preventDefault();
+              onSubmit(roleID);
+            }}
+          >
+            Submit
+          </Button>
+        </>
+      }
+    >
+      <Form>
+        <Input
+          id="ChangeRoleEmail"
+          label="Email"
+          type="text"
+          required={true}
+          disabled={true}
+          value={email}
+        />
+        <Select
+          id="ChangeRoleRoleID"
+          label="Role"
+          value={roleID.toString()}
+          onChange={(event) => setRoleID(Number(event.target.value) as RoleID)}
+          options={[
+            { label: "Admin", value: RoleID.Admin },
+            { label: "Certificate Manager", value: RoleID.CertificateManager },
+            {
+              label: "Certificate Requestor",
+              value: RoleID.CertificateRequestor,
+            },
+            { label: "Read Only", value: RoleID.ReadOnly },
+          ]}
         />
       </Form>
     </Modal>

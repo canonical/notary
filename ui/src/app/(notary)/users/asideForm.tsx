@@ -10,6 +10,7 @@ import {
   Select,
   Form,
   Notification,
+  useToastNotification,
 } from "@canonical/react-components";
 import { AsideFormData, RoleID, getErrorMessage } from "@/types";
 import { z } from "zod";
@@ -41,6 +42,7 @@ export default function UsersPageAsidePanel(asideProps: AsideProps) {
 
 function AddNewUserForm(asideProps: AsideProps) {
   const queryClient = useQueryClient();
+  const toastNotify = useToastNotification();
   const mutation = useMutation({
     mutationFn: postUser,
     onSuccess: () => {
@@ -51,9 +53,19 @@ function AddNewUserForm(asideProps: AsideProps) {
       setPassword2("");
       setErrorText("");
       asideProps.setAsideOpen(false);
+      toastNotify.success(
+        "The user was created successfully.",
+        undefined,
+        "User created",
+      );
     },
     onError: (e: Error) => {
       setErrorText(getErrorMessage(e));
+      toastNotify.failure(
+        "User creation failed",
+        e,
+        "Failed to create the user.",
+      );
     },
   });
   const [email, setEmail] = useState<string>("");
@@ -168,15 +180,26 @@ function AddNewUserForm(asideProps: AsideProps) {
 
 function ChangePasswordForm(asideProps: AsideProps) {
   const queryClient = useQueryClient();
+  const toastNotify = useToastNotification();
   const mutation = useMutation({
     mutationFn: changePassword,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["users"] });
       setErrorText("");
       asideProps.setAsideOpen(false);
+      toastNotify.success(
+        "The user's password was updated successfully.",
+        undefined,
+        "Password updated",
+      );
     },
     onError: (e: Error) => {
       setErrorText(getErrorMessage(e));
+      toastNotify.failure(
+        "Password update failed",
+        e,
+        "Failed to update the user's password.",
+      );
     },
   });
   const [password1, setPassword1] = useState<string>("");

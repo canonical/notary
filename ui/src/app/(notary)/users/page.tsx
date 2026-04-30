@@ -7,7 +7,10 @@ import { UsersTable } from "./table";
 import Loading from "@/components/loading";
 import Error from "@/components/error";
 import { retryUnlessUnauthorized } from "@/utils";
-import { AppMain } from "@canonical/react-components";
+import {
+  AppMain,
+  ToastNotificationProvider,
+} from "@canonical/react-components";
 import { AppAside } from "@canonical/react-components";
 import NotaryAppNavigationBars from "@/components/NotaryAppNavigationBars";
 import { Application } from "@canonical/react-components";
@@ -34,18 +37,23 @@ export default function Users() {
   const users = Array.from(query.data ? query.data : []);
   return (
     <Application>
-      <NotaryAppNavigationBars />
-      <AppAside collapsed={!asideOpen}>
-        <UsersPageAsidePanel setAsideOpen={setAsideOpen} formData={formData} />
-      </AppAside>
-      <AppMain>
-        <UsersTable
-          users={users}
-          setAsideOpen={setAsideOpen}
-          setFormData={setFormData}
-        />
-      </AppMain>
-      <NotaryAppStatus />
+      <ToastNotificationProvider>
+        <NotaryAppNavigationBars />
+        <AppAside collapsed={!asideOpen}>
+          <UsersPageAsidePanel
+            setAsideOpen={setAsideOpen}
+            formData={formData}
+          />
+        </AppAside>
+        <AppMain>
+          <UsersTable
+            users={users}
+            setAsideOpen={setAsideOpen}
+            setFormData={setFormData}
+          />
+        </AppMain>
+        <NotaryAppStatus />
+      </ToastNotificationProvider>
     </Application>
   );
 }

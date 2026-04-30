@@ -73,6 +73,7 @@ func NewRouter(config *HandlerDependencies) http.Handler {
 	apiV1Router.HandleFunc("GET /accounts/me", requirePermission(allRoles, config, GetMyAccount(config)))
 	apiV1Router.HandleFunc("DELETE /accounts/{id}", requirePermission(adminOnly, config, DeleteAccount(config)))
 	apiV1Router.HandleFunc("POST /accounts/{id}/change_password", requirePermission(adminOnly, config, ChangeAccountPassword(config)))
+	apiV1Router.HandleFunc("PUT /accounts/{id}/role", requirePermission(adminOnly, config, UpdateAccountRole(config)))
 	apiV1Router.HandleFunc("POST /accounts/me/change_password", requirePermission(allRoles, config, ChangeMyPassword(config)))
 
 	if config.AuthnRepository != nil {

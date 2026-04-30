@@ -84,6 +84,16 @@ func (db *DatabaseRepository) UpdateUserPassword(filter UserFilter, password str
 	return UpdateEntity(db, db.stmts.UpdateUser, userRow)
 }
 
+// UpdateUserRole updates the role_id of the given user.
+func (db *DatabaseRepository) UpdateUserRole(filter UserFilter, roleID RoleID) error {
+	if roleID < 0 || roleID > 3 {
+		return fmt.Errorf("%w: invalid role ID: %d", ErrInvalidInput, roleID)
+	}
+	userRow := filter.AsUser()
+	userRow.RoleID = roleID
+	return UpdateEntity(db, db.stmts.UpdateUserRole, userRow)
+}
+
 // DeleteUserByID removes a user from the table.
 func (db *DatabaseRepository) DeleteUser(filter UserFilter) error {
 	userRow := filter.AsUser()

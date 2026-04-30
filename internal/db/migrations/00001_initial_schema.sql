@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS users
 	hashed_password TEXT,  -- Nullable to support OIDC-only users
 	role_id         INTEGER NOT NULL,
 
+	CHECK (role_id IN (0, 1, 2, 3)),
 	CHECK (
 		-- Either email or oidc_subject must be present
 		(email IS NOT NULL AND trim(email) != '') OR

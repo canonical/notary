@@ -95,6 +95,13 @@ export function ChangePasswordModal({
       void queryClient.invalidateQueries({ queryKey: ["users"] });
       setErrorText("");
       setChangePasswordModalVisible(false);
+      toastNotify.success(
+        self
+          ? "Your password was updated successfully."
+          : "The user's password was updated successfully.",
+        undefined,
+        self ? "Password updated" : "User password updated",
+      );
     },
     onError: (e: Error) => {
       setErrorText(getErrorMessage(e));
@@ -189,6 +196,7 @@ export function ChangeRoleModal({
   setChangeRoleModalVisible: Dispatch<SetStateAction<boolean>>;
   onSubmit: (roleID: RoleID) => void;
 }) {
+  const toastNotify = useToastNotification();
   const [roleID, setRoleID] = useState<RoleID>(currentRoleID);
 
   return (
@@ -204,6 +212,11 @@ export function ChangeRoleModal({
             onClick={(event) => {
               event.preventDefault();
               onSubmit(roleID);
+              toastNotify.success(
+                "The user's role was updated successfully.",
+                undefined,
+                "User role updated",
+              );
             }}
           >
             Submit

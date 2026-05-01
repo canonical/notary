@@ -12,6 +12,16 @@ type GetConfigContentResponse struct {
 	EncryptionBackendType string `json:"encryption_backend_type"`
 }
 
+// GetConfigContent godoc
+//
+//	@Summary		Get config
+//	@Description	Returns the server configuration exposed to authenticated users.
+//	@Tags			config
+//	@Produce		json
+//	@Success		200	{object}	map[string]GetConfigContentResponse
+//	@Failure		500	{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/config [get]
 func GetConfigContent(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		configContent := GetConfigContentResponse{

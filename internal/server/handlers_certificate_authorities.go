@@ -232,6 +232,16 @@ func createCertificateAuthority(fields CreateCertificateAuthorityParams) (string
 
 // ListCertificateAuthorities handler returns a list of all Certificate Authorities
 // It returns a 200 OK on success
+// ListCertificateAuthorities godoc
+//
+//	@Summary		List certificate authorities
+//	@Description	Returns all certificate authorities.
+//	@Tags			certificate_authorities
+//	@Produce		json
+//	@Success		200	{object}	map[string][]CertificateAuthority
+//	@Failure		500	{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/certificate_authorities [get]
 func ListCertificateAuthorities(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cas, err := env.Database.ListDenormalizedCertificateAuthorities()
@@ -255,8 +265,20 @@ func ListCertificateAuthorities(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
-// CreateCertificateAuthority handler creates a new Certificate Authority
-// It returns a 201 Created on success
+// CreateCertificateAuthority godoc
+//
+//	@Summary		Create certificate authority
+//	@Description	Creates a new certificate authority.
+//	@Tags			certificate_authorities
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		CreateCertificateAuthorityParams	true	"Create certificate authority payload"
+//	@Success		201		{object}	map[string]CreateSuccessResponse
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/certificate_authorities [post]
 func CreateCertificateAuthority(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var params CreateCertificateAuthorityParams
@@ -303,8 +325,19 @@ func CreateCertificateAuthority(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
-// GetCertificateAuthority handler returns a Certificate Authority given its id
-// It returns a 200 OK on success
+// GetCertificateAuthority godoc
+//
+//	@Summary		Get certificate authority
+//	@Description	Returns the certificate authority for the provided ID.
+//	@Tags			certificate_authorities
+//	@Produce		json
+//	@Param			id	path		int	true	"Certificate authority ID"
+//	@Success		200	{object}	map[string]CertificateAuthority
+//	@Failure		400	{object}	map[string]string
+//	@Failure		404	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/certificate_authorities/{id} [get]
 func GetCertificateAuthority(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
@@ -337,8 +370,22 @@ func GetCertificateAuthority(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
-// UpdateCertificateAuthority handler updates a Certificate Authority given its id
-// It returns a 200 OK on success
+// UpdateCertificateAuthority godoc
+//
+//	@Summary		Update certificate authority
+//	@Description	Updates the enabled status of the certificate authority for the provided ID.
+//	@Tags			certificate_authorities
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		int								true	"Certificate authority ID"
+//	@Param			request	body		UpdateCertificateAuthorityParams	true	"Update certificate authority payload"
+//	@Success		200		{object}	map[string]SuccessResponse
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		404		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/certificate_authorities/{id} [put]
 func UpdateCertificateAuthority(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
@@ -381,8 +428,20 @@ func UpdateCertificateAuthority(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
-// DeleteCertificateAuthority handler deletes a Certificate Authority given its id
-// It returns a 200 OK on success
+// DeleteCertificateAuthority godoc
+//
+//	@Summary		Delete certificate authority
+//	@Description	Deletes the certificate authority for the provided ID.
+//	@Tags			certificate_authorities
+//	@Produce		json
+//	@Param			id	path		int	true	"Certificate authority ID"
+//	@Success		200	{object}	map[string]SuccessResponse
+//	@Failure		400	{object}	map[string]string
+//	@Failure		401	{object}	map[string]string
+//	@Failure		404	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/certificate_authorities/{id} [delete]
 func DeleteCertificateAuthority(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
@@ -430,8 +489,22 @@ func DeleteCertificateAuthority(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
-// PostCertificateAuthorityCertificate handler uploads a certificate chain to a Certificate Authority given its id
-// It returns a 201 Created on success
+// PostCertificateAuthorityCertificate godoc
+//
+//	@Summary		Upload certificate authority certificate
+//	@Description	Uploads a certificate chain to the certificate authority for the provided ID.
+//	@Tags			certificate_authorities
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		int												true	"Certificate authority ID"
+//	@Param			request	body		UploadCertificateToCertificateAuthorityParams	true	"Upload certificate chain payload"
+//	@Success		201		{object}	map[string]SuccessResponse
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		404		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/certificate_authorities/{id}/certificate [post]
 func PostCertificateAuthorityCertificate(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
@@ -479,9 +552,22 @@ func PostCertificateAuthorityCertificate(env *HandlerDependencies) http.HandlerF
 	}
 }
 
-// SignCertificateAuthority handler receives the ID of an existing enabled certificate authority in Notary
-// to sign any pending intermediate certificate authority available in Notary.
-// It returns a 202 Accepted on success.
+// SignCertificateAuthority godoc
+//
+//	@Summary		Sign certificate authority
+//	@Description	Uses the provided signing certificate authority to sign the pending intermediate certificate authority for the provided ID.
+//	@Tags			certificate_authorities
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		int							true	"Certificate authority ID"
+//	@Param			request	body		SignCertificateAuthorityParams	true	"Sign certificate authority payload"
+//	@Success		202		{object}	map[string]SuccessResponse
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		404		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/certificate_authorities/{id}/sign [post]
 func SignCertificateAuthority(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
@@ -541,8 +627,18 @@ func SignCertificateAuthority(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
-// GetCertificateAuthorityCRL handler returns the CRL of the associated CA
-// It returns a 200 OK on success
+// GetCertificateAuthorityCRL godoc
+//
+//	@Summary		Get certificate authority CRL
+//	@Description	Returns the certificate revocation list for the certificate authority with the provided ID.
+//	@Tags			certificate_authorities
+//	@Produce		json
+//	@Param			id	path		int	true	"Certificate authority ID"
+//	@Success		200	{object}	map[string]CRL
+//	@Failure		400	{object}	map[string]string
+//	@Failure		404	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Router			/api/v1/certificate_authorities/{id}/crl [get]
 func GetCertificateAuthorityCRL(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
@@ -568,9 +664,20 @@ func GetCertificateAuthorityCRL(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
-// RevokeCertificateAuthorityCertificate handler receives an id as a path parameter,
-// and revokes the corresponding certificate by placing the certificate serial number to the CRL
-// It returns a 200 OK on success
+// RevokeCertificateAuthorityCertificate godoc
+//
+//	@Summary		Revoke certificate authority certificate
+//	@Description	Revokes the certificate authority certificate for the provided ID by adding its serial number to the CRL.
+//	@Tags			certificate_authorities
+//	@Produce		json
+//	@Param			id	path		int	true	"Certificate authority ID"
+//	@Success		202	{object}	map[string]SuccessResponse
+//	@Failure		400	{object}	map[string]string
+//	@Failure		401	{object}	map[string]string
+//	@Failure		404	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/certificate_authorities/{id}/revoke [post]
 func RevokeCertificateAuthorityCertificate(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")

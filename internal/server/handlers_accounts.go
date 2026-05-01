@@ -118,7 +118,16 @@ func validateEmail(email string) bool {
 	return err == nil
 }
 
-// ListAccounts returns all accounts from the database
+// ListAccounts godoc
+//
+//	@Summary		List accounts
+//	@Description	Returns all user accounts.
+//	@Tags			accounts
+//	@Produce		json
+//	@Success		200	{object}	map[string][]GetAccountResponse
+//	@Failure		500	{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/accounts [get]
 func ListAccounts(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		accounts, err := env.Database.ListUsers()
@@ -135,10 +144,20 @@ func ListAccounts(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
-// GetAccount receives an id as a path parameter, and
-// returns the corresponding User Account
-// It can only return accounts that exist in the database
-// If the account was logged in with OIDC, it will only return the email
+// GetAccount godoc
+//
+//	@Summary		Get account
+//	@Description	Returns the user account for the provided account ID.
+//	@Tags			accounts
+//	@Produce		json
+//	@Param			id	path		int	true	"Account ID"
+//	@Success		200	{object}	map[string]GetAccountResponse
+//	@Failure		400	{object}	map[string]string
+//	@Failure		401	{object}	map[string]string
+//	@Failure		404	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/accounts/{id} [get]
 func GetAccount(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
@@ -177,9 +196,18 @@ func GetAccount(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
-// GetMyAccount receives "me" as a path parameter, and
-// returns the corresponding User Account. Unlike GetAccount,
-// it uses the JWT claims to retrieve the account information.
+// GetMyAccount godoc
+//
+//	@Summary		Get current account
+//	@Description	Returns the authenticated user's account.
+//	@Tags			accounts
+//	@Produce		json
+//	@Success		200	{object}	map[string]GetAccountResponse
+//	@Failure		401	{object}	map[string]string
+//	@Failure		404	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/accounts/me [get]
 func GetMyAccount(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, jwtErr := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
@@ -203,7 +231,18 @@ func GetMyAccount(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
-// CreateAccount creates a new Account, and returns the id of the created row
+// CreateAccount godoc
+//
+//	@Summary		Create account
+//	@Description	Creates a new user account.
+//	@Tags			accounts
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		CreateAccountParams	true	"Create account payload"
+//	@Success		201		{object}	map[string]CreateSuccessResponse
+//	@Failure		400		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Router			/api/v1/accounts [post]
 func CreateAccount(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var createAccountParams CreateAccountParams
@@ -263,8 +302,20 @@ func CreateAccount(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
-// DeleteAccount handler receives an id as a path parameter,
-// deletes the corresponding User Account, and returns a http.StatusNoContent on success
+// DeleteAccount godoc
+//
+//	@Summary		Delete account
+//	@Description	Deletes the user account for the provided account ID.
+//	@Tags			accounts
+//	@Produce		json
+//	@Param			id	path		int	true	"Account ID"
+//	@Success		202	{object}	map[string]SuccessResponse
+//	@Failure		400	{object}	map[string]string
+//	@Failure		401	{object}	map[string]string
+//	@Failure		404	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/accounts/{id} [delete]
 func DeleteAccount(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
@@ -329,6 +380,22 @@ func DeleteAccount(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
+// ChangeAccountPassword godoc
+//
+//	@Summary		Change account password
+//	@Description	Changes the password for the provided account ID.
+//	@Tags			accounts
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		int					true	"Account ID"
+//	@Param			request	body		ChangeAccountParams	true	"Change password payload"
+//	@Success		201		{object}	map[string]SuccessResponse
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		404		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/accounts/{id}/change_password [post]
 func ChangeAccountPassword(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
@@ -407,6 +474,21 @@ func ChangeAccountPassword(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
+// ChangeMyPassword godoc
+//
+//	@Summary		Change current account password
+//	@Description	Changes the password for the authenticated user.
+//	@Tags			accounts
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		ChangeAccountParams	true	"Change password payload"
+//	@Success		201		{object}	map[string]SuccessResponse
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		404		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/accounts/me/change_password [post]
 func ChangeMyPassword(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var idNum int64

@@ -45,6 +45,19 @@ func generateJWT(id int64, email string, jwtSecret []byte, roleID RoleID) (strin
 	return tokenString, nil
 }
 
+// Login godoc
+//
+//	@Summary		Login
+//	@Description	Authenticates a user with email and password and sets a session cookie.
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		LoginParams	true	"Login payload"
+//	@Success		200		{object}	map[string]SuccessResponse
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Router			/login [post]
 func Login(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var loginParams LoginParams
@@ -101,6 +114,16 @@ func Login(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
+// Logout godoc
+//
+//	@Summary		Logout
+//	@Description	Clears the current session cookie.
+//	@Tags			auth
+//	@Produce		json
+//	@Success		200	{object}	map[string]SuccessResponse
+//	@Failure		500	{object}	map[string]string
+//	@Router			/logout [post]
+//
 // Expire both cookies if logging out
 func Logout(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

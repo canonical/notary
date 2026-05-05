@@ -7,7 +7,7 @@ export default function NotaryAppStatus() {
         className="p-text--small u-no-margin--bottom"
         style={{ paddingLeft: "10px" }}
       >
-        Version {process.env.VERSION}
+        Version REMOVE {process.env.VERSION}
       </span>
     </AppStatus>
   );

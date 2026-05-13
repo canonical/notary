@@ -323,6 +323,17 @@ WITH RECURSIVE cas_with_chain AS (
 	createJWTSecretStmt = "INSERT INTO jwt_secret (id, encrypted_secret) VALUES ($JWTSecret.id, $JWTSecret.encrypted_secret)"
 	getJWTSecretStmt    = "SELECT &JWTSecret.* FROM jwt_secret WHERE id=$JWTSecret.id"
 	deleteJWTSecretStmt = "DELETE FROM jwt_secret WHERE id=$JWTSecret.id"
+
+	// // // // // // // // // // // // //
+	// Auto Sign Policy SQL Strings     //
+	// // // // // // // // // // // // //
+	createAutoSignPolicyStmt          = "INSERT INTO auto_sign_policies (certificate_authority_id, enabled, certificate_validity_days, certificate_limit) VALUES ($AutoSignPolicy.certificate_authority_id, $AutoSignPolicy.enabled, $AutoSignPolicy.certificate_validity_days, $AutoSignPolicy.certificate_limit)"
+	getAutoSignPolicyStmt             = "SELECT &AutoSignPolicy.* FROM auto_sign_policies WHERE certificate_authority_id==$AutoSignPolicy.certificate_authority_id"
+	getAutoSignPolicyByPolicyIDStmt   = "SELECT &AutoSignPolicy.* FROM auto_sign_policies WHERE policy_id==$AutoSignPolicy.policy_id"
+	updateAutoSignPolicyStmt          = "UPDATE auto_sign_policies SET enabled=$AutoSignPolicy.enabled, certificate_validity_days=$AutoSignPolicy.certificate_validity_days, certificate_limit=$AutoSignPolicy.certificate_limit WHERE certificate_authority_id==$AutoSignPolicy.certificate_authority_id"
+	deleteAutoSignPolicyStmt          = "DELETE FROM auto_sign_policies WHERE certificate_authority_id=$AutoSignPolicy.certificate_authority_id"
+	listActiveAutoSignPoliciesStmt    = "SELECT &AutoSignPolicy.* FROM auto_sign_policies WHERE enabled=1"
+	listOutstandingCSRsExcludingCASStmt = "SELECT csrs.&CertificateRequest.csr_id, csrs.&CertificateRequest.csr, csrs.&CertificateRequest.status, csrs.&CertificateRequest.certificate_id FROM certificate_requests csrs LEFT JOIN certificate_authorities cas ON csrs.csr_id = cas.csr_id WHERE cas.certificate_authority_id IS NULL AND csrs.status = 'Outstanding'"
 )
 
 // Statements contains all prepared SQL statements used by the database
@@ -379,6 +390,15 @@ type Statements struct {
 	CreateJWTSecret *sqlair.Statement
 	GetJWTSecret    *sqlair.Statement
 	DeleteJWTSecret *sqlair.Statement
+
+	// Auto Sign Policy statements
+	CreateAutoSignPolicy          *sqlair.Statement
+	GetAutoSignPolicy             *sqlair.Statement
+	GetAutoSignPolicyByPolicyID   *sqlair.Statement
+	UpdateAutoSignPolicy          *sqlair.Statement
+	DeleteAutoSignPolicy          *sqlair.Statement
+	ListActiveAutoSignPolicies    *sqlair.Statement
+	ListOutstandingCSRsExcludingCAS *sqlair.Statement
 }
 
 // PrepareStatements prepares all SQL statements used by the database.
@@ -439,6 +459,15 @@ func PrepareStatements() *Statements {
 	stmts.CreateJWTSecret = sqlair.MustPrepare(createJWTSecretStmt, JWTSecret{})
 	stmts.GetJWTSecret = sqlair.MustPrepare(getJWTSecretStmt, JWTSecret{})
 	stmts.DeleteJWTSecret = sqlair.MustPrepare(deleteJWTSecretStmt, JWTSecret{})
+
+	// Auto Sign Policy statements
+	stmts.CreateAutoSignPolicy = sqlair.MustPrepare(createAutoSignPolicyStmt, AutoSignPolicy{})
+	stmts.GetAutoSignPolicy = sqlair.MustPrepare(getAutoSignPolicyStmt, AutoSignPolicy{})
+	stmts.GetAutoSignPolicyByPolicyID = sqlair.MustPrepare(getAutoSignPolicyByPolicyIDStmt, AutoSignPolicy{})
+	stmts.UpdateAutoSignPolicy = sqlair.MustPrepare(updateAutoSignPolicyStmt, AutoSignPolicy{})
+	stmts.DeleteAutoSignPolicy = sqlair.MustPrepare(deleteAutoSignPolicyStmt, AutoSignPolicy{})
+	stmts.ListActiveAutoSignPolicies = sqlair.MustPrepare(listActiveAutoSignPoliciesStmt, AutoSignPolicy{})
+	stmts.ListOutstandingCSRsExcludingCAS = sqlair.MustPrepare(listOutstandingCSRsExcludingCASStmt, CertificateRequest{})
 
 	return stmts
 }

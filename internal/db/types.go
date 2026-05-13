@@ -124,3 +124,14 @@ func (u *User) HasOIDC() bool {
 type NumUsers struct {
 	Count int `db:"count"`
 }
+
+// AutoSignPolicy defines an automatic signing policy for a certificate authority.
+// When enabled, all Outstanding certificate requests will be automatically signed
+// by the associated CA.
+type AutoSignPolicy struct {
+	PolicyID                int64 `db:"policy_id"`
+	CertificateAuthorityID  int64 `db:"certificate_authority_id"`
+	Enabled                 bool  `db:"enabled"`
+	CertificateValidityDays int   `db:"certificate_validity_days"`
+	CertificateLimit        int   `db:"certificate_limit"`
+}

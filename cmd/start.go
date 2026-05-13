@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 
+	"github.com/canonical/notary/internal/autosign"
 	"github.com/canonical/notary/internal/config"
 	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/server"
@@ -45,6 +47,13 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 		if err != nil {
 			l.Fatal("couldn't initialize server", zap.Error(err))
 		}
+
+		// Start auto-sign engine
+		autoSignCtx, autoSignCancel := context.WithCancel(context.Background())
+		defer autoSignCancel()
+		autoSignEngine := autosign.New(database, l, appConfig.ExternalHostname)
+		go autoSignEngine.Run(autoSignCtx)
+
 		appEnv.AuditLogger.SystemStartup(srv.Addr)
 		l.Info("Starting server at", zap.String("url", srv.Addr))
 		if err := srv.ListenAndServeTLS("", ""); err != http.ErrServerClosed {

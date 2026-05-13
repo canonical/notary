@@ -250,7 +250,7 @@ func requirePermission(
 		const systemObject = "system:notary"
 
 		if env.AuthzRepository == nil {
-			handler(w, r)
+			writeResponse(w, http.StatusForbidden, "forbidden", nil, env.SystemLogger)
 			return
 		}
 

@@ -38,6 +38,12 @@ func (e *Engine) Run(ctx context.Context) {
 	}
 }
 
+// ProcessOutstandingCSRs triggers a single auto-sign cycle. It is exposed
+// primarily for integration tests that need synchronous execution.
+func (e *Engine) ProcessOutstandingCSRs() {
+	e.processOutstandingCSRs()
+}
+
 func (e *Engine) processOutstandingCSRs() {
 	policies, err := e.database.ListActiveAutoSignPolicies()
 	if err != nil {

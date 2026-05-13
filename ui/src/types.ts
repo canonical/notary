@@ -89,6 +89,7 @@ export type ConfigEntry = {
   logging_level: string;
   logging_output: string;
   encryption_backend_type: string;
+  acme_enabled: boolean;
 };
 
 export type AsideFormData = {

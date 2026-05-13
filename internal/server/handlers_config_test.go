@@ -15,6 +15,7 @@ type GetConfigContentResponse struct {
 	LoggingLevel          string `json:"logging_level"`
 	LoggingOutput         string `json:"logging_output"`
 	EncryptionBackendType string `json:"encryption_backend_type"`
+	ACMEEnabled           bool   `json:"acme_enabled"`
 }
 
 type GetConfigResponse struct {
@@ -123,4 +124,23 @@ func TestConfigEndToEnd(t *testing.T) {
 			t.Fatalf("expected no message, got %q", response.Message)
 		}
 	})
+}
+
+// TestConfigACMEEnabledFalseByDefault verifies that acme_enabled is false
+// when the default test environment has no ACMERepository configured.
+func TestConfigACMEEnabledFalseByDefault(t *testing.T) {
+	ts, _ := tu.MustPrepareServer(t)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+	client := ts.Client()
+
+	statusCode, response, err := getConfig(ts.URL, client, adminToken)
+	if err != nil {
+		t.Fatalf("couldn't get config: %s", err)
+	}
+	if statusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+	}
+	if response.Data.ACMEEnabled {
+		t.Fatal("expected acme_enabled to be false when ACMERepository is nil, got true")
+	}
 }

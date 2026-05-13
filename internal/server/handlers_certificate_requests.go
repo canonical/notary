@@ -518,8 +518,8 @@ func RevokeCertificate(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
-// SignCertificateRequest handler receives the ID of an existing active certificate authority in Notary
-// to sign any certificate request available in Notary.
+// SignCertificateRequest handler signs a certificate request available in Notary using either a
+// certificate authority ("ca") or ACME ("acme") signing method.
 // It returns a 202 Accepted on success.
 func SignCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -552,26 +552,67 @@ func SignCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
-		caIDInt, err := strconv.ParseInt(signCertificateRequestParams.CertificateAuthorityID, 10, 64)
-		if err != nil {
-			writeResponse(w, http.StatusBadRequest, "invalid certificate authority ID", nil, env.SystemLogger)
-			return
-		}
-		err = env.Database.SignCertificateRequest(db.ByCSRID(idNum), db.ByCertificateAuthorityDenormalizedID(caIDInt), env.ExternalHostname)
-		if err != nil {
-			if errors.Is(err, db.ErrNotFound) {
-				writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
-				return
-			}
-			env.SystemLogger.Error("failed to sign certificate request", zap.Error(err), zap.Int64("csr_id", idNum), zap.Int64("certificate_authority_id", caIDInt))
-			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
-			return
+
+		if signCertificateRequestParams.SigningMethod == "" {
+			signCertificateRequestParams.SigningMethod = "ca"
 		}
 
-		env.AuditLogger.CertificateSigned(id, signCertificateRequestParams.CertificateAuthorityID,
-			log.WithActor(claims.Email),
-			log.WithRequest(r),
-		)
+		switch signCertificateRequestParams.SigningMethod {
+		case "ca":
+			caIDInt, err := strconv.ParseInt(signCertificateRequestParams.CertificateAuthorityID, 10, 64)
+			if err != nil {
+				writeResponse(w, http.StatusBadRequest, "invalid certificate authority ID", nil, env.SystemLogger)
+				return
+			}
+			err = env.Database.SignCertificateRequest(db.ByCSRID(idNum), db.ByCertificateAuthorityDenormalizedID(caIDInt), env.ExternalHostname)
+			if err != nil {
+				if errors.Is(err, db.ErrNotFound) {
+					writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
+					return
+				}
+				env.SystemLogger.Error("failed to sign certificate request", zap.Error(err), zap.Int64("csr_id", idNum), zap.Int64("certificate_authority_id", caIDInt))
+				writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
+				return
+			}
+			env.AuditLogger.CertificateSigned(id, signCertificateRequestParams.CertificateAuthorityID,
+				log.WithActor(claims.Email),
+				log.WithRequest(r),
+			)
+		case "acme":
+			if env.ACMERepository == nil {
+				writeResponse(w, http.StatusServiceUnavailable, "ACME is not configured", nil, env.SystemLogger)
+				return
+			}
+			csr, err := env.Database.GetCertificateRequestAndChain(db.ByCSRID(idNum))
+			if err != nil {
+				if errors.Is(err, db.ErrNotFound) {
+					writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
+					return
+				}
+				env.SystemLogger.Error("failed to get certificate request", zap.Error(err), zap.Int64("csr_id", idNum))
+				writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
+				return
+			}
+			certChain, err := env.ACMERepository.SignCSR(csr.CSR)
+			if err != nil {
+				env.SystemLogger.Error("failed to sign certificate request via ACME", zap.Error(err), zap.Int64("csr_id", idNum))
+				writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
+				return
+			}
+			_, err = env.Database.AddCertificateChainToCertificateRequest(db.ByCSRID(idNum), certChain)
+			if err != nil {
+				env.SystemLogger.Error("failed to store ACME certificate chain", zap.Error(err), zap.Int64("csr_id", idNum))
+				writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
+				return
+			}
+			env.AuditLogger.CertificateSigned(id, "acme",
+				log.WithActor(claims.Email),
+				log.WithRequest(r),
+			)
+		default:
+			writeResponse(w, http.StatusBadRequest, "invalid signing_method: must be 'ca' or 'acme'", nil, env.SystemLogger)
+			return
+		}
 
 		if env.ShouldEnablePebbleNotifications {
 			err := SendPebbleNotification(CertificateUpdate, idNum)

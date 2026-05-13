@@ -6,6 +6,7 @@ import (
 	"github.com/canonical/notary/internal/backends/encryption"
 	"github.com/canonical/notary/internal/backends/observability/log"
 	"github.com/canonical/notary/internal/backends/observability/tracing"
+	notaryacme "github.com/canonical/notary/internal/acme"
 	"github.com/canonical/notary/internal/db"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -37,6 +38,8 @@ type AppConfig struct {
 	TracingConfig    *viper.Viper
 	OIDCConfig       *viper.Viper
 	EncryptionConfig *viper.Viper
+	// ACMEConfig holds the ACME client configuration. Nil if the acme: section is absent.
+	ACMEConfig *viper.Viper
 }
 
 // AppEnvironment contains repositories and connections to external services that the application needs to run.
@@ -50,4 +53,5 @@ type AppEnvironment struct {
 	EncryptionRepository *encryption.EncryptionRepository
 	AuthzRepository      *authz.AuthzRepository
 	AuthnRepository      *authn.OIDCRepository
+	ACMERepository       *notaryacme.ACMERepository
 }

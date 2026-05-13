@@ -1,5 +1,5 @@
 import { useState, Dispatch, SetStateAction } from "react";
-import { CertificateSigningRequest, CSREntry } from "@/types";
+import { CertificateSigningRequest, CSREntry, ConfigEntry } from "@/types";
 import {
   Button,
   MainTable,
@@ -7,7 +7,13 @@ import {
   EmptyState,
   ContextualMenu,
 } from "@canonical/react-components";
-import { deleteCSR, rejectCSR, revokeCertificate, signCSR } from "@/queries";
+import {
+  deleteCSR,
+  getConfig,
+  rejectCSR,
+  revokeCertificate,
+  signCSR,
+} from "@/queries";
 import { extractCSR, extractCert, splitBundle } from "@/utils";
 import { SubmitCertificateModal, SuccessNotification } from "./components";
 import {
@@ -17,6 +23,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { RoleID } from "@/types";
 import { useActiveCA } from "@/hooks/useActiveCA";
+import { useQuery } from "@tanstack/react-query";
 
 type TableProps = {
   csrs: CSREntry[];
@@ -29,6 +36,11 @@ export function CertificateRequestsTable({
 }: TableProps) {
   const auth = useAuth();
   const [activeCA] = useActiveCA();
+  const { data: configData } = useQuery<ConfigEntry>({
+    queryKey: ["config"],
+    queryFn: getConfig,
+  });
+  const acmeEnabled = configData?.acme_enabled ?? false;
   const [certificateFormOpen, setCertificateFormOpen] =
     useState<boolean>(false);
   const [confirmationModalData, setConfirmationModalData] =
@@ -109,6 +121,24 @@ export function CertificateRequestsTable({
       successTitle: "Certificate request signed",
       successMessage: "The certificate request was signed successfully.",
       failureMessage: "Failed to sign the certificate request.",
+    });
+  };
+
+  const handleSignWithACME = (id: number) => {
+    setConfirmationModalData({
+      queryFn: signCSR,
+      queryParams: {
+        id: id.toString(),
+        signing_method: "acme",
+      },
+      closeFn: () => setConfirmationModalData(null),
+      queryKey: "csrs",
+      warningText:
+        "Signing with ACME will submit this CSR to the configured ACME server (e.g. Let's Encrypt) via DNS-01 challenge. This may take up to 2 minutes. This action cannot be undone.",
+      buttonConfirmText: "Sign with ACME",
+      successTitle: "Certificate request signed via ACME",
+      successMessage: "The certificate was issued by the ACME server.",
+      failureMessage: "Failed to sign via ACME.",
     });
   };
 
@@ -312,7 +342,14 @@ export function CertificateRequestsTable({
                         disabled={!activeCA}
                         onClick={() => handleSign(id)}
                       >
-                        Sign CSR
+                        Sign with CA
+                      </Button>
+                      <Button
+                        className="p-contextual-menu__link"
+                        disabled={!acmeEnabled}
+                        onClick={() => handleSignWithACME(id)}
+                      >
+                        Sign with ACME
                       </Button>
                       <Button
                         className="p-contextual-menu__link"

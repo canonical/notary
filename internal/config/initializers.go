@@ -12,6 +12,7 @@ import (
 	"github.com/canonical/notary/internal/backends/encryption"
 	"github.com/canonical/notary/internal/backends/observability/log"
 	"github.com/canonical/notary/internal/backends/observability/tracing"
+	notaryacme "github.com/canonical/notary/internal/acme"
 	"github.com/canonical/notary/internal/db"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/spf13/viper"
@@ -63,12 +64,19 @@ func InitializeAppEnvironment(appConfig *AppConfig, database *db.DatabaseReposit
 		return nil, fmt.Errorf("couldn't initialize authorization subsystem: %w", err)
 	}
 
+	// initialize ACME client
+	acmeRepo, err := initializeACME(appConfig.ACMEConfig, database)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't initialize ACME subsystem: %w", err)
+	}
+
 	appEnv.SystemLogger = systemLogger
 	appEnv.AuditLogger = auditLogger
 	appEnv.TracingRepository = tracingRepo
 	appEnv.EncryptionRepository = encryptionRepo
 	appEnv.AuthnRepository = authnRepo
 	appEnv.AuthzRepository = authzRepo
+	appEnv.ACMERepository = acmeRepo
 
 	return appEnv, nil
 }
@@ -341,4 +349,17 @@ func parseSamplingRate(rate string) (float64, error) {
 	}
 
 	return 0, fmt.Errorf("invalid sampling rate format: %s", rate)
+}
+
+// initializeACME creates an ACMERepository from config. Returns nil, nil if cfg is nil (ACME is optional).
+func initializeACME(cfg *viper.Viper, database *db.DatabaseRepository) (*notaryacme.ACMERepository, error) {
+	if cfg == nil {
+		return nil, nil
+	}
+	return notaryacme.NewACMERepository(
+		cfg.GetString("email"),
+		cfg.GetString("directory_url"),
+		cfg.GetString("dns_provider"),
+		database,
+	)
 }

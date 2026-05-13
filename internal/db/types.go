@@ -124,3 +124,12 @@ func (u *User) HasOIDC() bool {
 type NumUsers struct {
 	Count int `db:"count"`
 }
+
+// ACMEAccount stores the ACME account credentials for persistent re-use across restarts.
+type ACMEAccount struct {
+	ID               int64  `db:"id"`
+	Email            string `db:"email"`
+	PrivateKeyPEM    string `db:"private_key"`
+	RegistrationURI  string `db:"registration_uri"`
+	RegistrationBody string `db:"registration_body"`
+}

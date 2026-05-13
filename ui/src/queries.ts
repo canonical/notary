@@ -103,14 +103,24 @@ export async function deleteCSR(params: RequiredCSRParams) {
 }
 
 export async function signCSR(
-  params: RequiredCSRParams & { certificate_authority_id: number },
+  params: RequiredCSRParams & {
+    certificate_authority_id?: number;
+    signing_method?: "ca" | "acme";
+  },
 ) {
-  if (!params.certificate_authority_id) {
-    throw new Error("Certificate not provided");
+  if (!params.signing_method || params.signing_method === "ca") {
+    if (!params.certificate_authority_id) {
+      throw new Error("Certificate authority not provided");
+    }
   }
-  const reqParams = {
-    certificate_authority_id: params.certificate_authority_id.toString(),
-  };
+  const reqParams: Record<string, string> = {};
+  if (params.certificate_authority_id !== undefined) {
+    reqParams.certificate_authority_id =
+      params.certificate_authority_id.toString();
+  }
+  if (params.signing_method) {
+    reqParams.signing_method = params.signing_method;
+  }
   return fetchAPI("/api/v1/certificate_requests/" + params.id + "/sign", {
     method: "post",
     headers: {

@@ -323,6 +323,12 @@ WITH RECURSIVE cas_with_chain AS (
 	createJWTSecretStmt = "INSERT INTO jwt_secret (id, encrypted_secret) VALUES ($JWTSecret.id, $JWTSecret.encrypted_secret)"
 	getJWTSecretStmt    = "SELECT &JWTSecret.* FROM jwt_secret WHERE id=$JWTSecret.id"
 	deleteJWTSecretStmt = "DELETE FROM jwt_secret WHERE id=$JWTSecret.id"
+
+	// // // // // // // // // // // //
+	// ACME Account SQL Strings      //
+	// // // // // // // // // // // //
+	createACMEAccountStmt = "INSERT INTO acme_accounts (id, email, private_key, registration_uri, registration_body) VALUES ($ACMEAccount.id, $ACMEAccount.email, $ACMEAccount.private_key, $ACMEAccount.registration_uri, $ACMEAccount.registration_body)"
+	getACMEAccountStmt    = "SELECT &ACMEAccount.* FROM acme_accounts WHERE id=$ACMEAccount.id"
 )
 
 // Statements contains all prepared SQL statements used by the database
@@ -379,6 +385,10 @@ type Statements struct {
 	CreateJWTSecret *sqlair.Statement
 	GetJWTSecret    *sqlair.Statement
 	DeleteJWTSecret *sqlair.Statement
+
+	// ACME Account statements
+	CreateACMEAccount *sqlair.Statement
+	GetACMEAccount    *sqlair.Statement
 }
 
 // PrepareStatements prepares all SQL statements used by the database.
@@ -439,6 +449,10 @@ func PrepareStatements() *Statements {
 	stmts.CreateJWTSecret = sqlair.MustPrepare(createJWTSecretStmt, JWTSecret{})
 	stmts.GetJWTSecret = sqlair.MustPrepare(getJWTSecretStmt, JWTSecret{})
 	stmts.DeleteJWTSecret = sqlair.MustPrepare(deleteJWTSecretStmt, JWTSecret{})
+
+	// ACME Account statements
+	stmts.CreateACMEAccount = sqlair.MustPrepare(createACMEAccountStmt, ACMEAccount{})
+	stmts.GetACMEAccount = sqlair.MustPrepare(getACMEAccountStmt, ACMEAccount{})
 
 	return stmts
 }

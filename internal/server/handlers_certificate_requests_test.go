@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/canonical/notary/internal/server"
 	tu "github.com/canonical/notary/internal/testutils"
 )
 
@@ -595,4 +596,67 @@ MIICfjCCAeegAwIBAgIBADANBgkqhkiG9w0BAQ0FADBcMQswCQYDVQQGEwJjYTEL
 			}
 		})
 	}
+}
+
+// TestSignCertificateRequestSigningMethodBranching tests the signing_method field branching.
+// It does NOT require a live ACME server; only error/nil-repo paths are exercised.
+func TestSignCertificateRequestSigningMethodBranching(t *testing.T) {
+	ts, _ := tu.MustPrepareServer(t)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+	client := ts.Client()
+
+	// Create a CSR to sign against
+	statusCode, _, err := tu.CreateCertificateRequest(ts.URL, client, adminToken, tu.CreateCertificateRequestParams{CSR: tu.AppleCSR})
+	if err != nil {
+		t.Fatalf("failed to create certificate request: %v", err)
+	}
+	if statusCode != http.StatusCreated {
+		t.Fatalf("expected status %d creating CSR, got %d", http.StatusCreated, statusCode)
+	}
+
+	t.Run("unknown signing_method returns 400", func(t *testing.T) {
+		statusCode, response, err := tu.SignCertificateRequest(ts.URL, client, adminToken, 1, server.SignCertificateRequestParams{
+			SigningMethod: "unknown_method",
+		})
+		if err != nil {
+			t.Fatalf("SignCertificateRequest() error: %v", err)
+		}
+		if statusCode != http.StatusBadRequest {
+			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
+		}
+		if response.Message != "invalid signing_method: must be 'ca' or 'acme'" {
+			t.Fatalf("unexpected message: %q", response.Message)
+		}
+	})
+
+	t.Run("signing_method=acme with no ACMERepository returns 503", func(t *testing.T) {
+		// The default test server has ACMERepository == nil
+		statusCode, response, err := tu.SignCertificateRequest(ts.URL, client, adminToken, 1, server.SignCertificateRequestParams{
+			SigningMethod: "acme",
+		})
+		if err != nil {
+			t.Fatalf("SignCertificateRequest() error: %v", err)
+		}
+		if statusCode != http.StatusServiceUnavailable {
+			t.Fatalf("expected status %d, got %d", http.StatusServiceUnavailable, statusCode)
+		}
+		if response.Message != "ACME is not configured" {
+			t.Fatalf("unexpected message: %q", response.Message)
+		}
+	})
+
+	t.Run("empty signing_method defaults to ca behaviour", func(t *testing.T) {
+		// With no CertificateAuthorityID, the CA signing path returns 400 (invalid CA ID).
+		// This confirms the default "ca" branch is taken, not the "acme" or unknown branch.
+		statusCode, _, err := tu.SignCertificateRequest(ts.URL, client, adminToken, 1, server.SignCertificateRequestParams{
+			SigningMethod: "",
+		})
+		if err != nil {
+			t.Fatalf("SignCertificateRequest() error: %v", err)
+		}
+		// Empty CA ID fails ParseInt → 400, not 503 (acme not configured) or other ACME errors
+		if statusCode != http.StatusBadRequest {
+			t.Fatalf("expected status %d (ca path with empty CA ID), got %d", http.StatusBadRequest, statusCode)
+		}
+	})
 }

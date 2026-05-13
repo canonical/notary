@@ -10,6 +10,7 @@ type GetConfigContentResponse struct {
 	LoggingLevel          string `json:"logging_level"`
 	LoggingOutput         string `json:"logging_output"`
 	EncryptionBackendType string `json:"encryption_backend_type"`
+	ACMEEnabled           bool   `json:"acme_enabled"`
 }
 
 func GetConfigContent(env *HandlerDependencies) http.HandlerFunc {
@@ -20,6 +21,7 @@ func GetConfigContent(env *HandlerDependencies) http.HandlerFunc {
 			LoggingLevel:          env.SystemLogger.Level().String(),
 			LoggingOutput:         env.LoggingConfig.GetString("system.output"),
 			EncryptionBackendType: string(env.EncryptionRepository.Type),
+			ACMEEnabled:           env.ACMERepository != nil,
 		}
 		writeResponse(w, http.StatusOK, "", configContent, env.SystemLogger)
 	}

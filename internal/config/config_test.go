@@ -74,6 +74,9 @@ func TestInvalidConfig(t *testing.T) {
 		{"no encryption backend", noEncryptionBackendConfig, "`encryption_backend` is empty"},
 		{"invalid pkcs11 encryption backend config", invalidEncryptionBackendConfigType, "invalid encryption backend type; must be 'none', 'vault' or 'pkcs11'"},
 		{"incomplete pkcs11 encryption backend config", incompleteEncryptionBackendConfig, "pin is missing"},
+		{"acme section missing email", acmeMissingEmailConfig, "`acme.email` is required"},
+		{"acme section missing directory_url", acmeMissingDirectoryURLConfig, "`acme.directory_url` is required"},
+		{"acme section missing dns_provider", acmeMissingDNSProviderConfig, "`acme.dns_provider` is required"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -249,4 +252,89 @@ encryption_backend:
 `
 	invalidYAMLConfig = `just_an=invalid
 yaml.here`
+)
+
+// TestACMEConfigAbsent verifies that when the acme section is missing from the config,
+// ACMEConfig is nil (no error, no panic).
+func TestACMEConfigAbsent(t *testing.T) {
+	mustPrepareCertificateFiles(t)
+
+	err := os.WriteFile("config.yaml", []byte(validMinimalConfig), 0o644)
+	if err != nil {
+		t.Fatalf("Error writing config file: %v", err)
+	}
+
+	gotCfg, err := config.ParseConfig(&pflag.FlagSet{}, "config.yaml")
+	if err != nil {
+		t.Fatalf("ParseConfig() unexpected error: %v", err)
+	}
+	if gotCfg.ACMEConfig != nil {
+		t.Errorf("expected ACMEConfig to be nil when acme section is absent, got %v", gotCfg.ACMEConfig)
+	}
+}
+
+// TestValidACMEConfig verifies that a config with a complete acme section is accepted without error.
+func TestValidACMEConfig(t *testing.T) {
+	mustPrepareCertificateFiles(t)
+
+	err := os.WriteFile("config.yaml", []byte(validACMEConfig), 0o644)
+	if err != nil {
+		t.Fatalf("Error writing config file: %v", err)
+	}
+
+	gotCfg, err := config.ParseConfig(&pflag.FlagSet{}, "config.yaml")
+	if err != nil {
+		t.Fatalf("ParseConfig() with valid ACME config unexpected error: %v", err)
+	}
+	if gotCfg.ACMEConfig == nil {
+		t.Error("expected ACMEConfig to be non-nil when acme section is present")
+	}
+}
+
+const (
+	validACMEConfig = `
+key_path:  "./key_test.pem"
+cert_path: "./cert_test.pem"
+db_path: "./notary.db"
+port: 8000
+encryption_backend:
+  type: "none"
+acme:
+  email: "admin@example.com"
+  directory_url: "https://acme-staging-v02.api.letsencrypt.org/directory"
+  dns_provider: "cloudflare"
+`
+	acmeMissingEmailConfig = `
+key_path:  "./key_test.pem"
+cert_path: "./cert_test.pem"
+db_path: "./notary.db"
+port: 8000
+encryption_backend:
+  type: "none"
+acme:
+  directory_url: "https://acme-staging-v02.api.letsencrypt.org/directory"
+  dns_provider: "cloudflare"
+`
+	acmeMissingDirectoryURLConfig = `
+key_path:  "./key_test.pem"
+cert_path: "./cert_test.pem"
+db_path: "./notary.db"
+port: 8000
+encryption_backend:
+  type: "none"
+acme:
+  email: "admin@example.com"
+  dns_provider: "cloudflare"
+`
+	acmeMissingDNSProviderConfig = `
+key_path:  "./key_test.pem"
+cert_path: "./cert_test.pem"
+db_path: "./notary.db"
+port: 8000
+encryption_backend:
+  type: "none"
+acme:
+  email: "admin@example.com"
+  directory_url: "https://acme-staging-v02.api.letsencrypt.org/directory"
+`
 )

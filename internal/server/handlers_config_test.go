@@ -127,7 +127,7 @@ func TestConfigEndToEnd(t *testing.T) {
 }
 
 // TestConfigACMEEnabledFalseByDefault verifies that acme_enabled is false
-// when the default test environment has no ACMERepository configured.
+// when the default test database has no active ACME server configured.
 func TestConfigACMEEnabledFalseByDefault(t *testing.T) {
 	ts, _ := tu.MustPrepareServer(t)
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
@@ -141,6 +141,6 @@ func TestConfigACMEEnabledFalseByDefault(t *testing.T) {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
 	}
 	if response.Data.ACMEEnabled {
-		t.Fatal("expected acme_enabled to be false when ACMERepository is nil, got true")
+		t.Fatal("expected acme_enabled to be false when no active ACME server is configured, got true")
 	}
 }

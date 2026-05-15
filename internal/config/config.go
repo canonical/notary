@@ -48,7 +48,6 @@ func ParseConfig(cmdFlags *pflag.FlagSet, configFilePath string) (*AppConfig, er
 	appConfig.TracingConfig = cfg.Sub("tracing")
 	appConfig.OIDCConfig = cfg.Sub("authentication.oidc")
 	appConfig.EncryptionConfig = cfg.Sub("encryption_backend")
-	appConfig.ACMEConfig = cfg.Sub("acme")
 
 	return appConfig, nil
 }
@@ -116,11 +115,6 @@ func validateServerConfig(cfg *viper.Viper) error {
 	if err := validateEncryptionBackendConfig(cfg.Sub("encryption_backend")); err != nil {
 		return err
 	}
-	if cfg.IsSet("acme") {
-		if err := validateACMEConfig(cfg.Sub("acme")); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
@@ -159,16 +153,3 @@ func validateEncryptionBackendConfig(encryptionCfg *viper.Viper) error {
 	return nil
 }
 
-// validateACMEConfig validates the acme: configuration section.
-func validateACMEConfig(acmeCfg *viper.Viper) error {
-	if !acmeCfg.IsSet("email") {
-		return errors.New("`acme.email` is required when acme section is present")
-	}
-	if !acmeCfg.IsSet("directory_url") {
-		return errors.New("`acme.directory_url` is required when acme section is present")
-	}
-	if !acmeCfg.IsSet("dns_provider") {
-		return errors.New("`acme.dns_provider` is required when acme section is present")
-	}
-	return nil
-}

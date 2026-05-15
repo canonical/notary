@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	notaryacme "github.com/canonical/notary/internal/acme"
 	"github.com/canonical/notary/internal/backends/observability/log"
 	"github.com/canonical/notary/internal/db"
 	"go.uber.org/zap"
@@ -579,8 +580,20 @@ func SignCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 				log.WithRequest(r),
 			)
 		case "acme":
-			if env.ACMERepository == nil {
-				writeResponse(w, http.StatusServiceUnavailable, "ACME is not configured", nil, env.SystemLogger)
+			activeServer, err := env.Database.GetDecryptedActiveACMEServer()
+			if err != nil {
+				if errors.Is(err, db.ErrNotFound) {
+					writeResponse(w, http.StatusServiceUnavailable, "ACME is not configured", nil, env.SystemLogger)
+					return
+				}
+				env.SystemLogger.Error("failed to get active ACME server", zap.Error(err))
+				writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
+				return
+			}
+			var envVars map[string]string
+			if err := json.Unmarshal([]byte(activeServer.EnvVars), &envVars); err != nil {
+				env.SystemLogger.Error("failed to decode ACME server env vars", zap.Error(err))
+				writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 				return
 			}
 			csr, err := env.Database.GetCertificateRequestAndChain(db.ByCSRID(idNum))
@@ -593,10 +606,11 @@ func SignCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 				writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 				return
 			}
-			certChain, err := env.ACMERepository.SignCSR(csr.CSR)
+			acmeRepo := notaryacme.NewACMERepository(activeServer.ID, activeServer.Email, activeServer.DirectoryURL, activeServer.DNSProvider, envVars, env.Database)
+			certChain, err := acmeRepo.SignCSR(csr.CSR)
 			if err != nil {
 				env.SystemLogger.Error("failed to sign certificate request via ACME", zap.Error(err), zap.Int64("csr_id", idNum))
-				writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
+				writeResponse(w, http.StatusInternalServerError, err.Error(), nil, env.SystemLogger)
 				return
 			}
 			_, err = env.Database.AddCertificateChainToCertificateRequest(db.ByCSRID(idNum), certChain)

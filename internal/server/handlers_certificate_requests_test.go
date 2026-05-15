@@ -630,7 +630,7 @@ func TestSignCertificateRequestSigningMethodBranching(t *testing.T) {
 	})
 
 	t.Run("signing_method=acme with no ACMERepository returns 503", func(t *testing.T) {
-		// The default test server has ACMERepository == nil
+		// The default test DB has no active ACME server, so GetDecryptedActiveACMEServer returns ErrNotFound → 503.
 		statusCode, response, err := tu.SignCertificateRequest(ts.URL, client, adminToken, 1, server.SignCertificateRequestParams{
 			SigningMethod: "acme",
 		})

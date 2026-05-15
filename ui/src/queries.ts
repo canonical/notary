@@ -1,6 +1,7 @@
 /* eslint-disable */
 
 import {
+  ACMEServerEntry,
   APIError,
   APIErrorResponse,
   APIResponse,
@@ -343,4 +344,58 @@ export async function signCA(
 
 export async function getConfig(): Promise<ConfigEntry> {
   return (await fetchAPI<ConfigEntry>("/api/v1/config")) as ConfigEntry;
+}
+
+// ACME Server queries
+
+export type ACMEServerCreateParams = {
+  name: string;
+  directory_url: string;
+  email: string;
+  dns_provider: string;
+  env_vars: Record<string, string>;
+};
+
+export type ACMEServerUpdateParams = ACMEServerCreateParams & { id: string };
+
+export async function getACMEServers(): Promise<ACMEServerEntry[]> {
+  const resp = await fetchAPI<ACMEServerEntry[]>("/api/v1/acme_servers");
+  return (resp as APIResponse<ACMEServerEntry[]>).data ?? [];
+}
+
+export async function createACMEServer(
+  params: ACMEServerCreateParams,
+): Promise<ACMEServerEntry> {
+  const resp = await fetchAPI<ACMEServerEntry>("/api/v1/acme_servers", {
+    method: "post",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  return (resp as APIResponse<ACMEServerEntry>).data!;
+}
+
+export async function updateACMEServer(
+  params: ACMEServerUpdateParams,
+): Promise<ACMEServerEntry> {
+  const { id, ...body } = params;
+  const resp = await fetchAPI<ACMEServerEntry>(`/api/v1/acme_servers/${id}`, {
+    method: "put",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return (resp as APIResponse<ACMEServerEntry>).data!;
+}
+
+export async function deleteACMEServer(params: { id: string }): Promise<void> {
+  await fetchAPI(`/api/v1/acme_servers/${params.id}`, { method: "delete" });
+}
+
+export async function setActiveACMEServer(params: {
+  id: string;
+}): Promise<ACMEServerEntry> {
+  const resp = await fetchAPI<ACMEServerEntry>(
+    `/api/v1/acme_servers/${params.id}/active`,
+    { method: "put" },
+  );
+  return (resp as APIResponse<ACMEServerEntry>).data!;
 }

@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 
 	"github.com/canonical/notary/internal/db"
@@ -19,6 +20,9 @@ import (
 	"github.com/go-acme/lego/v4/providers/dns"
 	"github.com/go-acme/lego/v4/registration"
 )
+
+// signingMu serialises SignCSR calls so env var injection is thread-safe.
+var signingMu sync.Mutex
 
 type acmeUser struct {
 	email        string
@@ -30,122 +34,133 @@ func (u *acmeUser) GetEmail() string                        { return u.email }
 func (u *acmeUser) GetRegistration() *registration.Resource { return u.registration }
 func (u *acmeUser) GetPrivateKey() crypto.PrivateKey        { return u.key }
 
-// ACMERepository manages ACME account lifecycle and certificate issuance.
+// ACMERepository is a transient, per-sign object that holds everything needed
+// to obtain a certificate from an ACME server for a single signing operation.
 type ACMERepository struct {
-	Email        string
-	DirectoryURL string
-	DNSProvider  string
+	serverID     int64
+	email        string
+	directoryURL string
+	dnsProvider  string
+	envVars      map[string]string
 	db           *db.DatabaseRepository
-	mu           sync.Mutex
-	user         *acmeUser
 }
 
-// NewACMERepository creates a new ACMERepository with the provided configuration.
-func NewACMERepository(email, directoryURL, dnsProvider string, database *db.DatabaseRepository) (*ACMERepository, error) {
-	if email == "" || directoryURL == "" || dnsProvider == "" {
-		return nil, errors.New("acme: email, directory_url, and dns_provider are all required")
-	}
+// NewACMERepository creates a transient ACMERepository. Validation is the
+// caller's responsibility.
+func NewACMERepository(serverID int64, email, directoryURL, dnsProvider string, envVars map[string]string, database *db.DatabaseRepository) *ACMERepository {
 	return &ACMERepository{
-		Email:        email,
-		DirectoryURL: directoryURL,
-		DNSProvider:  dnsProvider,
+		serverID:     serverID,
+		email:        email,
+		directoryURL: directoryURL,
+		dnsProvider:  dnsProvider,
+		envVars:      envVars,
 		db:           database,
-	}, nil
+	}
 }
 
-// loadOrCreateAccount loads the ACME account from the database or registers a new one.
-// Must be called with r.mu held.
-func (r *ACMERepository) loadOrCreateAccount() error {
-	if r.user != nil {
-		return nil
+// loadOrCreateAccount returns an acmeUser backed by a DB-persisted account.
+// If no account exists for (email, directoryURL), a new ECDSA key is generated
+// and the account is registered with the ACME server before being stored.
+// Must be called with signingMu held (env vars are already injected).
+func (r *ACMERepository) loadOrCreateAccount() (*acmeUser, error) {
+	// Try to load an existing account by (email, directoryURL).
+	account, err := r.db.GetACMEAccountByEmailAndURL(r.email, r.directoryURL)
+	if err != nil && !errors.Is(err, db.ErrNotFound) {
+		return nil, fmt.Errorf("failed to look up ACME account: %w", err)
 	}
 
-	exists, err := r.db.ACMEAccountExists()
+	// Account already exists — reconstruct user from stored credentials.
+	if err == nil {
+		block, _ := pem.Decode([]byte(account.PrivateKeyPEM))
+		if block == nil {
+			return nil, errors.New("failed to decode ACME account private key PEM")
+		}
+		privKey, err := x509.ParseECPrivateKey(block.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse ACME account private key: %w", err)
+		}
+		var reg registration.Resource
+		if err := json.Unmarshal([]byte(account.RegistrationBody), &reg); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal ACME registration: %w", err)
+		}
+		return &acmeUser{
+			email:        account.Email,
+			registration: &reg,
+			key:          privKey,
+		}, nil
+	}
+
+	// No account yet — generate a key and register.
+	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
-		return fmt.Errorf("failed to check ACME account existence: %w", err)
+		return nil, fmt.Errorf("failed to generate ACME account key: %w", err)
 	}
 
-	if !exists {
-		privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		if err != nil {
-			return fmt.Errorf("failed to generate ACME account key: %w", err)
-		}
-
-		user := &acmeUser{email: r.Email, key: privKey}
-
-		cfg := legoconfig.NewConfig(user)
-		cfg.CADirURL = r.DirectoryURL
-		cfg.Certificate.KeyType = certcrypto.EC256
-
-		client, err := legoconfig.NewClient(cfg)
-		if err != nil {
-			return fmt.Errorf("failed to create ACME client: %w", err)
-		}
-
-		reg, err := client.Registration.Register(registration.RegisterOptions{TermsOfServiceAgreed: true})
-		if err != nil {
-			return fmt.Errorf("failed to register ACME account: %w", err)
-		}
-		user.registration = reg
-
-		keyDER, err := x509.MarshalECPrivateKey(privKey)
-		if err != nil {
-			return fmt.Errorf("failed to marshal ACME account key: %w", err)
-		}
-		privKeyPEM := string(pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER}))
-
-		regBodyJSON, err := json.Marshal(reg)
-		if err != nil {
-			return fmt.Errorf("failed to marshal ACME registration: %w", err)
-		}
-
-		if err := r.db.CreateACMEAccount(r.Email, privKeyPEM, reg.URI, string(regBodyJSON)); err != nil {
-			return fmt.Errorf("failed to store ACME account: %w", err)
-		}
-
-		r.user = user
-		return nil
-	}
-
-	account, err := r.db.GetDecryptedACMEAccount()
-	if err != nil {
-		return fmt.Errorf("failed to load ACME account: %w", err)
-	}
-
-	block, _ := pem.Decode([]byte(account.PrivateKeyPEM))
-	if block == nil {
-		return errors.New("failed to decode ACME account private key PEM")
-	}
-	privKey, err := x509.ParseECPrivateKey(block.Bytes)
-	if err != nil {
-		return fmt.Errorf("failed to parse ACME account private key: %w", err)
-	}
-
-	var reg registration.Resource
-	if err := json.Unmarshal([]byte(account.RegistrationBody), &reg); err != nil {
-		return fmt.Errorf("failed to unmarshal ACME registration: %w", err)
-	}
-
-	r.user = &acmeUser{
-		email:        account.Email,
-		registration: &reg,
-		key:          privKey,
-	}
-	return nil
-}
-
-// SignCSR uses the ACME protocol with DNS-01 challenge to obtain a signed certificate for the given CSR.
-func (r *ACMERepository) SignCSR(csrPEM string) (string, error) {
-	r.mu.Lock()
-	if err := r.loadOrCreateAccount(); err != nil {
-		r.mu.Unlock()
-		return "", fmt.Errorf("acme: failed to initialize account: %w", err)
-	}
-	user := r.user
-	r.mu.Unlock()
+	user := &acmeUser{email: r.email, key: privKey}
 
 	cfg := legoconfig.NewConfig(user)
-	cfg.CADirURL = r.DirectoryURL
+	cfg.CADirURL = r.directoryURL
+	cfg.Certificate.KeyType = certcrypto.EC256
+
+	client, err := legoconfig.NewClient(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ACME client: %w", err)
+	}
+
+	reg, err := client.Registration.Register(registration.RegisterOptions{TermsOfServiceAgreed: true})
+	if err != nil {
+		return nil, fmt.Errorf("failed to register ACME account: %w", err)
+	}
+	user.registration = reg
+
+	keyDER, err := x509.MarshalECPrivateKey(privKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal ACME account key: %w", err)
+	}
+	privKeyPEM := string(pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER}))
+
+	regBodyJSON, err := json.Marshal(reg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal ACME registration: %w", err)
+	}
+
+	newAccount, err := r.db.GetOrCreateACMEAccount(r.email, r.directoryURL, privKeyPEM, reg.URI, string(regBodyJSON))
+	if err != nil {
+		return nil, fmt.Errorf("failed to store ACME account: %w", err)
+	}
+
+	if r.serverID > 0 {
+		if err := r.db.LinkAccountToServer(r.serverID, newAccount.ID); err != nil {
+			return nil, fmt.Errorf("failed to link ACME account to server: %w", err)
+		}
+	}
+
+	return user, nil
+}
+
+// SignCSR uses the ACME protocol with DNS-01 challenge to obtain a signed
+// certificate for the given CSR. It injects r.envVars into the process
+// environment for the duration of the call, under the package-level signingMu.
+func (r *ACMERepository) SignCSR(csrPEM string) (string, error) {
+	signingMu.Lock()
+
+	for k, v := range r.envVars {
+		os.Setenv(k, v) //nolint:errcheck
+	}
+	defer func() {
+		for k := range r.envVars {
+			os.Unsetenv(k) //nolint:errcheck
+		}
+		signingMu.Unlock()
+	}()
+
+	user, err := r.loadOrCreateAccount()
+	if err != nil {
+		return "", fmt.Errorf("acme: failed to initialize account: %w", err)
+	}
+
+	cfg := legoconfig.NewConfig(user)
+	cfg.CADirURL = r.directoryURL
 	cfg.Certificate.KeyType = certcrypto.EC256
 
 	client, err := legoconfig.NewClient(cfg)
@@ -153,9 +168,9 @@ func (r *ACMERepository) SignCSR(csrPEM string) (string, error) {
 		return "", fmt.Errorf("acme: failed to create ACME client: %w", err)
 	}
 
-	provider, err := dns.NewDNSChallengeProviderByName(r.DNSProvider)
+	provider, err := dns.NewDNSChallengeProviderByName(r.dnsProvider)
 	if err != nil {
-		return "", fmt.Errorf("acme: unknown DNS provider %q: %w", r.DNSProvider, err)
+		return "", fmt.Errorf("acme: unknown DNS provider %q: %w", r.dnsProvider, err)
 	}
 	if err := client.Challenge.SetDNS01Provider(provider); err != nil {
 		return "", fmt.Errorf("acme: failed to set DNS-01 provider: %w", err)

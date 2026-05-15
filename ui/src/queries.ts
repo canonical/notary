@@ -359,31 +359,30 @@ export type ACMEServerCreateParams = {
 export type ACMEServerUpdateParams = ACMEServerCreateParams & { id: string };
 
 export async function getACMEServers(): Promise<ACMEServerEntry[]> {
-  const resp = await fetchAPI<ACMEServerEntry[]>("/api/v1/acme_servers");
-  return (resp as APIResponse<ACMEServerEntry[]>).data ?? [];
+  return ((await fetchAPI<ACMEServerEntry[]>(
+    "/api/v1/acme_servers",
+  )) as ACMEServerEntry[]) ?? [];
 }
 
 export async function createACMEServer(
   params: ACMEServerCreateParams,
 ): Promise<ACMEServerEntry> {
-  const resp = await fetchAPI<ACMEServerEntry>("/api/v1/acme_servers", {
+  return (await fetchAPI<ACMEServerEntry>("/api/v1/acme_servers", {
     method: "post",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
-  });
-  return (resp as APIResponse<ACMEServerEntry>).data!;
+  })) as ACMEServerEntry;
 }
 
 export async function updateACMEServer(
   params: ACMEServerUpdateParams,
 ): Promise<ACMEServerEntry> {
   const { id, ...body } = params;
-  const resp = await fetchAPI<ACMEServerEntry>(`/api/v1/acme_servers/${id}`, {
+  return (await fetchAPI<ACMEServerEntry>(`/api/v1/acme_servers/${id}`, {
     method: "put",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-  });
-  return (resp as APIResponse<ACMEServerEntry>).data!;
+  })) as ACMEServerEntry;
 }
 
 export async function deleteACMEServer(params: { id: string }): Promise<void> {
@@ -393,9 +392,8 @@ export async function deleteACMEServer(params: { id: string }): Promise<void> {
 export async function setActiveACMEServer(params: {
   id: string;
 }): Promise<ACMEServerEntry> {
-  const resp = await fetchAPI<ACMEServerEntry>(
+  return (await fetchAPI<ACMEServerEntry>(
     `/api/v1/acme_servers/${params.id}/active`,
     { method: "put" },
-  );
-  return (resp as APIResponse<ACMEServerEntry>).data!;
+  )) as ACMEServerEntry;
 }

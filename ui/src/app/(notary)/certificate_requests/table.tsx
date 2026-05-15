@@ -41,7 +41,8 @@ export function CertificateRequestsTable({
     queryFn: getConfig,
   });
   const acmeEnabled = configData?.acme_enabled ?? false;
-  const acmeServerName = configData?.acme_server_name ?? "configured ACME server";
+  const acmeServerName =
+    configData?.acme_server_name ?? "configured ACME server";
   const [certificateFormOpen, setCertificateFormOpen] =
     useState<boolean>(false);
   const [confirmationModalData, setConfirmationModalData] =

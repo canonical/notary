@@ -93,9 +93,13 @@ export default function ACMEServersTable({
                   <span className="p-contextual-menu__group">
                     <Button
                       className="p-contextual-menu__link"
-                      onClick={() => setExpandedID(isExpanded ? null : server.id)}
+                      onClick={() =>
+                        setExpandedID(isExpanded ? null : server.id)
+                      }
                     >
-                      {isExpanded ? "Hide Server Details" : "Show Server Details"}
+                      {isExpanded
+                        ? "Hide Server Details"
+                        : "Show Server Details"}
                     </Button>
                     {!server.active && (
                       <Button
@@ -152,7 +156,12 @@ export default function ACMEServersTable({
                 <tbody>
                   {server.env_var_keys.map((key) => (
                     <tr key={key}>
-                      <td style={{ paddingRight: "24px", fontFamily: "monospace" }}>
+                      <td
+                        style={{
+                          paddingRight: "24px",
+                          fontFamily: "monospace",
+                        }}
+                      >
                         {key}
                       </td>
                       <td style={{ fontFamily: "monospace", color: "#888" }}>

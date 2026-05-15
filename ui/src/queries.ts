@@ -364,9 +364,11 @@ export type ACMEServerCreateParams = {
 export type ACMEServerUpdateParams = ACMEServerCreateParams & { id: string };
 
 export async function getACMEServers(): Promise<ACMEServerEntry[]> {
-  return ((await fetchAPI<ACMEServerEntry[]>(
-    "/api/v1/acme_servers",
-  )) as ACMEServerEntry[]) ?? [];
+  return (
+    ((await fetchAPI<ACMEServerEntry[]>(
+      "/api/v1/acme_servers",
+    )) as ACMEServerEntry[]) ?? []
+  );
 }
 
 export async function createACMEServer(

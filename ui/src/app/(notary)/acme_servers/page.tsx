@@ -20,8 +20,9 @@ import NotaryAppStatus from "@/components/NotaryAppStatus";
 
 export default function ACMEServersPage() {
   const [asideOpen, setAsideOpen] = useState<boolean>(false);
-  const [editingServer, setEditingServer] =
-    useState<ACMEServerEntry | null>(null);
+  const [editingServer, setEditingServer] = useState<ACMEServerEntry | null>(
+    null,
+  );
 
   const query = useQuery<ACMEServerEntry[], APIError>({
     queryKey: ["acme_servers"],

@@ -35,7 +35,9 @@ export default function ACMEServersAsidePanel({
   const [directoryURL, setDirectoryURL] = useState("");
   const [email, setEmail] = useState("");
   const [dnsProvider, setDNSProvider] = useState("");
-  const [envVars, setEnvVars] = useState<EnvVarPair[]>([{ key: "", value: "" }]);
+  const [envVars, setEnvVars] = useState<EnvVarPair[]>([
+    { key: "", value: "" },
+  ]);
   const [formError, setFormError] = useState("");
 
   useEffect(() => {

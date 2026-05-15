@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	notaryacme "github.com/canonical/notary/internal/acme"
 	"github.com/canonical/notary/internal/backends/observability/log"
@@ -580,6 +581,13 @@ func SignCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 				log.WithRequest(r),
 			)
 		case "acme":
+			// ACME DNS-01 challenge can take several minutes for propagation.
+			// Extend the write deadline for this specific request to avoid
+			// the server cutting the connection before the challenge completes.
+			rc := http.NewResponseController(w)
+			if err := rc.SetWriteDeadline(time.Now().Add(10 * time.Minute)); err != nil {
+				env.SystemLogger.Warn("failed to extend write deadline for ACME sign", zap.Error(err))
+			}
 			activeServer, err := env.Database.GetDecryptedActiveACMEServer()
 			if err != nil {
 				if errors.Is(err, db.ErrNotFound) {

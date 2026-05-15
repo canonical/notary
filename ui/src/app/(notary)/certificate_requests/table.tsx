@@ -41,6 +41,7 @@ export function CertificateRequestsTable({
     queryFn: getConfig,
   });
   const acmeEnabled = configData?.acme_enabled ?? false;
+  const acmeServerName = configData?.acme_server_name ?? "configured ACME server";
   const [certificateFormOpen, setCertificateFormOpen] =
     useState<boolean>(false);
   const [confirmationModalData, setConfirmationModalData] =
@@ -133,8 +134,7 @@ export function CertificateRequestsTable({
       },
       closeFn: () => setConfirmationModalData(null),
       queryKey: "csrs",
-      warningText:
-        "Signing with ACME will submit this CSR to the configured ACME server (e.g. Let's Encrypt) via DNS-01 challenge. This may take up to 2 minutes. This action cannot be undone.",
+      warningText: `Signing with ACME will submit this CSR to "${acmeServerName}" via DNS-01 challenge. This may take up to 2 minutes. This action cannot be undone.`,
       buttonConfirmText: "Sign with ACME",
       successTitle: "Certificate request signed via ACME",
       successMessage: "The certificate was issued by the ACME server.",

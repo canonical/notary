@@ -11,12 +11,13 @@ import (
 )
 
 type ACMEServerResponse struct {
-	ID           int64  `json:"id"`
-	Name         string `json:"name"`
-	DirectoryURL string `json:"directory_url"`
-	Email        string `json:"email"`
-	DNSProvider  string `json:"dns_provider"`
-	Active       bool   `json:"active"`
+	ID           int64    `json:"id"`
+	Name         string   `json:"name"`
+	DirectoryURL string   `json:"directory_url"`
+	Email        string   `json:"email"`
+	DNSProvider  string   `json:"dns_provider"`
+	Active       bool     `json:"active"`
+	EnvVarKeys   []string `json:"env_var_keys"`
 }
 
 type CreateACMEServerParams struct {
@@ -36,6 +37,20 @@ type UpdateACMEServerParams struct {
 }
 
 func dbACMEServerToResponse(s *db.ACMEServer) ACMEServerResponse {
+	// Extract env var keys (values are not returned for security).
+	// s.EnvVars is populated only when the server was fetched decrypted.
+	var envVarKeys []string
+	if s.EnvVars != "" {
+		var envMap map[string]string
+		if err := json.Unmarshal([]byte(s.EnvVars), &envMap); err == nil {
+			for k := range envMap {
+				envVarKeys = append(envVarKeys, k)
+			}
+		}
+	}
+	if envVarKeys == nil {
+		envVarKeys = []string{}
+	}
 	return ACMEServerResponse{
 		ID:           s.ID,
 		Name:         s.Name,
@@ -43,6 +58,7 @@ func dbACMEServerToResponse(s *db.ACMEServer) ACMEServerResponse {
 		Email:        s.Email,
 		DNSProvider:  s.DNSProvider,
 		Active:       s.Active,
+		EnvVarKeys:   envVarKeys,
 	}
 }
 
@@ -56,7 +72,14 @@ func ListACMEServers(env *HandlerDependencies) http.HandlerFunc {
 		}
 		resp := make([]ACMEServerResponse, 0, len(servers))
 		for i := range servers {
-			resp = append(resp, dbACMEServerToResponse(&servers[i]))
+			// Decrypt to get env var keys (values are masked in the response).
+			decrypted, err := env.Database.GetDecryptedACMEServer(servers[i].ID)
+			if err != nil {
+				env.SystemLogger.Error("failed to decrypt ACME server env vars", zap.Error(err), zap.Int64("id", servers[i].ID))
+				resp = append(resp, dbACMEServerToResponse(&servers[i]))
+				continue
+			}
+			resp = append(resp, dbACMEServerToResponse(decrypted))
 		}
 		writeResponse(w, http.StatusOK, "", resp, env.SystemLogger)
 	}
@@ -69,7 +92,7 @@ func GetACMEServer(env *HandlerDependencies) http.HandlerFunc {
 			writeResponse(w, http.StatusBadRequest, "invalid id", nil, env.SystemLogger)
 			return
 		}
-		server, err := env.Database.GetACMEServer(id)
+		server, err := env.Database.GetDecryptedACMEServer(id)
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
@@ -107,7 +130,7 @@ func CreateACMEServer(env *HandlerDependencies) http.HandlerFunc {
 			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
-		server, err := env.Database.GetACMEServer(newID)
+		server, err := env.Database.GetDecryptedACMEServer(newID)
 		if err != nil {
 			env.SystemLogger.Error("failed to retrieve created ACME server", zap.Error(err))
 			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
@@ -141,7 +164,7 @@ func UpdateACMEServer(env *HandlerDependencies) http.HandlerFunc {
 			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
-		server, err := env.Database.GetACMEServer(id)
+		server, err := env.Database.GetDecryptedACMEServer(id)
 		if err != nil {
 			env.SystemLogger.Error("failed to retrieve updated ACME server", zap.Error(err))
 			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
@@ -187,7 +210,7 @@ func SetActiveACMEServer(env *HandlerDependencies) http.HandlerFunc {
 			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
-		server, err := env.Database.GetACMEServer(id)
+		server, err := env.Database.GetDecryptedACMEServer(id)
 		if err != nil {
 			env.SystemLogger.Error("failed to retrieve ACME server after activation", zap.Error(err))
 			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)

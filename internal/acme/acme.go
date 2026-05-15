@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/canonical/notary/internal/db"
@@ -168,7 +169,7 @@ func (r *ACMERepository) SignCSR(csrPEM string) (string, error) {
 		return "", fmt.Errorf("acme: failed to create ACME client: %w", err)
 	}
 
-	provider, err := dns.NewDNSChallengeProviderByName(r.dnsProvider)
+	provider, err := dns.NewDNSChallengeProviderByName(strings.ToLower(r.dnsProvider))
 	if err != nil {
 		return "", fmt.Errorf("acme: unknown DNS provider %q: %w", r.dnsProvider, err)
 	}

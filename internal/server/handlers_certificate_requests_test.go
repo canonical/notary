@@ -660,3 +660,45 @@ func TestSignCertificateRequestSigningMethodBranching(t *testing.T) {
 		}
 	})
 }
+
+// TestRevokeNonCACertificateReturns422 is a regression test for the bug where revoking
+// a certificate not issued by a Notary-managed CA returned HTTP 500 with an empty body.
+// It must return 422 Unprocessable Entity with the error message in the response body.
+func TestRevokeNonCACertificateReturns422(t *testing.T) {
+	ts, _ := tu.MustPrepareServer(t)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+	client := ts.Client()
+
+	// Create a CSR, then inject a certificate chain that was NOT signed by a Notary CA.
+	statusCode, _, err := tu.CreateCertificateRequest(ts.URL, client, adminToken, tu.CreateCertificateRequestParams{CSR: tu.ExampleCSR})
+	if err != nil {
+		t.Fatalf("CreateCertificateRequest() error: %v", err)
+	}
+	if statusCode != http.StatusCreated {
+		t.Fatalf("expected status %d creating CSR, got %d", http.StatusCreated, statusCode)
+	}
+
+	// Upload an external certificate (not tracked in the certificate_authorities table).
+	statusCode, _, err = tu.CreateCertificate(ts.URL, client, adminToken, tu.CreateCertificateParams{
+		Certificate: fmt.Sprintf("%s\n%s", tu.ExampleCSRCertificate, tu.ExampleCSRIssuerCertificate),
+	})
+	if err != nil {
+		t.Fatalf("CreateCertificate() error: %v", err)
+	}
+	if statusCode != http.StatusCreated {
+		t.Fatalf("expected status %d uploading certificate, got %d", http.StatusCreated, statusCode)
+	}
+
+	// Now attempt to revoke — must return 422 with a human-readable message, not 500.
+	statusCode, response, err := tu.RevokeCertificateRequest(ts.URL, client, adminToken, 1)
+	if err != nil {
+		t.Fatalf("RevokeCertificateRequest() error: %v", err)
+	}
+	if statusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected status %d for non-CA certificate revocation, got %d (body: %q)",
+			http.StatusUnprocessableEntity, statusCode, response.Message)
+	}
+	if response.Message == "" {
+		t.Fatal("expected non-empty error message in response body, got empty string")
+	}
+}

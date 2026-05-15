@@ -259,3 +259,77 @@ func TestACMEServersEndToEnd(t *testing.T) {
 		}
 	})
 }
+
+// TestACMEServerEnvVarKeysInResponse verifies that the API returns env_var_keys (the list
+// of configured provider variable names) with values masked, rather than exposing the
+// secrets. This covers the Create, Get, and Update response shapes.
+func TestACMEServerEnvVarKeysInResponse(t *testing.T) {
+	ts, _ := tu.MustPrepareServer(t)
+	adminToken := tu.MustPrepareAccount(t, ts, "acme-admin@canonical.com", tu.RoleAdmin, "")
+	client := ts.Client()
+
+	// Create with two env vars.
+	statusCode, created, err := tu.CreateACMEServer(ts.URL, client, adminToken, tu.CreateACMEServerParams{
+		Name:         "Hetzner Server",
+		DirectoryURL: "https://acme-v02.api.letsencrypt.org/directory",
+		Email:        "ops@example.com",
+		DNSProvider:  "hetzner",
+		EnvVars: map[string]string{
+			"HETZNER_API_TOKEN": "super-secret-token",
+			"EXTRA_KEY":         "extra-value",
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateACMEServer() error: %v", err)
+	}
+	if statusCode != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusCreated, statusCode, created.Message)
+	}
+
+	// Create response must include env_var_keys with both key names.
+	if len(created.Data.EnvVarKeys) != 2 {
+		t.Fatalf("expected 2 env_var_keys in Create response, got %d: %v", len(created.Data.EnvVarKeys), created.Data.EnvVarKeys)
+	}
+	keySet := make(map[string]bool, len(created.Data.EnvVarKeys))
+	for _, k := range created.Data.EnvVarKeys {
+		keySet[k] = true
+	}
+	if !keySet["HETZNER_API_TOKEN"] || !keySet["EXTRA_KEY"] {
+		t.Errorf("expected keys [HETZNER_API_TOKEN EXTRA_KEY] in Create response, got %v", created.Data.EnvVarKeys)
+	}
+
+	serverID := int(created.Data.ID)
+
+	// Get response must also include the same env_var_keys.
+	statusCode, fetched, err := tu.GetACMEServer(ts.URL, client, adminToken, serverID)
+	if err != nil {
+		t.Fatalf("GetACMEServer() error: %v", err)
+	}
+	if statusCode != http.StatusOK {
+		t.Fatalf("expected status %d from Get, got %d", http.StatusOK, statusCode)
+	}
+	if len(fetched.Data.EnvVarKeys) != 2 {
+		t.Fatalf("expected 2 env_var_keys in Get response, got %d: %v", len(fetched.Data.EnvVarKeys), fetched.Data.EnvVarKeys)
+	}
+
+	// Update with a different set of env vars; response must reflect the new keys.
+	statusCode, updated, err := tu.UpdateACMEServer(ts.URL, client, adminToken, serverID, tu.UpdateACMEServerParams{
+		Name:         "Hetzner Server",
+		DirectoryURL: "https://acme-v02.api.letsencrypt.org/directory",
+		Email:        "ops@example.com",
+		DNSProvider:  "hetzner",
+		EnvVars:      map[string]string{"HETZNER_API_TOKEN": "rotated-token"},
+	})
+	if err != nil {
+		t.Fatalf("UpdateACMEServer() error: %v", err)
+	}
+	if statusCode != http.StatusOK {
+		t.Fatalf("expected status %d from Update, got %d: %s", http.StatusOK, statusCode, updated.Message)
+	}
+	if len(updated.Data.EnvVarKeys) != 1 {
+		t.Fatalf("expected 1 env_var_key after update, got %d: %v", len(updated.Data.EnvVarKeys), updated.Data.EnvVarKeys)
+	}
+	if updated.Data.EnvVarKeys[0] != "HETZNER_API_TOKEN" {
+		t.Errorf("expected env_var_keys[0] to be %q, got %q", "HETZNER_API_TOKEN", updated.Data.EnvVarKeys[0])
+	}
+}

@@ -500,6 +500,10 @@ func RevokeCertificate(env *HandlerDependencies) http.HandlerFunc {
 				writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
 				return
 			}
+			if errors.Is(err, db.ErrInvalidInput) {
+				writeResponse(w, http.StatusUnprocessableEntity, err.Error(), nil, env.SystemLogger)
+				return
+			}
 			env.SystemLogger.Error("failed to revoke certificate", zap.Error(err), zap.Int64("csr_id", idNum))
 			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return

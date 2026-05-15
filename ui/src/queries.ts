@@ -29,6 +29,11 @@ type GETStatus = {
 };
 
 async function parseAPIResponse<T>(response: globalThis.Response) {
+  // 204 No Content has no body — skip JSON parsing.
+  if (response.status === 204) {
+    return { data: undefined } as APIResponse<T>;
+  }
+
   const respData = (await response.json()) as APIResponse<T> | APIErrorResponse;
 
   if (!response.ok) {

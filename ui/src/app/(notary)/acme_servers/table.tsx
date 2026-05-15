@@ -88,26 +88,15 @@ export default function ACMEServersTable({
         {
           content: (
             <>
-              <Button
-                appearance="base"
-                hasIcon
-                onClick={() =>
-                  setExpandedID(isExpanded ? null : server.id)
-                }
-                title={isExpanded ? "Collapse" : "Expand"}
-                small
-              >
-                <i
-                  className={
-                    isExpanded
-                      ? "p-icon--chevron-up"
-                      : "p-icon--chevron-down"
-                  }
-                />
-              </Button>
               {canManage && (
                 <ContextualMenu hasToggleIcon position="right">
                   <span className="p-contextual-menu__group">
+                    <Button
+                      className="p-contextual-menu__link"
+                      onClick={() => setExpandedID(isExpanded ? null : server.id)}
+                    >
+                      {isExpanded ? "Hide Server Details" : "Show Server Details"}
+                    </Button>
                     {!server.active && (
                       <Button
                         className="p-contextual-menu__link"

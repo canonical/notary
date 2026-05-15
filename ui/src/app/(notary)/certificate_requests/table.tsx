@@ -134,7 +134,7 @@ export function CertificateRequestsTable({
       },
       closeFn: () => setConfirmationModalData(null),
       queryKey: "csrs",
-      warningText: `Signing with ACME will submit this CSR to "${acmeServerName}" via DNS-01 challenge. This may take up to 2 minutes. This action cannot be undone.`,
+      warningText: `Signing with ACME will submit this CSR to "${acmeServerName}" via DNS-01 challenge. This may take a few moments to complete.`,
       buttonConfirmText: "Sign with ACME",
       successTitle: "Certificate request signed via ACME",
       successMessage: "The certificate was issued by the ACME server.",

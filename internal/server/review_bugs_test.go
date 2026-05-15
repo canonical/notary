@@ -92,7 +92,7 @@ func TestBug_NilAuthzRepository_BypassesAuthorization(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to send request: %s", err)
 		}
-		defer resp.Body.Close()
+		defer resp.Body.Close() // nolint: errcheck
 
 		if resp.StatusCode != http.StatusForbidden {
 			t.Errorf("reader user got status %d accessing admin-only GET /accounts, expected 403", resp.StatusCode)

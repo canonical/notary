@@ -14,14 +14,6 @@ const version = fs
 
 const config = defineConfig({
   appType: "spa",
-  css: {
-    preprocessorOptions: {
-      scss: {
-        silenceDeprecations: ["import"],
-        quietDeps: true,
-      },
-    },
-  },
   resolve: { tsconfigPaths: true },
   plugins: [
     devtools(),
@@ -31,6 +23,14 @@ const config = defineConfig({
   ],
   define: {
     "import.meta.env.NOTARY_APP_VERSION": JSON.stringify(version),
+  },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        silenceDeprecations: ["import"],
+        quietDeps: true,
+      },
+    },
   },
   server: {
     proxy: {
@@ -43,8 +43,7 @@ const config = defineConfig({
         target: "https://localhost:2111",
         changeOrigin: true,
         secure: false,
-        cookieDomainRewrite: "localhost:3000",
-        // cookiePathRewrite: "/",
+        cookieDomainRewrite: "localhost:2112",
       },
       "/logout": {
         target: "https://localhost:2111",

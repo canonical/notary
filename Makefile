@@ -1,7 +1,7 @@
 ARTIFACT_FOLDER := artifacts
 
 NOTARY_BACKEND_FILES := $(shell find internal/ cmd/ -type f)
-NOTARY_UI_FILES := $(shell find ui/src/ -type f) ui/package.json ui/bun.lock
+NOTARY_UI_FILES := $(shell find ui/src/ -type f) ui/package.json ui/bun.lock ui/vite.config.ts
 
 NOTARY_ARTIFACT_NAME := notary
 NOTARY_CONFIG_FILE := config.yaml
@@ -18,8 +18,7 @@ notary: $(ARTIFACT_FOLDER)/$(NOTARY_ARTIFACT_NAME) $(ARTIFACT_FOLDER)/$(NOTARY_C
 
 .PHONY: notary-dev
 	@echo "Running notary in dev mode"
-	cd artifacts && ./$(NOTARY_ARTIFACT_NAME) start -m --config $(NOTARY_CONFIG_FILE)
-	cd ui && API_PREFIX="localhost:2111" VERSION="dev" bun run dev
+	cd artifacts && ./$(NOTARY_ARTIFACT_NAME) start -m --config $(NOTARY_CONFIG_FILE) & cd ui && API_PREFIX="localhost:2111" VERSION="dev" bun run dev
 
 .PHONY: config-files
 config-files: $(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE) $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY)

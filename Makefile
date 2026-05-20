@@ -16,6 +16,11 @@ $(shell mkdir -p $(ARTIFACT_FOLDER))
 notary: $(ARTIFACT_FOLDER)/$(NOTARY_ARTIFACT_NAME) $(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE) $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY)
 	@echo "Built notary"
 
+.PHONY: notary-dev
+	@echo "Running notary in dev mode"
+	cd artifacts && ./$(NOTARY_ARTIFACT_NAME) start -m --config $(NOTARY_CONFIG_FILE)
+	cd ui && API_PREFIX="localhost:2111" VERSION="dev" bun run dev
+
 .PHONY: config-files
 config-files: $(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE) $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY)
 	@echo "Created config files"

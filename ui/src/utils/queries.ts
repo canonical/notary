@@ -11,8 +11,6 @@ import {
 } from "./types";
 import { HTTPStatus } from "@/utils/helpers";
 
-var apiPathPrefix = process.env.API_PATH_PREFIX || "";
-
 export type RequiredCSRParams = {
   id: string;
   csr?: string;
@@ -59,7 +57,7 @@ export async function getStatus(): Promise<GETStatus> {
 
 export async function getCertificateRequests(): Promise<CSREntry[]> {
   return (await fetchAPI<CSREntry[]>(
-    apiPathPrefix + "/api/v1/certificate_requests",
+    "/api/v1/certificate_requests",
   )) as CSREntry[];
 }
 
@@ -70,16 +68,13 @@ export async function postCSR(params: { csr: string }) {
   const reqParams = {
     csr: params.csr.trim(),
   };
-  return fetchAPI<{ id: number }>(
-    apiPathPrefix + "/api/v1/certificate_requests",
-    {
-      method: "post",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(reqParams),
+  return fetchAPI<{ id: number }>("/api/v1/certificate_requests", {
+    method: "post",
+    headers: {
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify(reqParams),
+  });
 }
 
 export async function postCertToID(params: RequiredCSRParams) {
@@ -90,10 +85,7 @@ export async function postCertToID(params: RequiredCSRParams) {
     certificate: params.cert.trim(),
   };
   return fetchAPI(
-    apiPathPrefix +
-      "/api/v1/certificate_requests/" +
-      params.id +
-      "/certificate",
+    "/api/v1/certificate_requests/" + params.id + "/certificate",
     {
       method: "post",
       headers: {
@@ -105,7 +97,7 @@ export async function postCertToID(params: RequiredCSRParams) {
 }
 
 export async function deleteCSR(params: RequiredCSRParams) {
-  return fetchAPI(apiPathPrefix + "/api/v1/certificate_requests/" + params.id, {
+  return fetchAPI("/api/v1/certificate_requests/" + params.id, {
     method: "delete",
   });
 }
@@ -119,33 +111,24 @@ export async function signCSR(
   const reqParams = {
     certificate_authority_id: params.certificate_authority_id.toString(),
   };
-  return fetchAPI(
-    apiPathPrefix + "/api/v1/certificate_requests/" + params.id + "/sign",
-    {
-      method: "post",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(reqParams),
+  return fetchAPI("/api/v1/certificate_requests/" + params.id + "/sign", {
+    method: "post",
+    headers: {
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify(reqParams),
+  });
 }
 
 export async function rejectCSR(params: RequiredCSRParams) {
-  return fetchAPI(
-    apiPathPrefix + "/api/v1/certificate_requests/" + params.id + "/reject",
-    {
-      method: "post",
-    },
-  );
+  return fetchAPI("/api/v1/certificate_requests/" + params.id + "/reject", {
+    method: "post",
+  });
 }
 
 export async function revokeCertificate(params: RequiredCSRParams) {
   return fetchAPI(
-    apiPathPrefix +
-      "/api/v1/certificate_requests/" +
-      params.id +
-      "/certificate/revoke",
+    "/api/v1/certificate_requests/" + params.id + "/certificate/revoke",
     {
       method: "post",
     },
@@ -153,7 +136,7 @@ export async function revokeCertificate(params: RequiredCSRParams) {
 }
 
 export async function login(userForm: { email: string; password: string }) {
-  return fetchAPI(apiPathPrefix + "/login", {
+  return fetchAPI("/login", {
     method: "POST",
 
     body: JSON.stringify({
@@ -164,13 +147,13 @@ export async function login(userForm: { email: string; password: string }) {
 }
 
 export async function logout() {
-  return fetchAPI(apiPathPrefix + "/logout", { method: "POST" });
+  return fetchAPI("/logout", { method: "POST" });
 }
 
 export async function changeSelfPassword(changePasswordForm: {
   password: string;
 }) {
-  return fetchAPI(apiPathPrefix + "/api/v1/accounts/me/change_password", {
+  return fetchAPI("/api/v1/accounts/me/change_password", {
     method: "POST",
     body: JSON.stringify({ password: changePasswordForm.password }),
   });
@@ -181,10 +164,7 @@ export async function changePassword(changePasswordForm: {
   password: string;
 }) {
   return fetchAPI(
-    apiPathPrefix +
-      "/api/v1/accounts/" +
-      changePasswordForm.id +
-      "/change_password",
+    "/api/v1/accounts/" + changePasswordForm.id + "/change_password",
     {
       method: "POST",
       body: JSON.stringify({ password: changePasswordForm.password }),
@@ -193,31 +173,24 @@ export async function changePassword(changePasswordForm: {
 }
 
 export async function ListUsers(params: {}): Promise<UserEntry[]> {
-  return (await fetchAPI<UserEntry[]>(
-    apiPathPrefix + "/api/v1/accounts",
-  )) as UserEntry[];
+  return (await fetchAPI<UserEntry[]>("/api/v1/accounts")) as UserEntry[];
 }
 
 export async function getSelfAccount(): Promise<UserEntry> {
-  return (await fetchAPI<UserEntry>(
-    apiPathPrefix + "/api/v1/accounts/me",
-  )) as UserEntry;
+  return (await fetchAPI<UserEntry>("/api/v1/accounts/me")) as UserEntry;
 }
 
 export async function deleteUser(params: { id: string }) {
-  return fetchAPI(apiPathPrefix + "/api/v1/accounts/" + params.id, {
+  return fetchAPI("/api/v1/accounts/" + params.id, {
     method: "delete",
   });
 }
 
 export async function updateUserRole(params: { id: string; role_id: number }) {
-  const response = await fetch(
-    apiPathPrefix + "/api/v1/accounts/" + params.id + "/role",
-    {
-      method: "PUT",
-      body: JSON.stringify({ role_id: params.role_id }),
-    },
-  );
+  const response = await fetch("/api/v1/accounts/" + params.id + "/role", {
+    method: "PUT",
+    body: JSON.stringify({ role_id: params.role_id }),
+  });
   const respData = await response.json();
   if (!response.ok) {
     throw new Error(
@@ -232,7 +205,7 @@ export async function postFirstUser(userForm: {
   password: string;
   role_id: number;
 }) {
-  return fetchAPI<{ id: number }>(apiPathPrefix + "/api/v1/accounts", {
+  return fetchAPI<{ id: number }>("/api/v1/accounts", {
     method: "POST",
     body: JSON.stringify({
       email: userForm.email,
@@ -247,7 +220,7 @@ export async function postUser(userForm: {
   password: string;
   role_id: number;
 }) {
-  return fetchAPI<{ id: number }>(apiPathPrefix + "/api/v1/accounts", {
+  return fetchAPI<{ id: number }>("/api/v1/accounts", {
     method: "POST",
     body: JSON.stringify({
       email: userForm.email,
@@ -261,7 +234,7 @@ export async function getCertificateAuthorities(): Promise<
   CertificateAuthorityEntry[]
 > {
   return (await fetchAPI<CertificateAuthorityEntry[]>(
-    apiPathPrefix + "/api/v1/certificate_authorities",
+    "/api/v1/certificate_authorities",
   )) as CertificateAuthorityEntry[];
 }
 
@@ -288,47 +261,35 @@ export async function postCA(params: {
     organizational_unit_name: params.OrganizationalUnit,
     not_valid_after: NotValidAfterDate?.toISOString(),
   };
-  return fetchAPI<{ id: number }>(
-    apiPathPrefix + "/api/v1/certificate_authorities",
-    {
-      method: "post",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(reqParams),
+  return fetchAPI<{ id: number }>("/api/v1/certificate_authorities", {
+    method: "post",
+    headers: {
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify(reqParams),
+  });
 }
 
 export async function deleteCA(params: RequiredCAParams) {
-  return fetchAPI(
-    apiPathPrefix + "/api/v1/certificate_authorities/" + params.id,
-    {
-      method: "delete",
-    },
-  );
+  return fetchAPI("/api/v1/certificate_authorities/" + params.id, {
+    method: "delete",
+  });
 }
 
 export async function revokeCA(params: RequiredCAParams) {
-  return fetchAPI(
-    apiPathPrefix + "/api/v1/certificate_authorities/" + params.id + "/revoke",
-    {
-      method: "post",
-    },
-  );
+  return fetchAPI("/api/v1/certificate_authorities/" + params.id + "/revoke", {
+    method: "post",
+  });
 }
 
 export async function disableCA(params: RequiredCAParams) {
-  return fetchAPI(
-    apiPathPrefix + "/api/v1/certificate_authorities/" + params.id,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ enabled: false }),
+  return fetchAPI("/api/v1/certificate_authorities/" + params.id, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify({ enabled: false }),
+  });
 }
 
 export async function postCertToCA(
@@ -341,10 +302,7 @@ export async function postCertToCA(
     certificate_chain: params.certificate_chain.trim(),
   };
   return fetchAPI(
-    apiPathPrefix +
-      "/api/v1/certificate_authorities/" +
-      params.id +
-      "/certificate",
+    "/api/v1/certificate_authorities/" + params.id + "/certificate",
     {
       method: "post",
       headers: {
@@ -364,20 +322,15 @@ export async function signCA(
   const reqParams = {
     certificate_authority_id: params.certificate_authority_id.toString(),
   };
-  return fetchAPI(
-    apiPathPrefix + "/api/v1/certificate_authorities/" + params.id + "/sign",
-    {
-      method: "post",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(reqParams),
+  return fetchAPI("/api/v1/certificate_authorities/" + params.id + "/sign", {
+    method: "post",
+    headers: {
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify(reqParams),
+  });
 }
 
 export async function getConfig(): Promise<ConfigEntry> {
-  return (await fetchAPI<ConfigEntry>(
-    apiPathPrefix + "/api/v1/config",
-  )) as ConfigEntry;
+  return (await fetchAPI<ConfigEntry>("/api/v1/config")) as ConfigEntry;
 }

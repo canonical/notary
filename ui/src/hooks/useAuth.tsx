@@ -1,6 +1,6 @@
 "use client";
 
-import { getSelfAccount, logout } from "@/queries";
+import { getSelfAccount, logout } from "@/utils/queries";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export function useAuth() {

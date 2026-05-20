@@ -1,7 +1,7 @@
 ARTIFACT_FOLDER := artifacts
 
 NOTARY_BACKEND_FILES := $(shell find internal/ cmd/ -type f)
-NOTARY_UI_FILES := $(shell find ui/src/ -type f) ui/package.json ui/package-lock.json
+NOTARY_UI_FILES := $(shell find ui/src/ -type f) ui/package.json ui/bun.lock
 
 NOTARY_ARTIFACT_NAME := notary
 NOTARY_CONFIG_FILE := config.yaml
@@ -131,10 +131,10 @@ $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY):
 
 $(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE):
 
-ui/out: $(NOTARY_UI_FILES)
-	@npm install --prefix ui && npm run build --prefix ui
+ui/dist: $(NOTARY_UI_FILES)
+	@cd ui && bun install && bun run build
 
-$(ARTIFACT_FOLDER)/$(NOTARY_ARTIFACT_NAME): $(NOTARY_BACKEND_FILES) ui/out
+$(ARTIFACT_FOLDER)/$(NOTARY_ARTIFACT_NAME): $(NOTARY_BACKEND_FILES) ui/dist
 	go build -o $(ARTIFACT_FOLDER)/$(NOTARY_ARTIFACT_NAME)
 
 $(ARTIFACT_FOLDER)/$(ROCK_ARTIFACT_NAME): $(ARTIFACT_FOLDER)/$(NOTARY_ARTIFACT_NAME) rockcraft.yaml

@@ -1,5 +1,3 @@
-"use client";
-
 import {
   ConfirmationModal,
   Notification,
@@ -7,7 +5,7 @@ import {
 } from "@canonical/react-components";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { getErrorMessage } from "@/types";
+import { getErrorMessage } from "@/utils/types";
 
 export type NotaryConfirmationModalData<T> = {
   queryFn: (params: T) => Promise<T>;

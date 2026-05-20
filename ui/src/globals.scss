@@ -1,5 +1,5 @@
 // Import the framework
-@import "vanilla-framework";
+@use "vanilla-framework" as *;
 
 // Include all of Vanilla Framework
 @include vanilla;

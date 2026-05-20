@@ -14,6 +14,14 @@ const version = fs
 
 const config = defineConfig({
   appType: "spa",
+  css: {
+    preprocessorOptions: {
+      scss: {
+        silenceDeprecations: ["import"],
+        quietDeps: true,
+      },
+    },
+  },
   resolve: { tsconfigPaths: true },
   plugins: [
     devtools(),
@@ -27,7 +35,24 @@ const config = defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "https://localhost:2111/api",
+        target: "https://localhost:2111",
+        changeOrigin: true,
+        secure: false,
+      },
+      "/login": {
+        target: "https://localhost:2111",
+        changeOrigin: true,
+        secure: false,
+        cookieDomainRewrite: "localhost:3000",
+        // cookiePathRewrite: "/",
+      },
+      "/logout": {
+        target: "https://localhost:2111",
+        changeOrigin: true,
+        secure: false,
+      },
+      "/status": {
+        target: "https://localhost:2111",
         changeOrigin: true,
         secure: false,
       },

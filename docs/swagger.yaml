@@ -1,0 +1,1483 @@
+basePath: /
+definitions:
+  server.CRL:
+    properties:
+      crl:
+        type: string
+    type: object
+  server.CertificateAuthority:
+    properties:
+      certificate:
+        type: string
+      crl:
+        type: string
+      csr:
+        type: string
+      enabled:
+        type: boolean
+      id:
+        type: integer
+      private_key:
+        type: string
+    type: object
+  server.CertificateRequest:
+    properties:
+      certificate_chain:
+        type: string
+      csr:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      status:
+        type: string
+    type: object
+  server.ChangeAccountParams:
+    properties:
+      password:
+        type: string
+    type: object
+  server.CreateAccountParams:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+      role_id:
+        $ref: '#/definitions/server.RoleID'
+    type: object
+  server.CreateCertificateAuthorityParams:
+    properties:
+      common_name:
+        type: string
+      country_name:
+        type: string
+      locality_name:
+        type: string
+      not_valid_after:
+        type: string
+      organization_name:
+        type: string
+      organizational_unit_name:
+        type: string
+      sans_dns:
+        type: string
+      self_signed:
+        type: boolean
+      state_or_province_name:
+        type: string
+    type: object
+  server.CreateCertificateParams:
+    properties:
+      certificate:
+        type: string
+    type: object
+  server.CreateCertificateRequestParams:
+    properties:
+      csr:
+        type: string
+    type: object
+  server.CreateSuccessResponse:
+    properties:
+      id:
+        type: integer
+      message:
+        type: string
+    type: object
+  server.GetAccountResponse:
+    properties:
+      auth_methods:
+        items:
+          type: string
+        type: array
+      email:
+        type: string
+      has_oidc:
+        type: boolean
+      has_password:
+        type: boolean
+      id:
+        type: integer
+      oidc_subject:
+        type: string
+      role_id:
+        allOf:
+        - $ref: '#/definitions/server.RoleID'
+        description: Removed omitempty - role_id=0 (Admin) must be included
+    type: object
+  server.GetConfigContentResponse:
+    properties:
+      encryption_backend_type:
+        type: string
+      logging_level:
+        type: string
+      logging_output:
+        type: string
+      pebble_notifications:
+        type: boolean
+      port:
+        type: integer
+    type: object
+  server.LoginParams:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  server.RoleID:
+    enum:
+    - 0
+    - 1
+    - 2
+    - 3
+    type: integer
+    x-enum-varnames:
+    - RoleAdmin
+    - RoleCertificateManager
+    - RoleCertificateRequestor
+    - RoleReadOnly
+  server.SignCertificateAuthorityParams:
+    properties:
+      certificate_authority_id:
+        type: string
+    type: object
+  server.SignCertificateRequestParams:
+    properties:
+      certificate_authority_id:
+        type: string
+    type: object
+  server.StatusResponse:
+    properties:
+      initialized:
+        type: boolean
+      oidc_enabled:
+        type: boolean
+      version:
+        type: string
+    type: object
+  server.SuccessResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  server.UpdateCertificateAuthorityParams:
+    properties:
+      enabled:
+        type: boolean
+    type: object
+  server.UploadCertificateToCertificateAuthorityParams:
+    properties:
+      certificate_chain:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: API for managing accounts, certificate requests, and certificate authorities.
+  title: Notary API
+  version: "1.0"
+paths:
+  /api/v1/accounts:
+    get:
+      description: Returns all user accounts.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/server.GetAccountResponse'
+              type: array
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: List accounts
+      tags:
+      - accounts
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user account.
+      parameters:
+      - description: Create account payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/server.CreateAccountParams'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.CreateSuccessResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create account
+      tags:
+      - accounts
+  /api/v1/accounts/{id}:
+    delete:
+      description: Deletes the user account for the provided account ID.
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.SuccessResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: Delete account
+      tags:
+      - accounts
+    get:
+      description: Returns the user account for the provided account ID.
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.GetAccountResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: Get account
+      tags:
+      - accounts
+  /api/v1/accounts/{id}/change_password:
+    post:
+      consumes:
+      - application/json
+      description: Changes the password for the provided account ID.
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Change password payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/server.ChangeAccountParams'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.SuccessResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: Change account password
+      tags:
+      - accounts
+  /api/v1/accounts/me:
+    get:
+      description: Returns the authenticated user's account.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.GetAccountResponse'
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: Get current account
+      tags:
+      - accounts
+  /api/v1/accounts/me/change_password:
+    post:
+      consumes:
+      - application/json
+      description: Changes the password for the authenticated user.
+      parameters:
+      - description: Change password payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/server.ChangeAccountParams'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.SuccessResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: Change current account password
+      tags:
+      - accounts
+  /api/v1/certificate_authorities:
+    get:
+      description: Returns all certificate authorities.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/server.CertificateAuthority'
+              type: array
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: List certificate authorities
+      tags:
+      - certificate_authorities
+    post:
+      consumes:
+      - application/json
+      description: Creates a new certificate authority.
+      parameters:
+      - description: Create certificate authority payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/server.CreateCertificateAuthorityParams'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.CreateSuccessResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: Create certificate authority
+      tags:
+      - certificate_authorities
+  /api/v1/certificate_authorities/{id}:
+    delete:
+      description: Deletes the certificate authority for the provided ID.
+      parameters:
+      - description: Certificate authority ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.SuccessResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: Delete certificate authority
+      tags:
+      - certificate_authorities
+    get:
+      description: Returns the certificate authority for the provided ID.
+      parameters:
+      - description: Certificate authority ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.CertificateAuthority'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: Get certificate authority
+      tags:
+      - certificate_authorities
+    put:
+      consumes:
+      - application/json
+      description: Updates the enabled status of the certificate authority for the
+        provided ID.
+      parameters:
+      - description: Certificate authority ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Update certificate authority payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/server.UpdateCertificateAuthorityParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.SuccessResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: Update certificate authority
+      tags:
+      - certificate_authorities
+  /api/v1/certificate_authorities/{id}/certificate:
+    post:
+      consumes:
+      - application/json
+      description: Uploads a certificate chain to the certificate authority for the
+        provided ID.
+      parameters:
+      - description: Certificate authority ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Upload certificate chain payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/server.UploadCertificateToCertificateAuthorityParams'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.SuccessResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: Upload certificate authority certificate
+      tags:
+      - certificate_authorities
+  /api/v1/certificate_authorities/{id}/crl:
+    get:
+      description: Returns the certificate revocation list for the certificate authority
+        with the provided ID.
+      parameters:
+      - description: Certificate authority ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.CRL'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get certificate authority CRL
+      tags:
+      - certificate_authorities
+  /api/v1/certificate_authorities/{id}/revoke:
+    post:
+      description: Revokes the certificate authority certificate for the provided
+        ID by adding its serial number to the CRL.
+      parameters:
+      - description: Certificate authority ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.SuccessResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: Revoke certificate authority certificate
+      tags:
+      - certificate_authorities
+  /api/v1/certificate_authorities/{id}/sign:
+    post:
+      consumes:
+      - application/json
+      description: Uses the provided signing certificate authority to sign the pending
+        intermediate certificate authority for the provided ID.
+      parameters:
+      - description: Certificate authority ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Sign certificate authority payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/server.SignCertificateAuthorityParams'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.SuccessResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: Sign certificate authority
+      tags:
+      - certificate_authorities
+  /api/v1/certificate_requests:
+    get:
+      description: Returns certificate requests visible to the authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/server.CertificateRequest'
+              type: array
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: List certificate requests
+      tags:
+      - certificate_requests
+    post:
+      consumes:
+      - application/json
+      description: Creates a new certificate signing request for the authenticated
+        user.
+      parameters:
+      - description: Certificate request payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/server.CreateCertificateRequestParams'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.CreateSuccessResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: Create certificate request
+      tags:
+      - certificate_requests
+  /api/v1/certificate_requests/{id}:
+    delete:
+      description: Deletes the certificate request for the provided request ID.
+      parameters:
+      - description: Certificate request ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.SuccessResponse'
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: Delete certificate request
+      tags:
+      - certificate_requests
+    get:
+      description: Returns the certificate request for the provided request ID.
+      parameters:
+      - description: Certificate request ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.CertificateRequest'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: Get certificate request
+      tags:
+      - certificate_requests
+  /api/v1/certificate_requests/{id}/certificate:
+    delete:
+      description: Deletes the certificate associated with the provided certificate
+        request ID.
+      parameters:
+      - description: Certificate request ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.SuccessResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: Delete certificate
+      tags:
+      - certificate_requests
+    post:
+      consumes:
+      - application/json
+      description: Uploads a certificate chain for the provided certificate request
+        ID.
+      parameters:
+      - description: Certificate request ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Certificate upload payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/server.CreateCertificateParams'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.CreateSuccessResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: Upload certificate for certificate request
+      tags:
+      - certificate_requests
+  /api/v1/certificate_requests/{id}/certificate/revoke:
+    post:
+      description: Revokes the certificate associated with the provided certificate
+        request ID.
+      parameters:
+      - description: Certificate request ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.SuccessResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: Revoke certificate
+      tags:
+      - certificate_requests
+  /api/v1/certificate_requests/{id}/reject:
+    post:
+      description: Rejects the certificate request for the provided request ID.
+      parameters:
+      - description: Certificate request ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.SuccessResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: Reject certificate request
+      tags:
+      - certificate_requests
+  /api/v1/certificate_requests/{id}/sign:
+    post:
+      consumes:
+      - application/json
+      description: Signs the certificate request using the provided certificate authority
+        ID.
+      parameters:
+      - description: Certificate request ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Certificate signing payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/server.SignCertificateRequestParams'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.SuccessResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: Sign certificate request
+      tags:
+      - certificate_requests
+  /api/v1/config:
+    get:
+      description: Returns the server configuration exposed to authenticated users.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.GetConfigContentResponse'
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - cookieAuth: []
+      summary: Get config
+      tags:
+      - config
+  /api/v1/oauth/callback:
+    get:
+      description: Handles the OIDC callback, validates the identity token, provisions
+        the user if needed, and redirects to the application.
+      parameters:
+      - description: Authorization code
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: OIDC state
+        in: query
+        name: state
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "302":
+          description: Redirect to application
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Account linking required page
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Handle OIDC callback
+      tags:
+      - auth
+  /api/v1/oauth/login:
+    get:
+      description: Initiates the OIDC authentication flow and redirects the user to
+        the identity provider.
+      produces:
+      - text/plain
+      responses:
+        "302":
+          description: Redirect to OIDC provider
+          schema:
+            type: string
+      summary: Start OIDC login
+      tags:
+      - auth
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user with email and password and sets a session
+        cookie.
+      parameters:
+      - description: Login payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/server.LoginParams'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.SuccessResponse'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Login
+      tags:
+      - auth
+  /logout:
+    post:
+      description: Clears the current session cookie.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.SuccessResponse'
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Logout
+      tags:
+      - auth
+  /status:
+    get:
+      description: Returns server status information, including initialization state,
+        version, and whether OIDC is enabled.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              $ref: '#/definitions/server.StatusResponse'
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get server status
+      tags:
+      - status
+schemes:
+- https
+securityDefinitions:
+  cookieAuth:
+    in: cookie
+    name: user_token
+    type: apiKey
+swagger: "2.0"

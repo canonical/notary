@@ -69,6 +69,17 @@ type CertificateRequest struct {
 }
 
 // ListCertificateRequests returns all of the Certificate Requests
+// ListCertificateRequests godoc
+//
+//	@Summary		List certificate requests
+//	@Description	Returns certificate requests visible to the authenticated user.
+//	@Tags			certificate_requests
+//	@Produce		json
+//	@Success		200	{object}	map[string][]CertificateRequest
+//	@Failure		401	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/certificate_requests [get]
 func ListCertificateRequests(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, cookieErr := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
@@ -122,7 +133,20 @@ func ListCertificateRequests(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
-// CreateCertificateRequest creates a new Certificate Request, and returns the id of the created row
+// CreateCertificateRequest godoc
+//
+//	@Summary		Create certificate request
+//	@Description	Creates a new certificate signing request for the authenticated user.
+//	@Tags			certificate_requests
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		CreateCertificateRequestParams	true	"Certificate request payload"
+//	@Success		201		{object}	map[string]CreateSuccessResponse
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/certificate_requests [post]
 func CreateCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var createCertificateRequestParams CreateCertificateRequestParams
@@ -166,8 +190,21 @@ func CreateCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
-// GetCertificateRequest receives an id as a path parameter, and
-// returns the corresponding Certificate Request
+// GetCertificateRequest godoc
+//
+//	@Summary		Get certificate request
+//	@Description	Returns the certificate request for the provided request ID.
+//	@Tags			certificate_requests
+//	@Produce		json
+//	@Param			id	path		int	true	"Certificate request ID"
+//	@Success		200	{object}	map[string]CertificateRequest
+//	@Failure		400	{object}	map[string]string
+//	@Failure		401	{object}	map[string]string
+//	@Failure		403	{object}	map[string]string
+//	@Failure		404	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/certificate_requests/{id} [get]
 func GetCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, headerErr := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
@@ -241,8 +278,19 @@ func GetCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
-// DeleteCertificateRequest handler receives an id as a path parameter,
-// deletes the corresponding Certificate Request, and returns a http.StatusNoContent on success
+// DeleteCertificateRequest godoc
+//
+//	@Summary		Delete certificate request
+//	@Description	Deletes the certificate request for the provided request ID.
+//	@Tags			certificate_requests
+//	@Produce		json
+//	@Param			id	path		int	true	"Certificate request ID"
+//	@Success		202	{object}	map[string]SuccessResponse
+//	@Failure		404	{object}	map[string]string
+//	@Failure		401	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/certificate_requests/{id} [delete]
 func DeleteCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
@@ -289,8 +337,22 @@ func DeleteCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
-// PostCertificateRequestCertificate handler receives an id as a path parameter,
-// and attempts to add a given certificate to the corresponding certificate request
+// PostCertificateRequestCertificate godoc
+//
+//	@Summary		Upload certificate for certificate request
+//	@Description	Uploads a certificate chain for the provided certificate request ID.
+//	@Tags			certificate_requests
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		int						true	"Certificate request ID"
+//	@Param			request	body		CreateCertificateParams	true	"Certificate upload payload"
+//	@Success		201		{object}	map[string]CreateSuccessResponse
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		404		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/certificate_requests/{id}/certificate [post]
 func PostCertificateRequestCertificate(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var createCertificateParams CreateCertificateParams
@@ -354,8 +416,20 @@ func PostCertificateRequestCertificate(env *HandlerDependencies) http.HandlerFun
 	}
 }
 
-// RejectCertificateRequest handler receives an id as a path parameter,
-// rejects the corresponding Certificate Request, and returns a http.StatusNoContent on success
+// RejectCertificateRequest godoc
+//
+//	@Summary		Reject certificate request
+//	@Description	Rejects the certificate request for the provided request ID.
+//	@Tags			certificate_requests
+//	@Produce		json
+//	@Param			id	path		int	true	"Certificate request ID"
+//	@Success		202	{object}	map[string]SuccessResponse
+//	@Failure		400	{object}	map[string]string
+//	@Failure		401	{object}	map[string]string
+//	@Failure		404	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/certificate_requests/{id}/reject [post]
 func RejectCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
@@ -409,8 +483,20 @@ func RejectCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
-// DeleteCertificate handler receives an id as a path parameter,
-// and attempts to add a given certificate to the corresponding certificate request
+// DeleteCertificate godoc
+//
+//	@Summary		Delete certificate
+//	@Description	Deletes the certificate associated with the provided certificate request ID.
+//	@Tags			certificate_requests
+//	@Produce		json
+//	@Param			id	path		int	true	"Certificate request ID"
+//	@Success		200	{object}	map[string]SuccessResponse
+//	@Failure		400	{object}	map[string]string
+//	@Failure		401	{object}	map[string]string
+//	@Failure		404	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/certificate_requests/{id}/certificate [delete]
 func DeleteCertificate(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
@@ -463,9 +549,20 @@ func DeleteCertificate(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
-// RevokeCertificate handler receives an id as a path parameter,
-// and attempts to revoke the corresponding certificate request by adding the certificate to the CRL
-// It returns a 200 OK on success
+// RevokeCertificate godoc
+//
+//	@Summary		Revoke certificate
+//	@Description	Revokes the certificate associated with the provided certificate request ID.
+//	@Tags			certificate_requests
+//	@Produce		json
+//	@Param			id	path		int	true	"Certificate request ID"
+//	@Success		202	{object}	map[string]SuccessResponse
+//	@Failure		400	{object}	map[string]string
+//	@Failure		401	{object}	map[string]string
+//	@Failure		404	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/certificate_requests/{id}/certificate/revoke [post]
 func RevokeCertificate(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
@@ -518,9 +615,22 @@ func RevokeCertificate(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
-// SignCertificateRequest handler receives the ID of an existing active certificate authority in Notary
-// to sign any certificate request available in Notary.
-// It returns a 202 Accepted on success.
+// SignCertificateRequest godoc
+//
+//	@Summary		Sign certificate request
+//	@Description	Signs the certificate request using the provided certificate authority ID.
+//	@Tags			certificate_requests
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		int							true	"Certificate request ID"
+//	@Param			request	body		SignCertificateRequestParams	true	"Certificate signing payload"
+//	@Success		202		{object}	map[string]SuccessResponse
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		404		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Security		cookieAuth
+//	@Router			/api/v1/certificate_requests/{id}/sign [post]
 func SignCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")

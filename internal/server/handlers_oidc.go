@@ -13,6 +13,14 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// LoginOIDC godoc
+//
+//	@Summary		Start OIDC login
+//	@Description	Initiates the OIDC authentication flow and redirects the user to the identity provider.
+//	@Tags			auth
+//	@Produce		plain
+//	@Success		302	{string}	string	"Redirect to OIDC provider"
+//	@Router			/api/v1/oauth/login [get]
 func LoginOIDC(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		state := generateRandomString(32)
@@ -28,6 +36,20 @@ func LoginOIDC(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
+// CallbackOIDC godoc
+//
+//	@Summary		Handle OIDC callback
+//	@Description	Handles the OIDC callback, validates the identity token, provisions the user if needed, and redirects to the application.
+//	@Tags			auth
+//	@Produce		plain
+//	@Param			code	query		string	true	"Authorization code"
+//	@Param			state	query		string	true	"OIDC state"
+//	@Success		302		{string}	string	"Redirect to application"
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		409		{string}	string	"Account linking required page"
+//	@Failure		500		{object}	map[string]string
+//	@Router			/api/v1/oauth/callback [get]
 func CallbackOIDC(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		code := r.URL.Query().Get("code")

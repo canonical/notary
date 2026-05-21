@@ -138,9 +138,6 @@ func UpdateACMEServer(env *HandlerDependencies) http.HandlerFunc {
 			writeResponse(w, http.StatusBadRequest, "name, directory_url, email, and dns_provider are required", nil, env.SystemLogger)
 			return
 		}
-		if params.EnvVars == nil {
-			params.EnvVars = map[string]string{}
-		}
 		// Merge env vars: empty values for existing keys mean "keep existing credential".
 		existing, err := env.Database.GetDecryptedACMEServer(id)
 		if err != nil {
@@ -160,14 +157,21 @@ func UpdateACMEServer(env *HandlerDependencies) http.HandlerFunc {
 				return
 			}
 		}
-		for k, v := range params.EnvVars {
+		envVarsToStore := params.EnvVars
+		if envVarsToStore == nil {
+			envVarsToStore = existingEnvVars
+			if envVarsToStore == nil {
+				envVarsToStore = map[string]string{}
+			}
+		}
+		for k, v := range envVarsToStore {
 			if v == "" {
 				if oldVal, ok := existingEnvVars[k]; ok {
-					params.EnvVars[k] = oldVal
+					envVarsToStore[k] = oldVal
 				}
 			}
 		}
-		if err := env.Database.UpdateACMEServer(id, params.Name, params.DirectoryURL, params.Email, params.DNSProvider, params.EnvVars); err != nil {
+		if err := env.Database.UpdateACMEServer(id, params.Name, params.DirectoryURL, params.Email, params.DNSProvider, envVarsToStore); err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
 				return

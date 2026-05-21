@@ -332,4 +332,43 @@ func TestACMEServerEnvVarKeysInResponse(t *testing.T) {
 	if updated.Data.EnvVarKeys[0] != "HETZNER_API_TOKEN" {
 		t.Errorf("expected env_var_keys[0] to be %q, got %q", "HETZNER_API_TOKEN", updated.Data.EnvVarKeys[0])
 	}
+
+	// Update without env_vars: existing credentials must be preserved.
+	statusCode, updated, err = tu.UpdateACMEServer(ts.URL, client, adminToken, serverID, tu.UpdateACMEServerParams{
+		Name:         "Hetzner Server",
+		DirectoryURL: "https://acme-v02.api.letsencrypt.org/directory",
+		Email:        "ops@example.com",
+		DNSProvider:  "hetzner",
+		// EnvVars intentionally omitted
+	})
+	if err != nil {
+		t.Fatalf("UpdateACMEServer() error: %v", err)
+	}
+	if statusCode != http.StatusOK {
+		t.Fatalf("expected status %d from Update (no env_vars), got %d: %s", http.StatusOK, statusCode, updated.Message)
+	}
+	if len(updated.Data.EnvVarKeys) != 1 {
+		t.Fatalf("expected 1 env_var_key after omitted update, got %d: %v", len(updated.Data.EnvVarKeys), updated.Data.EnvVarKeys)
+	}
+	if updated.Data.EnvVarKeys[0] != "HETZNER_API_TOKEN" {
+		t.Errorf("expected env_var_keys[0] to be %q, got %q", "HETZNER_API_TOKEN", updated.Data.EnvVarKeys[0])
+	}
+
+	// Update with explicit empty env_vars: wipes all credentials.
+	statusCode, updated, err = tu.UpdateACMEServer(ts.URL, client, adminToken, serverID, tu.UpdateACMEServerParams{
+		Name:         "Hetzner Server",
+		DirectoryURL: "https://acme-v02.api.letsencrypt.org/directory",
+		Email:        "ops@example.com",
+		DNSProvider:  "hetzner",
+		EnvVars:      map[string]string{},
+	})
+	if err != nil {
+		t.Fatalf("UpdateACMEServer() error: %v", err)
+	}
+	if statusCode != http.StatusOK {
+		t.Fatalf("expected status %d from Update (empty env_vars), got %d: %s", http.StatusOK, statusCode, updated.Message)
+	}
+	if len(updated.Data.EnvVarKeys) != 0 {
+		t.Fatalf("expected 0 env_var_keys after empty env_vars update, got %d: %v", len(updated.Data.EnvVarKeys), updated.Data.EnvVarKeys)
+	}
 }

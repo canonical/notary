@@ -59,7 +59,7 @@ func TestGetOrCreateACMEAccount_ExistingAccount(t *testing.T) {
 	if first.ID != second.ID {
 		t.Errorf("expected same ID on idempotent call: first=%d second=%d", first.ID, second.ID)
 	}
-	// Second call should return the originally stored private key, not the new one
+	// Second call should return the same originally stored private key
 	if second.PrivateKeyPEM != testPrivKeyPEM {
 		t.Errorf("expected original private key on second call, got %q", second.PrivateKeyPEM)
 	}

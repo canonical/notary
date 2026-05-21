@@ -48,6 +48,8 @@ make notary
 
 This will create an artifacts folder with a basic TLS certificate and key pair, a working config file and the notary binary.
 
+> **For AI coding agents and detailed development conventions**, see [AGENTS.md](./AGENTS.md). When contributing significant changes, also update `AGENTS.md` as described in its “Maintaining This Guide” section.
+
 ### Run Notary
 
 ```bash

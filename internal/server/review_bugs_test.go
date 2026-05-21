@@ -46,11 +46,12 @@ func mustPrepareServerWithoutAuthz(t *testing.T) (*httptest.Server, *observer.Ob
 	return testServer, logs, database
 }
 
-// TestBug_NilAuthzRepository_BypassesAuthorization demonstrates that when
-// AuthzRepository is nil, requirePermission (middleware.go:251-254) skips all
-// authorization checks and calls the handler directly. Any authenticated user
-// can access admin-only endpoints.
-func TestBug_NilAuthzRepository_BypassesAuthorization(t *testing.T) {
+// TestNilAuthzRepository_Returns403 verifies that when AuthzRepository is nil,
+// requirePermission (middleware.go:253) returns 403 Forbidden instead of
+// bypassing authorization checks. This test documents the fix for a prior bug
+// where nil AuthzRepository would allow any authenticated user to access
+// admin-only endpoints.
+func TestNilAuthzRepository_Returns403(t *testing.T) {
 	ts, _, database := mustPrepareServerWithoutAuthz(t)
 	client := ts.Client()
 

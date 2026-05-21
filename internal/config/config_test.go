@@ -250,5 +250,3 @@ encryption_backend:
 	invalidYAMLConfig = `just_an=invalid
 yaml.here`
 )
-
-

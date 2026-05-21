@@ -622,7 +622,7 @@ func SignCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 			certChain, err := acmeRepo.SignCSR(csr.CSR)
 			if err != nil {
 				env.SystemLogger.Error("failed to sign certificate request via ACME", zap.Error(err), zap.Int64("csr_id", idNum))
-				writeResponse(w, http.StatusInternalServerError, err.Error(), nil, env.SystemLogger)
+				writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 				return
 			}
 			_, err = env.Database.AddCertificateChainToCertificateRequest(db.ByCSRID(idNum), certChain)

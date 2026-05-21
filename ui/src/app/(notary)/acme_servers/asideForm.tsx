@@ -46,8 +46,15 @@ export default function ACMEServersAsidePanel({
       setDirectoryURL(editingServer.directory_url);
       setEmail(editingServer.email);
       setDNSProvider(editingServer.dns_provider);
-      // env_vars are not returned by the API for security; keep empty for edit
-      setEnvVars([{ key: "", value: "" }]);
+      // Initialize env vars from existing keys; values are empty (not returned by API for security).
+      // User can update values or add new keys.
+      const existingVars = editingServer.env_var_keys.map((key) => ({
+        key,
+        value: "",
+      }));
+      setEnvVars(
+        existingVars.length > 0 ? existingVars : [{ key: "", value: "" }],
+      );
     } else {
       resetForm();
     }
@@ -132,12 +139,30 @@ export default function ACMEServersAsidePanel({
     dnsProvider.trim() !== "";
 
   const handleSubmit = () => {
+    const envVarsMap = buildEnvVarsMap();
+
+    // When editing, warn if existing env var keys don't have values entered
+    // (they will be deleted from the configuration).
+    if (isEditing && editingServer) {
+      const existingKeysWithoutValues = editingServer.env_var_keys.filter(
+        (key) => !(key in envVarsMap),
+      );
+      if (existingKeysWithoutValues.length > 0) {
+        const confirmed = window.confirm(
+          `The following provider variables will be removed:\n${existingKeysWithoutValues.join(", ")}\n\nContinue?`,
+        );
+        if (!confirmed) {
+          return;
+        }
+      }
+    }
+
     const params: ACMEServerCreateParams = {
       name: name.trim(),
       directory_url: directoryURL.trim(),
       email: email.trim(),
       dns_provider: dnsProvider.trim(),
-      env_vars: buildEnvVarsMap(),
+      env_vars: envVarsMap,
     };
     if (isEditing) {
       updateMutation.mutate({ ...params, id: editingServer!.id.toString() });
@@ -213,8 +238,8 @@ export default function ACMEServersAsidePanel({
               Provider Environment Variables
               {isEditing && (
                 <small style={{ display: "block", color: "#666" }}>
-                  Leave fields empty to keep existing values. Only non-empty
-                  keys will be saved.
+                  Existing keys are shown with empty values. Update values as needed,
+                  or leave empty to keep the existing credential.
                 </small>
               )}
             </legend>

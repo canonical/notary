@@ -152,4 +152,3 @@ func validateEncryptionBackendConfig(encryptionCfg *viper.Viper) error {
 	}
 	return nil
 }
-

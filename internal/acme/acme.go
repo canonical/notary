@@ -145,12 +145,25 @@ func (r *ACMERepository) loadOrCreateAccount() (*acmeUser, error) {
 func (r *ACMERepository) SignCSR(csrPEM string) (string, error) {
 	signingMu.Lock()
 
+	saved := make(map[string]*string, len(r.envVars))
 	for k, v := range r.envVars {
-		os.Setenv(k, v) //nolint:errcheck
+		if prev, ok := os.LookupEnv(k); ok {
+			saved[k] = &prev
+		} else {
+			saved[k] = nil
+		}
+		if err := os.Setenv(k, v); err != nil {
+			signingMu.Unlock()
+			return "", fmt.Errorf("acme: invalid env var key %q: %w", k, err)
+		}
 	}
 	defer func() {
-		for k := range r.envVars {
-			os.Unsetenv(k) //nolint:errcheck
+		for k, prev := range saved {
+			if prev != nil {
+				os.Setenv(k, *prev) //nolint:errcheck
+			} else {
+				os.Unsetenv(k) //nolint:errcheck
+			}
 		}
 		signingMu.Unlock()
 	}()

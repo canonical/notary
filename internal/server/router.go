@@ -64,6 +64,13 @@ func NewRouter(config *HandlerDependencies) http.Handler {
 	apiV1Router.HandleFunc("POST /certificate_authorities/{id}/sign", requirePermission(managerRoles, config, SignCertificateAuthority(config)))
 	apiV1Router.HandleFunc("POST /certificate_authorities/{id}/certificate", requirePermission(managerRoles, config, PostCertificateAuthorityCertificate(config)))
 	apiV1Router.HandleFunc("GET /certificate_authorities/{id}/crl", GetCertificateAuthorityCRL(config))
+
+	// Auto-sign policy endpoints
+	apiV1Router.HandleFunc("POST /certificate_authorities/{id}/auto_sign", requirePermission(adminOnly, config, CreateAutoSignPolicy(config)))
+	apiV1Router.HandleFunc("GET /certificate_authorities/{id}/auto_sign", requirePermission(managerRoles, config, GetAutoSignPolicy(config)))
+	apiV1Router.HandleFunc("PUT /certificate_authorities/{id}/auto_sign", requirePermission(adminOnly, config, UpdateAutoSignPolicy(config)))
+	apiV1Router.HandleFunc("DELETE /certificate_authorities/{id}/auto_sign", requirePermission(adminOnly, config, DeleteAutoSignPolicy(config)))
+ 
 	apiV1Router.HandleFunc("POST /certificate_authorities/{id}/revoke", requirePermission(managerRoles, config, RevokeCertificateAuthorityCertificate(config)))
 
 	// Account endpoints

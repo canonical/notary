@@ -238,8 +238,8 @@ export default function ACMEServersAsidePanel({
               Provider Environment Variables
               {isEditing && (
                 <small style={{ display: "block", color: "#666" }}>
-                  Existing keys are shown with empty values. Update values as needed,
-                  or leave empty to keep the existing credential.
+                  Existing keys are shown with empty values. Update values as
+                  needed, or leave empty to keep the existing credential.
                 </small>
               )}
             </legend>

@@ -987,6 +987,150 @@ func SignCSR(csr string) string {
 	return certPEM.String()
 }
 
+// ACME Server helpers
+
+type CreateACMEServerParams struct {
+	Name         string            `json:"name"`
+	DirectoryURL string            `json:"directory_url"`
+	Email        string            `json:"email"`
+	DNSProvider  string            `json:"dns_provider"`
+	EnvVars      map[string]string `json:"env_vars"`
+}
+
+type UpdateACMEServerParams struct {
+	Name         string            `json:"name"`
+	DirectoryURL string            `json:"directory_url"`
+	Email        string            `json:"email"`
+	DNSProvider  string            `json:"dns_provider"`
+	EnvVars      map[string]string `json:"env_vars"`
+}
+
+type ListACMEServersResponse = APIResponse[[]server.ACMEServerResponse]
+type GetACMEServerResponse = APIResponse[server.ACMEServerResponse]
+type CreateACMEServerResponse = APIResponse[server.ACMEServerResponse]
+type UpdateACMEServerResponse = APIResponse[server.ACMEServerResponse]
+type SetActiveACMEServerResponse = APIResponse[server.ACMEServerResponse]
+
+func addAuthHeaders(req *http.Request, token string) {
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
+}
+
+func ListACMEServers(url string, client *http.Client, token string) (int, *ListACMEServersResponse, error) {
+	req, err := http.NewRequest("GET", url+"/api/v1/acme_servers", nil)
+	if err != nil {
+		return 0, nil, err
+	}
+	addAuthHeaders(req, token)
+	res, err := client.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	var resp ListACMEServersResponse
+	if err := json.NewDecoder(res.Body).Decode(&resp); err != nil {
+		return 0, nil, err
+	}
+	return res.StatusCode, &resp, nil
+}
+
+func GetACMEServer(url string, client *http.Client, token string, id int) (int, *GetACMEServerResponse, error) {
+	req, err := http.NewRequest("GET", url+"/api/v1/acme_servers/"+strconv.Itoa(id), nil)
+	if err != nil {
+		return 0, nil, err
+	}
+	addAuthHeaders(req, token)
+	res, err := client.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	var resp GetACMEServerResponse
+	if err := json.NewDecoder(res.Body).Decode(&resp); err != nil {
+		return 0, nil, err
+	}
+	return res.StatusCode, &resp, nil
+}
+
+func CreateACMEServer(url string, client *http.Client, token string, params CreateACMEServerParams) (int, *CreateACMEServerResponse, error) {
+	reqData, err := json.Marshal(params)
+	if err != nil {
+		return 0, nil, err
+	}
+	req, err := http.NewRequest("POST", url+"/api/v1/acme_servers", bytes.NewReader(reqData))
+	if err != nil {
+		return 0, nil, err
+	}
+	addAuthHeaders(req, token)
+	req.Header.Set("Content-Type", "application/json")
+	res, err := client.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	var resp CreateACMEServerResponse
+	if err := json.NewDecoder(res.Body).Decode(&resp); err != nil {
+		return 0, nil, err
+	}
+	return res.StatusCode, &resp, nil
+}
+
+func UpdateACMEServer(url string, client *http.Client, token string, id int, params UpdateACMEServerParams) (int, *UpdateACMEServerResponse, error) {
+	reqData, err := json.Marshal(params)
+	if err != nil {
+		return 0, nil, err
+	}
+	req, err := http.NewRequest("PUT", url+"/api/v1/acme_servers/"+strconv.Itoa(id), bytes.NewReader(reqData))
+	if err != nil {
+		return 0, nil, err
+	}
+	addAuthHeaders(req, token)
+	req.Header.Set("Content-Type", "application/json")
+	res, err := client.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	var resp UpdateACMEServerResponse
+	if err := json.NewDecoder(res.Body).Decode(&resp); err != nil {
+		return 0, nil, err
+	}
+	return res.StatusCode, &resp, nil
+}
+
+func DeleteACMEServer(url string, client *http.Client, token string, id int) (int, error) {
+	req, err := http.NewRequest("DELETE", url+"/api/v1/acme_servers/"+strconv.Itoa(id), nil)
+	if err != nil {
+		return 0, err
+	}
+	addAuthHeaders(req, token)
+	res, err := client.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	return res.StatusCode, nil
+}
+
+func SetActiveACMEServer(url string, client *http.Client, token string, id int) (int, *SetActiveACMEServerResponse, error) {
+	req, err := http.NewRequest("PUT", url+"/api/v1/acme_servers/"+strconv.Itoa(id)+"/active", nil)
+	if err != nil {
+		return 0, nil, err
+	}
+	addAuthHeaders(req, token)
+	res, err := client.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	var resp SetActiveACMEServerResponse
+	if err := json.NewDecoder(res.Body).Decode(&resp); err != nil {
+		return 0, nil, err
+	}
+	return res.StatusCode, &resp, nil
+}
+
 func CreateRequestBombWithCustomHeader(url string, client *http.Client, token string, certRequest CreateCertificateRequestParams, contentLengthHeaderData string) (int, error) {
 	reqData, err := json.Marshal(certRequest)
 	if err != nil {

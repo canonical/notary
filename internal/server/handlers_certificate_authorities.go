@@ -72,6 +72,7 @@ type UploadCertificateToCertificateAuthorityParams struct {
 
 type SignCertificateRequestParams struct {
 	CertificateAuthorityID string `json:"certificate_authority_id"`
+	SigningMethod          string `json:"signing_method"`
 }
 
 type SignCertificateAuthorityParams struct {

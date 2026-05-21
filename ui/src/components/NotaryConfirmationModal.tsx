@@ -53,10 +53,14 @@ export function NotaryConfirmationModal(
     <ConfirmationModal
       title="Confirm Action"
       confirmButtonLabel={data.buttonConfirmText}
+      confirmButtonLoading={mutation.isPending}
       onConfirm={() => mutation.mutate(data.queryParams)}
       close={() => data.closeFn()}
     >
       <p>{data.warningText}</p>
+      {mutation.isPending && (
+        <p className="u-text--muted">Processing, please wait…</p>
+      )}
       {errorText !== "" && (
         <Notification severity="negative" title="Error">
           {errorText}

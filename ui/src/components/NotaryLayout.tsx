@@ -1,18 +1,15 @@
-"use client";
 import { useLoginRedirect } from "@/hooks/useLoginRedirect";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-const queryClient = new QueryClient();
-export default function NotaryLayout({
+export default function NotaryAppLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <QueryClientProvider client={queryClient}>
+    <>
       <GlobalHooks />
       {children}
-    </QueryClientProvider>
+    </>
   );
 }
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { CertificateAuthorityEntry } from "@/types";
+import type { CertificateAuthorityEntry } from "@/utils/types";
 
 type CertificateAuthoritySetter = (
   value: CertificateAuthorityEntry | null,

@@ -1,15 +1,15 @@
-import { getSelfAccount, getStatus } from "@/queries";
+import { getSelfAccount, getStatus } from "@/utils/queries";
 import { useQuery } from "@tanstack/react-query";
-import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
+import { useLocation, useNavigate } from "@tanstack/react-router";
 // This hook manages some redirects based on the user's login status, notary's initialization status and the current page.
 // If Notary isn't initialized, it will redirect the user to the initialization page.
 // If the user isn't logged in, it will redirect the user to the login page.
 // If the user is logged in and tries to go to the login or initialize page, it will redirect the user to the home page.
 export function useLoginRedirect() {
-  const router = useRouter();
-  const path = usePathname();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const statusQ = useQuery({
     queryKey: ["status"],
@@ -34,19 +34,31 @@ export function useLoginRedirect() {
 
     if (notaryStatusIsLoading || notaryUserDataIsLoading) return;
     if (notaryIsNotInitialized) {
-      router.push("/initialize");
+      navigate({
+        to: "/initialize",
+        replace: true,
+      });
       return;
     }
     if (notaryUserNotLoggedIn) {
-      router.push("/login");
+      navigate({
+        to: "/login",
+        replace: true,
+      });
       return;
     }
-    if (notaryUserLoggedIn && path == "/login") {
-      router.push("/");
+    if (notaryUserLoggedIn && location.pathname == "/login") {
+      navigate({
+        to: "/",
+        replace: true,
+      });
       return;
     }
-    if (notaryUserLoggedIn && path == "/initialize") {
-      router.push("/");
+    if (notaryUserLoggedIn && location.pathname == "/initialize") {
+      navigate({
+        to: "/",
+        replace: true,
+      });
       return;
     }
   }, [
@@ -55,7 +67,7 @@ export function useLoginRedirect() {
     userQ.isLoading,
     userQ.data,
     userQ.isError,
-    router,
-    path,
+    navigate,
+    location.pathname,
   ]);
 }

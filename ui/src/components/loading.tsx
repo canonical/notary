@@ -1,4 +1,3 @@
-"use client";
 import { Strip, Spinner } from "@canonical/react-components";
 
 export default function Loading() {

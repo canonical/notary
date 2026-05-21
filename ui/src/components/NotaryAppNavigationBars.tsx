@@ -1,13 +1,11 @@
-"use client";
-
-import { SetStateAction, Dispatch, useState } from "react";
-import Image from "next/image";
+import { type SetStateAction, type Dispatch, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { usePathname } from "next/navigation";
 import { AppNavigation } from "@canonical/react-components";
 import { AppNavigationBar } from "@canonical/react-components";
-import { ChangePasswordModal } from "@/app/(notary)/users/components";
-import { RoleID } from "../types";
+import { ChangePasswordModal } from "@/routes/users/-components/components";
+import { RoleID } from "@/utils/types";
+
+import { useLocation } from "@tanstack/react-router";
 
 type SidebarProps = {
   sidebarVisible: boolean;
@@ -21,7 +19,7 @@ export function SideBar({
   setChangePasswordModalVisible,
 }: SidebarProps) {
   const auth = useAuth();
-  const path = usePathname();
+  const location = useLocation();
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
 
   return (
@@ -60,7 +58,7 @@ export function SideBar({
                       className="p-side-navigation__link"
                       href="/certificate_requests"
                       aria-current={
-                        path.startsWith("/certificate_requests")
+                        location.pathname.startsWith("/certificate_requests")
                           ? "page"
                           : "false"
                       }
@@ -86,7 +84,9 @@ export function SideBar({
                           className="p-side-navigation__link"
                           href="/certificate_authorities"
                           aria-current={
-                            path.startsWith("/certificate_authorities")
+                            location.pathname.startsWith(
+                              "/certificate_authorities",
+                            )
                               ? "page"
                               : "false"
                           }
@@ -107,7 +107,9 @@ export function SideBar({
                         className="p-side-navigation__link"
                         href="/users"
                         aria-current={
-                          path.startsWith("/users") ? "page" : "false"
+                          location.pathname.startsWith("/users")
+                            ? "page"
+                            : "false"
                         }
                         style={{ cursor: "pointer" }}
                       >
@@ -133,7 +135,9 @@ export function SideBar({
                           className="p-side-navigation__link"
                           href="/configuration"
                           aria-current={
-                            path.startsWith("/configuration") ? "page" : "false"
+                            location.pathname.startsWith("/configuration")
+                              ? "page"
+                              : "false"
                           }
                           style={{ cursor: "pointer" }}
                         >
@@ -276,7 +280,7 @@ export function Logo() {
   return (
     <div className="logo">
       <div className="logo-tag">
-        <Image
+        <img
           src="https://assets.ubuntu.com/v1/82818827-CoF_white.svg"
           alt="circle of friends"
           width={32}

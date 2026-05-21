@@ -1,4 +1,3 @@
-"use client";
 import { Strip } from "@canonical/react-components";
 
 export default function Error({ msg }: { msg: string }) {

@@ -8,8 +8,6 @@ import (
 	"github.com/canonical/notary/internal/utils"
 )
 
-// CreateACMEServer JSON-encodes and encrypts envVars, then inserts a new ACME server row.
-// Returns the ID of the new row.
 func (db *DatabaseRepository) CreateACMEServer(name, directoryURL, email, dnsProvider string, envVars map[string]string) (int64, error) {
 	encryptedEnvVars, err := encryptEnvVars(envVars, db.EncryptionKey)
 	if err != nil {
@@ -25,18 +23,15 @@ func (db *DatabaseRepository) CreateACMEServer(name, directoryURL, email, dnsPro
 	return CreateEntity[ACMEServer](db, db.stmts.CreateACMEServer, row)
 }
 
-// ListACMEServers returns all ACME server rows. EnvVars is returned in its encrypted form.
 func (db *DatabaseRepository) ListACMEServers() ([]ACMEServer, error) {
 	return ListEntities[ACMEServer](db, db.stmts.ListACMEServers)
 }
 
-// GetACMEServer fetches a server by ID. EnvVars is returned in its encrypted form.
 func (db *DatabaseRepository) GetACMEServer(id int64) (*ACMEServer, error) {
 	row := ACMEServer{ID: id}
 	return GetOneEntity[ACMEServer](db, db.stmts.GetACMEServer, row)
 }
 
-// GetDecryptedACMEServer fetches a server by ID and decrypts its EnvVars JSON.
 func (db *DatabaseRepository) GetDecryptedACMEServer(id int64) (*ACMEServer, error) {
 	server, err := db.GetACMEServer(id)
 	if err != nil {
@@ -45,12 +40,10 @@ func (db *DatabaseRepository) GetDecryptedACMEServer(id int64) (*ACMEServer, err
 	return decryptServerEnvVars(server, db.EncryptionKey)
 }
 
-// GetActiveACMEServer returns the server row where active=1. Returns ErrNotFound if none is active.
 func (db *DatabaseRepository) GetActiveACMEServer() (*ACMEServer, error) {
 	return GetOneEntity[ACMEServer](db, db.stmts.GetActiveACMEServer)
 }
 
-// GetDecryptedActiveACMEServer returns the active server with decrypted EnvVars.
 func (db *DatabaseRepository) GetDecryptedActiveACMEServer() (*ACMEServer, error) {
 	server, err := db.GetActiveACMEServer()
 	if err != nil {
@@ -59,7 +52,6 @@ func (db *DatabaseRepository) GetDecryptedActiveACMEServer() (*ACMEServer, error
 	return decryptServerEnvVars(server, db.EncryptionKey)
 }
 
-// UpdateACMEServer JSON-encodes and encrypts envVars, then updates the server row.
 func (db *DatabaseRepository) UpdateACMEServer(id int64, name, directoryURL, email, dnsProvider string, envVars map[string]string) error {
 	encryptedEnvVars, err := encryptEnvVars(envVars, db.EncryptionKey)
 	if err != nil {
@@ -76,8 +68,7 @@ func (db *DatabaseRepository) UpdateACMEServer(id int64, name, directoryURL, ema
 	return UpdateEntity[ACMEServer](db, db.stmts.UpdateACMEServer, row)
 }
 
-// SetActiveACMEServer deactivates all servers then activates the one with the given ID.
-// Runs in a single transaction.
+// SetActiveACMEServer deactivates all servers then activates the given ID in a transaction.
 func (db *DatabaseRepository) SetActiveACMEServer(id int64) error {
 	tx, err := db.Conn.PlainDB().BeginTx(context.Background(), nil)
 	if err != nil {
@@ -107,13 +98,11 @@ func (db *DatabaseRepository) SetActiveACMEServer(id int64) error {
 	return nil
 }
 
-// DeleteACMEServer removes the server row with the given ID.
 func (db *DatabaseRepository) DeleteACMEServer(id int64) error {
 	row := ACMEServer{ID: id}
 	return DeleteEntity[ACMEServer](db, db.stmts.DeleteACMEServer, row)
 }
 
-// encryptEnvVars JSON-encodes a map and encrypts the result.
 func encryptEnvVars(envVars map[string]string, key []byte) (string, error) {
 	jsonBytes, err := json.Marshal(envVars)
 	if err != nil {
@@ -126,7 +115,6 @@ func encryptEnvVars(envVars map[string]string, key []byte) (string, error) {
 	return encrypted, nil
 }
 
-// decryptServerEnvVars decrypts the EnvVars field of an ACMEServer and stores the result as a JSON string.
 func decryptServerEnvVars(server *ACMEServer, key []byte) (*ACMEServer, error) {
 	decrypted, err := utils.Decrypt(server.EnvVars, key)
 	if err != nil {

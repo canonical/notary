@@ -22,7 +22,6 @@ import (
 	"github.com/go-acme/lego/v4/registration"
 )
 
-// signingMu serialises SignCSR calls so env var injection is thread-safe.
 var signingMu sync.Mutex
 
 type acmeUser struct {
@@ -35,8 +34,8 @@ func (u *acmeUser) GetEmail() string                        { return u.email }
 func (u *acmeUser) GetRegistration() *registration.Resource { return u.registration }
 func (u *acmeUser) GetPrivateKey() crypto.PrivateKey        { return u.key }
 
-// ACMERepository is a transient, per-sign object that holds everything needed
-// to obtain a certificate from an ACME server for a single signing operation.
+// ACMERepository holds everything needed to obtain a certificate from an ACME
+// server for a single signing operation.
 type ACMERepository struct {
 	serverID     int64
 	email        string
@@ -46,8 +45,6 @@ type ACMERepository struct {
 	db           *db.DatabaseRepository
 }
 
-// NewACMERepository creates a transient ACMERepository. Validation is the
-// caller's responsibility.
 func NewACMERepository(serverID int64, email, directoryURL, dnsProvider string, envVars map[string]string, database *db.DatabaseRepository) *ACMERepository {
 	return &ACMERepository{
 		serverID:     serverID,
@@ -60,17 +57,13 @@ func NewACMERepository(serverID int64, email, directoryURL, dnsProvider string, 
 }
 
 // loadOrCreateAccount returns an acmeUser backed by a DB-persisted account.
-// If no account exists for (email, directoryURL), a new ECDSA key is generated
-// and the account is registered with the ACME server before being stored.
-// Must be called with signingMu held (env vars are already injected).
+// Must be called with signingMu held.
 func (r *ACMERepository) loadOrCreateAccount() (*acmeUser, error) {
-	// Try to load an existing account by (email, directoryURL).
 	account, err := r.db.GetACMEAccountByEmailAndURL(r.email, r.directoryURL)
 	if err != nil && !errors.Is(err, db.ErrNotFound) {
 		return nil, fmt.Errorf("failed to look up ACME account: %w", err)
 	}
 
-	// Account already exists — reconstruct user from stored credentials.
 	if err == nil {
 		block, _ := pem.Decode([]byte(account.PrivateKeyPEM))
 		if block == nil {
@@ -91,7 +84,6 @@ func (r *ACMERepository) loadOrCreateAccount() (*acmeUser, error) {
 		}, nil
 	}
 
-	// No account yet — generate a key and register.
 	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate ACME account key: %w", err)
@@ -139,9 +131,8 @@ func (r *ACMERepository) loadOrCreateAccount() (*acmeUser, error) {
 	return user, nil
 }
 
-// SignCSR uses the ACME protocol with DNS-01 challenge to obtain a signed
-// certificate for the given CSR. It injects r.envVars into the process
-// environment for the duration of the call, under the package-level signingMu.
+// SignCSR obtains a signed certificate via ACME DNS-01 challenge.
+// Env vars are injected into the process environment under signingMu.
 func (r *ACMERepository) SignCSR(csrPEM string) (string, error) {
 	signingMu.Lock()
 

@@ -30,10 +30,10 @@ export default function ACMEServersPage() {
     retry: retryUnlessUnauthorized,
   });
 
-  if (query.status == "pending") {
+  if (query.status === "pending") {
     return <Loading />;
   }
-  if (query.status == "error") {
+  if (query.status === "error") {
     return <Error msg={getErrorMessage(query.error)} />;
   }
 

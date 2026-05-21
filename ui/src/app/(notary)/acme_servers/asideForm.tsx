@@ -46,8 +46,6 @@ export default function ACMEServersAsidePanel({
       setDirectoryURL(editingServer.directory_url);
       setEmail(editingServer.email);
       setDNSProvider(editingServer.dns_provider);
-      // Initialize env vars from existing keys; values are empty (not returned by API for security).
-      // User can update values or add new keys.
       const existingVars = editingServer.env_var_keys.map((key) => ({
         key,
         value: "",
@@ -141,8 +139,6 @@ export default function ACMEServersAsidePanel({
   const handleSubmit = () => {
     const envVarsMap = buildEnvVarsMap();
 
-    // When editing, warn if existing env var keys don't have values entered
-    // (they will be deleted from the configuration).
     if (isEditing && editingServer) {
       const existingKeysWithoutValues = editingServer.env_var_keys.filter(
         (key) => !(key in envVarsMap),

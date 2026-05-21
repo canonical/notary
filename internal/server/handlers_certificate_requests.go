@@ -585,9 +585,7 @@ func SignCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 				log.WithRequest(r),
 			)
 		case "acme":
-			// ACME DNS-01 challenge can take several minutes for propagation.
-			// Extend the write deadline for this specific request to avoid
-			// the server cutting the connection before the challenge completes.
+			// DNS propagation can take minutes; extend write deadline.
 			rc := http.NewResponseController(w)
 			if err := rc.SetWriteDeadline(time.Now().Add(3 * time.Minute)); err != nil {
 				env.SystemLogger.Warn("failed to extend write deadline for ACME sign", zap.Error(err))

@@ -324,18 +324,14 @@ WITH RECURSIVE cas_with_chain AS (
 	getJWTSecretStmt    = "SELECT &JWTSecret.* FROM jwt_secret WHERE id=$JWTSecret.id"
 	deleteJWTSecretStmt = "DELETE FROM jwt_secret WHERE id=$JWTSecret.id"
 
-	// // // // // // // // // // // // // //
-	// ACME Account SQL Strings            //
-	// // // // // // // // // // // // // //
+	// ACME Account statements
 	insertACMEAccountStmt           = "INSERT INTO acme_accounts (email, directory_url, private_key, registration_uri, registration_body) VALUES ($ACMEAccount.email, $ACMEAccount.directory_url, $ACMEAccount.private_key, $ACMEAccount.registration_uri, $ACMEAccount.registration_body)"
 	getACMEAccountStmt              = "SELECT &ACMEAccount.* FROM acme_accounts WHERE id==$ACMEAccount.id"
 	getACMEAccountByEmailAndURLStmt = "SELECT &ACMEAccount.* FROM acme_accounts WHERE email==$ACMEAccount.email AND directory_url==$ACMEAccount.directory_url"
 	updateACMEAccountStmt           = "UPDATE acme_accounts SET private_key=$ACMEAccount.private_key, registration_uri=$ACMEAccount.registration_uri, registration_body=$ACMEAccount.registration_body WHERE id==$ACMEAccount.id"
 	deleteACMEAccountStmt           = "DELETE FROM acme_accounts WHERE id==$ACMEAccount.id"
 
-	// // // // // // // // // // // // // //
-	// ACME Server SQL Strings             //
-	// // // // // // // // // // // // // //
+	// ACME Server statements
 	createACMEServerStmt        = "INSERT INTO acme_servers (name, directory_url, email, dns_provider, env_vars) VALUES ($ACMEServer.name, $ACMEServer.directory_url, $ACMEServer.email, $ACMEServer.dns_provider, $ACMEServer.env_vars)"
 	listACMEServersStmt         = "SELECT &ACMEServer.* FROM acme_servers"
 	getACMEServerStmt           = "SELECT &ACMEServer.* FROM acme_servers WHERE id==$ACMEServer.id"

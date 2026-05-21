@@ -125,8 +125,6 @@ type NumUsers struct {
 	Count int `db:"count"`
 }
 
-// ACMEAccount stores the ACME account credentials keyed by (email, directory_url).
-// PrivateKeyPEM is encrypted at rest in the database.
 type ACMEAccount struct {
 	ID               int64  `db:"id"`
 	Email            string `db:"email"`
@@ -136,9 +134,6 @@ type ACMEAccount struct {
 	RegistrationBody string `db:"registration_body"`
 }
 
-// ACMEServer holds the user-defined configuration for an ACME server.
-// EnvVars is a JSON string that is encrypted at rest in the database.
-// ACMEAccountID is a nullable FK pointing to the linked ACMEAccount row.
 type ACMEServer struct {
 	ID            int64  `db:"id"`
 	Name          string `db:"name"`

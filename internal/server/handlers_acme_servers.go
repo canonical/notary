@@ -20,15 +20,7 @@ type ACMEServerResponse struct {
 	EnvVarKeys   []string `json:"env_var_keys"`
 }
 
-type CreateACMEServerParams struct {
-	Name         string            `json:"name"`
-	DirectoryURL string            `json:"directory_url"`
-	Email        string            `json:"email"`
-	DNSProvider  string            `json:"dns_provider"`
-	EnvVars      map[string]string `json:"env_vars"`
-}
-
-type UpdateACMEServerParams struct {
+type ACMEServerParams struct {
 	Name         string            `json:"name"`
 	DirectoryURL string            `json:"directory_url"`
 	Email        string            `json:"email"`
@@ -37,9 +29,7 @@ type UpdateACMEServerParams struct {
 }
 
 func dbACMEServerToResponse(s *db.ACMEServer) ACMEServerResponse {
-	// Extract env var keys (values are not returned for security).
-	// s.EnvVars is populated only when the server was fetched decrypted.
-	var envVarKeys []string
+	envVarKeys := []string{}
 	if s.EnvVars != "" {
 		var envMap map[string]string
 		if err := json.Unmarshal([]byte(s.EnvVars), &envMap); err == nil {
@@ -47,9 +37,6 @@ func dbACMEServerToResponse(s *db.ACMEServer) ACMEServerResponse {
 				envVarKeys = append(envVarKeys, k)
 			}
 		}
-	}
-	if envVarKeys == nil {
-		envVarKeys = []string{}
 	}
 	return ACMEServerResponse{
 		ID:           s.ID,
@@ -72,7 +59,6 @@ func ListACMEServers(env *HandlerDependencies) http.HandlerFunc {
 		}
 		resp := make([]ACMEServerResponse, 0, len(servers))
 		for i := range servers {
-			// Decrypt to get env var keys (values are masked in the response).
 			decrypted, err := env.Database.GetDecryptedACMEServer(servers[i].ID)
 			if err != nil {
 				env.SystemLogger.Error("failed to decrypt ACME server env vars", zap.Error(err), zap.Int64("id", servers[i].ID))
@@ -108,7 +94,7 @@ func GetACMEServer(env *HandlerDependencies) http.HandlerFunc {
 
 func CreateACMEServer(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var params CreateACMEServerParams
+		var params ACMEServerParams
 		if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
 			writeResponse(w, http.StatusBadRequest, "invalid request body", nil, env.SystemLogger)
 			return
@@ -143,7 +129,7 @@ func UpdateACMEServer(env *HandlerDependencies) http.HandlerFunc {
 			writeResponse(w, http.StatusBadRequest, "invalid id", nil, env.SystemLogger)
 			return
 		}
-		var params UpdateACMEServerParams
+		var params ACMEServerParams
 		if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
 			writeResponse(w, http.StatusBadRequest, "invalid request body", nil, env.SystemLogger)
 			return

@@ -589,7 +589,7 @@ func SignCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 			// Extend the write deadline for this specific request to avoid
 			// the server cutting the connection before the challenge completes.
 			rc := http.NewResponseController(w)
-			if err := rc.SetWriteDeadline(time.Now().Add(10 * time.Minute)); err != nil {
+			if err := rc.SetWriteDeadline(time.Now().Add(3 * time.Minute)); err != nil {
 				env.SystemLogger.Warn("failed to extend write deadline for ACME sign", zap.Error(err))
 			}
 			activeServer, err := env.Database.GetDecryptedActiveACMEServer()

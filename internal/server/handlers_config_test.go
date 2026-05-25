@@ -15,6 +15,8 @@ type GetConfigContentResponse struct {
 	LoggingLevel          string `json:"logging_level"`
 	LoggingOutput         string `json:"logging_output"`
 	EncryptionBackendType string `json:"encryption_backend_type"`
+	ACMEEnabled           bool   `json:"acme_enabled"`
+	ACMEServerName        string `json:"acme_server_name,omitempty"`
 }
 
 type GetConfigResponse struct {
@@ -123,4 +125,68 @@ func TestConfigEndToEnd(t *testing.T) {
 			t.Fatalf("expected no message, got %q", response.Message)
 		}
 	})
+}
+
+// TestConfigACMEEnabledFalseByDefault verifies that acme_enabled is false
+// when the default test database has no active ACME server configured.
+func TestConfigACMEEnabledFalseByDefault(t *testing.T) {
+	ts, _ := tu.MustPrepareServer(t)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+	client := ts.Client()
+
+	statusCode, response, err := getConfig(ts.URL, client, adminToken)
+	if err != nil {
+		t.Fatalf("couldn't get config: %s", err)
+	}
+	if statusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+	}
+	if response.Data.ACMEEnabled {
+		t.Fatal("expected acme_enabled to be false when no active ACME server is configured, got true")
+	}
+}
+
+// TestConfigACMEEnabledTrueWhenServerActive verifies that acme_enabled is true and
+// acme_server_name is set when there is an active ACME server configured at runtime.
+func TestConfigACMEEnabledTrueWhenServerActive(t *testing.T) {
+	ts, _ := tu.MustPrepareServer(t)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+	client := ts.Client()
+
+	// Create an ACME server and set it active.
+	statusCode, created, err := tu.CreateACMEServer(ts.URL, client, adminToken, tu.CreateACMEServerParams{
+		Name:         "Test ACME",
+		DirectoryURL: "https://acme-staging-v02.api.letsencrypt.org/directory",
+		Email:        "admin@example.com",
+		DNSProvider:  "cloudflare",
+	})
+	if err != nil {
+		t.Fatalf("CreateACMEServer() error: %v", err)
+	}
+	if statusCode != http.StatusCreated {
+		t.Fatalf("expected status %d creating ACME server, got %d", http.StatusCreated, statusCode)
+	}
+
+	statusCode, _, err = tu.SetActiveACMEServer(ts.URL, client, adminToken, int(created.Data.ID))
+	if err != nil {
+		t.Fatalf("SetActiveACMEServer() error: %v", err)
+	}
+	if statusCode != http.StatusOK {
+		t.Fatalf("expected status %d setting active ACME server, got %d", http.StatusOK, statusCode)
+	}
+
+	// GET /config must now report acme_enabled: true and the server name.
+	statusCode, response, err := getConfig(ts.URL, client, adminToken)
+	if err != nil {
+		t.Fatalf("getConfig() error: %v", err)
+	}
+	if statusCode != http.StatusOK {
+		t.Fatalf("expected status %d from GET /config, got %d", http.StatusOK, statusCode)
+	}
+	if !response.Data.ACMEEnabled {
+		t.Fatal("expected acme_enabled to be true when an active ACME server is configured, got false")
+	}
+	if response.Data.ACMEServerName != "Test ACME" {
+		t.Errorf("expected acme_server_name %q, got %q", "Test ACME", response.Data.ACMEServerName)
+	}
 }

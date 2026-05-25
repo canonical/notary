@@ -66,6 +66,14 @@ func NewRouter(config *HandlerDependencies) http.Handler {
 	apiV1Router.HandleFunc("GET /certificate_authorities/{id}/crl", GetCertificateAuthorityCRL(config))
 	apiV1Router.HandleFunc("POST /certificate_authorities/{id}/revoke", requirePermission(managerRoles, config, RevokeCertificateAuthorityCertificate(config)))
 
+	// ACME server endpoints
+	apiV1Router.HandleFunc("GET /acme_servers", requirePermission(readerRoles, config, ListACMEServers(config)))
+	apiV1Router.HandleFunc("POST /acme_servers", requirePermission(managerRoles, config, CreateACMEServer(config)))
+	apiV1Router.HandleFunc("GET /acme_servers/{id}", requirePermission(readerRoles, config, GetACMEServer(config)))
+	apiV1Router.HandleFunc("PUT /acme_servers/{id}", requirePermission(managerRoles, config, UpdateACMEServer(config)))
+	apiV1Router.HandleFunc("DELETE /acme_servers/{id}", requirePermission(managerRoles, config, DeleteACMEServer(config)))
+	apiV1Router.HandleFunc("PUT /acme_servers/{id}/active", requirePermission(managerRoles, config, SetActiveACMEServer(config)))
+
 	// Account endpoints
 	apiV1Router.HandleFunc("GET /accounts", requirePermission(adminOnly, config, ListAccounts(config)))
 	apiV1Router.HandleFunc("POST /accounts", firstUserOrAdmin(config, CreateAccount(config)))

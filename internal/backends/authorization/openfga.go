@@ -30,7 +30,12 @@ func ObjectID(objectType string, id int64) string {
 }
 
 // UserID formats a user ID for OpenFGA (e.g. "user:admin@notary.local").
+// Returns "" if email is empty, so callers that check authorization with an
+// empty userID will fail the check gracefully (resulting in a 403).
 func UserID(email string) string {
+	if email == "" {
+		return ""
+	}
 	return fmt.Sprintf("user:%s", email)
 }
 

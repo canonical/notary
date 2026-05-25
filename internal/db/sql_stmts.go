@@ -323,6 +323,22 @@ WITH RECURSIVE cas_with_chain AS (
 	createJWTSecretStmt = "INSERT INTO jwt_secret (id, encrypted_secret) VALUES ($JWTSecret.id, $JWTSecret.encrypted_secret)"
 	getJWTSecretStmt    = "SELECT &JWTSecret.* FROM jwt_secret WHERE id=$JWTSecret.id"
 	deleteJWTSecretStmt = "DELETE FROM jwt_secret WHERE id=$JWTSecret.id"
+
+	// ACME Account statements
+	insertACMEAccountStmt           = "INSERT INTO acme_accounts (email, directory_url, private_key, registration_uri, registration_body) VALUES ($ACMEAccount.email, $ACMEAccount.directory_url, $ACMEAccount.private_key, $ACMEAccount.registration_uri, $ACMEAccount.registration_body)"
+	getACMEAccountStmt              = "SELECT &ACMEAccount.* FROM acme_accounts WHERE id==$ACMEAccount.id"
+	getACMEAccountByEmailAndURLStmt = "SELECT &ACMEAccount.* FROM acme_accounts WHERE email==$ACMEAccount.email AND directory_url==$ACMEAccount.directory_url"
+	updateACMEAccountStmt           = "UPDATE acme_accounts SET private_key=$ACMEAccount.private_key, registration_uri=$ACMEAccount.registration_uri, registration_body=$ACMEAccount.registration_body WHERE id==$ACMEAccount.id"
+	deleteACMEAccountStmt           = "DELETE FROM acme_accounts WHERE id==$ACMEAccount.id"
+
+	// ACME Server statements
+	createACMEServerStmt        = "INSERT INTO acme_servers (name, directory_url, email, dns_provider, env_vars) VALUES ($ACMEServer.name, $ACMEServer.directory_url, $ACMEServer.email, $ACMEServer.dns_provider, $ACMEServer.env_vars)"
+	listACMEServersStmt         = "SELECT &ACMEServer.* FROM acme_servers"
+	getACMEServerStmt           = "SELECT &ACMEServer.* FROM acme_servers WHERE id==$ACMEServer.id"
+	getActiveACMEServerStmt     = "SELECT &ACMEServer.* FROM acme_servers WHERE active = 1"
+	updateACMEServerStmt        = "UPDATE acme_servers SET name=$ACMEServer.name, directory_url=$ACMEServer.directory_url, email=$ACMEServer.email, dns_provider=$ACMEServer.dns_provider, env_vars=$ACMEServer.env_vars WHERE id==$ACMEServer.id"
+	deleteACMEServerStmt        = "DELETE FROM acme_servers WHERE id==$ACMEServer.id"
+	linkACMEAccountToServerStmt = "UPDATE acme_servers SET acme_account_id=$ACMEServer.acme_account_id WHERE id==$ACMEServer.id"
 )
 
 // Statements contains all prepared SQL statements used by the database
@@ -379,6 +395,22 @@ type Statements struct {
 	CreateJWTSecret *sqlair.Statement
 	GetJWTSecret    *sqlair.Statement
 	DeleteJWTSecret *sqlair.Statement
+
+	// ACME Account statements
+	InsertACMEAccount           *sqlair.Statement
+	GetACMEAccount              *sqlair.Statement
+	GetACMEAccountByEmailAndURL *sqlair.Statement
+	UpdateACMEAccount           *sqlair.Statement
+	DeleteACMEAccount           *sqlair.Statement
+
+	// ACME Server statements
+	CreateACMEServer        *sqlair.Statement
+	ListACMEServers         *sqlair.Statement
+	GetACMEServer           *sqlair.Statement
+	GetActiveACMEServer     *sqlair.Statement
+	UpdateACMEServer        *sqlair.Statement
+	DeleteACMEServer        *sqlair.Statement
+	LinkACMEAccountToServer *sqlair.Statement
 }
 
 // PrepareStatements prepares all SQL statements used by the database.
@@ -439,6 +471,22 @@ func PrepareStatements() *Statements {
 	stmts.CreateJWTSecret = sqlair.MustPrepare(createJWTSecretStmt, JWTSecret{})
 	stmts.GetJWTSecret = sqlair.MustPrepare(getJWTSecretStmt, JWTSecret{})
 	stmts.DeleteJWTSecret = sqlair.MustPrepare(deleteJWTSecretStmt, JWTSecret{})
+
+	// ACME Account statements
+	stmts.InsertACMEAccount = sqlair.MustPrepare(insertACMEAccountStmt, ACMEAccount{})
+	stmts.GetACMEAccount = sqlair.MustPrepare(getACMEAccountStmt, ACMEAccount{})
+	stmts.GetACMEAccountByEmailAndURL = sqlair.MustPrepare(getACMEAccountByEmailAndURLStmt, ACMEAccount{})
+	stmts.UpdateACMEAccount = sqlair.MustPrepare(updateACMEAccountStmt, ACMEAccount{})
+	stmts.DeleteACMEAccount = sqlair.MustPrepare(deleteACMEAccountStmt, ACMEAccount{})
+
+	// ACME Server statements
+	stmts.CreateACMEServer = sqlair.MustPrepare(createACMEServerStmt, ACMEServer{})
+	stmts.ListACMEServers = sqlair.MustPrepare(listACMEServersStmt, ACMEServer{})
+	stmts.GetACMEServer = sqlair.MustPrepare(getACMEServerStmt, ACMEServer{})
+	stmts.GetActiveACMEServer = sqlair.MustPrepare(getActiveACMEServerStmt, ACMEServer{})
+	stmts.UpdateACMEServer = sqlair.MustPrepare(updateACMEServerStmt, ACMEServer{})
+	stmts.DeleteACMEServer = sqlair.MustPrepare(deleteACMEServerStmt, ACMEServer{})
+	stmts.LinkACMEAccountToServer = sqlair.MustPrepare(linkACMEAccountToServerStmt, ACMEServer{})
 
 	return stmts
 }

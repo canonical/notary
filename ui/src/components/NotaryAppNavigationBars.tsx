@@ -101,6 +101,33 @@ export function SideBar({
 												</Link>
 											</li>
 										)}
+									{auth.user &&
+										auth.user?.role_id !== undefined &&
+										[
+											RoleID.Admin,
+											RoleID.CertificateManager,
+											RoleID.ReadOnly,
+										].includes(auth.user.role_id) && (
+											<li className="p-side-navigation__item">
+												<a
+													className="p-side-navigation__link"
+													href="/acme_servers"
+													aria-current={
+														location.pathname.startsWith("/acme_servers")
+															? "page"
+															: "false"
+													}
+													style={{ cursor: "pointer" }}
+												>
+													<i className="p-icon--security is-light p-side-navigation__icon"></i>
+													<span className="p-side-navigation__label">
+														<span className="p-side-navigation__label">
+															ACME Servers
+														</span>
+													</span>
+												</a>
+											</li>
+										)}
 									{auth.user?.role_id === RoleID.Admin && (
 										<li className="p-side-navigation__item">
 											<Link
@@ -182,6 +209,7 @@ export function SideBar({
 													className="p-side-navigation__label"
 													style={{ flex: 1, minWidth: 0, overflow: "hidden" }}
 												>
+													<i className="p-icon--user is-light p-side-navigation__icon"></i>
 													<span
 														className="p-side-navigation__label"
 														style={{

@@ -4,26 +4,26 @@ on:
   workflow_call:
 
 jobs:
-  nextjs-build:
+  vite-build:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ui
     steps:
       - uses: actions/checkout@v6
-      - name: use npm
-        uses: actions/setup-node@v6
+      - name: use bun
+        uses: oven-sh/setup-bun@v2
 
-      - name: check format
+      - name: format and lint
         run: |
-          npx prettier -c src/
+          bun run ci
 
-      - name: Build frontend
+      - name: build
         run: |
-          npm install
-          npm run build
+          bun install
+          bun run build
       - name: Upload frontend files
         uses: actions/upload-artifact@v7
         with:
           name: frontend-static-files
-          path: ui/out
+          path: ui/dist

@@ -1,6 +1,4 @@
-// biome-ignore-all lint: this file is auto generated
-// biome-ignore-all format: this file is auto generated
-// biome-ignore-all assist/source/organizeImports: this file is auto generated
+/* eslint-disable */
 
 // @ts-nocheck
 

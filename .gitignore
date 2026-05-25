@@ -1,8 +1,9 @@
-*.db
-*config.yaml
-artifacts/**
-
 .DS_Store
+
+# editor
+.idea/
+.vscode/
+.zed/
 
 # dependencies
 ui/node_modules
@@ -13,11 +14,13 @@ ui/*.yarn/install-state.gz
 # testing
 ui/coverage
 
-# next.js
-ui/.next/
-ui/out/
+# build extras
+ui/.tanstack/
+ui/dist/*
+!ui/dist/.gitkeep
 
 # production
+artifacts/**
 ui/build
 
 # debug
@@ -28,28 +31,6 @@ ui/yarn-error.log*
 # local env files
 ui/.env*.local
 
-# vercel
-ui/.vercel
-
 # typescript
 ui/*.tsbuildinfo
 ui/next-env.d.ts
-
-# editor
-.idea/
-.vscode/
-
-# ui
-node_modules
-.DS_Store
-dist
-dist-ssr
-*.local
-.env
-.nitro
-.tanstack
-.wrangler
-.output
-.vinxi
-__unconfig*
-todos.json

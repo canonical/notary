@@ -89,6 +89,8 @@ export type ConfigEntry = {
   logging_level: string;
   logging_output: string;
   encryption_backend_type: string;
+  acme_enabled: boolean;
+  acme_server_name?: string;
 };
 
 export type AsideFormData = {
@@ -97,4 +99,14 @@ export type AsideFormData = {
     id: string;
     email: string;
   };
+};
+
+export type ACMEServerEntry = {
+  id: number;
+  name: string;
+  directory_url: string;
+  email: string;
+  dns_provider: string;
+  active: boolean;
+  env_var_keys: string[];
 };

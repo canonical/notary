@@ -1,6 +1,7 @@
 /* eslint-disable */
 
 import {
+  ACMEServerEntry,
   APIError,
   APIErrorResponse,
   APIResponse,
@@ -28,6 +29,11 @@ type GETStatus = {
 };
 
 async function parseAPIResponse<T>(response: globalThis.Response) {
+  // 204 No Content has no body — skip JSON parsing.
+  if (response.status === 204) {
+    return { data: undefined } as APIResponse<T>;
+  }
+
   const respData = (await response.json()) as APIResponse<T> | APIErrorResponse;
 
   if (!response.ok) {
@@ -103,14 +109,24 @@ export async function deleteCSR(params: RequiredCSRParams) {
 }
 
 export async function signCSR(
-  params: RequiredCSRParams & { certificate_authority_id: number },
+  params: RequiredCSRParams & {
+    certificate_authority_id?: number;
+    signing_method?: "ca" | "acme";
+  },
 ) {
-  if (!params.certificate_authority_id) {
-    throw new Error("Certificate not provided");
+  if (!params.signing_method || params.signing_method === "ca") {
+    if (!params.certificate_authority_id) {
+      throw new Error("Certificate authority not provided");
+    }
   }
-  const reqParams = {
-    certificate_authority_id: params.certificate_authority_id.toString(),
-  };
+  const reqParams: Record<string, string> = {};
+  if (params.certificate_authority_id !== undefined) {
+    reqParams.certificate_authority_id =
+      params.certificate_authority_id.toString();
+  }
+  if (params.signing_method) {
+    reqParams.signing_method = params.signing_method;
+  }
   return fetchAPI("/api/v1/certificate_requests/" + params.id + "/sign", {
     method: "post",
     headers: {
@@ -333,4 +349,58 @@ export async function signCA(
 
 export async function getConfig(): Promise<ConfigEntry> {
   return (await fetchAPI<ConfigEntry>("/api/v1/config")) as ConfigEntry;
+}
+
+// ACME Server queries
+
+export type ACMEServerCreateParams = {
+  name: string;
+  directory_url: string;
+  email: string;
+  dns_provider: string;
+  env_vars: Record<string, string>;
+};
+
+export type ACMEServerUpdateParams = ACMEServerCreateParams & { id: string };
+
+export async function getACMEServers(): Promise<ACMEServerEntry[]> {
+  return (
+    ((await fetchAPI<ACMEServerEntry[]>(
+      "/api/v1/acme_servers",
+    )) as ACMEServerEntry[]) ?? []
+  );
+}
+
+export async function createACMEServer(
+  params: ACMEServerCreateParams,
+): Promise<ACMEServerEntry> {
+  return (await fetchAPI<ACMEServerEntry>("/api/v1/acme_servers", {
+    method: "post",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  })) as ACMEServerEntry;
+}
+
+export async function updateACMEServer(
+  params: ACMEServerUpdateParams,
+): Promise<ACMEServerEntry> {
+  const { id, ...body } = params;
+  return (await fetchAPI<ACMEServerEntry>(`/api/v1/acme_servers/${id}`, {
+    method: "put",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  })) as ACMEServerEntry;
+}
+
+export async function deleteACMEServer(params: { id: string }): Promise<void> {
+  await fetchAPI(`/api/v1/acme_servers/${params.id}`, { method: "delete" });
+}
+
+export async function setActiveACMEServer(params: {
+  id: string;
+}): Promise<ACMEServerEntry> {
+  return (await fetchAPI<ACMEServerEntry>(
+    `/api/v1/acme_servers/${params.id}/active`,
+    { method: "put" },
+  )) as ACMEServerEntry;
 }

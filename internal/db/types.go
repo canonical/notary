@@ -124,3 +124,23 @@ func (u *User) HasOIDC() bool {
 type NumUsers struct {
 	Count int `db:"count"`
 }
+
+type ACMEAccount struct {
+	ID               int64  `db:"id"`
+	Email            string `db:"email"`
+	DirectoryURL     string `db:"directory_url"`
+	PrivateKeyPEM    string `db:"private_key"`
+	RegistrationURI  string `db:"registration_uri"`
+	RegistrationBody string `db:"registration_body"`
+}
+
+type ACMEServer struct {
+	ID            int64  `db:"id"`
+	Name          string `db:"name"`
+	DirectoryURL  string `db:"directory_url"`
+	Email         string `db:"email"`
+	DNSProvider   string `db:"dns_provider"`
+	EnvVars       string `db:"env_vars"`
+	Active        bool   `db:"active"`
+	ACMEAccountID *int64 `db:"acme_account_id"`
+}

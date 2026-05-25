@@ -109,9 +109,9 @@ export function SideBar({
 											RoleID.ReadOnly,
 										].includes(auth.user.role_id) && (
 											<li className="p-side-navigation__item">
-												<a
+												<Link
 													className="p-side-navigation__link"
-													href="/acme_servers"
+													to="/acme_servers"
 													aria-current={
 														location.pathname.startsWith("/acme_servers")
 															? "page"
@@ -125,7 +125,7 @@ export function SideBar({
 															ACME Servers
 														</span>
 													</span>
-												</a>
+												</Link>
 											</li>
 										)}
 									{auth.user?.role_id === RoleID.Admin && (

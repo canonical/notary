@@ -18,6 +18,7 @@ ui/coverage
 ui/.tanstack/
 ui/dist/*
 !ui/dist/.gitkeep
+!ui/dist/index.html
 
 # production
 artifacts/**

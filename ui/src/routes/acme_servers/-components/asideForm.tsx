@@ -8,13 +8,13 @@ import {
 	useToastNotification,
 } from "@canonical/react-components";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { type ChangeEvent, useEffect, useState } from "react";
+import { type ChangeEvent, useCallback, useEffect, useState } from "react";
 import {
 	type ACMEServerCreateParams,
 	createACMEServer,
 	updateACMEServer,
-} from "@/queries";
-import { type ACMEServerEntry, getErrorMessage } from "@/types";
+} from "@/utils/queries";
+import { type ACMEServerEntry, getErrorMessage } from "@/utils/types";
 
 type AsideProps = {
 	setAsideOpen: () => void;
@@ -39,14 +39,14 @@ export default function ACMEServersAsidePanel({
 	]);
 	const [formError, setFormError] = useState("");
 
-	const resetForm = () => {
+	const resetForm = useCallback(() => {
 		setName("");
 		setDirectoryURL("");
 		setEmail("");
 		setDNSProvider("");
 		setEnvVars([{ key: "", value: "" }]);
 		setFormError("");
-	};
+	}, []);
 
 	useEffect(() => {
 		if (editingServer) {
@@ -54,7 +54,7 @@ export default function ACMEServersAsidePanel({
 			setDirectoryURL(editingServer.directory_url);
 			setEmail(editingServer.email);
 			setDNSProvider(editingServer.dns_provider);
-			const existingVars = editingServer.env_var_keys.map((key) => ({
+			const existingVars = editingServer.env_var_keys.map((key: string) => ({
 				key,
 				value: "",
 			}));
@@ -64,7 +64,7 @@ export default function ACMEServersAsidePanel({
 		} else {
 			resetForm();
 		}
-	}, [editingServer]);
+	}, [editingServer, resetForm]);
 
 	const buildEnvVarsMap = (): Record<string, string> => {
 		const map: Record<string, string> = {};
@@ -140,7 +140,7 @@ export default function ACMEServersAsidePanel({
 
 		if (isEditing && editingServer) {
 			const existingKeysWithoutValues = editingServer.env_var_keys.filter(
-				(key) => !(key in envVarsMap),
+				(key: string) => !(key in envVarsMap),
 			);
 			if (existingKeysWithoutValues.length > 0) {
 				const confirmed = window.confirm(
@@ -160,7 +160,7 @@ export default function ACMEServersAsidePanel({
 			env_vars: envVarsMap,
 		};
 		if (isEditing) {
-			updateMutation.mutate({ ...params, id: editingServer!.id.toString() });
+			updateMutation.mutate({ ...params, id: editingServer.id.toString() });
 		} else {
 			createMutation.mutate(params);
 		}
@@ -240,7 +240,7 @@ export default function ACMEServersAsidePanel({
 						</legend>
 						{envVars.map((pair, index) => (
 							<div
-								key={index}
+								key={`env-${pair.key || index}`}
 								style={{ display: "flex", gap: "8px", marginBottom: "8px" }}
 							>
 								<Input

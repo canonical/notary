@@ -11,8 +11,8 @@ import {
 	type NotaryConfirmationModalData,
 } from "@/components/NotaryConfirmationModal";
 import { useAuth } from "@/hooks/useAuth";
-import { deleteACMEServer, setActiveACMEServer } from "@/queries";
-import { type ACMEServerEntry, RoleID } from "@/types";
+import { deleteACMEServer, setActiveACMEServer } from "@/utils/queries";
+import { type ACMEServerEntry, RoleID } from "@/utils/types";
 
 type TableProps = {
 	servers: ACMEServerEntry[];
@@ -27,7 +27,7 @@ export default function ACMEServersTable({
 }: TableProps) {
 	const auth = useAuth();
 	const [confirmationModalData, setConfirmationModalData] =
-		// eslint-disable-next-line
+		// biome-ignore lint/suspicious/noExplicitAny: generic modal accepts any data type
 		useState<NotaryConfirmationModalData<any> | null>(null);
 	const [expandedID, setExpandedID] = useState<number | null>(null);
 

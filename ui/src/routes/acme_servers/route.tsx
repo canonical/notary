@@ -11,8 +11,12 @@ import Loading from "@/components/loading";
 import NotaryAppNavigationBars from "@/components/NotaryAppNavigationBars";
 import NotaryAppStatus from "@/components/NotaryAppStatus";
 import { getACMEServers } from "@/queries";
-import { type ACMEServerEntry, type APIError, getErrorMessage } from "@/types";
 import { retryUnlessUnauthorized } from "@/utils/helpers";
+import {
+	type ACMEServerEntry,
+	type APIError,
+	getErrorMessage,
+} from "@/utils/types";
 import ACMEServersAsidePanel from "./-components/asideForm";
 import ACMEServersTable from "./-components/table";
 

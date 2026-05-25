@@ -5,7 +5,7 @@ import { AppNavigationBar } from "@canonical/react-components";
 import { ChangePasswordModal } from "@/routes/users/-components/components";
 import { RoleID } from "@/utils/types";
 
-import { useLocation } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 
 type SidebarProps = {
   sidebarVisible: boolean;
@@ -54,9 +54,9 @@ export function SideBar({
               <nav aria-label="Main">
                 <ul className="p-side-navigation__list">
                   <li className="p-side-navigation__item">
-                    <a
+                    <Link
                       className="p-side-navigation__link"
-                      href="/certificate_requests"
+                      to="/certificate_requests"
                       aria-current={
                         location.pathname.startsWith("/certificate_requests")
                           ? "page"
@@ -70,7 +70,7 @@ export function SideBar({
                           Certificate Requests
                         </span>
                       </span>
-                    </a>
+                    </Link>
                   </li>
                   {auth.user &&
                     auth.user?.role_id !== undefined &&
@@ -80,9 +80,9 @@ export function SideBar({
                       RoleID.ReadOnly,
                     ].includes(auth.user.role_id) && (
                       <li className="p-side-navigation__item">
-                        <a
+                        <Link
                           className="p-side-navigation__link"
-                          href="/certificate_authorities"
+                          to="/certificate_authorities"
                           aria-current={
                             location.pathname.startsWith(
                               "/certificate_authorities",
@@ -98,14 +98,14 @@ export function SideBar({
                               Certificate Authorities
                             </span>
                           </span>
-                        </a>
+                        </Link>
                       </li>
                     )}
                   {auth.user?.role_id == RoleID.Admin && (
                     <li className="p-side-navigation__item">
-                      <a
+                      <Link
                         className="p-side-navigation__link"
-                        href="/users"
+                        to="/users"
                         aria-current={
                           location.pathname.startsWith("/users")
                             ? "page"
@@ -119,7 +119,7 @@ export function SideBar({
                             Users
                           </span>
                         </span>
-                      </a>
+                      </Link>
                     </li>
                   )}
                   {auth.user &&
@@ -131,9 +131,9 @@ export function SideBar({
                       RoleID.ReadOnly,
                     ].includes(auth.user.role_id) && (
                       <li className="p-side-navigation__item">
-                        <a
+                        <Link
                           className="p-side-navigation__link"
-                          href="/configuration"
+                          to="/configuration"
                           aria-current={
                             location.pathname.startsWith("/configuration")
                               ? "page"
@@ -147,7 +147,7 @@ export function SideBar({
                               Server Info
                             </span>
                           </span>
-                        </a>
+                        </Link>
                       </li>
                     )}
                 </ul>
@@ -225,9 +225,9 @@ export function SideBar({
                           </div>
                         </div>
                       ) : (
-                        <a
+                        <Link
                           className="p-side-navigation__link"
-                          href="/login"
+                          to="/login"
                           aria-current="false"
                         >
                           <i className="p-icon--user is-light p-side-navigation__icon"></i>
@@ -236,7 +236,7 @@ export function SideBar({
                               Login
                             </span>
                           </span>
-                        </a>
+                        </Link>
                       )}
                     </>
                   </li>

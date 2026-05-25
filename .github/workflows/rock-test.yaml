@@ -43,8 +43,8 @@ jobs:
         run: |
           sleep 30
           docker logs notary
-          curl -k https://localhost:3000/certificate_requests.html 2>&1
-          curl -k https://localhost:3000/certificate_requests.html 2>&1 | grep "<title>Notary</title>"
+          # The Notary UI title is different than the placeholder title. If the UI is loaded, the title will be "notary-ui" instead of that.
+          curl -k https://localhost:3000/certificate_requests.html 2>&1 | grep "<title>notary-ui</title>"
       - name: Test if pebble notify fires correctly
         id: test_notify
         run: |

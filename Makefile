@@ -1,7 +1,7 @@
 ARTIFACT_FOLDER := artifacts
 
 NOTARY_BACKEND_FILES := $(shell find internal/ cmd/ -type f)
-NOTARY_UI_FILES := $(shell find ui/src/ -type f) ui/package.json ui/package-lock.json
+NOTARY_UI_FILES := $(shell find ui/src/ -type f) ui/package.json ui/bun.lock ui/vite.config.ts
 
 NOTARY_ARTIFACT_NAME := notary
 NOTARY_CONFIG_FILE := config.yaml
@@ -15,6 +15,10 @@ $(shell mkdir -p $(ARTIFACT_FOLDER))
 .PHONY: notary
 notary: $(ARTIFACT_FOLDER)/$(NOTARY_ARTIFACT_NAME) $(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE) $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY)
 	@echo "Built notary"
+
+.PHONY: notary-dev
+	@echo "Running notary in dev mode"
+	cd artifacts && ./$(NOTARY_ARTIFACT_NAME) start -m --config $(NOTARY_CONFIG_FILE) & cd ui && API_PREFIX="localhost:2111" VERSION="dev" bun run dev
 
 .PHONY: config-files
 config-files: $(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE) $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY)
@@ -131,10 +135,10 @@ $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY):
 
 $(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE):
 
-ui/out: $(NOTARY_UI_FILES)
-	@npm install --prefix ui && npm run build --prefix ui
+ui/dist: $(NOTARY_UI_FILES)
+	@cd ui && bun install && bun run build
 
-$(ARTIFACT_FOLDER)/$(NOTARY_ARTIFACT_NAME): $(NOTARY_BACKEND_FILES) ui/out
+$(ARTIFACT_FOLDER)/$(NOTARY_ARTIFACT_NAME): $(NOTARY_BACKEND_FILES) ui/dist
 	go build -o $(ARTIFACT_FOLDER)/$(NOTARY_ARTIFACT_NAME)
 
 $(ARTIFACT_FOLDER)/$(ROCK_ARTIFACT_NAME): $(ARTIFACT_FOLDER)/$(NOTARY_ARTIFACT_NAME) rockcraft.yaml

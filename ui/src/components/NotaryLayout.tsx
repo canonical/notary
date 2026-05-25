@@ -1,19 +1,19 @@
 import { useLoginRedirect } from "@/hooks/useLoginRedirect";
 
 export default function NotaryAppLayout({
-  children,
+	children,
 }: Readonly<{
-  children: React.ReactNode;
+	children: React.ReactNode;
 }>) {
-  return (
-    <>
-      <GlobalHooks />
-      {children}
-    </>
-  );
+	return (
+		<>
+			<GlobalHooks />
+			{children}
+		</>
+	);
 }
 
 function GlobalHooks() {
-  useLoginRedirect();
-  return <></>;
+	useLoginRedirect();
+	return <></>;
 }

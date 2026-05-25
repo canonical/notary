@@ -8,86 +8,86 @@
 // valid.
 
 export type validationResult = {
-  error: string;
-  caution: string;
-  success: string;
+	error: string;
+	caution: string;
+	success: string;
 };
 
 export function validateCommonName(value: string): validationResult {
-  const vr: validationResult = { error: "", caution: "", success: "" };
-  if (value.length == 0) {
-    return vr;
-  }
-  if (value.length < 1 || value.length > 64) {
-    vr.error = "must be between 1 and 64 characters";
-  }
-  return vr;
+	const vr: validationResult = { error: "", caution: "", success: "" };
+	if (value.length === 0) {
+		return vr;
+	}
+	if (value.length < 1 || value.length > 64) {
+		vr.error = "must be between 1 and 64 characters";
+	}
+	return vr;
 }
 
 export function validateOrganizationName(value: string): validationResult {
-  const vr: validationResult = { error: "", caution: "", success: "" };
-  if (value.length == 0) {
-    return vr;
-  }
-  if (value.length < 1 || value.length > 64) {
-    vr.caution = "must be between 1 and 64 characters";
-  }
-  return vr;
+	const vr: validationResult = { error: "", caution: "", success: "" };
+	if (value.length === 0) {
+		return vr;
+	}
+	if (value.length < 1 || value.length > 64) {
+		vr.caution = "must be between 1 and 64 characters";
+	}
+	return vr;
 }
 
 export function validateOrganizationalUnit(value: string): validationResult {
-  const vr: validationResult = { error: "", caution: "", success: "" };
-  if (value.length == 0) {
-    return vr;
-  }
-  if (value.length < 1 || value.length > 64) {
-    vr.caution = "must be between 1 and 64 characters";
-  }
-  return vr;
+	const vr: validationResult = { error: "", caution: "", success: "" };
+	if (value.length === 0) {
+		return vr;
+	}
+	if (value.length < 1 || value.length > 64) {
+		vr.caution = "must be between 1 and 64 characters";
+	}
+	return vr;
 }
 
 export function validateCountryName(value: string): validationResult {
-  const vr: validationResult = { error: "", caution: "", success: "" };
-  if (value.length == 0) {
-    return vr;
-  }
-  if (value.length !== 2) {
-    vr.error = "must be exactly 2 characters";
-  }
-  if (value !== value.toUpperCase()) {
-    vr.error = "must be uppercase letters";
-  }
-  return vr;
+	const vr: validationResult = { error: "", caution: "", success: "" };
+	if (value.length === 0) {
+		return vr;
+	}
+	if (value.length !== 2) {
+		vr.error = "must be exactly 2 characters";
+	}
+	if (value !== value.toUpperCase()) {
+		vr.error = "must be uppercase letters";
+	}
+	return vr;
 }
 
 export function validateStateOrProvinceName(value: string): validationResult {
-  const vr: validationResult = { error: "", caution: "", success: "" };
-  if (value.length == 0) {
-    return vr;
-  }
-  if (value.length < 1 || value.length > 64) {
-    vr.error = "must be between 1 and 64 characters";
-  }
-  return vr;
+	const vr: validationResult = { error: "", caution: "", success: "" };
+	if (value.length === 0) {
+		return vr;
+	}
+	if (value.length < 1 || value.length > 64) {
+		vr.error = "must be between 1 and 64 characters";
+	}
+	return vr;
 }
 
 export function validateLocalityName(value: string): validationResult {
-  const vr: validationResult = { error: "", caution: "", success: "" };
-  if (value.length == 0) {
-    return vr;
-  }
-  if (value.length < 1 || value.length > 64) {
-    vr.error = "must be between 1 and 64 characters";
-  }
-  return vr;
+	const vr: validationResult = { error: "", caution: "", success: "" };
+	if (value.length === 0) {
+		return vr;
+	}
+	if (value.length < 1 || value.length > 64) {
+		vr.error = "must be between 1 and 64 characters";
+	}
+	return vr;
 }
 
 export function validateNotAfter(value: string): validationResult {
-  const vr: validationResult = { error: "", caution: "", success: "" };
-  const date = new Date(value);
-  const now = new Date();
-  if (date < now) {
-    vr.caution = "This date is in the past";
-  }
-  return vr;
+	const vr: validationResult = { error: "", caution: "", success: "" };
+	const date = new Date(value);
+	const now = new Date();
+	if (date < now) {
+		vr.caution = "This date is in the past";
+	}
+	return vr;
 }

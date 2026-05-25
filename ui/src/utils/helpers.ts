@@ -88,21 +88,24 @@ function parseExtensions(extensions: Extensions) {
 		}
 
 		if (extensionName === "Subject Alternative Name") {
-			// eslint-disable-next-line
 			extension.parsedValue.altNames.forEach(
-				// eslint-disable-next-line
-				(altName: { type: number; value: string }) => {
+				(altName: {
+					type: number;
+					value: string | { valueBlock: { valueHex: ArrayBuffer } };
+				}) => {
 					if (altName.type === 2) {
-						// eslint-disable-next-line
-						sansDns.push(altName.value);
+						sansDns.push(altName.value as string);
 					} else if (altName.type === 7) {
-						// eslint-disable-next-line
-						sansIp.push(hexToIp(altName.value.valueBlock.valueHex));
+						sansIp.push(
+							hexToIp(
+								(altName.value as { valueBlock: { valueHex: ArrayBuffer } })
+									.valueBlock.valueHex,
+							),
+						);
 					}
 				},
 			);
 		} else if (extensionName === "Basic Constraint") {
-			// eslint-disable-next-line
 			is_ca = extension.parsedValue.cA;
 		}
 	});

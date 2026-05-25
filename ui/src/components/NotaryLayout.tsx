@@ -15,5 +15,5 @@ export default function NotaryAppLayout({
 
 function GlobalHooks() {
 	useLoginRedirect();
-	return <></>;
+	return null;
 }

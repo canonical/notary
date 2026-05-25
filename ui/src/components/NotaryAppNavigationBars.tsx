@@ -161,7 +161,8 @@ export function SideBar({
 								>
 									<li className="p-side-navigation__item">
 										{auth.user ? (
-											<div
+											<button
+												type="button"
 												className="p-side-navigation__link p-contextual-menu__toggle"
 												onClick={() => setMenuOpen(!menuOpen)}
 												aria-current={menuOpen}
@@ -170,6 +171,10 @@ export function SideBar({
 													cursor: "pointer",
 													display: "flex",
 													gap: "0.5rem",
+													background: "none",
+													border: "none",
+													padding: 0,
+													width: "100%",
 												}}
 											>
 												<i className="p-icon--user is-light p-side-navigation__icon"></i>
@@ -224,7 +229,7 @@ export function SideBar({
 														</span>
 													</span>
 												</div>
-											</div>
+											</button>
 										) : (
 											<Link
 												className="p-side-navigation__link"
@@ -261,17 +266,15 @@ export function TopBar({
 				<div className="p-panel__header">
 					<Logo />
 					<div className="p-panel__controls">
-						<span
+						<button
+							type="button"
 							className="p-panel__toggle"
 							onClick={() => {
 								setSidebarVisible(true);
 							}}
-							onKeyDown={() => {
-								setSidebarVisible(true);
-							}}
 						>
 							Menu
-						</span>
+						</button>
 					</div>
 				</div>
 			</div>

@@ -20,7 +20,7 @@ export type NotaryConfirmationModalData<T> = {
 };
 
 export function NotaryConfirmationModal(
-	// eslint-disable-next-line
+	// biome-ignore lint/suspicious/noExplicitAny: generic modal accepts any data type
 	data: NotaryConfirmationModalData<any>,
 ) {
 	const [errorText, setErrorText] = useState<string>("");

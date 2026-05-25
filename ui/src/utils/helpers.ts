@@ -91,7 +91,7 @@ function parseExtensions(extensions: Extensions) {
 			// eslint-disable-next-line
 			extension.parsedValue.altNames.forEach(
 				// eslint-disable-next-line
-				(altName: { type: number; value: any }) => {
+				(altName: { type: number; value: string }) => {
 					if (altName.type === 2) {
 						// eslint-disable-next-line
 						sansDns.push(altName.value);

@@ -37,7 +37,7 @@ export function CertificateRequestsTable({
 	const [certificateFormOpen, setCertificateFormOpen] =
 		useState<boolean>(false);
 	const [confirmationModalData, setConfirmationModalData] =
-		// eslint-disable-next-line
+		// biome-ignore lint/suspicious/noExplicitAny: generic modal accepts any data type
 		useState<NotaryConfirmationModalData<any> | null>(null);
 	const [selectedCSR, setSelectedCSR] = useState<CSREntry | null>(null);
 	const [showCSRContent, setShowCSRContent] = useState<number | null>(null);

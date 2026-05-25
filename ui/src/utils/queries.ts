@@ -166,7 +166,9 @@ export async function changePassword(changePasswordForm: {
 	});
 }
 
-export async function ListUsers(_params: {}): Promise<UserEntry[]> {
+export async function ListUsers(
+	_params: Record<string, never>,
+): Promise<UserEntry[]> {
 	return (await fetchAPI<UserEntry[]>("/api/v1/accounts")) as UserEntry[];
 }
 

@@ -15,6 +15,7 @@ import { Route as InitializeRouteRouteImport } from './routes/initialize/route'
 import { Route as ConfigurationRouteRouteImport } from './routes/configuration/route'
 import { Route as Certificate_requestsRouteRouteImport } from './routes/certificate_requests/route'
 import { Route as Certificate_authoritiesRouteRouteImport } from './routes/certificate_authorities/route'
+import { Route as Acme_serversRouteRouteImport } from './routes/acme_servers/route'
 import { Route as IndexRouteImport } from './routes/index'
 
 const UsersRouteRoute = UsersRouteRouteImport.update({
@@ -49,6 +50,11 @@ const Certificate_authoritiesRouteRoute =
     path: '/certificate_authorities',
     getParentRoute: () => rootRouteImport,
   } as any)
+const Acme_serversRouteRoute = Acme_serversRouteRouteImport.update({
+  id: '/acme_servers',
+  path: '/acme_servers',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -57,6 +63,7 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/acme_servers': typeof Acme_serversRouteRoute
   '/certificate_authorities': typeof Certificate_authoritiesRouteRoute
   '/certificate_requests': typeof Certificate_requestsRouteRoute
   '/configuration': typeof ConfigurationRouteRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/acme_servers': typeof Acme_serversRouteRoute
   '/certificate_authorities': typeof Certificate_authoritiesRouteRoute
   '/certificate_requests': typeof Certificate_requestsRouteRoute
   '/configuration': typeof ConfigurationRouteRoute
@@ -76,6 +84,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/acme_servers': typeof Acme_serversRouteRoute
   '/certificate_authorities': typeof Certificate_authoritiesRouteRoute
   '/certificate_requests': typeof Certificate_requestsRouteRoute
   '/configuration': typeof ConfigurationRouteRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/acme_servers'
     | '/certificate_authorities'
     | '/certificate_requests'
     | '/configuration'
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/acme_servers'
     | '/certificate_authorities'
     | '/certificate_requests'
     | '/configuration'
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/acme_servers'
     | '/certificate_authorities'
     | '/certificate_requests'
     | '/configuration'
@@ -115,6 +127,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  Acme_serversRouteRoute: typeof Acme_serversRouteRoute
   Certificate_authoritiesRouteRoute: typeof Certificate_authoritiesRouteRoute
   Certificate_requestsRouteRoute: typeof Certificate_requestsRouteRoute
   ConfigurationRouteRoute: typeof ConfigurationRouteRoute
@@ -167,6 +180,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Certificate_authoritiesRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/acme_servers': {
+      id: '/acme_servers'
+      path: '/acme_servers'
+      fullPath: '/acme_servers'
+      preLoaderRoute: typeof Acme_serversRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -179,6 +199,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  Acme_serversRouteRoute: Acme_serversRouteRoute,
   Certificate_authoritiesRouteRoute: Certificate_authoritiesRouteRoute,
   Certificate_requestsRouteRoute: Certificate_requestsRouteRoute,
   ConfigurationRouteRoute: ConfigurationRouteRoute,

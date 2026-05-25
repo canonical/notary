@@ -5,13 +5,14 @@ import {
 	ToastNotificationProvider,
 } from "@canonical/react-components";
 import { useQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import ErrorComponent from "@/components/error";
 import Loading from "@/components/loading";
 import NotaryAppNavigationBars from "@/components/NotaryAppNavigationBars";
 import NotaryAppStatus from "@/components/NotaryAppStatus";
-import { getACMEServers } from "@/queries";
 import { retryUnlessUnauthorized } from "@/utils/helpers";
+import { getACMEServers } from "@/utils/queries";
 import {
 	type ACMEServerEntry,
 	type APIError,
@@ -20,7 +21,11 @@ import {
 import ACMEServersAsidePanel from "./-components/asideForm";
 import ACMEServersTable from "./-components/table";
 
-export default function ACMEServersPage() {
+export const Route = createFileRoute("/acme_servers")({
+	component: ACMEServersPageComponent,
+});
+
+function ACMEServersPageComponent() {
 	const [asideOpen, setAsideOpen] = useState<boolean>(false);
 	const [editingServer, setEditingServer] = useState<ACMEServerEntry | null>(
 		null,

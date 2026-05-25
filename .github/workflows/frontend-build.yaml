@@ -14,13 +14,14 @@ jobs:
       - name: use bun
         uses: oven-sh/setup-bun@v2
 
+      - name: install dependencies
+        run: |
+          bun install
       - name: format and lint
         run: |
           bun run ci
-
       - name: build
         run: |
-          bun install
           bun run build
       - name: Upload frontend files
         uses: actions/upload-artifact@v7

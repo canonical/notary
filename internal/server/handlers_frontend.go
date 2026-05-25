@@ -18,6 +18,9 @@ func newFrontendFileServer() (http.Handler, error) {
 
 	fileServer := http.FileServer(http.FS(frontendFS))
 	indexFileContent, err := fs.ReadFile(frontendFS, "index.html")
+	if err != nil {
+		return nil, err
+	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// If an asset gets matched, return that file

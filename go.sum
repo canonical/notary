@@ -1544,6 +1544,8 @@ github.com/openfga/language/pkg/go v0.2.1 h1:nmVJTPfjvaJC2EWGcy8HrUyL15KkIfjjnmB
 github.com/openfga/language/pkg/go v0.2.1/go.mod h1:wg+EuPmYIaM855F2uPygT1hJoWcoUxAoecgYC5akXsw=
 github.com/openfga/openfga v1.15.1 h1:1CWQd0iwpO9iPf3QHM149NW4qg0gFeQo/y5mjJLmPUY=
 github.com/openfga/openfga v1.15.1/go.mod h1:Z6NxRHSvpsxnykvCdDFfXHx25WyPQUKLWW9g3mluJlA=
+github.com/openfga/openfga v1.16.0 h1:pKimibHNP0eWybRt676icCACmC77XiDcFhDZ6n99mVQ=
+github.com/openfga/openfga v1.16.0/go.mod h1:qLSJJo2RtXkIGaMuu2LnUzv/eoypUlmeSHWrtaRLolo=
 github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b h1:it0YPE/evO6/m8t8wxis9KFI2F/aleOKsI6d9uz0cEk=
 github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b/go.mod h1:tNrEB5k8SI+g5kOlsCmL2ELASfpqEofI0+FLBgBdN08=
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=

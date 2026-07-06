@@ -10,6 +10,7 @@
 		"format": "biome format",
 		"lint": "biome lint",
 		"check": "biome check",
+		"ci": "biome ci",
 		"code-health": "biome ci"
 	},
 	"dependencies": {

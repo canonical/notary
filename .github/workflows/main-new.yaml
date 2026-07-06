@@ -1,0 +1,43 @@
+name: CI/CD
+
+on: push
+
+jobs:
+  ci:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: canonical/identity-credentials-workflows/.github/actions/prepare-runner@v3.1.2
+      - uses: canonical/identity-credentials-workflows/.github/actions/code-quality@v3.1.2
+        with:
+          working-directory: ui
+          typescript-enabled: true
+      - uses: canonical/identity-credentials-workflows/.github/actions/unit-test@v3.1.2
+        with:
+          working-directory: ui
+          typescript-enabled: true
+      - uses: canonical/identity-credentials-workflows/.github/actions/code-quality@v3.1.2
+        with:
+          go-enabled: true
+      - uses: canonical/identity-credentials-workflows/.github/actions/unit-test@v3.1.2
+        with:
+          go-enabled: true
+      - uses: canonical/identity-credentials-workflows/.github/actions/build@v3.1.2
+        with:
+          working-directory: ui
+          typescript-enabled: true
+      - uses: canonical/identity-credentials-workflows/.github/actions/build@v3.1.2
+        with:
+          go-enabled: true
+
+  cd:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: canonical/identity-credentials-workflows/.github/actions/prepare-runner@v3.1.2
+      - uses: canonical/identity-credentials-workflows/.github/actions/build@v3.1.2
+        with:
+          snapcraft-enabled: true
+          rockcraft-enabled: true
+      - uses: canonical/identity-credentials-workflows/.github/actions/integration-test@v3.1.2
+        with:
+          rockcraft-enabled: true
+          rock-file-name: rock-amd64

@@ -14,4 +14,6 @@ build-snap:
     set -euo pipefail
     echo "building snap..."
 
-    snapcraft pack && LOG_FILE=$(ls -t ~/.local/state/snapcraft/log/snapcraft-*.log | head -n1) && echo "=== Log file: $LOG_FILE ===" && cat "$LOG_FILE"
+    lxd init --auto
+    lxd waitready
+    snapcraft pack

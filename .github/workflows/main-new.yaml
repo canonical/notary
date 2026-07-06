@@ -9,9 +9,14 @@ jobs:
       - uses: canonical/identity-credentials-workflows/.github/actions/prepare@v3.1.2
         name: prepare runner
       - uses: canonical/identity-credentials-workflows/.github/actions/setup-toolchains@v3.1.2
-        name: setup toolchains
+        name: setup go
         with:
-          toolchains: "go typescript"
+          toolchains: "go"
+      - uses: canonical/identity-credentials-workflows/.github/actions/setup-toolchains@v3.1.2
+        name: setup typescript
+        with:
+          working-directory: ui
+          toolchains: "typescript"
       - uses: canonical/identity-credentials-workflows/.github/actions/code-quality@v3.1.2
         name: check code quality for frontend
         with:

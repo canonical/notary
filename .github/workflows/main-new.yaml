@@ -54,10 +54,12 @@ jobs:
         with:
           toolchains: "snapcraft rockcraft"
       - uses: canonical/identity-credentials-workflows/.github/actions/build@v3.1.2
+        name: build snap and rock
         with:
           snapcraft-enabled: true
           rockcraft-enabled: true
       - uses: canonical/identity-credentials-workflows/.github/actions/integration-test@v3.1.2
+        name: test rock
         with:
           rockcraft-enabled: true
           rock-file-name: rock-amd64

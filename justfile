@@ -13,4 +13,6 @@ build-snap:
     #!/usr/bin/env bash
     set -euo pipefail
 
+    sudo lxd init --auto
+    sudo lxd waitready
     sudo sg lxd -c "snapcraft pack --verbose"

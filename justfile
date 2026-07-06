@@ -8,13 +8,3 @@ code-health-go: setup-go
     sudo snap install golangci-lint --classic --channel=latest/stable
     go vet ./...
     golangci-lint run ./...
-
-build-snap:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    echo "building snap..."
-    echo "is overriding working?"
-
-    lxd init --auto
-    lxd waitready
-    snapcraft pack

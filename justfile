@@ -15,4 +15,8 @@ build-snap:
 
     sudo lxd init --auto
     sudo lxd waitready
+    lxc network list
+    lxc network show lxdbr0
+    ip route
+    ip addr
     sudo sg lxd -c "snapcraft pack --verbose"

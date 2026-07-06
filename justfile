@@ -13,6 +13,7 @@ build-snap:
     #!/usr/bin/env bash
     set -euo pipefail
     echo "building snap..."
+    echo "is overriding working?"
 
     lxd init --auto
     lxd waitready

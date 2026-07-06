@@ -8,3 +8,10 @@ code-health-go: setup-go
     sudo snap install golangci-lint --classic --channel=latest/stable
     go vet ./...
     golangci-lint run ./...
+
+build-snap:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "building snap..."
+
+    snapcraft pack && LOG_FILE=$(ls -t ~/.local/state/snapcraft/log/snapcraft-*.log | head -n1) && echo "=== Log file: $LOG_FILE ===" && cat "$LOG_FILE"

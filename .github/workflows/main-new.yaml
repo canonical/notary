@@ -8,6 +8,10 @@ jobs:
     steps:
       - uses: canonical/identity-credentials-workflows/.github/actions/prepare@v3.1.2
         name: prepare runner
+      - uses: canonical/identity-credentials-workflows/.github/actions/setup-toolchains@v3.1.2
+        name: setup toolchains
+        with:
+          toolchains: "go typescript"
       - uses: canonical/identity-credentials-workflows/.github/actions/code-quality@v3.1.2
         name: check code quality for frontend
         with:
@@ -40,6 +44,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: canonical/identity-credentials-workflows/.github/actions/prepare@v3.1.2
+      - uses: canonical/identity-credentials-workflows/.github/actions/setup-toolchains@v3.1.2
+        name: setup toolchains
+        with:
+          toolchains: "snapcraft rockcraft"
       - uses: canonical/identity-credentials-workflows/.github/actions/build@v3.1.2
         with:
           snapcraft-enabled: true

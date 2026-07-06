@@ -9,7 +9,7 @@ code-health-go: setup-go
     go vet ./...
     golangci-lint run ./...
 
-setup-snapcraft:
+build-snap:
     #!/usr/bin/env bash
     set -euo pipefail
 

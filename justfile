@@ -22,7 +22,7 @@ setup-snapcraft:
     echo "Setting up snapcraft..."
 
     sudo snap install concierge --classic
-    concierge prepare crafts
+    sudo concierge prepare crafts
 
 build-snap:
     #!/usr/bin/env bash

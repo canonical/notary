@@ -14,7 +14,7 @@ setup-rockcraft:
     set -euo pipefail
 
     sudo snap install concierge --classic
-    concierge prepare crafts
+    sudo concierge prepare --preset crafts
 
 setup-snapcraft:
     #!/usr/bin/env bash
@@ -22,7 +22,7 @@ setup-snapcraft:
     echo "Setting up snapcraft..."
 
     sudo snap install concierge --classic
-    sudo concierge prepare crafts
+    sudo concierge prepare --preset crafts
 
 build-snap:
     #!/usr/bin/env bash

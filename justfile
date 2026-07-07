@@ -9,14 +9,23 @@ code-health-go: setup-go
     go vet ./...
     golangci-lint run ./...
 
+setup-rockcraft:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    sudo snap install concierge --classic
+    concierge prepare crafts
+
+setup-snapcraft:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Setting up snapcraft..."
+
+    sudo snap install concierge --classic
+    concierge prepare crafts
+
 build-snap:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    sudo lxd init --auto
-    sudo lxd waitready
-    sudo lxc network list
-    sudo lxc network show lxdbr0
-    ip route
-    ip addr
-    sudo sg lxd -c "snapcraft pack --verbose"
+    snapcraft pack --verbose

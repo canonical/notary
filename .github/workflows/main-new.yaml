@@ -4,7 +4,7 @@ on: push
 
 jobs:
   ci:
-    runs-on: ubuntu-24.04
+    runs-on: self-hosted-linux-amd64-jammy-medium
     steps:
       - uses: canonical/identity-credentials-workflows/.github/actions/prepare@v3.1.2
         name: prepare runner
@@ -48,9 +48,9 @@ jobs:
       matrix:
         machine:
           - arch: amd64
-            runner: self-hosted-linux-amd64-noble-medium
+            runner: self-hosted-linux-amd64-jammy-medium
           - arch: arm64
-            runner: self-hosted-linux-arm64-noble-medium
+            runner: self-hosted-linux-arm64-jammy-medium
     runs-on: ${{ matrix.machine.runner }}
     steps:
       - uses: canonical/identity-credentials-workflows/.github/actions/prepare@v3.1.2

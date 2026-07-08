@@ -50,6 +50,8 @@ jobs:
     steps:
       - uses: canonical/identity-credentials-workflows/.github/actions/prepare@v3.1.2
         name: prepare runner
+        with:
+          workflows-ref: fixes
       - uses: canonical/identity-credentials-workflows/.github/actions/setup-toolchains@v3.1.2
         name: setup toolchains
         with:

@@ -11,12 +11,12 @@ help:
 setup:
     #!/usr/bin/env bash
     set -euo pipefail
-    echo "preparing concierge configuration..."
+    echo "installing requested toolchains: ${TOOLCHAINS:-none}"
 
     sudo snap install yq
 
     config="concierge.yaml"
-    echo "{}" > "$config"
+    touch "$config"
 
     toolchains=(${TOOLCHAINS:-})
     for toolchain in "${toolchains[@]}"; do
@@ -50,7 +50,6 @@ setup:
                 ;;
             juju-k8s)
                 yq -i '.providers.k8s.enable = true | .providers.k8s.bootstrap = true' "$config"
-                # lxd is enabled (but not bootstrapped) as a charmcraft build backend.
                 yq -i '.providers.lxd.enable = true' "$config"
                 [ -n "${K8S_CHANNEL:-}" ] && yq -i ".providers.k8s.channel = \"${K8S_CHANNEL}\"" "$config"
                 [ -n "${JUJU_CHANNEL:-}" ] && yq -i ".juju.channel = \"${JUJU_CHANNEL}\"" "$config"
@@ -73,6 +72,13 @@ setup:
         sudo apt-get update
         sudo apt-get install -y $EXTRA_DEBS
     fi
+
+    if [ -s "$config" ]; then
+        cat "$config"
+        sudo snap install concierge --channel=edge/stable
+        sudo concierge prepare -c "$config"
+    fi
+
 
 [private]
 install-bun:

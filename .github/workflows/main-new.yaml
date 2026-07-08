@@ -67,7 +67,7 @@ jobs:
           snapcraft-enabled: true
           rockcraft-enabled: true
       - uses: canonical/identity-credentials-workflows/.github/actions/integration-test@v3.1.2
-        name: test rock and snap
+        name: test snap and rock
         with:
           snap-enabled: true
           rock-enabled: true

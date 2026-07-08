@@ -20,6 +20,7 @@ setup:
 
     toolchains=(${TOOLCHAINS:-})
     for toolchain in "${toolchains[@]}"; do
+        echo "installing toolchain: $toolchain"
         case "$toolchain" in
             go)
                 go_version="${GO_VERSION:-}"

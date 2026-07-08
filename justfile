@@ -75,7 +75,7 @@ setup:
 
     if [ -s "$config" ]; then
         cat "$config"
-        sudo snap install concierge --channel=edge/stable
+        sudo snap install concierge --channel=latest/stable
         sudo concierge prepare -c "$config"
     fi
 

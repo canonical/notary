@@ -15,7 +15,7 @@ setup:
 
     sudo snap install yq
 
-    config="$(mktemp --suffix=.yaml)"
+    config="concierge.yaml"
     echo "{}" > "$config"
 
     toolchains=(${TOOLCHAINS:-})

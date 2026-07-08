@@ -40,12 +40,18 @@ setup:
                 bun --version
                 ;;
             charmcraft)
+                yq -i '.providers.lxd.enable = true' "$config"
+                [ -n "${LXD_CHANNEL:-}" ] && yq -i ".providers.lxd.channel = \"${LXD_CHANNEL}\"" "$config"
                 yq -i ".host.snaps.charmcraft.channel = \"${CHARMCRAFT_CHANNEL:-latest/stable}\"" "$config"
                 ;;
             snapcraft)
+                yq -i '.providers.lxd.enable = true' "$config"
+                [ -n "${LXD_CHANNEL:-}" ] && yq -i ".providers.lxd.channel = \"${LXD_CHANNEL}\"" "$config"
                 yq -i ".host.snaps.snapcraft.channel = \"${SNAPCRAFT_CHANNEL:-latest/stable}\"" "$config"
                 ;;
             rockcraft)
+                yq -i '.providers.lxd.enable = true' "$config"
+                [ -n "${LXD_CHANNEL:-}" ] && yq -i ".providers.lxd.channel = \"${LXD_CHANNEL}\"" "$config"
                 yq -i ".host.snaps.rockcraft.channel = \"${ROCKCRAFT_CHANNEL:-latest/stable}\"" "$config"
                 ;;
             juju-k8s)

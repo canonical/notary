@@ -13,12 +13,7 @@ jobs:
       - uses: canonical/identity-credentials-workflows/.github/actions/setup-toolchains@v3.1.2
         name: setup go
         with:
-          toolchains: "go"
-      - uses: canonical/identity-credentials-workflows/.github/actions/setup-toolchains@v3.1.2
-        name: setup typescript
-        with:
-          working-directory: ui
-          toolchains: "typescript"
+          toolchains: "go typescript"
       - uses: canonical/identity-credentials-workflows/.github/actions/code-quality@v3.1.2
         name: check code quality for frontend
         with:
@@ -48,7 +43,15 @@ jobs:
           go-enabled: true
 
   cd:
-    runs-on: ubuntu-26.04
+    strategy:
+      fail-fast: true
+      matrix:
+        machine:
+          - arch: amd64
+            runner: self-hosted-linux-amd64-noble-medium
+          - arch: arm64
+            runner: self-hosted-linux-arm64-noble-medium
+    runs-on: ${{ matrix.machine.runner }}
     steps:
       - uses: canonical/identity-credentials-workflows/.github/actions/prepare@v3.1.2
         name: prepare runner
@@ -64,4 +67,35 @@ jobs:
           snapcraft-enabled: true
           rockcraft-enabled: true
       - uses: canonical/identity-credentials-workflows/.github/actions/integration-test@v3.1.2
-        name: test rock
+        name: test rock and snap
+        with:
+          snap-enabled: true
+          rock-enabled: true
+      - uses: actions/upload-artifact@v7
+        name: upload rock
+        with:
+          name: notary-${{ matrix.machine.arch }}.rock
+          path: notary-${{ matrix.machine.arch }}.rock
+      - uses: actions/upload-artifact@v7
+        name: upload snap
+        with:
+          name: notary-${{ matrix.machine.arch }}.snap
+          path: notary-${{ matrix.machine.arch }}.snap
+
+  publish:
+    runs-on: self-hosted-linux-amd64-noble-medium
+    steps:
+      # TODO: download the artifacts from the build job
+      - uses: canonical/identity-credentials-workflows/.github/actions/prepare@v3.1.2
+        name: prepare runner
+        with:
+          workflows-ref: fixes
+      - uses: canonical/identity-credentials-workflows/.github/actions/setup-toolchains@v3.1.2
+        name: setup toolchains
+        with:
+          toolchains: "snapcraft rockcraft"
+      - uses: canonical/identity-credentials-workflows/.github/actions/publish@v3.1.2
+        name: publish snap and rock
+        with:
+          snapcraft-enabled: true
+          rockcraft-enabled: true

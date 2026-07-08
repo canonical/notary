@@ -49,6 +49,7 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - uses: canonical/identity-credentials-workflows/.github/actions/prepare@v3.1.2
+        name: prepare runner
       - uses: canonical/identity-credentials-workflows/.github/actions/setup-toolchains@v3.1.2
         name: setup toolchains
         with:
@@ -60,6 +61,3 @@ jobs:
           rockcraft-enabled: true
       - uses: canonical/identity-credentials-workflows/.github/actions/integration-test@v3.1.2
         name: test rock
-        with:
-          rockcraft-enabled: true
-          rock-file-name: rock-amd64

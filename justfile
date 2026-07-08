@@ -1,13 +1,3 @@
-working-directory := "."
-set working-directory := working-directory
-
-j := "just working-directory=" + quote(working-directory)
-export PATH := env("PATH") + ":" + env("HOME") + "/go/bin" + ":" + env("HOME") + "/.bun/bin"
-
-set allow-duplicate-recipes
-set allow-duplicate-variables
-set positional-arguments
-
 # print list of available commands
 [default]
 help:

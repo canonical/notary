@@ -81,21 +81,3 @@ jobs:
         with:
           name: notary-${{ matrix.machine.arch }}.snap
           path: notary-${{ matrix.machine.arch }}.snap
-
-  publish:
-    runs-on: self-hosted-linux-amd64-noble-medium
-    steps:
-      # TODO: download the artifacts from the build job
-      - uses: canonical/identity-credentials-workflows/.github/actions/prepare@v3.1.2
-        name: prepare runner
-        with:
-          workflows-ref: fixes
-      - uses: canonical/identity-credentials-workflows/.github/actions/setup-toolchains@v3.1.2
-        name: setup toolchains
-        with:
-          toolchains: "snapcraft rockcraft"
-      - uses: canonical/identity-credentials-workflows/.github/actions/publish@v3.1.2
-        name: publish snap and rock
-        with:
-          snapcraft-enabled: true
-          rockcraft-enabled: true

@@ -4,7 +4,7 @@ on: push
 
 jobs:
   ci:
-    runs-on: self-hosted-linux-amd64-noble-medium
+    runs-on: ubuntu-24.04
     steps:
       - uses: canonical/identity-credentials-workflows/.github/actions/prepare@v3.1.2
         name: prepare runner

@@ -10,7 +10,8 @@
 		"format": "biome format",
 		"lint": "biome lint",
 		"check": "biome check",
-		"ci": "biome ci"
+		"ci": "biome ci",
+		"code-health": "biome ci"
 	},
 	"dependencies": {
 		"react": "^19.2.0",

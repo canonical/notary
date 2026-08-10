@@ -1,0 +1,83 @@
+name: merge
+
+on: push
+
+jobs:
+  ci:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: canonical/identity-credentials-workflows/.github/actions/prepare@v3.1.2
+        name: prepare runner
+        with:
+          workflows-ref: fixes
+      - uses: canonical/identity-credentials-workflows/.github/actions/setup-toolchains@v3.1.2
+        name: setup go
+        with:
+          toolchains: "go typescript"
+      - uses: canonical/identity-credentials-workflows/.github/actions/code-quality@v3.1.2
+        name: check code quality for frontend
+        with:
+          working-directory: ui
+          typescript-enabled: true
+      - uses: canonical/identity-credentials-workflows/.github/actions/unit-test@v3.1.2
+        name: run unit tests for frontend
+        with:
+          working-directory: ui
+          typescript-enabled: true
+      - uses: canonical/identity-credentials-workflows/.github/actions/code-quality@v3.1.2
+        name: check code quality for backend
+        with:
+          go-enabled: true
+      - uses: canonical/identity-credentials-workflows/.github/actions/unit-test@v3.1.2
+        name: run unit tests for backend
+        with:
+          go-enabled: true
+      - uses: canonical/identity-credentials-workflows/.github/actions/build@v3.1.2
+        name: build frontend
+        with:
+          working-directory: ui
+          typescript-enabled: true
+      - uses: canonical/identity-credentials-workflows/.github/actions/build@v3.1.2
+        name: build notary
+        with:
+          go-enabled: true
+
+  cd:
+    strategy:
+      fail-fast: true
+      matrix:
+        machine:
+          - arch: amd64
+            runner: self-hosted-linux-amd64-noble-medium
+          - arch: arm64
+            runner: self-hosted-linux-arm64-noble-medium
+    runs-on: ${{ matrix.machine.runner }}
+    steps:
+      - uses: canonical/identity-credentials-workflows/.github/actions/prepare@v3.1.2
+        name: prepare runner
+        with:
+          workflows-ref: fixes
+      - uses: canonical/identity-credentials-workflows/.github/actions/setup-toolchains@v3.1.2
+        name: setup toolchains
+        with:
+          toolchains: "snapcraft rockcraft"
+      - uses: canonical/identity-credentials-workflows/.github/actions/build@v3.1.2
+        name: build snap and rock
+        with:
+          snapcraft-enabled: true
+          rockcraft-enabled: true
+      - uses: canonical/identity-credentials-workflows/.github/actions/integration-test@v3.1.2
+        name: test snap and rock
+        with:
+          snap-enabled: true
+          rock-enabled: true
+      - uses: actions/upload-artifact@v7
+        name: upload rock
+        with:
+          name: notary-${{ matrix.machine.arch }}.rock
+          path: notary-${{ matrix.machine.arch }}.rock
+      - uses: actions/upload-artifact@v7
+        name: upload snap
+        with:
+          name: notary-${{ matrix.machine.arch }}.snap
+          path: notary-${{ matrix.machine.arch }}.snap

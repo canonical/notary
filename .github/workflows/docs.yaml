@@ -32,30 +32,11 @@ jobs:
         run: |
           cd docs && make spelling
 
-  woke:
-    name: Inclusive language check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: woke
-        uses: get-woke/woke-action@v0
+      - uses: get-woke/woke-action@v0
         with:
           # Cause the check to fail on any broke rules
           fail-on-error: true
           woke-args: "*.rst **/*.rst -c https://github.com/canonical-web-and-design/Inclusive-naming/raw/main/config.yml"
-
-  linkcheck:
-    name: Link check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Install the doc framework
-        run: |
-          cd docs && make install
 
       - name: Run linkchecker
         run: |

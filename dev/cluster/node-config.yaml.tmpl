@@ -1,0 +1,24 @@
+key_path: "/conf/server.key"
+cert_path: "/conf/server.crt"
+db_path: "/data/database.db"
+port: 3000
+pebble_notifications: false
+# The cluster CLI reaches this node's own API here, so it has to match a SAN on
+# the certificate above.
+external_hostname: "__NODE__"
+
+logging:
+  system:
+    level: "debug"
+    output: "stdout"
+  audit:
+    output: "stdout"
+
+encryption_backend:
+  type: "none"
+
+cluster:
+  enabled: true
+  state_dir: "/data/cluster"
+  # Reachable from the other members over the compose network.
+  address: "__NODE__:9000"

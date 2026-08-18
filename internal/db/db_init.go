@@ -38,16 +38,42 @@ func (db *DatabaseRepository) Close() error {
 // The database path must be a valid file path or ":memory:".
 // The table will be created if it doesn't exist in the format expected by the package.
 func NewDatabase(dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
-	sqlConnection, err := sql.Open("sqlite", dbOpts.DatabasePath)
+	sqlConnection, err := sql.Open("sqlite", localDSN(dbOpts.DatabasePath))
 	if err != nil {
-		return nil, err
-	}
-	if _, err := sqlConnection.Exec("PRAGMA foreign_keys = ON;"); err != nil {
 		return nil, err
 	}
 	sqlConnection.SetMaxIdleConns(2)
 	sqlConnection.SetMaxOpenConns(2)
-	err = goose.SetDialect("sqlite")
+
+	return NewDatabaseFromConn(sqlConnection, dbOpts)
+}
+
+// localDSN turns a database path into a driver DSN carrying the pragmas that
+// must hold on every pooled connection.
+//
+// Pragmas are per-connection, so executing them once against the *sql.DB only
+// configures whichever connection happened to serve that statement. The pool
+// holds more than one connection, so the pragmas have to travel with the DSN.
+//
+// busy_timeout matters because the pool lets a read and a write run on separate
+// connections at the same time; without it, the writer fails immediately with
+// SQLITE_BUSY instead of waiting for the reader to finish.
+func localDSN(path string) string {
+	return fmt.Sprintf("file:%s?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)", path)
+}
+
+// NewDatabaseFromConn prepares an already-open SQL connection for use as a Notary
+// repository: it enables foreign keys, applies the goose migrations, prepares the
+// statement set and wraps the connection for sqlair.
+//
+// It exists so that a clustered (dqlite-backed) connection, opened elsewhere, goes
+// through the exact same initialization as the local single-file connection opened
+// by NewDatabase. Callers own the connection's lifetime and pool settings.
+func NewDatabaseFromConn(sqlConnection *sql.DB, dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
+	if _, err := sqlConnection.Exec("PRAGMA foreign_keys = ON;"); err != nil {
+		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
+	}
+	err := goose.SetDialect("sqlite")
 	if err != nil {
 		return nil, err
 	}

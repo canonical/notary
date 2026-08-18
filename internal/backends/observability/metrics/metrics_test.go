@@ -223,14 +223,16 @@ func generateCertPair(daysRemaining int) (string, string, string) {
 	caKey, _ := rsa.GenerateKey(rand.Reader, 2048)
 
 	csrTemplate := x509.CertificateRequest{}
+	caSerial, _ := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	certSerial, _ := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
 	caTemplate := x509.Certificate{
-		SerialNumber:          big.NewInt(1),
+		SerialNumber:          caSerial,
 		NotAfter:              time.Now().AddDate(1, 0, 0),
 		IsCA:                  true,
 		BasicConstraintsValid: true,
 	}
 	certTemplate := x509.Certificate{
-		SerialNumber: big.NewInt(2),
+		SerialNumber: certSerial,
 		NotAfter:     NotAfterTime,
 	}
 

@@ -30,7 +30,7 @@ func New(appCfg *config.AppConfig, appEnv *config.AppEnvironment) (*Server, erro
 	}
 	router := NewRouter(cfg)
 
-	if appEnv.AuthnRepository != nil {
+	if appEnv.AuthnRepository.Enabled() {
 		cfg.StateStore = NewStateStore()
 
 		go func() {

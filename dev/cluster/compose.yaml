@@ -1,0 +1,54 @@
+name: notary-cluster-harness
+
+# The containers deliberately idle: harness.sh starts, kills and restarts the
+# Notary process inside them, which is what makes node failure testable without
+# tearing containers down and losing their state.
+x-node: &node
+  image: notary-cluster-harness
+  command: ["sleep", "infinity"]
+  init: true
+  networks:
+    - cluster
+  working_dir: /data
+
+services:
+  notary-1:
+    <<: *node
+    hostname: notary-1
+    container_name: notary-1
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./build/notary:/usr/local/bin/notary:ro
+      - ./build/conf/notary-1:/conf:ro
+      - notary-1-data:/data
+
+  notary-2:
+    <<: *node
+    hostname: notary-2
+    container_name: notary-2
+    ports:
+      - "3002:3000"
+    volumes:
+      - ./build/notary:/usr/local/bin/notary:ro
+      - ./build/conf/notary-2:/conf:ro
+      - notary-2-data:/data
+
+  notary-3:
+    <<: *node
+    hostname: notary-3
+    container_name: notary-3
+    ports:
+      - "3003:3000"
+    volumes:
+      - ./build/notary:/usr/local/bin/notary:ro
+      - ./build/conf/notary-3:/conf:ro
+      - notary-3-data:/data
+
+networks:
+  cluster:
+
+volumes:
+  notary-1-data:
+  notary-2-data:
+  notary-3-data:

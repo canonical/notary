@@ -82,6 +82,7 @@ func (filter *CSRFilter) AsCertificateRequestWithChain() *CertificateRequestWith
 type UserFilter struct {
 	ID          *int64
 	Email       *string
+	OIDCIssuer  *string
 	OIDCSubject *string
 }
 
@@ -93,8 +94,10 @@ func ByEmail(email string) UserFilter {
 	return UserFilter{Email: &email}
 }
 
-func ByOIDCSubject(subject string) UserFilter {
-	return UserFilter{OIDCSubject: &subject}
+// ByOIDCIdentity selects a user by their full OIDC identity. A subject is only
+// unique within the issuer that minted it, so both halves are always required.
+func ByOIDCIdentity(issuer, subject string) UserFilter {
+	return UserFilter{OIDCIssuer: &issuer, OIDCSubject: &subject}
 }
 
 func (filter *UserFilter) AsUser() *User {
@@ -105,10 +108,10 @@ func (filter *UserFilter) AsUser() *User {
 		userRow = User{ID: *filter.ID}
 	case filter.Email != nil:
 		userRow = User{Email: *filter.Email}
-	case filter.OIDCSubject != nil:
-		userRow = User{OIDCSubject: filter.OIDCSubject}
+	case filter.OIDCIssuer != nil && filter.OIDCSubject != nil:
+		userRow = User{OIDCIssuer: filter.OIDCIssuer, OIDCSubject: filter.OIDCSubject}
 	default:
-		panic(fmt.Errorf("%w: only user ID, email, or OIDC subject is supported but none was provided", ErrInvalidFilter))
+		panic(fmt.Errorf("%w: only user ID, email, or OIDC issuer and subject together are supported but none was provided", ErrInvalidFilter))
 	}
 	return &userRow
 }

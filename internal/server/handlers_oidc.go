@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/canonical/notary/internal/backends/authorization"
+	"github.com/canonical/notary/internal/backends/authentication"
 	"github.com/canonical/notary/internal/backends/observability/log"
 	"github.com/canonical/notary/internal/db"
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -13,18 +13,72 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// resolveRoleFromClaims maps an ID token claim onto a Notary role using the
+// provider's configured mapping. Mappings live only in the config file, never
+// in the database, so an operator can always recover access by editing config.
+// Unmapped or unmatched claims fall back to the least privileged role.
+func resolveRoleFromClaims(mapping authentication.RoleMapping, claims map[string]any) db.RoleID {
+	if mapping.Claim == "" || len(mapping.Values) == 0 {
+		return db.RoleReadOnly
+	}
+
+	var claimValues []string
+	switch value := claims[mapping.Claim].(type) {
+	case string:
+		claimValues = []string{value}
+	case []any:
+		for _, item := range value {
+			if str, ok := item.(string); ok {
+				claimValues = append(claimValues, str)
+			}
+		}
+	}
+
+	// The most privileged match wins, so membership in several mapped groups
+	// grants the union of their permissions rather than depending on claim order.
+	role := db.RoleReadOnly
+	matched := false
+	for _, claimValue := range claimValues {
+		mapped, ok := mapping.Values[claimValue]
+		if !ok {
+			continue
+		}
+		mappedRole := db.RoleID(mapped)
+		if !RoleID(mappedRole).IsValid() {
+			continue
+		}
+		if !matched || mappedRole < role {
+			role = mappedRole
+			matched = true
+		}
+	}
+	return role
+}
+
 func LoginOIDC(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		state := generateRandomString(32)
+		providerName := r.URL.Query().Get("provider")
+		provider, ok := env.AuthnRepository.Get(providerName)
+		if !ok {
+			env.SystemLogger.Warn("OIDC login requested for unknown provider",
+				zap.String("provider", providerName))
+			writeResponse(w, http.StatusBadRequest, "unknown identity provider", nil, env.SystemLogger)
+			return
+		}
 
-		env.StateStore.Store(state, r.UserAgent())
+		state := generateRandomString(32)
+		codeVerifier := oauth2.GenerateVerifier()
+
+		env.StateStore.StorePKCE(state, r.UserAgent(), codeVerifier, provider.Name)
 
 		env.SystemLogger.Debug("OIDC login initiated",
 			zap.String("state", state[:8]+"..."),
+			zap.String("provider", provider.Name),
 			zap.String("user_agent", r.UserAgent()))
 
-		aud := oauth2.SetAuthURLParam("audience", env.AuthnRepository.Audience)
-		http.Redirect(w, r, env.AuthnRepository.OAuth2Config.AuthCodeURL(state, aud), http.StatusFound)
+		aud := oauth2.SetAuthURLParam("audience", provider.Audience)
+		authURL := provider.OAuth2Config.AuthCodeURL(state, aud, oauth2.S256ChallengeOption(codeVerifier))
+		http.Redirect(w, r, authURL, http.StatusFound)
 	}
 }
 
@@ -33,7 +87,8 @@ func CallbackOIDC(env *HandlerDependencies) http.HandlerFunc {
 		code := r.URL.Query().Get("code")
 		state := r.URL.Query().Get("state")
 
-		if !env.StateStore.Validate(state, r.UserAgent()) {
+		stateEntry, stateValid := env.StateStore.Consume(state, r.UserAgent())
+		if !stateValid {
 			env.SystemLogger.Warn("OIDC callback with invalid state",
 				zap.String("state_prefix", state[:min(8, len(state))]+"..."),
 				zap.String("user_agent", r.UserAgent()),
@@ -49,8 +104,19 @@ func CallbackOIDC(env *HandlerDependencies) http.HandlerFunc {
 		env.SystemLogger.Debug("OIDC callback state validated successfully",
 			zap.String("user_agent", r.UserAgent()))
 
-		aud := oauth2.SetAuthURLParam("audience", env.AuthnRepository.Audience)
-		oauth2Token, err := env.AuthnRepository.OAuth2Config.Exchange(r.Context(), code, aud)
+		provider, ok := env.AuthnRepository.Get(stateEntry.Provider)
+		if !ok {
+			env.SystemLogger.Error("OIDC callback for a provider that is no longer configured",
+				zap.String("provider", stateEntry.Provider))
+			writeResponse(w, http.StatusBadRequest, "unknown identity provider", nil, env.SystemLogger)
+			return
+		}
+
+		exchangeOpts := []oauth2.AuthCodeOption{oauth2.SetAuthURLParam("audience", provider.Audience)}
+		if stateEntry.CodeVerifier != "" {
+			exchangeOpts = append(exchangeOpts, oauth2.VerifierOption(stateEntry.CodeVerifier))
+		}
+		oauth2Token, err := provider.OAuth2Config.Exchange(r.Context(), code, exchangeOpts...)
 		if err != nil {
 			env.SystemLogger.Error("failed to exchange oauth2 token", zap.Error(err))
 			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
@@ -64,7 +130,7 @@ func CallbackOIDC(env *HandlerDependencies) http.HandlerFunc {
 			return
 		}
 
-		verifier := env.AuthnRepository.OIDCProvider.Verifier(&oidc.Config{ClientID: env.AuthnRepository.OAuth2Config.ClientID})
+		verifier := provider.OIDCProvider.Verifier(&oidc.Config{ClientID: provider.OAuth2Config.ClientID})
 		idToken, err := verifier.Verify(r.Context(), rawIDToken)
 		if err != nil {
 			env.AuditLogger.OIDCLoginFailed("failed to verify id_token",
@@ -94,12 +160,12 @@ func CallbackOIDC(env *HandlerDependencies) http.HandlerFunc {
 		}
 
 		// Extract email using configured claim key
-		email, _ := allClaims[env.AuthnRepository.EmailClaimKey].(string)
+		email, _ := allClaims[provider.EmailClaimKey].(string)
 
 		// Log helpful message if email is missing
 		if email == "" {
 			env.SystemLogger.Warn("OIDC ID token missing email claim - user will be created without email",
-				zap.String("expected_claim_key", env.AuthnRepository.EmailClaimKey),
+				zap.String("expected_claim_key", provider.EmailClaimKey),
 				zap.Any("available_claims", allClaims),
 				zap.String("hint", "To include email: 1) Ensure email scope is requested in OIDC config, 2) Check IDP settings, 3) Verify email_claim_key matches your IDP's claim field name"))
 		}
@@ -107,11 +173,13 @@ func CallbackOIDC(env *HandlerDependencies) http.HandlerFunc {
 		env.SystemLogger.Debug("OIDC user authenticated",
 			zap.String("email", email),
 			zap.String("subject", sub[:min(8, len(sub))]+"..."),
-			zap.String("email_claim_key", env.AuthnRepository.EmailClaimKey),
+			zap.String("provider", provider.Name),
+			zap.String("email_claim_key", provider.EmailClaimKey),
 			zap.Any("all_claims", allClaims))
 
-		// Try to find existing user by OIDC subject
-		user, err := env.Database.GetUser(db.ByOIDCSubject(sub))
+		// Try to find existing user by OIDC identity. A subject is only unique
+		// within the issuer that minted it, so both halves are used.
+		user, err := env.Database.GetUser(db.ByOIDCIdentity(idToken.Issuer, sub))
 		if err != nil {
 			if !errors.Is(err, db.ErrNotFound) {
 				env.SystemLogger.Error("failed to query user", zap.Error(err))
@@ -160,18 +228,18 @@ func CallbackOIDC(env *HandlerDependencies) http.HandlerFunc {
 				emailOrPlaceholder = "(none)"
 			}
 
-			// Determine role: first user gets admin, subsequent users get read-only
+			// Determine role: the provider's configured claim mapping decides,
+			// falling back to read-only. The first user in the system is always
+			// an admin, so a deployment can never lock itself out.
 			numUsers, countErr := env.Database.NumUsers()
 			if countErr != nil {
 				env.SystemLogger.Error("failed to check user count", zap.Error(countErr))
 				writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 				return
 			}
-			role := db.RoleReadOnly
-			ofgaRelation := RoleNameReader
+			role := resolveRoleFromClaims(provider.RoleMapping, allClaims)
 			if numUsers == 0 {
 				role = db.RoleAdmin
-				ofgaRelation = RoleNameAdmin
 				env.SystemLogger.Info("First user in system — granting admin role via OIDC",
 					zap.String("email", emailOrPlaceholder),
 					zap.String("subject", sub))
@@ -182,7 +250,7 @@ func CallbackOIDC(env *HandlerDependencies) http.HandlerFunc {
 				zap.String("subject", sub),
 				zap.Int("role_id", int(role)))
 
-			user, err = env.Database.CreateOIDCUser(email, sub, role)
+			user, err = env.Database.CreateOIDCUser(email, idToken.Issuer, sub, role)
 			if err != nil {
 				env.SystemLogger.Error("Failed to create OIDC user",
 					zap.Error(err),
@@ -190,13 +258,6 @@ func CallbackOIDC(env *HandlerDependencies) http.HandlerFunc {
 					zap.String("subject", sub))
 				writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 				return
-			}
-
-			if env.AuthzRepository != nil {
-				userID := authorization.UserID(email)
-				if err := env.AuthzRepository.WriteTuple("system:notary", ofgaRelation, userID); err != nil {
-					env.SystemLogger.Error("Failed to write role tuple for OIDC user", zap.Error(err), zap.String("user", userID))
-				}
 			}
 
 			env.SystemLogger.Info("New OIDC user auto-provisioned successfully",

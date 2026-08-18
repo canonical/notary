@@ -4,17 +4,42 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/canonical/notary/internal/db"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/openfga/language/pkg/go/transformer"
-	"github.com/openfga/openfga/assets"
-	ofgaLogger "github.com/openfga/openfga/pkg/logger"
 	ofgaServer "github.com/openfga/openfga/pkg/server"
-	"github.com/openfga/openfga/pkg/storage/sqlcommon"
-	ofgaSqlite "github.com/openfga/openfga/pkg/storage/sqlite"
-	"github.com/pressly/goose/v3"
 	"go.uber.org/zap"
-	_ "modernc.org/sqlite"
+
+	"github.com/canonical/notary/internal/db"
+)
+
+// Object names used throughout notary's authorization model. The model (see
+// schema.go) has exactly one object, so these are constants rather than
+// anything derived at runtime.
+const (
+	systemObjectType = "system"
+	systemObjectID   = "notary"
+	userObjectType   = "user"
+
+	// SystemObject is the single object every authorization check is made against.
+	SystemObject = systemObjectType + ":" + systemObjectID
+)
+
+// Relation names on SystemObject. These mirror the relations declared in
+// OFGAModel; internal/server maps notary role IDs onto them.
+const (
+	RelationAdmin                = "admin"
+	RelationCertificateManager   = "certificate_manager"
+	RelationCertificateRequestor = "certificate_requestor"
+	RelationReader               = "reader"
+)
+
+// storeID and modelID identify the single store and the single authorization
+// model notary uses. The OpenFGA server requires both to be ULIDs, but since
+// neither is ever created or enumerated at runtime, they are fixed constants
+// rather than generated values.
+const (
+	storeID = "01HQ5J8B0K7Z4XW2M9NCTVDFGR"
+	modelID = "01HQ5J8B0K7Z4XW2M9NCTVDFGS"
 )
 
 // AuthzRepository holds the OpenFGA server and store/model references.
@@ -36,111 +61,41 @@ func UserID(email string) string {
 	if email == "" {
 		return ""
 	}
-	return fmt.Sprintf("user:%s", email)
+	return userObjectType + ":" + email
 }
 
-// InitializeLocalOpenFGA initializes a local OpenFGA server backed by its own
-// SQLite connection. dbPath is the filesystem path to the SQLite database.
+// InitializeLocalOpenFGA initializes a local OpenFGA server that evaluates
+// notary's compiled-in authorization model against notary's own users table.
+//
+// OpenFGA's storage layer is not used: no OpenFGA-owned schema is created, no
+// migrations are run, and no tuples are persisted anywhere. Relationship tuples
+// are derived from users.role_id on demand by roleDatastore, which keeps role
+// assignment single-sourced in the users table.
 func InitializeLocalOpenFGA(database *db.DatabaseRepository, logger *zap.Logger) (*AuthzRepository, error) {
-	// Run OpenFGA's SQLite schema migrations on the shared DB connection.
-	goose.SetLogger(goose.NopLogger())
-	goose.SetBaseFS(assets.EmbedMigrations)
-	if err := goose.SetDialect("sqlite"); err != nil {
-		return nil, fmt.Errorf("failed to set goose dialect: %w", err)
-	}
-	if err := goose.Up(database.Conn.PlainDB(), assets.SqliteMigrationDir, goose.WithNoColor(true)); err != nil {
-		return nil, fmt.Errorf("failed to run OpenFGA migrations: %w", err)
-	}
-
-	ofgaLog := &ofgaLogger.ZapLogger{Logger: logger}
-
-	cfg := sqlcommon.NewConfig(
-		sqlcommon.WithLogger(ofgaLog),
-	)
-	ds, err := ofgaSqlite.NewWithDB(database.Conn.PlainDB(), cfg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create OpenFGA SQLite datastore: %w", err)
-	}
-
-	fga, err := ofgaServer.NewServerWithOpts(ofgaServer.WithDatastore(ds))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create OpenFGA server: %w", err)
-	}
-
-	stores, err := fga.ListStores(context.Background(), &openfgav1.ListStoresRequest{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list OpenFGA stores: %w", err)
-	}
-	for _, store := range stores.Stores {
-		if store.GetName() == "notary" {
-			models, err := fga.ReadAuthorizationModels(context.Background(),
-				&openfgav1.ReadAuthorizationModelsRequest{StoreId: store.Id})
-			if err != nil || len(models.AuthorizationModels) == 0 {
-				return nil, fmt.Errorf("failed to read OpenFGA authorization models: %v", err)
-			}
-			repo := &AuthzRepository{
-				FGAClient:            fga,
-				StoreID:              store.Id,
-				AuthorizationModelID: models.AuthorizationModels[0].Id,
-			}
-			return repo, nil
-		}
-	}
-
-	newStore, err := fga.CreateStore(context.Background(), &openfgav1.CreateStoreRequest{Name: "notary"})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create OpenFGA store: %w", err)
-	}
-
 	protoModel, err := transformer.TransformDSLToProto(OFGAModel)
 	if err != nil {
 		return nil, fmt.Errorf("failed to transform OpenFGA DSL to proto: %w", err)
 	}
+	protoModel.Id = modelID
 
-	authModel, err := fga.WriteAuthorizationModel(context.Background(), &openfgav1.WriteAuthorizationModelRequest{
-		StoreId:         newStore.GetId(),
-		TypeDefinitions: protoModel.GetTypeDefinitions(),
-		Conditions:      protoModel.GetConditions(),
-		SchemaVersion:   protoModel.GetSchemaVersion(),
-	})
+	datastore := newRoleDatastore(database)
+	// The model is loaded before the server exists, so no request can ever
+	// observe the datastore without one.
+	if err := datastore.WriteAuthorizationModel(context.Background(), storeID, protoModel); err != nil {
+		return nil, fmt.Errorf("failed to load OpenFGA authorization model: %w", err)
+	}
+
+	fga, err := ofgaServer.NewServerWithOpts(ofgaServer.WithDatastore(datastore))
 	if err != nil {
-		return nil, fmt.Errorf("failed to write OpenFGA authorization model: %w", err)
+		return nil, fmt.Errorf("failed to create OpenFGA server: %w", err)
 	}
+	logger.Info("Initialized OpenFGA authorization backend", zap.String("model_id", modelID))
 
-	repo := &AuthzRepository{
+	return &AuthzRepository{
 		FGAClient:            fga,
-		StoreID:              newStore.GetId(),
-		AuthorizationModelID: authModel.GetAuthorizationModelId(),
-	}
-
-	return repo, nil
-}
-
-func (r *AuthzRepository) WriteTuple(object, relation, user string) error {
-	_, err := r.FGAClient.Write(context.Background(), &openfgav1.WriteRequest{
-		StoreId:              r.StoreID,
-		AuthorizationModelId: r.AuthorizationModelID,
-		Writes: &openfgav1.WriteRequestWrites{
-			TupleKeys: []*openfgav1.TupleKey{
-				{Object: object, Relation: relation, User: user},
-			},
-		},
-	})
-	return err
-}
-
-// DeleteTuple deletes a single relationship tuple.
-func (r *AuthzRepository) DeleteTuple(object, relation, user string) error {
-	_, err := r.FGAClient.Write(context.Background(), &openfgav1.WriteRequest{
-		StoreId:              r.StoreID,
-		AuthorizationModelId: r.AuthorizationModelID,
-		Deletes: &openfgav1.WriteRequestDeletes{
-			TupleKeys: []*openfgav1.TupleKeyWithoutCondition{
-				{Object: object, Relation: relation, User: user},
-			},
-		},
-	})
-	return err
+		StoreID:              storeID,
+		AuthorizationModelID: modelID,
+	}, nil
 }
 
 // Check returns whether user has relation on object.

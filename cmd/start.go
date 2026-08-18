@@ -1,11 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 
+	"github.com/canonical/notary/internal/acme"
+	"github.com/canonical/notary/internal/cluster"
 	"github.com/canonical/notary/internal/config"
 	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/server"
@@ -28,19 +31,30 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 		if err != nil {
 			log.Fatalf("couldn't parse and validate config: %s", err)
 		}
-		database, err := db.NewDatabase(&db.DatabaseOpts{
-			DatabasePath:    appConfig.DBPath,
-			Logger:          zap.L(),
-			ApplyMigrations: appConfig.ShouldApplyMigrations,
-		})
+		// The reconciler is built before the database because a cluster node needs
+		// its leadership hook at construction time, and the replicated database can
+		// only be opened through that node. openDatabase arms it.
+		acmeReconciler := acme.NewReconciler()
+		database, clusterNode, closeCluster, err := openDatabase(cmd.Context(), appConfig, acmeReconciler)
 		if err != nil {
 			log.Fatalf("couldn't initialize database: %s", err)
 		}
-		appEnv, err := config.InitializeAppEnvironment(appConfig, database)
+		defer closeCluster()
+		appEnv, err := config.InitializeAppEnvironment(cmd.Context(), appConfig, database, clusterNode, acmeReconciler)
 		if err != nil {
 			log.Fatalf("couldn't initialize app environment: %s", err)
 		}
 		l := appEnv.SystemLogger
+		acmeReconciler.Attach(database, l, nodeID(clusterNode), clusterNode != nil)
+		if clusterNode == nil {
+			// Unclustered, so this process is the only one that has ever run an
+			// attempt. Anything still recorded was interrupted by a previous crash.
+			// Clustered deployments reconcile on leadership change instead, because
+			// a live peer may legitimately own an attempt.
+			if err := acmeReconciler.Reconcile(); err != nil {
+				l.Error("couldn't reconcile interrupted ACME issuance attempts", zap.Error(err))
+			}
+		}
 		srv, err := server.New(appConfig, appEnv)
 		if err != nil {
 			l.Fatal("couldn't initialize server", zap.Error(err))
@@ -67,6 +81,49 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 		<-mainThread
 		l.Info("server shutdown completed.")
 	},
+}
+
+// openDatabase opens the repository the server runs against: the replicated
+// dqlite database when clustering is enabled, otherwise the single SQLite file
+// Notary has always used. It also returns the cluster node backing that
+// database, which is nil when clustering is disabled. The returned function
+// releases the cluster node and is a no-op in the unclustered case.
+func openDatabase(ctx context.Context, appConfig *config.AppConfig, acmeReconciler *acme.Reconciler) (*db.DatabaseRepository, cluster.Node, func(), error) {
+	if !appConfig.ClusterConfig.Enabled {
+		database, err := db.NewDatabase(&db.DatabaseOpts{
+			DatabasePath:    appConfig.DBPath,
+			Logger:          zap.L(),
+			ApplyMigrations: appConfig.ShouldApplyMigrations,
+		})
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		return database, nil, func() {}, nil
+	}
+
+	node, err := startClusterNode(appConfig.ClusterConfig, acmeReconciler.OnRolesAdjustment)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	readyCtx, cancel := context.WithTimeout(ctx, clusterReadyTimeout)
+	defer cancel()
+
+	database, err := openClusteredDatabase(readyCtx, node, appConfig.ShouldApplyMigrations)
+	if err != nil {
+		closeClusterNode(node, zap.L())
+		return nil, nil, nil, err
+	}
+
+	return database, node, func() { closeClusterNode(node, zap.L()) }, nil
+}
+
+// nodeID returns a cluster node's dqlite ID, or zero when there is no node.
+func nodeID(node cluster.Node) uint64 {
+	if node == nil {
+		return 0
+	}
+	return node.ID()
 }
 
 func init() {

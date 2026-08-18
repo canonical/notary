@@ -176,7 +176,7 @@ WHERE (csr_id = $CertificateRequestWithChain.csr_id OR csr = $CertificateRequest
 	// // // // // // // // // //
 	// Certificate SQL Strings //
 	// // // // // // // // // //
-	createCertificateStmt   = "INSERT INTO certificates (certificate, issuer_id) VALUES ($Certificate.certificate, $Certificate.issuer_id)"
+	createCertificateStmt   = "INSERT INTO certificates (certificate, issuer_id, serial_number) VALUES ($Certificate.certificate, $Certificate.issuer_id, $Certificate.serial_number)"
 	addCertificateToCSRStmt = "UPDATE certificates SET certificate_id=$Certificate.certificate_id, status=$CertificateRequest.status WHERE id==$CertificateRequest.id or csr==$CertificateRequest.csr"
 	getCertificateStmt      = "SELECT &Certificate.* FROM certificates WHERE certificate_id==$Certificate.certificate_id or certificate==$Certificate.certificate"
 	updateCertificateStmt   = "UPDATE certificates SET issuer_id=$Certificate.issuer_id WHERE certificate_id==$Certificate.certificate_id or certificate==$Certificate.certificate"
@@ -185,14 +185,14 @@ WHERE (csr_id = $CertificateRequestWithChain.csr_id OR csr = $CertificateRequest
 
 	getCertificateChainStmt = `WITH RECURSIVE cert_chain AS (
     -- Initial query: Start search from the end certificate
-    SELECT certificate_id, certificate, issuer_id
+    SELECT certificate_id, certificate, issuer_id, serial_number
     FROM certificates
     WHERE certificate_id = $Certificate.certificate_id or certificate = $Certificate.certificate
 
     UNION ALL
 
     -- Recursive Query: Move up the chain until issuer_id is 0 (root)
-    SELECT certs.certificate_id, certs.certificate, certs.issuer_id
+    SELECT certs.certificate_id, certs.certificate, certs.issuer_id, certs.serial_number
     FROM certificates certs
     JOIN cert_chain
       ON certs.certificate_id = cert_chain.issuer_id
@@ -301,14 +301,15 @@ WITH RECURSIVE cas_with_chain AS (
 	// // // // // // // // // //
 	// Users Table SQL Strings //
 	// // // // // // // // // //
-	listUsersStmt      = "SELECT &User.* from users"
-	getUserStmt        = "SELECT &User.* from users WHERE id==$User.id or email==$User.email or oidc_subject==$User.oidc_subject"
-	createUserStmt     = "INSERT INTO users (email, hashed_password, role_id) VALUES ($User.email, $User.hashed_password, $User.role_id)"
-	createOIDCUserStmt = "INSERT INTO users (email, hashed_password, role_id, oidc_subject) VALUES ($User.email, NULL, $User.role_id, $User.oidc_subject)"
-	updateUserStmt     = "UPDATE users SET hashed_password=$User.hashed_password WHERE id==$User.id or email==$User.email"
-	updateUserRoleStmt = "UPDATE users SET role_id=$User.role_id WHERE id==$User.id"
-	deleteUserStmt     = "DELETE FROM users WHERE id==$User.id"
-	getNumUsersStmt    = "SELECT COUNT(*) AS &NumUsers.count FROM users"
+	listUsersStmt         = "SELECT &User.* from users"
+	getUserStmt           = "SELECT &User.* from users WHERE id==$User.id or email==$User.email"
+	getUserByOIDCIdentity = "SELECT &User.* from users WHERE oidc_issuer==$User.oidc_issuer and oidc_subject==$User.oidc_subject"
+	createUserStmt        = "INSERT INTO users (email, hashed_password, role_id) VALUES ($User.email, $User.hashed_password, $User.role_id)"
+	createOIDCUserStmt    = "INSERT INTO users (email, hashed_password, role_id, oidc_issuer, oidc_subject) VALUES ($User.email, NULL, $User.role_id, $User.oidc_issuer, $User.oidc_subject)"
+	updateUserStmt        = "UPDATE users SET hashed_password=$User.hashed_password WHERE id==$User.id or email==$User.email"
+	updateUserRoleStmt    = "UPDATE users SET role_id=$User.role_id WHERE id==$User.id"
+	deleteUserStmt        = "DELETE FROM users WHERE id==$User.id"
+	getNumUsersStmt       = "SELECT COUNT(*) AS &NumUsers.count FROM users"
 
 	// // // // // // // // // //
 	// Encryption Key SQL Strings //
@@ -339,6 +340,25 @@ WITH RECURSIVE cas_with_chain AS (
 	updateACMEServerStmt        = "UPDATE acme_servers SET name=$ACMEServer.name, directory_url=$ACMEServer.directory_url, email=$ACMEServer.email, dns_provider=$ACMEServer.dns_provider, env_vars=$ACMEServer.env_vars WHERE id==$ACMEServer.id"
 	deleteACMEServerStmt        = "DELETE FROM acme_servers WHERE id==$ACMEServer.id"
 	linkACMEAccountToServerStmt = "UPDATE acme_servers SET acme_account_id=$ACMEServer.acme_account_id WHERE id==$ACMEServer.id"
+
+	// Cluster join token statements
+	createClusterJoinTokenStmt  = "INSERT INTO cluster_join_tokens (token_hash, role, created_at, expires_at) VALUES ($ClusterJoinToken.token_hash, $ClusterJoinToken.role, $ClusterJoinToken.created_at, $ClusterJoinToken.expires_at)"
+	getClusterJoinTokenStmt     = "SELECT &ClusterJoinToken.* FROM cluster_join_tokens WHERE token_hash==$ClusterJoinToken.token_hash"
+	listClusterJoinTokensStmt   = "SELECT &ClusterJoinToken.* FROM cluster_join_tokens"
+	deleteClusterJoinTokenStmt  = "DELETE FROM cluster_join_tokens WHERE id==$ClusterJoinToken.id"
+	deleteExpiredJoinTokensStmt = "DELETE FROM cluster_join_tokens WHERE expires_at < $ClusterJoinToken.expires_at"
+
+	// Cluster member statements
+	createClusterMemberStmt    = "INSERT INTO cluster_members (node_id, name, address, joined_at) VALUES ($ClusterMember.node_id, $ClusterMember.name, $ClusterMember.address, $ClusterMember.joined_at)"
+	listClusterMembersStmt     = "SELECT &ClusterMember.* FROM cluster_members"
+	getClusterMemberStmt       = "SELECT &ClusterMember.* FROM cluster_members WHERE node_id==$ClusterMember.node_id"
+	getClusterMemberByNameStmt = "SELECT &ClusterMember.* FROM cluster_members WHERE name==$ClusterMember.name"
+	deleteClusterMemberStmt    = "DELETE FROM cluster_members WHERE node_id==$ClusterMember.node_id"
+
+	// ACME issuance attempt statements
+	createACMEIssuanceAttemptStmt = "INSERT INTO acme_issuance_attempts (csr_id, node_id, started_at) VALUES ($ACMEIssuanceAttempt.csr_id, $ACMEIssuanceAttempt.node_id, $ACMEIssuanceAttempt.started_at)"
+	listACMEIssuanceAttemptsStmt  = "SELECT &ACMEIssuanceAttempt.* FROM acme_issuance_attempts"
+	deleteACMEIssuanceAttemptStmt = "DELETE FROM acme_issuance_attempts WHERE csr_id==$ACMEIssuanceAttempt.csr_id"
 )
 
 // Statements contains all prepared SQL statements used by the database
@@ -377,14 +397,15 @@ type Statements struct {
 	DeletePrivateKey *sqlair.Statement
 
 	// User statements
-	CreateUser     *sqlair.Statement
-	CreateOIDCUser *sqlair.Statement
-	GetUser        *sqlair.Statement
-	UpdateUser     *sqlair.Statement
-	UpdateUserRole *sqlair.Statement
-	ListUsers      *sqlair.Statement
-	DeleteUser     *sqlair.Statement
-	GetNumUsers    *sqlair.Statement
+	CreateUser            *sqlair.Statement
+	CreateOIDCUser        *sqlair.Statement
+	GetUser               *sqlair.Statement
+	GetUserByOIDCIdentity *sqlair.Statement
+	UpdateUser            *sqlair.Statement
+	UpdateUserRole        *sqlair.Statement
+	ListUsers             *sqlair.Statement
+	DeleteUser            *sqlair.Statement
+	GetNumUsers           *sqlair.Statement
 
 	// Encryption Key statements
 	CreateEncryptionKey *sqlair.Statement
@@ -411,6 +432,25 @@ type Statements struct {
 	UpdateACMEServer        *sqlair.Statement
 	DeleteACMEServer        *sqlair.Statement
 	LinkACMEAccountToServer *sqlair.Statement
+
+	// Cluster join token statements
+	CreateClusterJoinToken  *sqlair.Statement
+	GetClusterJoinToken     *sqlair.Statement
+	ListClusterJoinTokens   *sqlair.Statement
+	DeleteClusterJoinToken  *sqlair.Statement
+	DeleteExpiredJoinTokens *sqlair.Statement
+
+	// Cluster member statements
+	CreateClusterMember    *sqlair.Statement
+	ListClusterMembers     *sqlair.Statement
+	GetClusterMember       *sqlair.Statement
+	GetClusterMemberByName *sqlair.Statement
+	DeleteClusterMember    *sqlair.Statement
+
+	// ACME issuance attempt statements
+	CreateACMEIssuanceAttempt *sqlair.Statement
+	ListACMEIssuanceAttempts  *sqlair.Statement
+	DeleteACMEIssuanceAttempt *sqlair.Statement
 }
 
 // PrepareStatements prepares all SQL statements used by the database.
@@ -456,6 +496,7 @@ func PrepareStatements() *Statements {
 	stmts.CreateUser = sqlair.MustPrepare(createUserStmt, User{})
 	stmts.CreateOIDCUser = sqlair.MustPrepare(createOIDCUserStmt, User{})
 	stmts.GetUser = sqlair.MustPrepare(getUserStmt, User{})
+	stmts.GetUserByOIDCIdentity = sqlair.MustPrepare(getUserByOIDCIdentity, User{})
 	stmts.UpdateUser = sqlair.MustPrepare(updateUserStmt, User{})
 	stmts.UpdateUserRole = sqlair.MustPrepare(updateUserRoleStmt, User{})
 	stmts.ListUsers = sqlair.MustPrepare(listUsersStmt, User{})
@@ -487,6 +528,25 @@ func PrepareStatements() *Statements {
 	stmts.UpdateACMEServer = sqlair.MustPrepare(updateACMEServerStmt, ACMEServer{})
 	stmts.DeleteACMEServer = sqlair.MustPrepare(deleteACMEServerStmt, ACMEServer{})
 	stmts.LinkACMEAccountToServer = sqlair.MustPrepare(linkACMEAccountToServerStmt, ACMEServer{})
+
+	// Cluster join token statements
+	stmts.CreateClusterJoinToken = sqlair.MustPrepare(createClusterJoinTokenStmt, ClusterJoinToken{})
+	stmts.GetClusterJoinToken = sqlair.MustPrepare(getClusterJoinTokenStmt, ClusterJoinToken{})
+	stmts.ListClusterJoinTokens = sqlair.MustPrepare(listClusterJoinTokensStmt, ClusterJoinToken{})
+	stmts.DeleteClusterJoinToken = sqlair.MustPrepare(deleteClusterJoinTokenStmt, ClusterJoinToken{})
+	stmts.DeleteExpiredJoinTokens = sqlair.MustPrepare(deleteExpiredJoinTokensStmt, ClusterJoinToken{})
+
+	// Cluster member statements
+	stmts.CreateClusterMember = sqlair.MustPrepare(createClusterMemberStmt, ClusterMember{})
+	stmts.ListClusterMembers = sqlair.MustPrepare(listClusterMembersStmt, ClusterMember{})
+	stmts.GetClusterMember = sqlair.MustPrepare(getClusterMemberStmt, ClusterMember{})
+	stmts.GetClusterMemberByName = sqlair.MustPrepare(getClusterMemberByNameStmt, ClusterMember{})
+	stmts.DeleteClusterMember = sqlair.MustPrepare(deleteClusterMemberStmt, ClusterMember{})
+
+	// ACME issuance attempt statements
+	stmts.CreateACMEIssuanceAttempt = sqlair.MustPrepare(createACMEIssuanceAttemptStmt, ACMEIssuanceAttempt{})
+	stmts.ListACMEIssuanceAttempts = sqlair.MustPrepare(listACMEIssuanceAttemptsStmt, ACMEIssuanceAttempt{})
+	stmts.DeleteACMEIssuanceAttempt = sqlair.MustPrepare(deleteACMEIssuanceAttemptStmt, ACMEIssuanceAttempt{})
 
 	return stmts
 }

@@ -11,6 +11,25 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: "go.mod"
+      - uses: ./.github/actions/setup-dqlite
 
       - name: Unit tests
         run: go test -cover ./...
+
+  # Replays the same suite against a single-node dqlite cluster instead of a
+  # local SQLite file. This is the regression gate for the clustered storage
+  # path, and the only job that exercises internal/cluster at runtime.
+  go-unit-tests-clustered:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+      - uses: ./.github/actions/setup-dqlite
+
+      - name: Unit tests (clustered storage)
+        env:
+          NOTARY_TEST_DQLITE: "1"
+        run: go test ./...

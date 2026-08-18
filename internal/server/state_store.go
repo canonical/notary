@@ -11,6 +11,12 @@ type StateEntry struct {
 	UserAgent string
 	UserID    *int64
 	Type      string
+	// CodeVerifier is the PKCE code verifier generated for this login attempt.
+	// It never leaves the server; only its S256 challenge is sent to the IdP.
+	CodeVerifier string
+	// Provider is the name of the OIDC provider this login attempt was started
+	// against, so the callback resolves the same one.
+	Provider string
 }
 
 // StateStore manages OAuth state parameters for CSRF protection
@@ -29,39 +35,54 @@ func NewStateStore() *StateStore {
 
 // Store saves a state parameter with associated metadata
 func (s *StateStore) Store(state string, userAgent string) {
+	s.StorePKCE(state, userAgent, "", "")
+}
+
+// StorePKCE saves a state parameter along with the PKCE code verifier and the
+// OIDC provider selected for the same login attempt.
+func (s *StateStore) StorePKCE(state string, userAgent string, codeVerifier string, provider string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.states[state] = StateEntry{
-		CreatedAt: time.Now(),
-		UserAgent: userAgent,
-		Type:      "login", // Default to login type
+		CreatedAt:    time.Now(),
+		UserAgent:    userAgent,
+		Type:         "login", // Default to login type
+		CodeVerifier: codeVerifier,
+		Provider:     provider,
 	}
 }
 
 // Validate checks if a state is valid and removes it (one-time use)
 // Returns true if the state is valid, false otherwise
 func (s *StateStore) Validate(state string, userAgent string) bool {
+	_, ok := s.Consume(state, userAgent)
+	return ok
+}
+
+// Consume validates a state and removes it (one-time use), returning the stored
+// entry so callers can recover metadata such as the PKCE code verifier.
+func (s *StateStore) Consume(state string, userAgent string) (*StateEntry, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	entry, exists := s.states[state]
 	if !exists {
-		return false
+		return nil, false
 	}
 
 	if time.Since(entry.CreatedAt) > 5*time.Minute {
 		delete(s.states, state)
-		return false
+		return nil, false
 	}
 
 	if entry.UserAgent != userAgent {
 		delete(s.states, state)
-		return false
+		return nil, false
 	}
 
 	delete(s.states, state)
-	return true
+	return &entry, true
 }
 
 // Get retrieves a state entry without deleting it (for inspecting metadata)

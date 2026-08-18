@@ -219,6 +219,10 @@ func (db *DatabaseRepository) SignCertificateRequest(csrFilter CSRFilter, caFilt
 	if rowFound(err) {
 		CSRIsForACertificateAuthority = true
 	}
+	serialNumber, err := GenerateSerialNumber()
+	if err != nil {
+		return err
+	}
 	// Create certificate template from the CSR
 	certTemplate := &x509.Certificate{
 		Subject:            certRequest.Subject,
@@ -230,7 +234,7 @@ func (db *DatabaseRepository) SignCertificateRequest(csrFilter CSRFilter, caFilt
 		PublicKeyAlgorithm: certRequest.PublicKeyAlgorithm,
 
 		// Add standard certificate fields
-		SerialNumber: big.NewInt(time.Now().UnixNano()),
+		SerialNumber: serialNumber,
 		NotBefore:    time.Now(),
 		NotAfter:     time.Now().AddDate(CAMaxExpiryYears, 0, 0),
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,

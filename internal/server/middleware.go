@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path"
 	"strconv"
 	"strings"
 
@@ -23,15 +24,22 @@ import (
 
 const (
 	MAX_KILOBYTES = 100
+
+	// sealedRetryAfterSeconds is the Retry-After hint returned while sealed. It
+	// matches the interval on which the node retries its encryption backend.
+	sealedRetryAfterSeconds = 10
 )
 
 // The middlewareContext type helps middleware receive and pass along information through the middleware chain.
 type middlewareContext struct {
 	responseStatusCode int
-	jwtSecret          []byte
-	systemLogger       *zap.Logger
-	auditLogger        *log.AuditLogger
-	tracer             *tracing.TracingRepository
+	// jwtSecret is read per request rather than captured once: on a node that
+	// starts sealed, the secret is only decrypted when the unwrap succeeds,
+	// which may be after the router is built.
+	jwtSecret    func() []byte
+	systemLogger *zap.Logger
+	auditLogger  *log.AuditLogger
+	tracer       *tracing.TracingRepository
 }
 
 // createMiddlewareStack chains the given middleware functions to wrap the api.
@@ -47,6 +55,59 @@ func createMiddlewareStack(middleware ...middleware) middleware {
 		}
 		return next
 	}
+}
+
+// unsealExemptAPIRoutes lists the API routes a sealed node still answers. Both
+// report cluster membership and Raft state, which is exactly what an operator
+// needs to see while a node waits on its encryption backend, and neither reads
+// anything stored under the data encryption key.
+//
+// Paths are matched after the /api/v1 prefix has been stripped.
+var unsealExemptAPIRoutes = map[string]bool{
+	http.MethodGet + " /cluster/members": true,
+	http.MethodGet + " /cluster/status":  true,
+}
+
+// requireUnsealed rejects requests that need plaintext key material while this
+// node has not finished unwrapping its data encryption key. Unsealing is
+// automatic and per-node, so the correct operator response to a 503 from here is
+// to make the configured Vault/HSM backend reachable again; there is no unseal
+// endpoint.
+func requireUnsealed(env *HandlerDependencies) middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !env.EncryptionRepository.Sealed() || unsealExemptAPIRoutes[r.Method+" "+path.Clean(r.URL.Path)] {
+				next.ServeHTTP(w, r)
+				return
+			}
+			writeSealedResponse(w, env.SystemLogger)
+		})
+	}
+}
+
+// requireUnsealedHandler applies the same gate as requireUnsealed to a single
+// handler mounted outside the API middleware stack.
+func requireUnsealedHandler(env *HandlerDependencies, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if env.EncryptionRepository.Sealed() {
+			writeSealedResponse(w, env.SystemLogger)
+			return
+		}
+		next(w, r)
+	}
+}
+
+// writeSealedResponse reports that this node is still sealed. Retry-After is
+// advisory: the node retries its backend on its own schedule.
+func writeSealedResponse(w http.ResponseWriter, logger *zap.Logger) {
+	w.Header().Set("Retry-After", strconv.Itoa(sealedRetryAfterSeconds))
+	writeResponse(
+		w,
+		http.StatusServiceUnavailable,
+		"this node has not unwrapped its encryption key yet; it will serve this route once its encryption backend is reachable",
+		nil,
+		logger,
+	)
 }
 
 // limitRequestSize is a middleware that limits the size of the request body to maxKilobytes.
@@ -150,7 +211,7 @@ func auditLoggingMiddleware(ctx *middlewareContext) middleware {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			next.ServeHTTP(w, r)
 			var actor string
-			claims, err := getClaimsFromCookie(r, ctx.jwtSecret, nil)
+			claims, err := getClaimsFromCookie(r, ctx.jwtSecret(), nil)
 			if err == nil {
 				actor = claims.Email
 			}
@@ -247,7 +308,6 @@ func requirePermission(
 		}
 
 		userID := authorization.UserID(claims.Email)
-		const systemObject = "system:notary"
 
 		if env.AuthzRepository == nil {
 			handler(w, r)
@@ -256,7 +316,7 @@ func requirePermission(
 
 		allowed := false
 		for _, role := range allowedRoles {
-			ok, checkErr := env.AuthzRepository.Check(systemObject, role, userID)
+			ok, checkErr := env.AuthzRepository.Check(authorization.SystemObject, role, userID)
 			if checkErr != nil {
 				env.SystemLogger.Error("authorization check failed", zap.Error(checkErr))
 				writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
@@ -306,7 +366,7 @@ func firstUserOrAdmin(env *HandlerDependencies, handler http.HandlerFunc) http.H
 	}
 }
 
-func getClaimsFromCookie(r *http.Request, jwtSecret []byte, oidcConfig *authentication.OIDCRepository) (*authentication.NotaryJWTClaims, error) {
+func getClaimsFromCookie(r *http.Request, jwtSecret []byte, oidcProviders authentication.OIDCProviders) (*authentication.NotaryJWTClaims, error) {
 	c, err := r.Cookie(CookieSessionTokenKey)
 	if err != nil {
 		return nil, fmt.Errorf("cookie not found")
@@ -315,24 +375,29 @@ func getClaimsFromCookie(r *http.Request, jwtSecret []byte, oidcConfig *authenti
 		return nil, fmt.Errorf("cookie value not found")
 	}
 
-	claims, err := getClaimsFromJWT(c.Value, jwtSecret, oidcConfig)
+	claims, err := getClaimsFromJWT(c.Value, jwtSecret, oidcProviders)
 	if err != nil {
 		return nil, fmt.Errorf("token is not valid: %s", err)
 	}
 	return claims, nil
 }
 
-func getClaimsFromJWT(rawToken string, jwtSecret []byte, oidcConfig *authentication.OIDCRepository) (*authentication.NotaryJWTClaims, error) {
-	v := authentication.NewVerifier([]authentication.ProviderConfig{
-		{
-			Provider: oidcConfig,
+func getClaimsFromJWT(rawToken string, jwtSecret []byte, oidcProviders authentication.OIDCProviders) (*authentication.NotaryJWTClaims, error) {
+	// A token may have been minted by any configured provider, so every one of
+	// them is offered to the verifier alongside Notary's own local signing key.
+	configs := make([]authentication.ProviderConfig, 0, len(oidcProviders)+1)
+	for _, provider := range oidcProviders {
+		configs = append(configs, authentication.ProviderConfig{
+			Provider: provider,
 			Type:     authentication.ProviderOIDC,
-		},
-		{
-			Secret: jwtSecret,
-			Type:   authentication.ProviderLocal,
-		},
+		})
+	}
+	configs = append(configs, authentication.ProviderConfig{
+		Secret: jwtSecret,
+		Type:   authentication.ProviderLocal,
 	})
+
+	v := authentication.NewVerifier(configs)
 	claims, err := v.VerifyToken(context.Background(), rawToken)
 	if err != nil {
 		return nil, err

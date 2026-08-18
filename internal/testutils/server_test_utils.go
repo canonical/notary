@@ -2,8 +2,10 @@ package testutils
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/x509"
+	"database/sql"
 	"encoding/json"
 	"encoding/pem"
 	"math/big"
@@ -15,6 +17,7 @@ import (
 	"time"
 
 	internalLog "github.com/canonical/notary/internal/backends/observability/log"
+	"github.com/canonical/notary/internal/cluster"
 	"github.com/canonical/notary/internal/server"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -25,6 +28,16 @@ import (
 func MustPrepareServer(t *testing.T) (*httptest.Server, *observer.ObservedLogs) {
 	t.Helper()
 
+	return MustPrepareServerWithClusterNode(t, nil)
+}
+
+// MustPrepareServerWithClusterNode starts a test server whose app environment
+// reports the given cluster membership. Passing nil produces an unclustered
+// server; passing a StubClusterNode exercises handlers that behave differently
+// depending on which node leads, without needing a real dqlite cluster.
+func MustPrepareServerWithClusterNode(t *testing.T, node cluster.Node) (*httptest.Server, *observer.ObservedLogs) {
+	t.Helper()
+
 	db := MustPrepareEmptyDB(t)
 	// Attach observed audit logger
 	core, logs := observer.New(zapcore.InfoLevel)
@@ -33,6 +46,7 @@ func MustPrepareServer(t *testing.T) (*httptest.Server, *observer.ObservedLogs) 
 	appCfg := MustCreateTestAppConfig(t)
 	appEnv := MustCreateTestAppEnvironment(t, db)
 	appEnv.AuditLogger = internalLog.NewAuditLogger(auditZap)
+	appEnv.ClusterNode = node
 
 	srv, err := server.New(appCfg, appEnv)
 	if err != nil {
@@ -44,6 +58,41 @@ func MustPrepareServer(t *testing.T) (*httptest.Server, *observer.ObservedLogs) 
 	})
 	return testServer, logs
 }
+
+// StubClusterNode is a cluster.Node that reports a fixed identity and leader.
+// Only the parts of the interface that answer questions about membership are
+// implemented; anything that would touch a real dqlite node panics, so a test
+// that strays outside what the stub can honestly answer fails loudly instead of
+// quietly asserting against a zero value.
+type StubClusterNode struct {
+	NodeID     uint64
+	NodeAddr   string
+	LeaderInfo *cluster.MemberInfo
+	LeaderErr  error
+}
+
+func (n *StubClusterNode) ID() uint64      { return n.NodeID }
+func (n *StubClusterNode) Address() string { return n.NodeAddr }
+
+func (n *StubClusterNode) Leader(context.Context) (*cluster.MemberInfo, error) {
+	return n.LeaderInfo, n.LeaderErr
+}
+
+func (n *StubClusterNode) Members(context.Context) ([]cluster.MemberInfo, error) {
+	if n.LeaderInfo == nil {
+		return nil, nil
+	}
+	return []cluster.MemberInfo{*n.LeaderInfo}, nil
+}
+
+func (n *StubClusterNode) Open(context.Context, string) (*sql.DB, error) {
+	panic("StubClusterNode cannot open a database")
+}
+func (n *StubClusterNode) Ready(context.Context) error            { return nil }
+func (n *StubClusterNode) Promote(context.Context, uint64) error  { panic("not implemented") }
+func (n *StubClusterNode) Handover(context.Context, uint64) error { panic("not implemented") }
+func (n *StubClusterNode) Remove(context.Context, uint64) error   { panic("not implemented") }
+func (n *StubClusterNode) Close(context.Context) error            { return nil }
 
 // MustGetDefaultAdminToken creates the first admin account (no auth required when zero users exist)
 // then logs in and returns the token.

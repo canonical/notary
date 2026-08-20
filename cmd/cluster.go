@@ -20,6 +20,8 @@ const clusterReadyTimeout = 30 * time.Second
 
 var clusterConfigFilePath string
 
+var clusterBootstrapName string
+
 // clusterCmd groups the commands that manage Notary's dqlite cluster.
 var clusterCmd = &cobra.Command{
 	Use:   "cluster",
@@ -59,11 +61,18 @@ cluster instead. Requires a configuration file with clustering enabled.`,
 		if err != nil {
 			return err
 		}
-		if err := database.Close(); err != nil {
-			return fmt.Errorf("couldn't close database: %w", err)
+		defer database.Close() //nolint:errcheck
+
+		name := clusterBootstrapName
+		if name == "" {
+			name = appConfig.ClusterConfig.Address
+		}
+		nodeID := formatNodeID(node.ID())
+		if _, err := database.CreateClusterMember(nodeID, name, appConfig.ClusterConfig.Address, time.Now().UTC()); err != nil {
+			return fmt.Errorf("bootstrapped the cluster but couldn't record the member name: %w", err)
 		}
 
-		cmd.Printf("cluster bootstrapped at %s\n", node.Address())
+		cmd.Printf("cluster bootstrapped at %s as %s (node %s)\n", node.Address(), name, nodeID)
 
 		return nil
 	},
@@ -135,6 +144,7 @@ func init() {
 	clusterCmd.AddCommand(clusterRestoreCmd)
 
 	clusterBootstrapCmd.Flags().StringVarP(&clusterConfigFilePath, "config", "c", "", "path to the configuration file")
+	clusterBootstrapCmd.Flags().StringVar(&clusterBootstrapName, "name", "", "name to record for this member (defaults to its cluster address)")
 
 	if err := clusterBootstrapCmd.MarkFlagRequired("config"); err != nil {
 		log.Fatalf("couldn't mark flag required: %s", err)

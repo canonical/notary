@@ -98,8 +98,9 @@ is stored. Transfer it to the new node out of band.`,
 		}
 
 		if clusterTokenQuiet {
-			cmd.Println(created.Token)
-			return nil
+			// cmd.Println writes to stderr; --quiet exists to be captured by a shell.
+			_, err := fmt.Fprintln(cmd.OutOrStdout(), created.Token)
+			return err
 		}
 
 		cmd.Printf("Join token (shown once, %s role, expires %s):\n\n  %s\n\nOn the new node, run:\n\n  notary cluster join %s --config <config file> --address <this member's API address>\n",
@@ -128,7 +129,8 @@ var clusterStatusCmd = &cobra.Command{
 		if leader == "" {
 			leader = "none (no leader elected)"
 		}
-		cmd.Printf("Cluster: %d member(s), %d voter(s), leader %s\n\n", len(status.Members), status.Voters, leader)
+		// Kept on the same stream as the table below, which tabwriter writes to stdout.
+		fmt.Fprintf(cmd.OutOrStdout(), "Cluster: %d member(s), %d voter(s), leader %s\n\n", len(status.Members), status.Voters, leader)
 
 		writer := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 3, ' ', 0)
 		fmt.Fprintln(writer, "NAME\tID\tADDRESS\tROLE\tLEADER")

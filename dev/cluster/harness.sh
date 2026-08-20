@@ -122,7 +122,7 @@ cmd_bootstrap() {
   local node="notary-1"
 
   log "bootstrapping the cluster on ${node}"
-  docker exec "${node}" notary cluster bootstrap -c /conf/conf.yaml
+  docker exec "${node}" notary cluster bootstrap -c /conf/conf.yaml --name "${node}"
   start_node "${node}"
 
   log "creating the first admin account"
@@ -131,10 +131,13 @@ cmd_bootstrap() {
     -d "{\"email\":\"${ADMIN_EMAIL}\",\"password\":\"${ADMIN_PASSWORD}\",\"role_id\":0}" >/dev/null
 
   mkdir -p "${BUILD_DIR}"
+  # /login returns the session JWT as a Set-Cookie header, not in the body.
   docker exec "${node}" curl -fsk -X POST "https://localhost:3000/login" \
     -H 'Content-Type: application/json' \
     -d "{\"email\":\"${ADMIN_EMAIL}\",\"password\":\"${ADMIN_PASSWORD}\"}" \
-    | jq -r '.data.token' > "${TOKEN_FILE}"
+    -D - -o /dev/null \
+    | sed -n 's/.*[Ss]et-[Cc]ookie: *user_token=\([^;]*\).*/\1/p' \
+    | tr -d '\r' > "${TOKEN_FILE}"
 
   [[ -s "${TOKEN_FILE}" ]] || die "couldn't obtain an admin token"
   log "cluster bootstrapped; admin token saved to ${TOKEN_FILE}"

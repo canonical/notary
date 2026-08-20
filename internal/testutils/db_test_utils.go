@@ -2,6 +2,7 @@ package testutils
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -77,15 +78,17 @@ func mustOpenTestDatabase(t *testing.T) *db.DatabaseRepository {
 // mustOpenClusteredTestDatabase starts a single-node dqlite cluster for the
 // duration of the test and returns a repository backed by it.
 //
-// Only one node runs at a time per process. go-dqlite derives the abstract unix
-// socket its node listens on from the node ID, which in turn is derived from the
-// advertised address (app/app.go), so two nodes that happen to pick the same
-// loopback port collide on that socket name. Abstract sockets are global to the
-// network namespace, so `go test` running packages in parallel can collide even
-// across processes; retrying with a fresh port resolves it. A real deployment
-// only ever runs one node per process on a stable address.
+// Only one node runs at a time per process, serialized by clusteredTestLock.
+// Across processes, `go test` runs packages in parallel, and go-dqlite derives
+// the abstract unix socket its node listens on from the node ID (app/app.go).
+// A bootstrapping node always uses the constant dqlite.BootstrapID, so every
+// test binary would ask for the same socket name; abstract sockets are global to
+// the network namespace, so all but one would fail to bind. isolateDqliteSocket
+// gives this process its own name.
 func mustOpenClusteredTestDatabase(t *testing.T) *db.DatabaseRepository {
 	t.Helper()
+
+	isolateDqliteSocket(t)
 
 	clusteredTestLock.Lock()
 	var node cluster.Node
@@ -102,17 +105,10 @@ func mustOpenClusteredTestDatabase(t *testing.T) *db.DatabaseRepository {
 		}
 	})
 
-	var err error
-	for attempt := range clusteredTestStartAttempts {
-		node, err = cluster.Start(cluster.Options{
-			StateDir: t.TempDir(),
-			Address:  mustReserveLoopbackAddress(t),
-		})
-		if err == nil {
-			break
-		}
-		t.Logf("Cluster node start attempt %d failed, retrying: %s", attempt+1, err)
-	}
+	node, err := cluster.Start(cluster.Options{
+		StateDir: t.TempDir(),
+		Address:  mustReserveLoopbackAddress(t),
+	})
 	if err != nil {
 		t.Fatalf("Couldn't start cluster node: %s", err)
 	}
@@ -140,13 +136,32 @@ func mustOpenClusteredTestDatabase(t *testing.T) *db.DatabaseRepository {
 }
 
 const (
-	clusteredTestTimeout       = 30 * time.Second
-	clusteredTestStartAttempts = 5
+	clusteredTestTimeout = 30 * time.Second
 )
 
 // clusteredTestLock serializes clustered fixtures so at most one dqlite node is
 // alive in the process at a time.
 var clusteredTestLock sync.Mutex
+
+var isolateDqliteSocketOnce sync.Once
+
+// isolateDqliteSocket gives this test binary its own abstract socket name for
+// the dqlite node, so test packages running in parallel do not fight over the
+// single name a bootstrapping node would otherwise pick.
+//
+// SNAP_INSTANCE_NAME is the only knob go-dqlite exposes over that name: it
+// prefixes the socket with the snap instance so AppArmor lets it through
+// (app/app.go). Nothing else in Notary reads it, and it is set only under
+// ClusteredTestsEnvVar.
+func isolateDqliteSocket(t *testing.T) {
+	t.Helper()
+
+	isolateDqliteSocketOnce.Do(func() {
+		if err := os.Setenv("SNAP_INSTANCE_NAME", fmt.Sprintf("notary-test-%d", os.Getpid())); err != nil {
+			t.Fatalf("Couldn't isolate the dqlite socket name: %s", err)
+		}
+	})
+}
 
 // mustReserveLoopbackAddress returns a loopback address with a port that was
 // free a moment ago. dqlite needs a concrete advertised address, so the port

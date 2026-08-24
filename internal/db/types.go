@@ -188,6 +188,15 @@ type ClusterMember struct {
 	Name     string `db:"name"`
 	Address  string `db:"address"`
 	JoinedAt int64  `db:"joined_at"`
+
+	// Heartbeat is when the member last reported itself alive, in Unix seconds,
+	// or nil if it never has. A member writes its own; everyone else reads it
+	// back through replication.
+	Heartbeat *int64 `db:"heartbeat"`
+
+	// Sealed is the member's own last report of whether it still has to unwrap
+	// its encryption key.
+	Sealed bool `db:"sealed"`
 }
 
 // ACMEIssuanceAttempt records that a certificate request has been handed to an

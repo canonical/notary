@@ -354,6 +354,7 @@ WITH RECURSIVE cas_with_chain AS (
 	getClusterMemberStmt       = "SELECT &ClusterMember.* FROM cluster_members WHERE node_id==$ClusterMember.node_id"
 	getClusterMemberByNameStmt = "SELECT &ClusterMember.* FROM cluster_members WHERE name==$ClusterMember.name"
 	deleteClusterMemberStmt    = "DELETE FROM cluster_members WHERE node_id==$ClusterMember.node_id"
+	heartbeatClusterMemberStmt = "UPDATE cluster_members SET heartbeat=$ClusterMember.heartbeat, sealed=$ClusterMember.sealed WHERE node_id==$ClusterMember.node_id"
 
 	// ACME issuance attempt statements
 	createACMEIssuanceAttemptStmt = "INSERT INTO acme_issuance_attempts (csr_id, node_id, started_at) VALUES ($ACMEIssuanceAttempt.csr_id, $ACMEIssuanceAttempt.node_id, $ACMEIssuanceAttempt.started_at)"
@@ -446,6 +447,7 @@ type Statements struct {
 	GetClusterMember       *sqlair.Statement
 	GetClusterMemberByName *sqlair.Statement
 	DeleteClusterMember    *sqlair.Statement
+	HeartbeatClusterMember *sqlair.Statement
 
 	// ACME issuance attempt statements
 	CreateACMEIssuanceAttempt *sqlair.Statement
@@ -542,6 +544,7 @@ func PrepareStatements() *Statements {
 	stmts.GetClusterMember = sqlair.MustPrepare(getClusterMemberStmt, ClusterMember{})
 	stmts.GetClusterMemberByName = sqlair.MustPrepare(getClusterMemberByNameStmt, ClusterMember{})
 	stmts.DeleteClusterMember = sqlair.MustPrepare(deleteClusterMemberStmt, ClusterMember{})
+	stmts.HeartbeatClusterMember = sqlair.MustPrepare(heartbeatClusterMemberStmt, ClusterMember{})
 
 	// ACME issuance attempt statements
 	stmts.CreateACMEIssuanceAttempt = sqlair.MustPrepare(createACMEIssuanceAttemptStmt, ACMEIssuanceAttempt{})

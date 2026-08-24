@@ -99,6 +99,10 @@ func startClusterNode(clusterConfig config.ClusterConfig, onRolesAdjustment func
 // openClusteredDatabase waits for the node to be ready, then opens Notary's
 // replicated database through it and initializes it exactly as the single-file
 // path does.
+//
+// It refuses to hand back a database whose schema this binary was not built for
+// (spec §4.1), so a node that is mid-rolling-upgrade stops here rather than
+// serving traffic against its peers' schema.
 func openClusteredDatabase(ctx context.Context, node cluster.Node, applyMigrations bool) (*db.DatabaseRepository, error) {
 	if err := node.Ready(ctx); err != nil {
 		return nil, fmt.Errorf("couldn't reach cluster readiness: %w", err)
@@ -116,6 +120,15 @@ func openClusteredDatabase(ctx context.Context, node cluster.Node, applyMigratio
 	})
 	if err != nil {
 		return nil, fmt.Errorf("couldn't initialize clustered database: %w", err)
+	}
+
+	expected, err := db.EmbeddedSchemaVersion()
+	if err != nil {
+		return nil, err
+	}
+	if err := database.CheckSchemaVersion(expected); err != nil {
+		database.Close() //nolint:errcheck
+		return nil, err
 	}
 
 	return database, nil

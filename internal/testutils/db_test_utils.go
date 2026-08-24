@@ -228,7 +228,7 @@ func MustCreateTestAppEnvironment(t *testing.T, database *db.DatabaseRepository)
 	}
 
 	acmeReconciler := acme.NewReconciler()
-	acmeReconciler.Attach(database, logger, 0, false)
+	acmeReconciler.Attach(database, logger, "")
 
 	return &config.AppEnvironment{
 		Database:             database,

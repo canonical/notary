@@ -94,6 +94,19 @@ func (db *DatabaseRepository) DeleteExpiredClusterJoinTokens(now time.Time) erro
 	return nil
 }
 
+// OfflineThreshold is how long a member may go without a heartbeat before its
+// peers report it offline. It matches LXD's `cluster.offline_threshold` default.
+const OfflineThreshold = 20 * time.Second
+
+// Online reports whether a member's last heartbeat is recent enough for it to
+// still count as alive.
+func (m ClusterMember) Online(now time.Time) bool {
+	if m.Heartbeat == nil {
+		return false
+	}
+	return now.Sub(time.Unix(*m.Heartbeat, 0)) <= OfflineThreshold
+}
+
 // CreateClusterMember records the operator-assigned name for a node that just
 // joined the cluster.
 func (db *DatabaseRepository) CreateClusterMember(nodeID, name, address string, joinedAt time.Time) (int64, error) {
@@ -113,6 +126,26 @@ func (db *DatabaseRepository) CreateClusterMember(nodeID, name, address string, 
 // ListClusterMembers returns the name records for all known members.
 func (db *DatabaseRepository) ListClusterMembers() ([]ClusterMember, error) {
 	return ListEntities[ClusterMember](db, db.stmts.ListClusterMembers)
+}
+
+// RecordClusterMemberHeartbeat records that a member is alive, along with its
+// own view of its seal state.
+//
+// Only a member ever writes its own row. The write is replicated, so every
+// other member learns of it without reaching this node's API, and the write
+// succeeding is itself proof this node can still reach the Raft leader.
+func (db *DatabaseRepository) RecordClusterMemberHeartbeat(nodeID string, sealed bool, at time.Time) error {
+	if nodeID == "" {
+		return fmt.Errorf("failed to record cluster member heartbeat: %w: node ID is empty", ErrInvalidInput)
+	}
+
+	beat := at.Unix()
+	row := ClusterMember{
+		NodeID:    nodeID,
+		Heartbeat: &beat,
+		Sealed:    sealed,
+	}
+	return UpdateEntity[ClusterMember](db, db.stmts.HeartbeatClusterMember, row)
 }
 
 // GetClusterMember looks a member up by its dqlite node ID.

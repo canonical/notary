@@ -113,9 +113,6 @@ func (c *apiClient) do(method, path string, body any, out any) error {
 		req.Header.Set("Content-Type", "application/json")
 	}
 	if c.token != "" {
-		// Notary authenticates API requests from the session cookie; the header
-		// is set alongside it for parity with the rest of the API surface.
-		req.Header.Set("Authorization", "Bearer "+c.token)
 		req.AddCookie(&http.Cookie{
 			Name:     server.CookieSessionTokenKey,
 			Value:    c.token,

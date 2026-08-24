@@ -18,7 +18,7 @@ func mustAttachedReconciler(t *testing.T) (*acme.Reconciler, *db.DatabaseReposit
 
 	database := tu.MustPrepareEmptyDB(t)
 	reconciler := acme.NewReconciler()
-	reconciler.Attach(database, zap.NewNop(), 0, false)
+	reconciler.Attach(database, zap.NewNop(), "")
 
 	return reconciler, database
 }
@@ -189,7 +189,7 @@ func TestReconcileDoesNotOverwriteASettledOutcome(t *testing.T) {
 func TestOnRolesAdjustmentReconcilesOnlyOnBecomingLeader(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)
 	reconciler := acme.NewReconciler()
-	reconciler.Attach(database, zap.NewNop(), 7, true)
+	reconciler.Attach(database, zap.NewNop(), "7")
 
 	orphaned := mustCreateCertificateRequest(t, database, tu.AppleCSR)
 	if err := database.CreateACMEIssuanceAttempt(orphaned, "3", time.Now()); err != nil {

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/canonical/notary/internal/acme"
 	"github.com/canonical/notary/internal/cluster"
@@ -45,7 +46,8 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 			log.Fatalf("couldn't initialize app environment: %s", err)
 		}
 		l := appEnv.SystemLogger
-		acmeReconciler.Attach(database, l, nodeID(clusterNode), clusterNode != nil)
+		acmeReconciler.Attach(database, l, clusterNodeID(clusterNode))
+		startHeartbeat(cmd.Context(), database, clusterNodeID(clusterNode), appEnv, l)
 		if clusterNode == nil {
 			// Unclustered, so this process is the only one that has ever run an
 			// attempt. Anything still recorded was interrupted by a previous crash.
@@ -118,12 +120,51 @@ func openDatabase(ctx context.Context, appConfig *config.AppConfig, acmeReconcil
 	return database, node, func() { closeClusterNode(node, zap.L()) }, nil
 }
 
-// nodeID returns a cluster node's dqlite ID, or zero when there is no node.
-func nodeID(node cluster.Node) uint64 {
+// clusterNodeID returns a cluster node's dqlite ID in decimal, or empty when
+// there is no node.
+func clusterNodeID(node cluster.Node) string {
 	if node == nil {
-		return 0
+		return ""
 	}
-	return node.ID()
+	return formatNodeID(node.ID())
+}
+
+// heartbeatInterval is how often a member reports itself alive. It is half of
+// db.OfflineThreshold, so a member has to miss two beats before its peers call
+// it offline.
+const heartbeatInterval = 10 * time.Second
+
+// startHeartbeat keeps this member's liveness and seal state current until ctx
+// is done. It does nothing when clustering is disabled, where there are no
+// peers to report to.
+func startHeartbeat(ctx context.Context, database *db.DatabaseRepository, nodeID string, appEnv *config.AppEnvironment, logger *zap.Logger) {
+	if nodeID == "" {
+		return
+	}
+
+	beat := func() {
+		sealed := appEnv.EncryptionRepository.SealState.Sealed()
+		if err := database.RecordClusterMemberHeartbeat(nodeID, sealed, time.Now().UTC()); err != nil {
+			// A member that cannot write cannot reach the leader, which is exactly
+			// what its peers should see it as: this beat is simply missed.
+			logger.Warn("couldn't record cluster heartbeat",
+				zap.String("node_id", nodeID), zap.Error(err))
+		}
+	}
+
+	beat()
+	go func() {
+		ticker := time.NewTicker(heartbeatInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				beat()
+			}
+		}
+	}()
 }
 
 func init() {

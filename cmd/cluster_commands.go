@@ -12,6 +12,7 @@ import (
 
 	"github.com/canonical/notary/internal/cluster"
 	"github.com/canonical/notary/internal/config"
+	"github.com/canonical/notary/internal/db"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -29,11 +30,15 @@ var (
 
 // clusterMemberView mirrors the member representation the admin API returns.
 type clusterMemberView struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Address string `json:"address"`
-	Role    string `json:"role"`
-	Leader  bool   `json:"leader"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Address  string `json:"address"`
+	Role     string `json:"role"`
+	Leader   bool   `json:"leader"`
+	Sealed   bool   `json:"sealed"`
+	LastSeen int64  `json:"last_seen"`
+	Status   string `json:"status"`
+	Message  string `json:"message"`
 }
 
 type clusterStatusView struct {
@@ -57,9 +62,10 @@ type createJoinTokenView struct {
 }
 
 type joinClusterRequest struct {
-	Token   string `json:"token"`
-	Address string `json:"address"`
-	CSR     string `json:"csr"`
+	Token         string `json:"token"`
+	Address       string `json:"address"`
+	CSR           string `json:"csr"`
+	SchemaVersion int64  `json:"schema_version"`
 }
 
 type joinClusterView struct {
@@ -133,13 +139,14 @@ var clusterStatusCmd = &cobra.Command{
 		fmt.Fprintf(cmd.OutOrStdout(), "Cluster: %d member(s), %d voter(s), leader %s\n\n", len(status.Members), status.Voters, leader)
 
 		writer := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 3, ' ', 0)
-		fmt.Fprintln(writer, "NAME\tID\tADDRESS\tROLE\tLEADER")
+		fmt.Fprintln(writer, "NAME\tADDRESS\tROLE\tLEADER\tSEALED\tSTATE\tMESSAGE")
 		for _, member := range status.Members {
 			name := member.Name
 			if name == "" {
 				name = "-"
 			}
-			fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%t\n", name, member.ID, member.Address, member.Role, member.Leader)
+			fmt.Fprintf(writer, "%s\t%s\t%s\t%t\t%t\t%s\t%s\n",
+				name, member.Address, member.Role, member.Leader, member.Sealed, member.Status, member.Message)
 		}
 
 		return writer.Flush()
@@ -248,11 +255,17 @@ Run this once, on the new node, before starting the Notary server on it.`,
 			return err
 		}
 
+		schemaVersion, err := db.EmbeddedSchemaVersion()
+		if err != nil {
+			return err
+		}
+
 		var signed joinClusterView
 		err = client.do("POST", "/cluster/members/join", joinClusterRequest{
-			Token:   args[0],
-			Address: clusterConfig.Address,
-			CSR:     string(csrPEM),
+			Token:         args[0],
+			Address:       clusterConfig.Address,
+			CSR:           string(csrPEM),
+			SchemaVersion: schemaVersion,
 		}, &signed)
 		if err != nil {
 			return err

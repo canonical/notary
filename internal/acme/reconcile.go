@@ -71,17 +71,15 @@ func NewReconciler() *Reconciler {
 
 // Attach arms the reconciler against the database it should reconcile.
 //
-// nodeID is this node's dqlite node ID; it is ignored when clustered is false,
-// because an unclustered deployment has no node IDs.
-func (r *Reconciler) Attach(database *db.DatabaseRepository, logger *zap.Logger, nodeID uint64, clustered bool) {
+// nodeID is this node's dqlite node ID in decimal, or empty for an unclustered
+// deployment, which has no node IDs.
+func (r *Reconciler) Attach(database *db.DatabaseRepository, logger *zap.Logger, nodeID string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	r.database = database
 	r.logger = logger
-	if clustered {
-		r.nodeID = strconv.FormatUint(nodeID, 10)
-	}
+	r.nodeID = nodeID
 }
 
 // BeginAttempt records that this node is about to hand csrID to an ACME

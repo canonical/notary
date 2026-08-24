@@ -7,11 +7,25 @@ import (
 	"errors"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/canonical/notary/internal/cluster"
+	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/server"
 	tu "github.com/canonical/notary/internal/testutils"
 )
+
+// mustSchemaVersion is the migration version a joining node has to declare to be
+// admitted into a cluster running this binary.
+func mustSchemaVersion(t *testing.T) int64 {
+	t.Helper()
+
+	version, err := db.EmbeddedSchemaVersion()
+	if err != nil {
+		t.Fatalf("couldn't read the embedded schema version: %s", err)
+	}
+	return version
+}
 
 func decodeClusterResponse[T any](t *testing.T, body []byte) tu.APIResponse[T] {
 	t.Helper()
@@ -159,6 +173,59 @@ func TestListClusterMembersJoinsRecordedNames(t *testing.T) {
 	}
 }
 
+// A member is ONLINE only while its own heartbeat is recent; nobody polls it,
+// so a node that stops writing simply ages out (spec §6.2).
+func TestListClusterMembersReportsLivenessAndSealState(t *testing.T) {
+	node := fakeThreeNodeCluster()
+	ts, database := tu.MustPrepareClusterServerWithDatabase(t, node)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+
+	now := time.Now().UTC()
+	if _, err := database.CreateClusterMember("1", "node-1", "10.0.0.1:9000", now); err != nil {
+		t.Fatalf("Couldn't record member 1: %s", err)
+	}
+	if _, err := database.CreateClusterMember("2", "node-2", "10.0.0.2:9000", now); err != nil {
+		t.Fatalf("Couldn't record member 2: %s", err)
+	}
+	// 1 beat just now and is sealed, 2 beat long ago, 3 has never beaten.
+	if err := database.RecordClusterMemberHeartbeat("1", true, now); err != nil {
+		t.Fatalf("Couldn't record a heartbeat: %s", err)
+	}
+	if err := database.RecordClusterMemberHeartbeat("2", false, now.Add(-2*db.OfflineThreshold)); err != nil {
+		t.Fatalf("Couldn't record a stale heartbeat: %s", err)
+	}
+
+	statusCode, body := tu.DoClusterAPIRequest(t, ts, "GET", "/api/v1/cluster/members", adminToken, nil)
+	if statusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, statusCode, string(body))
+	}
+	members := decodeClusterResponse[[]server.ClusterMemberResponse](t, body).Data
+	if len(members) != 3 {
+		t.Fatalf("got %d members, want 3", len(members))
+	}
+
+	byID := map[string]server.ClusterMemberResponse{}
+	for _, member := range members {
+		byID[member.ID] = member
+	}
+
+	if got := byID["1"]; got.Status != server.MemberStatusOnline || !got.Sealed || got.LastSeen != now.Unix() {
+		t.Errorf("member 1: got status %q sealed %t last_seen %d, want ONLINE sealed at %d",
+			got.Status, got.Sealed, got.LastSeen, now.Unix())
+	}
+	if got := byID["2"]; got.Status != server.MemberStatusOffline {
+		t.Errorf("member 2: got status %q, want %q", got.Status, server.MemberStatusOffline)
+	}
+	if got := byID["3"]; got.Status != server.MemberStatusOffline || got.LastSeen != 0 {
+		t.Errorf("member 3 never beat: got status %q last_seen %d, want OFFLINE at 0", got.Status, got.LastSeen)
+	}
+	for id, member := range byID {
+		if member.Message == "" {
+			t.Errorf("member %s has no message", id)
+		}
+	}
+}
+
 func TestClusterAPIReportsUnreachableCluster(t *testing.T) {
 	node := fakeThreeNodeCluster()
 	node.Err = errors.New("no leader available")
@@ -236,9 +303,10 @@ func TestJoinClusterEndToEnd(t *testing.T) {
 		t.Fatalf("couldn't prepare a join: %s", err)
 	}
 	joinBody, err := json.Marshal(server.JoinClusterParams{
-		Token:   token,
-		Address: joinerAddress,
-		CSR:     string(csrPEM),
+		Token:         token,
+		Address:       joinerAddress,
+		CSR:           string(csrPEM),
+		SchemaVersion: mustSchemaVersion(t),
 	})
 	if err != nil {
 		t.Fatalf("couldn't build the join request: %s", err)
@@ -281,6 +349,41 @@ func TestJoinClusterEndToEnd(t *testing.T) {
 	}
 }
 
+// A node whose migrations differ from the cluster's must not be admitted: it
+// would replicate a schema its binary was not built for (spec §4.1).
+func TestJoinClusterRejectsAMismatchedSchemaVersion(t *testing.T) {
+	ts, _ := tu.MustPrepareClusterServer(t, fakeThreeNodeCluster())
+	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+
+	statusCode, body := tu.DoClusterAPIRequest(t, ts, "POST", "/api/v1/cluster/members/tokens", adminToken, nil)
+	if statusCode != http.StatusCreated {
+		t.Fatalf("couldn't create a join token: %d %s", statusCode, string(body))
+	}
+	token := decodeClusterResponse[server.CreateJoinTokenResponse](t, body).Data.Token
+
+	csrPEM, err := cluster.PrepareJoin(t.TempDir(), "10.0.0.4:9000")
+	if err != nil {
+		t.Fatalf("couldn't prepare a join: %s", err)
+	}
+	joinBody, err := json.Marshal(server.JoinClusterParams{
+		Token:         token,
+		Address:       "10.0.0.4:9000",
+		CSR:           string(csrPEM),
+		SchemaVersion: mustSchemaVersion(t) - 1,
+	})
+	if err != nil {
+		t.Fatalf("couldn't build the join request: %s", err)
+	}
+
+	statusCode, body = tu.DoClusterAPIRequest(t, ts, "POST", "/api/v1/cluster/members/join", "", joinBody)
+	if statusCode != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusConflict, statusCode, string(body))
+	}
+	if block, _ := pem.Decode(body); block != nil {
+		t.Error("a certificate was returned despite the schema version mismatch")
+	}
+}
+
 func TestJoinClusterRejectsBadRequests(t *testing.T) {
 	ts, _ := tu.MustPrepareClusterServer(t, fakeThreeNodeCluster())
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
@@ -303,7 +406,7 @@ func TestJoinClusterRejectsBadRequests(t *testing.T) {
 	}{
 		{"missing fields", server.JoinClusterParams{Token: token}, http.StatusBadRequest},
 		{"unknown token", server.JoinClusterParams{Token: "nope", Address: "10.0.0.4:9000", CSR: string(csrPEM)}, http.StatusUnauthorized},
-		{"valid token, unusable csr", server.JoinClusterParams{Token: token, Address: "10.0.0.4:9000", CSR: "not a csr"}, http.StatusBadRequest},
+		{"valid token, unusable csr", server.JoinClusterParams{Token: token, Address: "10.0.0.4:9000", CSR: "not a csr", SchemaVersion: mustSchemaVersion(t)}, http.StatusBadRequest},
 	}
 
 	t.Run("not json", func(t *testing.T) {

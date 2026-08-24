@@ -100,11 +100,15 @@ func NewDatabaseFromConn(sqlConnection *sql.DB, dbOpts *DatabaseOpts) (*Database
 }
 
 // ListEntities retrieves all entities of a given type from the database.
+//
+// Failures wrap both ErrInternal, which callers match on, and the driver's own
+// error, which is the only thing that says what actually went wrong. Handlers
+// log these; none of them are written back to a client.
 func ListEntities[T any](db *DatabaseRepository, stmt *sqlair.Statement, inputArgs ...any) ([]T, error) {
 	var entities []T
 	err := db.Conn.Query(context.Background(), stmt, inputArgs...).GetAll(&entities)
 	if err != nil && !errors.Is(err, sqlair.ErrNoRows) {
-		return nil, fmt.Errorf("failed to list %s: %w", getTypeName[T](), ErrInternal)
+		return nil, fmt.Errorf("failed to list %s: %w: %w", getTypeName[T](), ErrInternal, err)
 	}
 	return entities, nil
 }
@@ -117,7 +121,7 @@ func GetOneEntity[T any](db *DatabaseRepository, stmt *sqlair.Statement, inputAr
 		if errors.Is(err, sqlair.ErrNoRows) {
 			return nil, fmt.Errorf("failed to get %s: %w", getTypeName[T](), ErrNotFound)
 		}
-		return nil, fmt.Errorf("failed to get %s: %w", getTypeName[T](), ErrInternal)
+		return nil, fmt.Errorf("failed to get %s: %w: %w", getTypeName[T](), ErrInternal, err)
 	}
 
 	return &result, nil
@@ -130,11 +134,11 @@ func CreateEntity[T any](db *DatabaseRepository, stmt *sqlair.Statement, new_ent
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			return 0, fmt.Errorf("failed to create %s: %w", getTypeName[T](), ErrAlreadyExists)
 		}
-		return 0, fmt.Errorf("failed to create %s: %w", getTypeName[T](), ErrInternal)
+		return 0, fmt.Errorf("failed to create %s: %w: %w", getTypeName[T](), ErrInternal, err)
 	}
 	insertedRowID, err := outcome.Result().LastInsertId()
 	if err != nil {
-		return 0, fmt.Errorf("failed to create %s: %w", getTypeName[T](), ErrInternal)
+		return 0, fmt.Errorf("failed to create %s: %w: %w", getTypeName[T](), ErrInternal, err)
 	}
 	return insertedRowID, nil
 }
@@ -143,11 +147,11 @@ func UpdateEntity[T any](db *DatabaseRepository, stmt *sqlair.Statement, updated
 	var outcome sqlair.Outcome
 	err := db.Conn.Query(context.Background(), stmt, updated_entity).Get(&outcome)
 	if err != nil {
-		return fmt.Errorf("failed to update %s: %w", getTypeName[T](), ErrInternal)
+		return fmt.Errorf("failed to update %s: %w: %w", getTypeName[T](), ErrInternal, err)
 	}
 	affectedRows, err := outcome.Result().RowsAffected()
 	if err != nil {
-		return fmt.Errorf("failed to update %s: %w", getTypeName[T](), ErrInternal)
+		return fmt.Errorf("failed to update %s: %w: %w", getTypeName[T](), ErrInternal, err)
 	}
 	if affectedRows == 0 {
 		return fmt.Errorf("failed to update %s: %w", getTypeName[T](), ErrNotFound)
@@ -159,11 +163,11 @@ func DeleteEntity[T any](db *DatabaseRepository, stmt *sqlair.Statement, entity_
 	var outcome sqlair.Outcome
 	err := db.Conn.Query(context.Background(), stmt, entity_to_delete).Get(&outcome)
 	if err != nil {
-		return fmt.Errorf("failed to delete %s: %w", getTypeName[T](), ErrInternal)
+		return fmt.Errorf("failed to delete %s: %w: %w", getTypeName[T](), ErrInternal, err)
 	}
 	affectedRows, err := outcome.Result().RowsAffected()
 	if err != nil {
-		return fmt.Errorf("failed to delete %s: %w", getTypeName[T](), ErrInternal)
+		return fmt.Errorf("failed to delete %s: %w: %w", getTypeName[T](), ErrInternal, err)
 	}
 	if affectedRows == 0 {
 		return fmt.Errorf("failed to delete %s: %w", getTypeName[T](), ErrNotFound)

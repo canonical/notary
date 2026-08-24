@@ -26,6 +26,7 @@ y+ErBQsRpcQho6Ok+HTXQQUcx7WNcwI=
 -----END CERTIFICATE REQUEST-----`,
 		certificate_chain: "",
 		status: "Outstanding",
+		email: "requestor@canonical.com",
 	},
 	{
 		id: 2,
@@ -50,6 +51,7 @@ yuf2PnfXCKnaIWRJNoEqDCZRVMfA5BFSwTPITqyo
 -----END CERTIFICATE REQUEST-----`,
 		certificate_chain: "",
 		status: "Rejected",
+		email: "requestor@canonical.com",
 	},
 	{
 		id: 3,
@@ -94,6 +96,7 @@ XVelpl/LXTQawmJyvDaVT/Q9P+WqoDiMjrqF6Sy7DzNeeccWVqvqX5TVS6Ky56iS
 Mvo/+PAJHkBciR5Xn+Wg2a+7vrZvT6CBoRSOTozlLSM=
 -----END CERTIFICATE-----`,
 		status: "Active",
+		email: "requestor@canonical.com",
 	},
 ];
 

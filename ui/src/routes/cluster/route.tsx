@@ -73,7 +73,6 @@ function ClusterPageComponent() {
 			<ClusterTable
 				status={clusterQuery.data}
 				localNodeID={statusQuery.data.node_id ?? ""}
-				localNodeSealed={statusQuery.data.sealed}
 				onAddNode={() => setAddNodeOpen(true)}
 			/>
 		);

@@ -113,6 +113,9 @@ export type ACMEServerEntry = {
 
 export type ClusterRole = "voter" | "standby" | "spare";
 
+/** Derived by the server from the member's last heartbeat. */
+export type ClusterMemberStatus = "ONLINE" | "OFFLINE";
+
 export type ClusterMemberEntry = {
 	/** The dqlite node ID. It is a string because it does not fit an int64. */
 	id: string;
@@ -120,6 +123,13 @@ export type ClusterMemberEntry = {
 	address: string;
 	role: ClusterRole;
 	leader: boolean;
+	/** The member's own last report. Only as fresh as `last_seen`. */
+	sealed: boolean;
+	/** Unix seconds of the member's last heartbeat, or 0 if it never sent one. */
+	last_seen: number;
+	status: ClusterMemberStatus;
+	/** Human-readable detail for `status`, e.g. why a member is offline. */
+	message: string;
 };
 
 export type ClusterStatusEntry = {

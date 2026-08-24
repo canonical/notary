@@ -16,8 +16,6 @@ type ClusterTableProps = {
 	status: ClusterStatusEntry;
 	/** The dqlite node ID of the node serving this UI. */
 	localNodeID: string;
-	/** Whether the node serving this UI has unwrapped its encryption key. */
-	localNodeSealed: boolean;
 	onAddNode: () => void;
 };
 
@@ -27,28 +25,41 @@ const roleLabels: Record<string, string> = {
 	spare: "Spare",
 };
 
-// Seal state is per node and only observable on the node being asked. This UI is
-// served by exactly one member, so that is the only member whose seal state can
-// be reported here. The rest are left explicitly unknown rather than assumed.
-function sealStateLabel(
-	member: ClusterMemberEntry,
-	localNodeID: string,
-	localNodeSealed: boolean,
-) {
-	if (member.id !== localNodeID) {
+const onlineColour = "rgba(14, 132, 32, 1)";
+const offlineColour = "rgba(199, 22, 44, 1)";
+
+// Every member reports its own seal state through the replicated database, but
+// that report is only as fresh as its last heartbeat: a member that has stopped
+// sending them has no current seal state to show.
+function sealStateLabel(member: ClusterMemberEntry) {
+	if (member.status !== "ONLINE") {
 		return (
 			<span
 				className="u-text--muted"
-				title="Seal state is only reported by the node serving this page. Open this page on the member, or run `notary cluster status` against it, to see its seal state."
+				title="This member has not reported recently, so its seal state is out of date."
 			>
 				Unknown
 			</span>
 		);
 	}
-	return localNodeSealed ? (
-		<span style={{ color: "rgba(199, 22, 44, 1)" }}>● Sealed</span>
+	return member.sealed ? (
+		<span style={{ color: offlineColour }}>● Sealed</span>
 	) : (
-		<span style={{ color: "rgba(14, 132, 32, 1)" }}>● Unsealed</span>
+		<span style={{ color: onlineColour }}>● Unsealed</span>
+	);
+}
+
+// The message carries the detail behind the state, including when an offline
+// member was last seen.
+function memberStateLabel(member: ClusterMemberEntry) {
+	const online = member.status === "ONLINE";
+	return (
+		<span
+			style={{ color: online ? onlineColour : offlineColour }}
+			title={member.message}
+		>
+			● {member.status}
+		</span>
 	);
 }
 
@@ -64,7 +75,6 @@ function raftStateLabel(member: ClusterMemberEntry, leaderID: string) {
 export function ClusterTable({
 	status,
 	localNodeID,
-	localNodeSealed,
 	onAddNode,
 }: ClusterTableProps) {
 	const [confirmationModalData, setConfirmationModalData] =
@@ -124,8 +134,9 @@ export function ClusterTable({
 			{ content: member.address },
 			{ content: roleLabels[member.role] ?? member.role },
 			{ content: raftStateLabel(member, status.leader_id) },
+			{ content: memberStateLabel(member) },
 			{
-				content: sealStateLabel(member, localNodeID, localNodeSealed),
+				content: sealStateLabel(member),
 			},
 			{
 				content: (
@@ -184,6 +195,7 @@ export function ClusterTable({
 					{ content: "Address" },
 					{ content: "Role" },
 					{ content: "Raft State" },
+					{ content: "State" },
 					{ content: "Seal State" },
 					{
 						content: "Actions",

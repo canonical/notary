@@ -62,7 +62,7 @@ export function AddNodeModal({ close, apiAddress }: AddNodeModalProps) {
 				<CodeSnippet
 					blocks={[
 						{
-							code: `notary cluster join ${token.token} --address ${apiAddress}`,
+							code: `notary cluster join ${token.token} --config <config file> --address ${apiAddress}`,
 							wrapLines: true,
 						},
 					]}

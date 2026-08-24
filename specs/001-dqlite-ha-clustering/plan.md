@@ -70,11 +70,18 @@ app.WithTLS(...), app.WithVoters(3), app.WithStandBys(2))` for bootstrap (spec.m
 - Config gains a `cluster.enabled` flag (`internal/config/types.go`,
   `internal/config/initializers.go`). Default `false`: `notary start` on an existing config file
   behaves exactly as it does today until an operator opts in (see "Rollout" below).
+- Schema-version check on every startup (spec.md §4.1): before serving traffic, compare this
+  node's applied goose migration version against the version active among reachable cluster
+  members (readable from any of them); refuse to start on a mismatch, logging which migration is
+  out of step. This is the replacement for MicroCluster's own cross-member schema-version gate,
+  which isn't present since goose is unmodified. Reused at join time in Phase 2.
 
 **Exit criteria**: `snapcraft`/`rockcraft` build succeeds and the resulting binary starts inside
 the confined base image. The entire existing `internal/db/*_test.go` suite passes unmodified
 against a single-node dqlite-backed connection — the single highest-value regression gate in this
-plan; treat it as a hard gate before Phase 2 starts.
+plan; treat it as a hard gate before Phase 2 starts. A node deliberately started with an
+older/newer migration version than the rest of the cluster refuses to start, with a clear log
+message naming the mismatch.
 
 > **Build environment.** `libdqlite` is Linux-only (its Homebrew formula is `depends_on :linux`,
 > as it requires Linux kernel AIO), so nothing importing `go-dqlite` compiles on macOS. Validate
@@ -115,10 +122,15 @@ primitives Phase 1 already has access to.
 - Build a local 3-node dev harness (docker-compose or an equivalent multi-process script) capable
   of bootstrapping, killing, and restarting individual nodes. This harness is reused by Phases 3,
   4, and 6 — build it once here.
+- The `POST /cluster/members/join` handler runs Phase 1's schema-version check against the
+  requesting node's declared version before accepting the join, rejecting it with a clear error
+  otherwise — the same check, applied at the point a new node is admitted, not just at its own
+  startup.
 
 **Exit criteria**: the dev harness can bootstrap, join two more nodes via the real token/CSR flow
 (not a shortcut), promote/remove them, and `notary cluster status` reports correct names, role,
-and Raft state for all three.
+and Raft state for all three. A join attempt from a node with a mismatched migration version is
+rejected with a clear error, not silently accepted.
 
 ---
 

@@ -3,7 +3,9 @@
 Status: design finalized
 Supersedes: this is the authoritative specification for the work. `design.md` in this same
 directory is background/rationale material — useful for understanding _why_, not a second source
-of truth for _what_. Where the two differ, this document wins.
+of truth for _what_. `ha-proposal.md`, also in this directory, is a narrative Abstract/Rationale/
+Specification-style write-up of the same design for review/circulation — same status relative to
+this document as `design.md`. Where any of them differ, this document wins.
 
 This specification covers: cluster lifecycle (dqlite, via `github.com/canonical/go-dqlite/v3/app`
 directly — no MicroCluster, see §1's note), encryption key lifecycle, OIDC authentication, the
@@ -303,6 +305,16 @@ Notary's product data — including the authorization data OpenFGA's Check/ListO
 separate MicroCluster membership database to keep apart from it; cluster membership state
 (voter/standby roles, node IDs) lives inside dqlite's own Raft configuration, not in a SQL table
 notary owns or touches.
+
+**Schema-version consistency across nodes.** Migrations run through goose, unchanged, rather than
+through a MicroCluster-style cross-member schema-version gate — nothing built into the storage
+layer stops a node with a different set of applied migrations from joining or starting inside an
+existing cluster. This is closed explicitly rather than left as a gap: at join, and at every
+subsequent startup, a node compares its own applied goose migration version against the version
+currently active among reachable cluster members, and refuses to join or start on a mismatch,
+logging the specific migration that's out of step. This is what makes rolling upgrades safe without
+relying on a mechanism notary doesn't have — an operator upgrades nodes one at a time, in a defined
+order, and a node that would otherwise start with a stale or ahead-of-cluster schema simply won't.
 
 Two schema changes are made:
 

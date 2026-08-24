@@ -368,6 +368,31 @@ entirely: `github.com/canonical/go-dqlite/v3/app`'s own `Open(ctx, name)` return
 with no wrapper and none of those constraints, because they were MicroCluster's own choices, not
 inherent to dqlite. Full design is in spec.md §1 and §4.1.
 
+MicroCluster was reconsidered once more after that, specifically to recover its built-in
+join/PKI/token machinery, on the theory that a different query library — not `sqlair` — might
+tolerate `Transaction()`'s constraints where `sqlair` can't (`sqlair.TX` wraps its `*sql.Tx` in an
+unexported field with no public constructor; there's no way to hand it a transaction obtained
+elsewhere without forking it, which is off the table for the same reason as everything else in this
+document). Two candidates were checked directly rather than assumed:
+
+- **`sqlx`**: its `Tx` type embeds `*sql.Tx` via an exported field, so it genuinely can wrap a
+  transaction MicroCluster's closure hands you — no adapter needed. Ruled out anyway: its upstream
+  has had no commits in over two years, a real risk to take on for a data-layer dependency.
+- **`sqlc`**: a code generator, not a runtime library — verified directly, not assumed, by
+  installing it and running `sqlc generate` against notary's actual recursive CTE
+  (`getCertificateChainStmt`). First attempt, matching the query as written in `sql_stmts.go`
+  today, failed (`column reference "certificate_id" is ambiguous` — sqlc's SQLite analyzer
+  resolves columns oddly in a `WITH RECURSIVE` anchor branch). Table-qualifying the anchor
+  branch's columns fixed it cleanly, and the generated code — types, nullability, the `WithTx(*sql.Tx)`
+  helper — was correct. Actively maintained (commits the same day this was checked).
+
+Even with a verified, well-maintained option in hand, the decision held: porting roughly 60
+existing statements, adding a code-generation step to the build, and maintaining a schema file kept
+in sync with a migration source of truth that's moving to a different mechanism entirely (see
+below) added up to more than the cost already paid — a small, already-designed membership layer
+directly on `go-dqlite/app`. Full trace in `ha-proposal.md` in this directory, written specifically
+to capture this reasoning in one place.
+
 One schema-level change is worth making as part of this work, independent of clustering per se:
 
 - **`oidc_subject` uniqueness becomes `(issuer, oidc_subject)`** (§3.5) — needed once multi-IdP

@@ -76,6 +76,16 @@ authentication:
   - `endpoint` (string): The URL of your OpenTelemetry collector endpoint
   - `sampling_rate` (string): The percentage of traces to sample. Can be specified as a percentage (50%)
     or a decimal value between 0.0 and 1.0 (0.0, 0.5, 1.0).
+- `cluster` (object): Configuration for running Notary as part of a highly available cluster. Clustering is off unless `enabled` is explicitly `true`, so an existing configuration file keeps behaving exactly as it did before. Clustering is only supported on Linux.
+  - `enabled` (boolean): Whether this node takes part in a cluster (optional, defaults to `false`). When `false`, Notary stores its data in the single SQLite file at `db_path` and nothing else in this section applies.
+  - `address` (string): The `host:port` this node advertises to the other cluster members for replication and join traffic. Required when `enabled` is `true`. It must be reachable by every other member, and it is a bare address, not a URL — do not include a scheme.
+  - `state_dir` (string): Directory holding this node's replicated database and its cluster-internal certificates. Required when `enabled` is `true`. It is created if it does not exist, and it must not be shared with another node.
+
+`db_path` is still required when clustering is enabled, but it is not where a clustered node keeps its data; the replicated database lives in `state_dir`.
+
+A node's operator-facing name is not part of this file. It is given once with `--name` when the node runs `notary cluster bootstrap` or `notary cluster join`, and is recorded in the cluster from then on.
+
+Before `notary start` will serve as part of a cluster, the node must have run either `notary cluster bootstrap` (to start a new cluster) or `notary cluster join` (to join an existing one) against an empty `state_dir`. Once a node has joined, its `address` is fixed: Notary refuses to start if the configured address no longer matches the one recorded in `state_dir`.
 
 ## Examples
 
@@ -120,4 +130,27 @@ tracing:
   service_name: "notary"
   endpoint: "127.0.0.1:4317"
   sampling_rate: "100%"
+```
+
+### As a member of a cluster
+
+Every node uses a configuration like this, each with its own `address` and its own `state_dir`.
+
+```yaml
+key_path: "/etc/notary/config/key.pem"
+cert_path: "/etc/notary/config/cert.pem"
+db_path: "/var/lib/notary/database/notary.db"
+port: 3000
+external_hostname: "notary-1.example.com"
+pebble_notifications: true
+logging:
+  system:
+    level: "info"
+    output: "stdout"
+encryption_backend:
+  type: "none"
+cluster:
+  enabled: true
+  address: "10.0.0.1:9000"
+  state_dir: "/var/lib/notary/cluster"
 ```

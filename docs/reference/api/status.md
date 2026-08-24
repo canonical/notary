@@ -16,7 +16,7 @@ None
 
 ```json
 {
-  "result": {
+  "data": {
     "initialized": true,
     "version": "0.0.3",
     "sealed": false,

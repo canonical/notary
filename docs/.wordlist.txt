@@ -45,3 +45,6 @@ Requestor
 Grafana
 OpenTelemetry
 url
+dqlite
+plaintext
+JWT

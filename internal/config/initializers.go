@@ -178,18 +178,25 @@ func initializeEncryptionBackend(ctx context.Context, encryptionCfg *viper.Viper
 	default:
 		return nil, errors.New("invalid encryption backend type; must be 'none', 'vault' or 'pkcs11'")
 	}
-	encryptionRepo.SealState = startUnsealing(ctx, database, clusterCfg, encryptionRepo.Service, logger)
+	encryptionRepo.SealState = startUnsealing(ctx, database, clusterCfg, encryptionRepo.Service, logger, unsealRetryInterval)
 	return encryptionRepo, nil
 }
 
 // startUnsealing unwraps the data encryption key and loads the secrets stored
 // under it. If the configured backend is unreachable the node stays sealed and
-// keeps retrying in the background rather than refusing to start: a node that
-// cannot reach Vault/HSM still joins Raft, replicates, and votes, and unseals
-// itself the moment the backend comes back. It serves 503 on the routes that
-// need plaintext key material until then.
-func startUnsealing(ctx context.Context, database *db.DatabaseRepository, clusterCfg ClusterConfig, backend encryption.EncryptionService, logger *zap.Logger) *encryption.SealState {
-	return encryption.StartUnsealing(ctx, unsealRetryInterval, logger, func() error {
+// keeps retrying every retryInterval in the background rather than refusing to
+// start: a node that cannot reach Vault/HSM still joins Raft, replicates, and
+// votes, and unseals itself the moment the backend comes back. It serves 503 on
+// the routes that need plaintext key material until then.
+func startUnsealing(
+	ctx context.Context,
+	database *db.DatabaseRepository,
+	clusterCfg ClusterConfig,
+	backend encryption.EncryptionService,
+	logger *zap.Logger,
+	retryInterval time.Duration,
+) *encryption.SealState {
+	return encryption.StartUnsealing(ctx, retryInterval, logger, func() error {
 		if err := encryption.SetUpEncryptionKey(database, backend, logger); err != nil {
 			return fmt.Errorf("failed to set up encryption key: %w", err)
 		}

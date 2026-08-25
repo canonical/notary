@@ -7,9 +7,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/canonical/notary/internal/config"
@@ -53,27 +56,55 @@ func newLocalAPIClient(appConfig *config.AppConfig, token string) (*apiClient, e
 		return nil, errors.New("couldn't parse the TLS certificate from the configuration file")
 	}
 
-	host := appConfig.ExternalHostname
-	if host == "" {
-		host = "localhost"
-	}
-
-	// Only a configured external hostname is worth telling another machine to
-	// dial; the loopback default would send it to itself.
-	var advertised string
-	if appConfig.ExternalHostname != "" {
-		advertised = fmt.Sprintf("%s:%d", appConfig.ExternalHostname, appConfig.Port)
-	}
+	host := apiHostPort(appConfig)
 
 	return &apiClient{
-		baseURL:    fmt.Sprintf("https://%s:%d/api/v1", host, appConfig.Port),
+		baseURL:    fmt.Sprintf("https://%s/api/v1", host),
 		token:      token,
-		advertised: advertised,
+		advertised: advertisedAddress(host),
 		http: &http.Client{
 			Timeout:   clusterAPITimeout,
 			Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}},
 		},
 	}, nil
+}
+
+// apiHostPort resolves the host:port of the node's own API.
+//
+// external_hostname may already carry a port, in which case appending the
+// configured one would build an unusable address.
+func apiHostPort(appConfig *config.AppConfig) string {
+	host := appConfig.ExternalHostname
+	if host == "" {
+		host = "localhost"
+	}
+
+	if _, _, err := net.SplitHostPort(host); err == nil {
+		return host
+	}
+
+	return net.JoinHostPort(host, strconv.Itoa(appConfig.Port))
+}
+
+// advertisedAddress returns the address another machine would dial to reach this
+// node, or empty when the configuration only describes a loopback address.
+//
+// A joining node is on a different host, so telling it to contact localhost
+// would send it to itself.
+func advertisedAddress(hostPort string) string {
+	host, _, err := net.SplitHostPort(hostPort)
+	if err != nil {
+		return ""
+	}
+
+	if strings.EqualFold(host, "localhost") {
+		return ""
+	}
+	if ip := net.ParseIP(host); ip != nil && (ip.IsLoopback() || ip.IsUnspecified()) {
+		return ""
+	}
+
+	return hostPort
 }
 
 // newJoinAPIClient builds a client for an existing member's admin API, used by a

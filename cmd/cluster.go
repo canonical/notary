@@ -127,7 +127,7 @@ func openClusteredDatabase(ctx context.Context, node cluster.Node, applyMigratio
 		return nil, err
 	}
 	if err := database.CheckSchemaVersion(expected); err != nil {
-		database.Close() //nolint:errcheck
+		_ = database.Close()
 		return nil, err
 	}
 

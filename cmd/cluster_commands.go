@@ -135,17 +135,17 @@ var clusterStatusCmd = &cobra.Command{
 		if leader == "" {
 			leader = "none (no leader elected)"
 		}
-		// Kept on the same stream as the table below, which tabwriter writes to stdout.
-		fmt.Fprintf(cmd.OutOrStdout(), "Cluster: %d member(s), %d voter(s), leader %s\n\n", len(status.Members), status.Voters, leader)
-
+		// Everything goes through the tabwriter, which buffers: Flush is where a
+		// write error actually surfaces, so the individual writes are ignored.
 		writer := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 3, ' ', 0)
-		fmt.Fprintln(writer, "NAME\tADDRESS\tROLE\tLEADER\tSEALED\tSTATE\tMESSAGE")
+		_, _ = fmt.Fprintf(writer, "Cluster: %d member(s), %d voter(s), leader %s\n\n", len(status.Members), status.Voters, leader)
+		_, _ = fmt.Fprintln(writer, "NAME\tADDRESS\tROLE\tLEADER\tSEALED\tSTATE\tMESSAGE")
 		for _, member := range status.Members {
 			name := member.Name
 			if name == "" {
 				name = "-"
 			}
-			fmt.Fprintf(writer, "%s\t%s\t%s\t%t\t%t\t%s\t%s\n",
+			_, _ = fmt.Fprintf(writer, "%s\t%s\t%s\t%t\t%t\t%s\t%s\n",
 				name, member.Address, member.Role, member.Leader, member.Sealed, member.Status, member.Message)
 		}
 

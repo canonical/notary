@@ -770,11 +770,10 @@ func generateCACertificate(notAfter time.Time) (csrPEM string, keyPEM string, cr
 
 	now := time.Now()
 	crlTemplate := x509.RevocationList{
-		SignatureAlgorithm:  caCert.SignatureAlgorithm,
-		RevokedCertificates: []pkix.RevokedCertificate{},
-		ThisUpdate:          now.Add(-24 * time.Hour),
-		NextUpdate:          now.Add(30 * 24 * time.Hour),
-		Number:              big.NewInt(1),
+		SignatureAlgorithm: caCert.SignatureAlgorithm,
+		ThisUpdate:         now.Add(-24 * time.Hour),
+		NextUpdate:         now.Add(30 * 24 * time.Hour),
+		Number:             big.NewInt(1),
 	}
 
 	crlDER, err := x509.CreateRevocationList(rand.Reader, &crlTemplate, caCert, caKey)

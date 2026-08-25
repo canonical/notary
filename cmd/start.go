@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/canonical/notary/internal/acme"
@@ -18,6 +19,10 @@ import (
 )
 
 var configFilePath string
+
+// shutdownTimeout bounds how long in-flight requests have to finish once a
+// shutdown signal arrives, before the cluster node is closed underneath them.
+const shutdownTimeout = 30 * time.Second
 
 // startCmd represents the start command which serves the Notary server
 var startCmd = &cobra.Command{
@@ -48,6 +53,9 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 		l := appEnv.SystemLogger
 		acmeReconciler.Attach(database, l, clusterNodeID(clusterNode))
 		startHeartbeat(cmd.Context(), database, clusterNodeID(clusterNode), appEnv, l)
+		if clusterNode != nil {
+			ensureClusterCAKey(database, appConfig.ClusterConfig, l)
+		}
 		if clusterNode == nil {
 			// Unclustered, so this process is the only one that has ever run an
 			// attempt. Anything still recorded was interrupted by a previous crash.
@@ -63,24 +71,37 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 		}
 		appEnv.AuditLogger.SystemStartup(srv.Addr)
 		l.Info("Starting server at", zap.String("url", srv.Addr))
+
+		// Installed before serving, not after: until this is armed the process
+		// dies on the default disposition for these signals, so nothing deferred
+		// runs and a cluster member leaves Raft abruptly instead of handing its
+		// responsibilities over.
+		signals := make(chan os.Signal, 1)
+		signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+		defer signal.Stop(signals)
+
+		shutdownComplete := make(chan struct{})
+		go func() {
+			defer close(shutdownComplete)
+
+			signal := <-signals
+			l.Info("shutdown signal received", zap.String("signal", signal.String()))
+
+			ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+			defer cancel()
+			if err := srv.Shutdown(ctx); err != nil {
+				l.Error("the server did not shut down cleanly", zap.Error(err))
+			}
+		}()
+
 		if err := srv.ListenAndServeTLS("", ""); err != http.ErrServerClosed {
 			l.Fatal("HTTP server ListenAndServe", zap.Error(err))
 		}
+
+		// Waited on so that closeCluster, deferred above, runs only once the
+		// server has stopped accepting work.
+		<-shutdownComplete
 		appEnv.AuditLogger.SystemShutdown("server stopped")
-		l.Info("Shutting down server")
-
-		// Listen for SIGINT to begin graceful shutdown
-		mainThread := make(chan struct{})
-		go func() {
-			sigint := make(chan os.Signal, 1)
-			signal.Notify(sigint, os.Interrupt)
-			<-sigint
-			l.Info("interrupt signal received")
-			close(mainThread)
-		}()
-
-		// Await sigint listener to release main thread
-		<-mainThread
 		l.Info("server shutdown completed.")
 	},
 }

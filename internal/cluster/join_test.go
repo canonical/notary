@@ -89,11 +89,15 @@ func TestJoinRoundTripProducesAVerifiableCertificate(t *testing.T) {
 		t.Fatalf("couldn't prepare a join: %s", err)
 	}
 
-	certPEM, caCertPEM, caKeyPEM, err := cluster.SignJoinRequest(existingDir, csrPEM, joinerAddress)
+	caKeyPEM, err := cluster.LoadCAKey(existingDir)
+	if err != nil {
+		t.Fatalf("couldn't read the cluster CA key: %s", err)
+	}
+	certPEM, caCertPEM, err := cluster.SignJoinRequest(existingDir, caKeyPEM, csrPEM, joinerAddress)
 	if err != nil {
 		t.Fatalf("couldn't sign the join request: %s", err)
 	}
-	if err := cluster.CompleteJoin(joinerDir, certPEM, caCertPEM, caKeyPEM); err != nil {
+	if err := cluster.CompleteJoin(joinerDir, certPEM, caCertPEM); err != nil {
 		t.Fatalf("couldn't complete the join: %s", err)
 	}
 
@@ -135,7 +139,11 @@ func TestSignJoinRequestIgnoresRequestedExtensions(t *testing.T) {
 		t.Fatalf("couldn't prepare a join: %s", err)
 	}
 
-	certPEM, _, _, err := cluster.SignJoinRequest(existingDir, csrPEM, "10.0.0.2:9000")
+	caKeyPEM, err := cluster.LoadCAKey(existingDir)
+	if err != nil {
+		t.Fatalf("couldn't read the cluster CA key: %s", err)
+	}
+	certPEM, _, err := cluster.SignJoinRequest(existingDir, caKeyPEM, csrPEM, "10.0.0.2:9000")
 	if err != nil {
 		t.Fatalf("couldn't sign the join request: %s", err)
 	}
@@ -164,6 +172,10 @@ func TestSignJoinRequestRejectsMalformedRequests(t *testing.T) {
 	if _, err := cluster.EnsurePKI(existingDir, "10.0.0.1:9000"); err != nil {
 		t.Fatalf("couldn't bootstrap the cluster PKI: %s", err)
 	}
+	caKeyPEM, err := cluster.LoadCAKey(existingDir)
+	if err != nil {
+		t.Fatalf("couldn't read the cluster CA key: %s", err)
+	}
 
 	tests := []struct {
 		name    string
@@ -177,10 +189,36 @@ func TestSignJoinRequestRejectsMalformedRequests(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if _, _, _, err := cluster.SignJoinRequest(existingDir, []byte(tt.csr), tt.address); err == nil {
+			if _, _, err := cluster.SignJoinRequest(existingDir, caKeyPEM, []byte(tt.csr), tt.address); err == nil {
 				t.Fatal("expected signing to fail")
 			}
 		})
+	}
+}
+
+// A CA key that does not belong to the cluster CA certificate must be refused
+// rather than used to issue a certificate no peer will trust.
+func TestSignJoinRequestRejectsAForeignCAKey(t *testing.T) {
+	existingDir := t.TempDir()
+	if _, err := cluster.EnsurePKI(existingDir, "10.0.0.1:9000"); err != nil {
+		t.Fatalf("couldn't bootstrap the cluster PKI: %s", err)
+	}
+	otherDir := t.TempDir()
+	if _, err := cluster.EnsurePKI(otherDir, "10.9.9.9:9000"); err != nil {
+		t.Fatalf("couldn't bootstrap a second cluster PKI: %s", err)
+	}
+	foreignKey, err := cluster.LoadCAKey(otherDir)
+	if err != nil {
+		t.Fatalf("couldn't read the other cluster's CA key: %s", err)
+	}
+
+	csrPEM, err := cluster.PrepareJoin(t.TempDir(), "10.0.0.2:9000")
+	if err != nil {
+		t.Fatalf("couldn't prepare a join: %s", err)
+	}
+
+	if _, _, err := cluster.SignJoinRequest(existingDir, foreignKey, csrPEM, "10.0.0.2:9000"); err == nil {
+		t.Fatal("expected signing with a mismatched CA key to fail")
 	}
 }
 
@@ -201,12 +239,22 @@ func TestAJoinedMemberCanAdmitFurtherJoins(t *testing.T) {
 	if err != nil {
 		t.Fatalf("couldn't prepare a join: %s", err)
 	}
-	certPEM, caCertPEM, caKeyPEM, err := cluster.SignJoinRequest(existingDir, csrPEM, secondAddress)
+	caKeyPEM, err := cluster.LoadCAKey(existingDir)
+	if err != nil {
+		t.Fatalf("couldn't read the cluster CA key: %s", err)
+	}
+	certPEM, caCertPEM, err := cluster.SignJoinRequest(existingDir, caKeyPEM, csrPEM, secondAddress)
 	if err != nil {
 		t.Fatalf("couldn't sign the join request: %s", err)
 	}
-	if err := cluster.CompleteJoin(secondDir, certPEM, caCertPEM, caKeyPEM); err != nil {
+	if err := cluster.CompleteJoin(secondDir, certPEM, caCertPEM); err != nil {
 		t.Fatalf("couldn't complete the join: %s", err)
+	}
+
+	// The joined member never receives the CA key on disk; it reads it from the
+	// replicated database, which caKeyPEM stands in for here.
+	if _, err := os.Stat(filepath.Join(cluster.PKIDir(secondDir), "cluster.key")); err == nil {
+		t.Error("the cluster CA key was written to the joined member's disk")
 	}
 
 	// A third node now joins through the second, not through the bootstrapper.
@@ -215,11 +263,11 @@ func TestAJoinedMemberCanAdmitFurtherJoins(t *testing.T) {
 	if err != nil {
 		t.Fatalf("couldn't prepare the second join: %s", err)
 	}
-	thirdCert, thirdCA, thirdKey, err := cluster.SignJoinRequest(secondDir, thirdCSR, thirdAddress)
+	thirdCert, thirdCA, err := cluster.SignJoinRequest(secondDir, caKeyPEM, thirdCSR, thirdAddress)
 	if err != nil {
 		t.Fatalf("a joined member could not admit a new one: %s", err)
 	}
-	if err := cluster.CompleteJoin(thirdDir, thirdCert, thirdCA, thirdKey); err != nil {
+	if err := cluster.CompleteJoin(thirdDir, thirdCert, thirdCA); err != nil {
 		t.Fatalf("couldn't complete the second join: %s", err)
 	}
 
@@ -247,35 +295,94 @@ func TestCompleteJoinRejectsUnusableMaterial(t *testing.T) {
 	if _, err := cluster.EnsurePKI(existingDir, "10.0.0.1:9000"); err != nil {
 		t.Fatalf("couldn't bootstrap the cluster PKI: %s", err)
 	}
-	csrPEM, err := cluster.PrepareJoin(t.TempDir(), "10.0.0.2:9000")
+	caKeyPEM, err := cluster.LoadCAKey(existingDir)
+	if err != nil {
+		t.Fatalf("couldn't read the cluster CA key: %s", err)
+	}
+
+	joinerDir := t.TempDir()
+	csrPEM, err := cluster.PrepareJoin(joinerDir, "10.0.0.2:9000")
 	if err != nil {
 		t.Fatalf("couldn't prepare a join: %s", err)
 	}
-	certPEM, caCertPEM, caKeyPEM, err := cluster.SignJoinRequest(existingDir, csrPEM, "10.0.0.2:9000")
+	certPEM, caCertPEM, err := cluster.SignJoinRequest(existingDir, caKeyPEM, csrPEM, "10.0.0.2:9000")
 	if err != nil {
 		t.Fatalf("couldn't sign the join request: %s", err)
 	}
 
+	// A certificate from a different cluster: well formed, and signed by a key
+	// this node has never heard of.
+	foreignDir := t.TempDir()
+	if _, err := cluster.EnsurePKI(foreignDir, "10.9.9.9:9000"); err != nil {
+		t.Fatalf("couldn't bootstrap a second cluster PKI: %s", err)
+	}
+	foreignKey, err := cluster.LoadCAKey(foreignDir)
+	if err != nil {
+		t.Fatalf("couldn't read the other cluster's CA key: %s", err)
+	}
+	foreignCert, foreignCA, err := cluster.SignJoinRequest(foreignDir, foreignKey, csrPEM, "10.0.0.2:9000")
+	if err != nil {
+		t.Fatalf("couldn't sign against the other cluster: %s", err)
+	}
+
 	tests := []struct {
-		name  string
-		cert  []byte
-		ca    []byte
-		caKey []byte
+		name string
+		cert []byte
+		ca   []byte
 	}{
-		{"garbage certificate", []byte("nope"), caCertPEM, caKeyPEM},
-		{"garbage CA certificate", certPEM, []byte("nope"), caKeyPEM},
-		{"garbage CA key", certPEM, caCertPEM, []byte("nope")},
+		{"garbage certificate", []byte("nope"), caCertPEM},
+		{"garbage CA certificate", certPEM, []byte("nope")},
+		{"certificate that does not chain to the CA", foreignCert, caCertPEM},
+		{"CA certificate from a different cluster", certPEM, foreignCA},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
-			if err := cluster.CompleteJoin(dir, tt.cert, tt.ca, tt.caKey); err == nil {
+			// The node key has to be there: CompleteJoin checks the certificate
+			// against it, which is the point of the last case.
+			if _, err := cluster.PrepareJoin(dir, "10.0.0.2:9000"); err != nil {
+				t.Fatalf("couldn't prepare a join: %s", err)
+			}
+
+			if err := cluster.CompleteJoin(dir, tt.cert, tt.ca); err == nil {
 				t.Fatal("expected completing the join to fail")
 			}
 			if _, err := os.Stat(filepath.Join(cluster.PKIDir(dir), "cluster.crt")); err == nil {
 				t.Error("unusable material was written to the PKI directory")
 			}
 		})
+	}
+}
+
+// The certificate has to belong to the key this node kept back, or the node
+// would write a PKI directory that only fails when dqlite tries to use it.
+func TestCompleteJoinRejectsACertificateForAnotherKey(t *testing.T) {
+	existingDir := t.TempDir()
+	if _, err := cluster.EnsurePKI(existingDir, "10.0.0.1:9000"); err != nil {
+		t.Fatalf("couldn't bootstrap the cluster PKI: %s", err)
+	}
+	caKeyPEM, err := cluster.LoadCAKey(existingDir)
+	if err != nil {
+		t.Fatalf("couldn't read the cluster CA key: %s", err)
+	}
+
+	// Signed for somebody else's request.
+	strangerCSR, err := cluster.PrepareJoin(t.TempDir(), "10.0.0.3:9000")
+	if err != nil {
+		t.Fatalf("couldn't prepare a join: %s", err)
+	}
+	certPEM, caCertPEM, err := cluster.SignJoinRequest(existingDir, caKeyPEM, strangerCSR, "10.0.0.3:9000")
+	if err != nil {
+		t.Fatalf("couldn't sign the join request: %s", err)
+	}
+
+	joinerDir := t.TempDir()
+	if _, err := cluster.PrepareJoin(joinerDir, "10.0.0.2:9000"); err != nil {
+		t.Fatalf("couldn't prepare a join: %s", err)
+	}
+
+	if err := cluster.CompleteJoin(joinerDir, certPEM, caCertPEM); err == nil {
+		t.Fatal("expected a certificate issued for another key to be refused")
 	}
 }

@@ -92,8 +92,6 @@ type JoinClusterParams struct {
 type JoinClusterResponse struct {
 	Certificate   string   `json:"certificate"`
 	CACertificate string   `json:"ca_certificate"`
-	// CAKey lets the new member admit joins of its own. See cluster.CompleteJoin.
-	CAKey         string   `json:"ca_key"`
 	MemberAddress []string `json:"member_addresses"`
 }
 
@@ -264,7 +262,14 @@ func JoinCluster(env *HandlerDependencies) http.HandlerFunc {
 			return
 		}
 
-		certPEM, caCertPEM, caKeyPEM, err := cluster.SignJoinRequest(env.ClusterConfig.StateDir, []byte(params.CSR), params.Address)
+		caKeyPEM, err := env.Database.GetClusterCAKey()
+		if err != nil {
+			env.SystemLogger.Error("failed to read the cluster CA key", zap.Error(err))
+			writeResponse(w, http.StatusInternalServerError, "failed to process join request", nil, env.SystemLogger)
+			return
+		}
+
+		certPEM, caCertPEM, err := cluster.SignJoinRequest(env.ClusterConfig.StateDir, caKeyPEM, []byte(params.CSR), params.Address)
 		if err != nil {
 			env.SystemLogger.Error("failed to sign cluster join request", zap.Error(err))
 			writeResponse(w, http.StatusInternalServerError, "failed to sign the certificate request", nil, env.SystemLogger)
@@ -301,7 +306,6 @@ func JoinCluster(env *HandlerDependencies) http.HandlerFunc {
 		writeResponse(w, http.StatusOK, "", JoinClusterResponse{
 			Certificate:   string(certPEM),
 			CACertificate: string(caCertPEM),
-			CAKey:         string(caKeyPEM),
 			MemberAddress: addresses,
 		}, env.SystemLogger)
 	}
@@ -351,6 +355,16 @@ func DeleteClusterMember(env *HandlerDependencies) http.HandlerFunc {
 
 		force := r.URL.Query().Get("force") == "true"
 		if !force {
+			// dqlite's handover goes through the leader and never contacts the
+			// member itself, so it succeeds against one that is already gone. The
+			// member's own heartbeat is what actually says whether it is there.
+			if record, err := env.Database.GetClusterMember(strconv.FormatUint(id, 10)); err == nil && !record.Online(time.Now().UTC()) {
+				writeResponse(w, http.StatusConflict,
+					"the cluster member is not reporting a heartbeat, retry with force to remove it anyway",
+					nil, env.SystemLogger)
+				return
+			}
+
 			if err := env.ClusterNode.Handover(r.Context(), id); err != nil {
 				env.SystemLogger.Error("failed to hand over cluster member responsibilities",
 					zap.Error(err), zap.Uint64("node_id", id))

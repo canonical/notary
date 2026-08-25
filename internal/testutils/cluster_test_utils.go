@@ -168,6 +168,17 @@ func mustPrepareClusterServer(t *testing.T, node cluster.Node, sealed bool) (*ht
 	}
 
 	database := MustPrepareEmptyDB(t)
+
+	// Signing a join reads the CA key from the database, as a bootstrapped node
+	// puts it there.
+	caKeyPEM, err := cluster.LoadCAKey(stateDir)
+	if err != nil {
+		t.Fatalf("Couldn't read the cluster CA key: %s", err)
+	}
+	if err := database.CreateClusterCAKey(caKeyPEM); err != nil {
+		t.Fatalf("Couldn't store the cluster CA key: %s", err)
+	}
+
 	core, _ := observer.New(zapcore.InfoLevel)
 
 	appCfg := MustCreateTestAppConfig(t)

@@ -57,11 +57,16 @@ export function AddNodeModal({ close, apiAddress }: AddNodeModalProps) {
 				<CodeSnippet
 					blocks={[
 						{
-							code: `notary cluster join ${token.token} --config <config file> --address ${apiAddress}`,
+							code: `notary cluster join ${token.token} --config <config file> --address ${apiAddress} --ca-cert <this node's API certificate>`,
 							wrapLines: true,
 						},
 					]}
 				/>
+				<p className="u-text--muted">
+					Copy this node's API certificate to the new node and pass it as
+					<code>--ca-cert</code>. Without it the join is verified against the
+					system trust store, which will reject a self-signed certificate.
+				</p>
 				<p className="u-text--muted">
 					Expires {new Date(token.expires_at * 1000).toLocaleString()}. The new
 					member takes its Raft role from the cluster automatically.

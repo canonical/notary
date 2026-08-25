@@ -1,6 +1,7 @@
 package db
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -44,6 +45,26 @@ func (db *DatabaseRepository) SchemaVersion() (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to read the applied schema version: %w", err)
 	}
+	return version, nil
+}
+
+// DumpSchemaVersion returns the migration version recorded in a database file,
+// without opening it as a repository.
+//
+// Restore reads it while the backup is still only staged, so a dump this binary
+// cannot serve is refused before any cluster state exists to clean up.
+func DumpSchemaVersion(path string) (int64, error) {
+	conn, err := sql.Open("sqlite", localDSN(path))
+	if err != nil {
+		return 0, fmt.Errorf("failed to open the backup database: %w", err)
+	}
+	defer conn.Close() //nolint:errcheck
+
+	version, err := goose.GetDBVersion(conn)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read the backup's schema version: %w", err)
+	}
+
 	return version, nil
 }
 

@@ -68,7 +68,6 @@ type joinClusterRequest struct {
 type joinClusterView struct {
 	Certificate     string   `json:"certificate"`
 	CACertificate   string   `json:"ca_certificate"`
-	CAKey           string   `json:"ca_key"`
 	MemberAddresses []string `json:"member_addresses"`
 }
 
@@ -135,14 +134,16 @@ var clusterStatusCmd = &cobra.Command{
 		// write error actually surfaces, so the individual writes are ignored.
 		writer := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 3, ' ', 0)
 		_, _ = fmt.Fprintf(writer, "Cluster: %d member(s), %d voter(s), leader %s\n\n", len(status.Members), status.Voters, leader)
-		_, _ = fmt.Fprintln(writer, "NAME\tADDRESS\tROLE\tLEADER\tSEALED\tSTATE\tMESSAGE")
+		_, _ = fmt.Fprintln(writer, "NAME\tID\tADDRESS\tROLE\tLEADER\tSEALED\tSTATE\tMESSAGE")
 		for _, member := range status.Members {
 			name := member.Name
 			if name == "" {
+				// The ID is printed for every member so that one whose name was
+				// never recorded is still addressable by promote and remove.
 				name = "-"
 			}
-			_, _ = fmt.Fprintf(writer, "%s\t%s\t%s\t%t\t%t\t%s\t%s\n",
-				name, member.Address, member.Role, member.Leader, member.Sealed, member.Status, member.Message)
+			_, _ = fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%t\t%t\t%s\t%s\n",
+				name, member.ID, member.Address, member.Role, member.Leader, member.Sealed, member.Status, member.Message)
 		}
 
 		return writer.Flush()
@@ -267,7 +268,7 @@ Run this once, on the new node, before starting the Notary server on it.`,
 			return err
 		}
 
-		if err := cluster.CompleteJoin(clusterConfig.StateDir, []byte(signed.Certificate), []byte(signed.CACertificate), []byte(signed.CAKey)); err != nil {
+		if err := cluster.CompleteJoin(clusterConfig.StateDir, []byte(signed.Certificate), []byte(signed.CACertificate)); err != nil {
 			return err
 		}
 

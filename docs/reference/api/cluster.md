@@ -135,17 +135,18 @@ any one node being reachable.
   "data": {
     "certificate": "-----BEGIN CERTIFICATE-----\n...",
     "ca_certificate": "-----BEGIN CERTIFICATE-----\n...",
-    "ca_key": "-----BEGIN PRIVATE KEY-----\n...",
     "member_addresses": ["10.0.0.1:9000", "10.0.0.2:9000"]
   }
 }
 ```
 
 `ca_certificate` is the cluster's internal root, which the joining node has no other way to obtain.
-`ca_key` is the matching private key, which is what lets the new member admit joins of its own. It
-is held by every member on purpose: a member already replicates the whole database, so withholding
-the key would buy no confidentiality while making the node that bootstrapped the cluster a single
-point of failure for every future join.
+
+The cluster CA *private* key is never part of this exchange. This path is authenticated only by the
+single-use token it carries, so anything it returned would be available to whoever held a stolen
+token, and a CA key would stay useful long after the member it admitted was removed. The key lives
+in the replicated database instead: a member reads it once it has been admitted and is replicating,
+which is what lets any member admit the next one.
 
 This path returns `401` when the token is unknown, expired or already used; the three are reported
 identically so that a caller learns nothing about which tokens exist. It returns `409` when the
@@ -188,6 +189,10 @@ first, so a running member leaves without forcing an election.
 
 - `force` (boolean, query parameter): Skip the handover. Required for a member that is already
   unreachable, which is precisely when the handover cannot succeed.
+
+Without `force` this path returns `409` for a member that is not reporting a heartbeat. The handover
+is carried out by the leader and never contacts the member itself, so it would otherwise succeed
+against a member that is already gone and `force` would mean nothing.
 
 ### Sample Response
 

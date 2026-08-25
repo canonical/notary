@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"bytes"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
@@ -385,7 +386,13 @@ func TestJoinClusterEndToEnd(t *testing.T) {
 		t.Errorf("got %d peer addresses, want 3", len(joinResponse.MemberAddress))
 	}
 
-	if err := cluster.CompleteJoin(joinerDir, []byte(joinResponse.Certificate), []byte(joinResponse.CACertificate), []byte(joinResponse.CAKey)); err != nil {
+	// The join endpoint is authenticated only by a single-use token, so nothing
+	// it returns may be a lasting credential.
+	if bytes.Contains(body, []byte("PRIVATE KEY")) {
+		t.Error("the join response carries a private key")
+	}
+
+	if err := cluster.CompleteJoin(joinerDir, []byte(joinResponse.Certificate), []byte(joinResponse.CACertificate)); err != nil {
 		t.Fatalf("couldn't complete the join: %s", err)
 	}
 	pki, err := cluster.EnsurePKI(joinerDir, joinerAddress)

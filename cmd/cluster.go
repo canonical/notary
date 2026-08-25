@@ -101,6 +101,29 @@ func startClusterNode(clusterConfig config.ClusterConfig, bootstrap bool, onRole
 	return node, nil
 }
 
+// ensureClusterCAKey moves the cluster CA key from the bootstrapping node's disk
+// into the replicated database, the first time that node serves.
+//
+// It cannot be done by `cluster bootstrap` itself: the key is encrypted with the
+// database encryption key, which is only unwrapped when the server starts. Only
+// the node that bootstrapped holds the key on disk, so no other member competes
+// to write it, and every other member reads it through replication.
+func ensureClusterCAKey(database *db.DatabaseRepository, clusterConfig config.ClusterConfig, logger *zap.Logger) {
+	if _, err := database.GetClusterCAKey(); err == nil {
+		return
+	}
+
+	keyPEM, err := cluster.LoadCAKey(clusterConfig.StateDir)
+	if err != nil {
+		// Expected on every member that joined rather than bootstrapped.
+		return
+	}
+
+	if err := database.CreateClusterCAKey(keyPEM); err != nil {
+		logger.Error("couldn't store the cluster CA key, so this node cannot admit new members yet", zap.Error(err))
+	}
+}
+
 // openClusteredDatabase waits for the node to be ready, then opens Notary's
 // replicated database through it and initializes it exactly as the single-file
 // path does.

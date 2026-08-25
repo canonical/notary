@@ -97,6 +97,24 @@ func restoreCluster(cmd *cobra.Command, clusterConfig config.ClusterConfig, arch
 		return "", err
 	}
 
+	// Checked while the dump is still only staged. Committing a backup this
+	// binary cannot serve would leave a bootstrapped cluster that `notary start`
+	// then refuses to open, with the state directory occupied and the restore no
+	// longer repeatable.
+	embedded, err := db.EmbeddedSchemaVersion()
+	if err != nil {
+		return "", err
+	}
+	staged, err := db.DumpSchemaVersion(sourcePath)
+	if err != nil {
+		return "", err
+	}
+	if staged != embedded {
+		return "", fmt.Errorf(
+			"the backup is at migration %d but this binary is built for migration %d: restore it with a matching version of Notary",
+			staged, embedded)
+	}
+
 	node, err := startClusterNode(clusterConfig, true, nil)
 	if err != nil {
 		return "", err

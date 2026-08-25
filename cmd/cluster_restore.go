@@ -161,6 +161,14 @@ func restoreCluster(cmd *cobra.Command, clusterConfig config.ClusterConfig, arch
 // node, under a new ID. Leaving the old rows in place would have the cluster API
 // reporting members that no longer exist.
 func recordRestoredMember(database *db.DatabaseRepository, node cluster.Node, address string) (string, error) {
+	// The backup also carries the CA key of the cluster it came from, which does
+	// not match the CA this node generated for itself while bootstrapping. Left
+	// in place it would be used to sign joins against the wrong CA and every one
+	// of them would be rejected; cleared, the node stores its own on first start.
+	if err := database.DeleteClusterCAKey(); err != nil {
+		return "", fmt.Errorf("couldn't clear the restored cluster CA key: %w", err)
+	}
+
 	members, err := database.ListClusterMembers()
 	if err != nil {
 		return "", fmt.Errorf("couldn't read the restored cluster members: %w", err)

@@ -57,15 +57,16 @@ export function AddNodeModal({ close, apiAddress }: AddNodeModalProps) {
 				<CodeSnippet
 					blocks={[
 						{
-							code: `notary cluster join ${token.token} --config <config file> --address ${apiAddress} --ca-cert <this node's API certificate>`,
+							code: `notary cluster join ${token.token} --config /path/to/notary.yaml --address ${apiAddress} --ca-cert /path/to/api.crt`,
 							wrapLines: true,
 						},
 					]}
 				/>
 				<p className="u-text--muted">
-					Copy this node's API certificate to the new node and pass it as
-					<code>--ca-cert</code>. Without it the join is verified against the
-					system trust store, which will reject a self-signed certificate.
+					Replace the paths with the new node's configuration file, and with a
+					copy of this node's API certificate. Without <code>--ca-cert</code>{" "}
+					the join is verified against the system trust store, which will reject
+					a self-signed certificate.
 				</p>
 				<p className="u-text--muted">
 					Expires {new Date(token.expires_at * 1000).toLocaleString()}. The new

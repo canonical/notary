@@ -198,8 +198,7 @@ func TestSignJoinRequestRejectsMalformedRequests(t *testing.T) {
 
 // A CA key that does not belong to the cluster CA certificate must be refused
 // rather than used to issue a certificate no peer will trust.
-func TestSignJoinRequestRejectsAForeignCAKey(t *testing.T) {
-	existingDir := t.TempDir()
+func TestSignJoinRequestRejectsAForeignCAKey(t *testing.T) {	existingDir := t.TempDir()
 	if _, err := cluster.EnsurePKI(existingDir, "10.0.0.1:9000"); err != nil {
 		t.Fatalf("couldn't bootstrap the cluster PKI: %s", err)
 	}
@@ -384,5 +383,33 @@ func TestCompleteJoinRejectsACertificateForAnotherKey(t *testing.T) {
 
 	if err := cluster.CompleteJoin(joinerDir, certPEM, caCertPEM); err == nil {
 		t.Fatal("expected a certificate issued for another key to be refused")
+	}
+}
+
+// Once the key is in the replicated database the plaintext copy has to go: a
+// member removed from the cluster would otherwise keep the ability to sign
+// identities the remaining members trust.
+func TestRemoveCAKeyLeavesTheRestOfThePKIIntact(t *testing.T) {
+	stateDir := t.TempDir()
+	if _, err := cluster.EnsurePKI(stateDir, "10.0.0.1:9000"); err != nil {
+		t.Fatalf("couldn't bootstrap the cluster PKI: %s", err)
+	}
+
+	if err := cluster.RemoveCAKey(stateDir); err != nil {
+		t.Fatalf("couldn't remove the cluster CA key: %s", err)
+	}
+	if _, err := os.Stat(filepath.Join(cluster.PKIDir(stateDir), "cluster.key")); !os.IsNotExist(err) {
+		t.Error("the cluster CA key is still on disk")
+	}
+
+	// The node must still be able to start: its own identity and the CA it
+	// verifies peers against are untouched.
+	if _, err := cluster.LoadPKI(stateDir); err != nil {
+		t.Errorf("the node's PKI is unusable after removing the CA key: %s", err)
+	}
+
+	// Sweeping up runs on every unseal, so it has to tolerate having run before.
+	if err := cluster.RemoveCAKey(stateDir); err != nil {
+		t.Errorf("removing an absent cluster CA key failed: %s", err)
 	}
 }

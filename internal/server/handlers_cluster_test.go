@@ -547,6 +547,29 @@ func TestRemoveClusterMemberRequiresForceWhenHandoverFails(t *testing.T) {
 	}
 }
 
+// Removing the member serving the request would take away the node the caller
+// is talking to, and with force it would do so without handing over first.
+func TestAClusterMemberCannotRemoveItself(t *testing.T) {
+	node := fakeThreeNodeCluster()
+	ts, _ := tu.MustPrepareClusterServer(t, node)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+
+	for _, path := range []string{
+		"/api/v1/cluster/members/1",
+		"/api/v1/cluster/members/1?force=true",
+	} {
+		t.Run(path, func(t *testing.T) {
+			statusCode, body := tu.DoClusterAPIRequest(t, ts, "DELETE", path, adminToken, nil)
+			if statusCode != http.StatusConflict {
+				t.Fatalf("expected status %d, got %d: %s", http.StatusConflict, statusCode, string(body))
+			}
+			if removed := node.Removed(); len(removed) != 0 {
+				t.Fatalf("the local member was removed: %v", removed)
+			}
+		})
+	}
+}
+
 func TestPromoteAndRemoveClusterMember(t *testing.T) {
 	node := fakeThreeNodeCluster()
 	ts, _ := tu.MustPrepareClusterServer(t, node)

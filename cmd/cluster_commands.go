@@ -104,7 +104,7 @@ is stored. Transfer it to the new node out of band.`,
 			return err
 		}
 
-		cmd.Printf("Join token (shown once, expires %s):\n\n  %s\n\nOn the new node, run:\n\n  notary cluster join %s --config <config file> --address <this member's API address>\n",
+		cmd.Printf("Join token (shown once, expires %s):\n\n  %s\n\nOn the new node, run:\n\n  notary cluster join %s --config /path/to/notary.yaml --address <this member's API address> --ca-cert /path/to/api.crt\n",
 			time.Unix(created.ExpiresAt, 0).UTC().Format(time.RFC3339), created.Token, created.Token)
 
 		return nil

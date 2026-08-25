@@ -353,6 +353,16 @@ func DeleteClusterMember(env *HandlerDependencies) http.HandlerFunc {
 			return
 		}
 
+		// A member cannot remove itself, forced or not. It would be taking away
+		// the node serving the request, and with --force it would do so without
+		// handing over first. Removal is issued from another member.
+		if id == env.ClusterNode.ID() {
+			writeResponse(w, http.StatusConflict,
+				"a cluster member cannot remove itself, run this against another member",
+				nil, env.SystemLogger)
+			return
+		}
+
 		force := r.URL.Query().Get("force") == "true"
 		if !force {
 			// dqlite's handover goes through the leader and never contacts the

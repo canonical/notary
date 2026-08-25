@@ -194,6 +194,10 @@ Without `force` this path returns `409` for a member that is not reporting a hea
 is carried out by the leader and never contacts the member itself, so it would otherwise succeed
 against a member that is already gone and `force` would mean nothing.
 
+It also returns `409` when the member being removed is the one serving the request, with or without
+`force`. Removing it would take away the node the caller is talking to, and forcing it would do so
+without handing over first. Issue the removal against another member.
+
 ### Sample Response
 
 ```json

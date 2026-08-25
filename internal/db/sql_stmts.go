@@ -327,6 +327,7 @@ WITH RECURSIVE cas_with_chain AS (
 
 	createClusterCAKeyStmt = "INSERT INTO cluster_ca_key (id, encrypted_key) VALUES ($ClusterCAKey.id, $ClusterCAKey.encrypted_key)"
 	getClusterCAKeyStmt    = "SELECT &ClusterCAKey.* FROM cluster_ca_key WHERE id=$ClusterCAKey.id"
+	deleteClusterCAKeyStmt = "DELETE FROM cluster_ca_key WHERE id=$ClusterCAKey.id"
 
 	// ACME Account statements
 	insertACMEAccountStmt           = "INSERT INTO acme_accounts (email, directory_url, private_key, registration_uri, registration_body) VALUES ($ACMEAccount.email, $ACMEAccount.directory_url, $ACMEAccount.private_key, $ACMEAccount.registration_uri, $ACMEAccount.registration_body)"
@@ -423,6 +424,7 @@ type Statements struct {
 
 	CreateClusterCAKey *sqlair.Statement
 	GetClusterCAKey    *sqlair.Statement
+	DeleteClusterCAKey *sqlair.Statement
 
 	// ACME Account statements
 	InsertACMEAccount           *sqlair.Statement
@@ -523,6 +525,7 @@ func PrepareStatements() *Statements {
 
 	stmts.CreateClusterCAKey = sqlair.MustPrepare(createClusterCAKeyStmt, ClusterCAKey{})
 	stmts.GetClusterCAKey = sqlair.MustPrepare(getClusterCAKeyStmt, ClusterCAKey{})
+	stmts.DeleteClusterCAKey = sqlair.MustPrepare(deleteClusterCAKeyStmt, ClusterCAKey{})
 
 	// ACME Account statements
 	stmts.InsertACMEAccount = sqlair.MustPrepare(insertACMEAccountStmt, ACMEAccount{})

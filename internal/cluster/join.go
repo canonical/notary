@@ -178,6 +178,20 @@ func LoadCAKey(stateDir string) ([]byte, error) {
 	return keyPEM, nil
 }
 
+// RemoveCAKey deletes the plaintext CA key a bootstrapping node wrote to disk.
+//
+// Called once the replicated copy is confirmed. Left in place it would outlive
+// the member's place in the cluster: a node removed from the cluster would keep
+// the ability to sign identities every remaining peer trusts.
+func RemoveCAKey(stateDir string) error {
+	err := os.Remove(filepath.Join(PKIDir(stateDir), caKeyFile))
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("failed to remove the on-disk cluster CA key: %w", err)
+	}
+
+	return nil
+}
+
 func parseCAKey(keyPEM []byte) (*ecdsa.PrivateKey, error) {
 	block, _ := pem.Decode(keyPEM)
 	if block == nil {

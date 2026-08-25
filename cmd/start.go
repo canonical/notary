@@ -53,9 +53,6 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 		l := appEnv.SystemLogger
 		acmeReconciler.Attach(database, l, clusterNodeID(clusterNode))
 		startHeartbeat(cmd.Context(), database, clusterNodeID(clusterNode), appEnv, l)
-		if clusterNode != nil {
-			ensureClusterCAKey(database, appConfig.ClusterConfig, l)
-		}
 		if clusterNode == nil {
 			// Unclustered, so this process is the only one that has ever run an
 			// attempt. Anything still recorded was interrupted by a previous crash.

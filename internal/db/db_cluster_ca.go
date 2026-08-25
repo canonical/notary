@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/canonical/notary/internal/utils"
@@ -50,4 +51,18 @@ func (db *DatabaseRepository) GetClusterCAKey() ([]byte, error) {
 	}
 
 	return []byte(decrypted), nil
+}
+
+// DeleteClusterCAKey removes the stored cluster CA key.
+//
+// Restore is the only caller: the backup carries the CA of the cluster it was
+// taken from, which does not match the one the restored node generates for
+// itself. Clearing it lets the node store its own on its first start.
+func (db *DatabaseRepository) DeleteClusterCAKey() error {
+	err := DeleteEntity[ClusterCAKey](db, db.stmts.DeleteClusterCAKey, ClusterCAKey{ID: 1})
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		return err
+	}
+
+	return nil
 }

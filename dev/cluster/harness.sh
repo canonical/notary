@@ -144,16 +144,15 @@ cmd_bootstrap() {
 }
 
 cmd_join() {
-  [[ $# -ge 1 ]] || die "usage: $0 join <node> [voter|standby]"
-  local node role token
+  [[ $# -ge 1 ]] || die "usage: $0 join <node>"
+  local node token
   node="$(node_name "$1")"
-  role="${2:-standby}"
   token="$(require_token)"
 
-  log "issuing a ${role} join token on notary-1"
+  log "issuing a join token on notary-1"
   local join_token
   join_token="$(docker exec -e NOTARY_TOKEN="${token}" notary-1 \
-    notary cluster token create -c /conf/conf.yaml --role "${role}" --quiet | tr -d '[:space:]')"
+    notary cluster token create -c /conf/conf.yaml --quiet | tr -d '[:space:]')"
   [[ -n "${join_token}" ]] || die "couldn't issue a join token"
 
   log "joining ${node} through the real token/CSR exchange"
@@ -164,14 +163,6 @@ cmd_join() {
     --ca-cert /conf/server.crt
 
   start_node "${node}"
-
-  # Members always join as stand-bys; a voter token is a statement of intent that
-  # dqlite's own role convergence would satisfy eventually. Force it now so the
-  # harness reaches a known state.
-  if [[ "${role}" == "voter" ]]; then
-    log "promoting ${node} to voter"
-    cmd_promote "${node}"
-  fi
 }
 
 cmd_status() {
@@ -243,7 +234,7 @@ Local 3-node Notary cluster harness.
 
   up                        build the image and binary, then start three idle containers
   bootstrap                 bootstrap the cluster on notary-1 and create the admin account
-  join <node> [role]        join a node through the real token/CSR exchange (role: voter|standby)
+  join <node>               join a node through the real token/CSR exchange
   status [node]             print cluster status as that node sees it
   promote <member>          promote a member to voter
   remove <member> [--force] remove a member

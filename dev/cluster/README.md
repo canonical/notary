@@ -10,8 +10,8 @@ Requirements: Docker, and a built frontend (`cd ui && bun install && bun run bui
 ```sh
 ./harness.sh up            # build the image and binary, start three idle containers
 ./harness.sh bootstrap     # bootstrap the cluster on notary-1, create the admin account
-./harness.sh join 2 voter  # join notary-2 through the real token/CSR exchange
-./harness.sh join 3 voter
+./harness.sh join 2        # join notary-2 through the real token/CSR exchange
+./harness.sh join 3
 ./harness.sh status
 ```
 

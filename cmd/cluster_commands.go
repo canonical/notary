@@ -104,8 +104,16 @@ is stored. Transfer it to the new node out of band.`,
 			return err
 		}
 
-		cmd.Printf("Join token (shown once, expires %s):\n\n  %s\n\nOn the new node, run:\n\n  notary cluster join %s --config /path/to/notary.yaml --address <this member's API address> --ca-cert /path/to/api.crt\n",
-			time.Unix(created.ExpiresAt, 0).UTC().Format(time.RFC3339), created.Token, created.Token)
+		address := client.advertised
+		if address == "" {
+			address = "member.example.com:3000"
+		}
+
+		// Flags first and the token last after --, so a token is never read as a
+		// flag. Tokens this version issues never start with '-', but one issued
+		// by an older node can still be within its lifetime.
+		cmd.Printf("Join token (shown once, expires %s):\n\n  %s\n\nOn the new node, run:\n\n  notary cluster join --config /path/to/notary.yaml --address %s --ca-cert /path/to/api.crt -- %s\n",
+			time.Unix(created.ExpiresAt, 0).UTC().Format(time.RFC3339), created.Token, address, created.Token)
 
 		return nil
 	},

@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -32,10 +34,14 @@ var startCmd = &cobra.Command{
 Read more about what's required in the config file at
 https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/`,
 
-	Run: func(cmd *cobra.Command, args []string) {
+	// SilenceUsage because every failure below is a runtime one; printing the
+	// flag list on top of it helps nobody.
+	SilenceUsage: true,
+
+	RunE: func(cmd *cobra.Command, args []string) error {
 		appConfig, err := config.ParseConfig(cmd.Flags(), configFilePath)
 		if err != nil {
-			log.Fatalf("couldn't parse and validate config: %s", err)
+			return fmt.Errorf("couldn't parse and validate config: %w", err)
 		}
 		// The reconciler is built before the database because a cluster node needs
 		// its leadership hook at construction time, and the replicated database can
@@ -43,12 +49,16 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 		acmeReconciler := acme.NewReconciler()
 		database, clusterNode, closeCluster, err := openDatabase(cmd.Context(), appConfig, acmeReconciler)
 		if err != nil {
-			log.Fatalf("couldn't initialize database: %s", err)
+			return fmt.Errorf("couldn't initialize database: %w", err)
 		}
+		// Everything past this point returns rather than calling Fatal: os.Exit
+		// skips deferred functions, and this one hands the node's Raft
+		// responsibilities over before it leaves.
 		defer closeCluster()
+
 		appEnv, err := config.InitializeAppEnvironment(cmd.Context(), appConfig, database, clusterNode, acmeReconciler)
 		if err != nil {
-			log.Fatalf("couldn't initialize app environment: %s", err)
+			return fmt.Errorf("couldn't initialize app environment: %w", err)
 		}
 		l := appEnv.SystemLogger
 		acmeReconciler.Attach(database, l, clusterNodeID(clusterNode))
@@ -64,7 +74,7 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 		}
 		srv, err := server.New(appConfig, appEnv)
 		if err != nil {
-			l.Fatal("couldn't initialize server", zap.Error(err))
+			return fmt.Errorf("couldn't initialize server: %w", err)
 		}
 		appEnv.AuditLogger.SystemStartup(srv.Addr)
 		l.Info("Starting server at", zap.String("url", srv.Addr))
@@ -77,12 +87,18 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 		signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
 		defer signal.Stop(signals)
 
+		serverDone := make(chan struct{})
 		shutdownComplete := make(chan struct{})
 		go func() {
 			defer close(shutdownComplete)
 
-			signal := <-signals
-			l.Info("shutdown signal received", zap.String("signal", signal.String()))
+			select {
+			case <-serverDone:
+				// The server stopped on its own; there is nothing to shut down.
+				return
+			case received := <-signals:
+				l.Info("shutdown signal received", zap.String("signal", received.String()))
+			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 			defer cancel()
@@ -91,15 +107,20 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 			}
 		}()
 
-		if err := srv.ListenAndServeTLS("", ""); err != http.ErrServerClosed {
-			l.Fatal("HTTP server ListenAndServe", zap.Error(err))
-		}
-
+		serveErr := srv.ListenAndServeTLS("", "")
+		close(serverDone)
 		// Waited on so that closeCluster, deferred above, runs only once the
 		// server has stopped accepting work.
 		<-shutdownComplete
+
+		if serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+			return fmt.Errorf("the HTTP server stopped unexpectedly: %w", serveErr)
+		}
+
 		appEnv.AuditLogger.SystemShutdown("server stopped")
 		l.Info("server shutdown completed.")
+
+		return nil
 	},
 }
 

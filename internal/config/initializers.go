@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"time"
 
@@ -219,6 +220,13 @@ func startUnsealing(ctx context.Context, database *db.DatabaseRepository, cluste
 // no-op for them, and it is safe to run on every unseal attempt.
 func ensureClusterCAKey(database *db.DatabaseRepository, stateDir string) error {
 	diskKey, diskErr := cluster.LoadCAKey(stateDir)
+	// Absent is the ordinary case for a member that joined. Anything else — bad
+	// permissions, a truncated file — must not be mistaken for it, or the node
+	// would come up reporting itself healthy while no key ever reaches the
+	// cluster and every join fails.
+	if diskErr != nil && !errors.Is(diskErr, os.ErrNotExist) {
+		return diskErr
+	}
 
 	stored, storedErr := database.GetClusterCAKey()
 	switch {

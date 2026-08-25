@@ -35,6 +35,9 @@ type apiClient struct {
 	baseURL string
 	token   string
 	http    *http.Client
+	// advertised is the host:port a *different* machine would use to reach this
+	// node, empty when the configuration does not say. It is only for display.
+	advertised string
 }
 
 // newLocalAPIClient builds a client for the node described by a config file. The
@@ -55,9 +58,17 @@ func newLocalAPIClient(appConfig *config.AppConfig, token string) (*apiClient, e
 		host = "localhost"
 	}
 
+	// Only a configured external hostname is worth telling another machine to
+	// dial; the loopback default would send it to itself.
+	var advertised string
+	if appConfig.ExternalHostname != "" {
+		advertised = fmt.Sprintf("%s:%d", appConfig.ExternalHostname, appConfig.Port)
+	}
+
 	return &apiClient{
-		baseURL: fmt.Sprintf("https://%s:%d/api/v1", host, appConfig.Port),
-		token:   token,
+		baseURL:    fmt.Sprintf("https://%s:%d/api/v1", host, appConfig.Port),
+		token:      token,
+		advertised: advertised,
 		http: &http.Client{
 			Timeout:   clusterAPITimeout,
 			Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}},

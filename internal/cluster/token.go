@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"strings"
 )
 
 // joinTokenBytes is the size of the random material in a join token. 256 bits
@@ -19,11 +20,22 @@ const joinTokenBytes = 32
 // hash reaches the database, so a database dump cannot be replayed into a join.
 func GenerateJoinToken() (token string, hash string, err error) {
 	material := make([]byte, joinTokenBytes)
-	if _, err := rand.Read(material); err != nil {
-		return "", "", fmt.Errorf("failed to generate join token: %w", err)
-	}
+	for {
+		if _, err := rand.Read(material); err != nil {
+			return "", "", fmt.Errorf("failed to generate join token: %w", err)
+		}
 
-	token = base64.RawURLEncoding.EncodeToString(material)
+		token = base64.RawURLEncoding.EncodeToString(material)
+
+		// A token is pasted straight into `notary cluster join`, where a leading
+		// '-' is read as a flag. Re-rolling costs nothing and keeps every token
+		// usable, including in commands an operator writes by hand. It is the
+		// same concern that makes this the URL-safe alphabet rather than the
+		// standard one.
+		if !strings.HasPrefix(token, "-") {
+			break
+		}
+	}
 
 	return token, HashJoinToken(token), nil
 }

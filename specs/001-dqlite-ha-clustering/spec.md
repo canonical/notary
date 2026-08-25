@@ -621,3 +621,25 @@ The unit-test workflow runs the suite twice: once against local SQLite files, an
 `NOTARY_TEST_DQLITE=1`, which replays every test against a single-node dqlite cluster. The second
 run is the regression gate for the storage swap and the only place `internal/cluster` executes —
 it is Linux-only, so it cannot run on a developer's macOS machine.
+
+## Deviations from this specification
+
+These are the points where the implementation knowingly differs from the text above. Each needs
+sign-off, or a change to the implementation.
+
+**The join token carries no role.** §1.5 sketches `notary cluster token create --role voter|standby`
+and §1.3 says new members join as stand-by until promoted. Neither is achievable while `go-dqlite`
+manages roles: `app.WithVoters(3)` keeps the voter count filled, so a `standby` token still produced
+a voter whenever the cluster was short of one, and the flag promised control it never had. It was
+removed rather than left as a no-op. `notary cluster promote` remains the way to force a role, and
+§1.4's automatic promotion of a stand-by when a voter is lost is what dqlite already does.
+
+Honouring the flag would mean taking role assignment away from dqlite and running Notary's own
+role manager against it, which contradicts §1.4.
+
+**The cluster CA private key lives in the replicated database.** The design implies the joining node
+receives everything it needs over the join exchange. It does not receive the CA key: the join
+endpoint is authenticated only by a single-use token, so a stolen token would otherwise become a
+lasting ability to mint identities that every peer trusts. A member reads the key from the database
+once it is admitted and replicating, which keeps the property that any member can admit the next one
+without the key crossing the enrollment API.

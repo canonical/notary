@@ -303,8 +303,15 @@ Run this once, on the new node, before starting the Notary server on it.`,
 			name = clusterConfig.Address
 		}
 		nodeID := formatNodeID(node.ID())
+
+		// The node is in the cluster by this point. A missing name record is
+		// cosmetic and must not be reported as a failed join: the join cannot be
+		// retried, and treating it as failure would send an operator looking for a
+		// member to clean up that is in fact healthy.
 		if _, err := database.CreateClusterMember(nodeID, name, clusterConfig.Address, time.Now().UTC()); err != nil {
-			return fmt.Errorf("joined the cluster but couldn't record the member name: %w", err)
+			cmd.Printf("joined the cluster as node %s, but couldn't record the name %q: %s\n", nodeID, name, err)
+			cmd.Printf("the member is in the cluster and will show without a name; address it by its ID in `notary cluster status`\n")
+			return nil
 		}
 
 		// dqlite assigns Raft roles itself, keeping the configured number of

@@ -68,8 +68,13 @@ cluster instead. Requires a configuration file with clustering enabled.`,
 			name = appConfig.ClusterConfig.Address
 		}
 		nodeID := formatNodeID(node.ID())
+
+		// As in join: the cluster exists now, so a missing name record is reported
+		// rather than turned into a failure the operator cannot retry.
 		if _, err := database.CreateClusterMember(nodeID, name, appConfig.ClusterConfig.Address, time.Now().UTC()); err != nil {
-			return fmt.Errorf("bootstrapped the cluster but couldn't record the member name: %w", err)
+			cmd.Printf("cluster bootstrapped at %s as node %s, but couldn't record the name %q: %s\n",
+				node.Address(), nodeID, name, err)
+			return nil
 		}
 
 		cmd.Printf("cluster bootstrapped at %s as %s (node %s)\n", node.Address(), name, nodeID)

@@ -108,6 +108,33 @@ test("does not call any member a follower while no leader is elected", () => {
 	expect(screen.getAllByText("No leader")).toHaveLength(2);
 });
 
+// promote and remove are addressed by node ID, and it is all there is to go on
+// for a member whose name was never recorded.
+test("shows the node ID of a member that has no name", () => {
+	renderTable({
+		members: [{ ...status.members[1], id: "15559759156573841049", name: "" }],
+	});
+
+	expect(screen.getByText("15559759156573841049")).toBeDefined();
+});
+
+// Hidden in a title attribute the reason would be reachable only with a pointer.
+test("shows why a member is offline as text, not only on hover", () => {
+	renderTable({
+		members: [
+			{
+				...status.members[1],
+				status: "OFFLINE",
+				message: "No heartbeat since 2026-08-24T11:05:25Z",
+			},
+		],
+	});
+
+	expect(
+		screen.getByText("No heartbeat since 2026-08-24T11:05:25Z"),
+	).toBeDefined();
+});
+
 // The row actions live behind a contextual menu, so it has to be opened before
 // its buttons exist in the DOM. Each case renders a single member, which keeps
 // the assertions independent of how the table happens to sort its rows.

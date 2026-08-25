@@ -50,16 +50,18 @@ function sealStateLabel(member: ClusterMemberEntry) {
 }
 
 // The message carries the detail behind the state, including when an offline
-// member was last seen.
+// member was last seen. It is rendered as text, not only as a tooltip, so it is
+// reachable without a pointer.
 function memberStateLabel(member: ClusterMemberEntry) {
 	const online = member.status === "ONLINE";
 	return (
-		<span
-			style={{ color: online ? onlineColour : offlineColour }}
-			title={member.message}
-		>
-			● {member.status}
-		</span>
+		<>
+			<span style={{ color: online ? onlineColour : offlineColour }}>
+				● {member.status}
+			</span>
+			<br />
+			<small className="u-text--muted">{member.message}</small>
+		</>
 	);
 }
 
@@ -128,6 +130,10 @@ export function ClusterTable({
 						{member.id === localNodeID && (
 							<span className="u-text--muted"> (this node)</span>
 						)}
+						<br />
+						{/* The ID is what promote and remove take, and it is all there is
+						    to go on for a member whose name was never recorded. */}
+						<small className="u-text--muted">{member.id}</small>
 					</>
 				),
 			},

@@ -34,10 +34,14 @@ type dqliteNode struct {
 }
 
 // Start brings up this node's dqlite instance. It refuses to run against an
-// uninitialized state directory unless Bootstrap is set, so a node that has lost
-// its state cannot quietly form a cluster of its own.
+// uninitialized state directory unless Bootstrap or Join is set, so a node that
+// has lost its state cannot quietly form a cluster of its own.
 func Start(opts Options) (Node, error) {
 	if err := validateOptions(opts); err != nil {
+		return nil, err
+	}
+
+	if err := checkState(opts); err != nil {
 		return nil, err
 	}
 
@@ -90,6 +94,28 @@ func nodePKI(opts Options) (*PKI, error) {
 	}
 
 	return pki, err
+}
+
+// checkState decides whether the state directory is in the shape this start
+// calls for. Bootstrapping and joining both build a membership from nothing and
+// so require an empty directory; resuming requires dqlite metadata complete
+// enough to identify the cluster this node belongs to.
+func checkState(opts Options) error {
+	forming := opts.Bootstrap || len(opts.Join) > 0
+
+	occupied, err := HasState(opts.StateDir)
+	if err != nil {
+		return err
+	}
+
+	switch {
+	case forming && occupied:
+		return ErrAlreadyInitialized
+	case !forming && !hasNodeIdentity(opts.StateDir):
+		return ErrNotInitialized
+	}
+
+	return nil
 }
 
 // Open returns a handle to the named database in the cluster.

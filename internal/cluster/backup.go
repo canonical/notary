@@ -251,3 +251,20 @@ func HasState(stateDir string) (bool, error) {
 
 	return false, nil
 }
+
+// hasNodeIdentity reports whether the state directory holds the dqlite metadata
+// a node needs to resume its place in a cluster: info.yaml is its own identity,
+// cluster.yaml is the peer list it rejoins through.
+//
+// Content alone is not enough to go on. A directory left with fragments after a
+// lost volume would satisfy HasState while telling dqlite nothing about which
+// cluster this node belonged to, and dqlite would quietly bootstrap a new one.
+func hasNodeIdentity(stateDir string) bool {
+	for _, name := range []string{"info.yaml", "cluster.yaml"} {
+		if _, err := os.Stat(filepath.Join(DataDir(stateDir), name)); err != nil {
+			return false
+		}
+	}
+
+	return true
+}

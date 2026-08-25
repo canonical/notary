@@ -34,9 +34,14 @@ func DataDir(stateDir string) string {
 var ErrUnsupportedPlatform = errors.New("clustering is only supported on linux")
 
 // ErrNotInitialized is returned by Start when a node that was not asked to
-// bootstrap has no cluster PKI yet. Starting such a node would otherwise mint a
-// fresh CA and form a second, silently disjoint cluster.
-var ErrNotInitialized = errors.New("this node is not part of a cluster yet: run `notary cluster bootstrap` or `notary cluster join` first")
+// bootstrap or join has no usable dqlite metadata. Starting such a node would
+// otherwise bootstrap a fresh cluster and silently disjoin it from its own.
+var ErrNotInitialized = errors.New("this node has no cluster state to resume: run `notary cluster bootstrap` or `notary cluster join` first")
+
+// ErrAlreadyInitialized is returned by Start when a node asked to bootstrap or
+// join already holds cluster data. Both form a new membership from scratch, so
+// running either over existing state would strand whatever was there.
+var ErrAlreadyInitialized = errors.New("this node already holds cluster state: move its state directory aside before bootstrapping or joining")
 
 // Options configures a Notary cluster node.
 type Options struct {

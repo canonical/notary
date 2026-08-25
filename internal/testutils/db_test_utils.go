@@ -108,6 +108,8 @@ func mustOpenClusteredTestDatabase(t *testing.T) *db.DatabaseRepository {
 	node, err := cluster.Start(cluster.Options{
 		StateDir: t.TempDir(),
 		Address:  mustReserveLoopbackAddress(t),
+		// A fresh temporary directory every time, so this is always a bootstrap.
+		Bootstrap: true,
 	})
 	if err != nil {
 		t.Fatalf("Couldn't start cluster node: %s", err)

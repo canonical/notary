@@ -9,11 +9,7 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { createClusterJoinToken } from "@/utils/queries";
-import {
-	type ClusterJoinTokenEntry,
-	type ClusterRole,
-	getErrorMessage,
-} from "@/utils/types";
+import { type ClusterJoinTokenEntry, getErrorMessage } from "@/utils/types";
 
 type AddNodeModalProps = {
 	close: () => void;
@@ -33,7 +29,6 @@ const ttlOptions = [
 ];
 
 export function AddNodeModal({ close, apiAddress }: AddNodeModalProps) {
-	const [role, setRole] = useState<ClusterRole>("standby");
 	const [ttlSeconds, setTTLSeconds] = useState<string>("3600");
 	const [token, setToken] = useState<ClusterJoinTokenEntry | null>(null);
 
@@ -68,8 +63,8 @@ export function AddNodeModal({ close, apiAddress }: AddNodeModalProps) {
 					]}
 				/>
 				<p className="u-text--muted">
-					Joining as {token.role}. Expires{" "}
-					{new Date(token.expires_at * 1000).toLocaleString()}.
+					Expires {new Date(token.expires_at * 1000).toLocaleString()}. The new
+					member takes its Raft role from the cluster automatically.
 				</p>
 			</Modal>
 		);
@@ -87,7 +82,6 @@ export function AddNodeModal({ close, apiAddress }: AddNodeModalProps) {
 						loading={mutation.isPending}
 						onClick={() =>
 							mutation.mutate({
-								role: role,
 								ttl_seconds: Number(ttlSeconds),
 							})
 						}
@@ -97,16 +91,6 @@ export function AddNodeModal({ close, apiAddress }: AddNodeModalProps) {
 				</>
 			}
 		>
-			<Select
-				label="Role"
-				value={role}
-				onChange={(event) => setRole(event.target.value as ClusterRole)}
-				options={[
-					{ label: "Standby", value: "standby" },
-					{ label: "Voter", value: "voter" },
-				]}
-				help="Members join as standby and are promoted to voter automatically as the cluster grows. Ask for a voter token only when you want to skip that."
-			/>
 			<Select
 				label="Valid for"
 				value={ttlSeconds}

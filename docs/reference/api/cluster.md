@@ -93,7 +93,6 @@ new node out of band.
 
 ### Parameters
 
-- `role` (string): The role the new member should end up holding, `voter` or `standby`. Defaults to `standby`.
 - `ttl_seconds` (integer): How long the token stays valid. Defaults to one hour, and may not exceed 24 hours.
 
 ### Sample Response
@@ -102,21 +101,21 @@ new node out of band.
 {
   "data": {
     "token": "JXTuoavjt_ELxOVkXU1Qw4PGTqy_tX7Yt3RAcX8tz5o",
-    "role": "standby",
     "expires_at": 1787576408
   }
 }
 ```
 
-`expires_at` is in Unix seconds. Members always join as stand-by regardless of the role requested;
-a `voter` token is a statement of intent that Notary's own role convergence satisfies shortly
-after the node starts.
+`expires_at` is in Unix seconds. A token does not carry a Raft role: dqlite assigns roles itself,
+keeping the configured number of voters filled and promoting a stand-by whenever one is lost. Use
+`POST /cluster/members/{id}/promote` to force a role immediately.
 
 ## Join the cluster
 
 This path signs a joining node's certificate signing request in exchange for a valid join token,
 and returns the addresses the new node needs to reach the cluster. It is called by
-`notary cluster join` rather than directly.
+`notary cluster join` rather than directly. Every member can serve it, so a join does not depend on
+any one node being reachable.
 
 | Method | Path                     |
 | :----- | :----------------------- |
@@ -136,20 +135,24 @@ and returns the addresses the new node needs to reach the cluster. It is called 
   "data": {
     "certificate": "-----BEGIN CERTIFICATE-----\n...",
     "ca_certificate": "-----BEGIN CERTIFICATE-----\n...",
-    "role": "standby",
+    "ca_key": "-----BEGIN PRIVATE KEY-----\n...",
     "member_addresses": ["10.0.0.1:9000", "10.0.0.2:9000"]
   }
 }
 ```
 
 `ca_certificate` is the cluster's internal root, which the joining node has no other way to obtain.
+`ca_key` is the matching private key, which is what lets the new member admit joins of its own. It
+is held by every member on purpose: a member already replicates the whole database, so withholding
+the key would buy no confidentiality while making the node that bootstrapped the cluster a single
+point of failure for every future join.
 
 This path returns `401` when the token is unknown, expired or already used; the three are reported
 identically so that a caller learns nothing about which tokens exist. It returns `409` when the
 joining node's `schema_version` differs from the cluster's, which is what stops a node running a
 different version of Notary from replicating a schema its binary was not built for. The token is
-redeemed before the schema versions are compared, so a join refused for a version mismatch
-consumes the token and the operator must issue a new one.
+redeemed only once the request is known to be one the member can serve, so a join refused for a
+malformed request or a version mismatch leaves the token usable.
 
 ## Promote a member to voter
 

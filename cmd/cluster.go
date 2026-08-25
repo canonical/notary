@@ -48,7 +48,7 @@ cluster instead. Requires a configuration file with clustering enabled.`,
 			return errors.New("clustering is not enabled: set `cluster.enabled` to true in the config file")
 		}
 
-		node, err := startClusterNode(appConfig.ClusterConfig, nil)
+		node, err := startClusterNode(appConfig.ClusterConfig, true, nil)
 		if err != nil {
 			return err
 		}
@@ -80,13 +80,18 @@ cluster instead. Requires a configuration file with clustering enabled.`,
 
 // startClusterNode brings up this node's dqlite instance from the cluster config.
 //
+// bootstrap forms a new cluster and is set only by `notary cluster bootstrap`;
+// every other caller requires a state directory that bootstrap or join already
+// initialized.
+//
 // onRolesAdjustment, if non-nil, is called with the current leader's ID each
 // time dqlite re-evaluates cluster roles. Only the server passes one; the
 // short-lived CLI commands have no use for leadership notifications.
-func startClusterNode(clusterConfig config.ClusterConfig, onRolesAdjustment func(leaderID uint64) error) (cluster.Node, error) {
+func startClusterNode(clusterConfig config.ClusterConfig, bootstrap bool, onRolesAdjustment func(leaderID uint64) error) (cluster.Node, error) {
 	node, err := cluster.Start(cluster.Options{
 		StateDir:          clusterConfig.StateDir,
 		Address:           clusterConfig.Address,
+		Bootstrap:         bootstrap,
 		OnRolesAdjustment: onRolesAdjustment,
 	})
 	if err != nil {
@@ -182,7 +187,6 @@ func init() {
 		}
 	}
 
-	clusterTokenCreateCmd.Flags().StringVar(&clusterTokenRole, "role", "standby", `role the new member should hold: "voter" or "standby"`)
 	clusterTokenCreateCmd.Flags().DurationVar(&clusterTokenTTL, "ttl", time.Hour, "how long the token stays valid")
 	clusterTokenCreateCmd.Flags().BoolVarP(&clusterTokenQuiet, "quiet", "q", false, "print only the token, for scripting")
 

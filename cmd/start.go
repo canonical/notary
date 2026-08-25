@@ -103,7 +103,7 @@ func openDatabase(ctx context.Context, appConfig *config.AppConfig, acmeReconcil
 		return database, nil, func() {}, nil
 	}
 
-	node, err := startClusterNode(appConfig.ClusterConfig, acmeReconciler.OnRolesAdjustment)
+	node, err := startClusterNode(appConfig.ClusterConfig, false, acmeReconciler.OnRolesAdjustment)
 	if err != nil {
 		return nil, nil, nil, err
 	}

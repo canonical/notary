@@ -6,7 +6,6 @@ import {
 	type APIResponse,
 	type CertificateAuthorityEntry,
 	type ClusterJoinTokenEntry,
-	type ClusterRole,
 	type ClusterStatusEntry,
 	type ConfigEntry,
 	type CSREntry,
@@ -416,7 +415,6 @@ export async function getClusterStatus(): Promise<ClusterStatusEntry> {
 }
 
 export async function createClusterJoinToken(params: {
-	role: ClusterRole;
 	ttl_seconds?: number;
 }): Promise<ClusterJoinTokenEntry> {
 	return (await fetchAPI<ClusterJoinTokenEntry>(

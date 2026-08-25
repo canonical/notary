@@ -342,7 +342,7 @@ WITH RECURSIVE cas_with_chain AS (
 	linkACMEAccountToServerStmt = "UPDATE acme_servers SET acme_account_id=$ACMEServer.acme_account_id WHERE id==$ACMEServer.id"
 
 	// Cluster join token statements
-	createClusterJoinTokenStmt  = "INSERT INTO cluster_join_tokens (token_hash, role, created_at, expires_at) VALUES ($ClusterJoinToken.token_hash, $ClusterJoinToken.role, $ClusterJoinToken.created_at, $ClusterJoinToken.expires_at)"
+	createClusterJoinTokenStmt  = "INSERT INTO cluster_join_tokens (token_hash, created_at, expires_at) VALUES ($ClusterJoinToken.token_hash, $ClusterJoinToken.created_at, $ClusterJoinToken.expires_at)"
 	getClusterJoinTokenStmt     = "SELECT &ClusterJoinToken.* FROM cluster_join_tokens WHERE token_hash==$ClusterJoinToken.token_hash"
 	listClusterJoinTokensStmt   = "SELECT &ClusterJoinToken.* FROM cluster_join_tokens"
 	deleteClusterJoinTokenStmt  = "DELETE FROM cluster_join_tokens WHERE id==$ClusterJoinToken.id"

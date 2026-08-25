@@ -5,6 +5,7 @@ package cluster
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 
@@ -32,9 +33,9 @@ type dqliteNode struct {
 	app *app.App
 }
 
-// Start brings up this node's dqlite instance. With no Join addresses it
-// bootstraps a new cluster with this node as the only voter; otherwise it joins
-// the members listed in Join.
+// Start brings up this node's dqlite instance. It refuses to run against an
+// uninitialized state directory unless Bootstrap is set, so a node that has lost
+// its state cannot quietly form a cluster of its own.
 func Start(opts Options) (Node, error) {
 	if err := validateOptions(opts); err != nil {
 		return nil, err
@@ -45,7 +46,7 @@ func Start(opts Options) (Node, error) {
 		return nil, fmt.Errorf("failed to create cluster data directory: %w", err)
 	}
 
-	pki, err := EnsurePKI(opts.StateDir, opts.Address)
+	pki, err := nodePKI(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -73,6 +74,22 @@ func Start(opts Options) (Node, error) {
 	}
 
 	return &dqliteNode{app: dqliteApp}, nil
+}
+
+// nodePKI generates the cluster PKI when bootstrapping and otherwise insists it
+// already exists. The distinction is what stops a node whose state directory was
+// wiped from minting a new CA and bootstrapping a cluster of one.
+func nodePKI(opts Options) (*PKI, error) {
+	if opts.Bootstrap {
+		return EnsurePKI(opts.StateDir, opts.Address)
+	}
+
+	pki, err := LoadPKI(opts.StateDir)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, ErrNotInitialized
+	}
+
+	return pki, err
 }
 
 // Open returns a handle to the named database in the cluster.
@@ -106,8 +123,12 @@ func (n *dqliteNode) ID() uint64 {
 }
 
 // Members returns every member of the cluster with its current Raft role.
+//
+// The client comes from app.Leader rather than app.Client: app.Client connects
+// to this node's own dqlite socket, and a node that is not a voter has no Raft
+// configuration to answer from, so it would report an empty cluster.
 func (n *dqliteNode) Members(ctx context.Context) ([]MemberInfo, error) {
-	cli, err := n.app.Client(ctx)
+	cli, err := n.app.Leader(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to reach the cluster leader: %w", err)
 	}
@@ -133,7 +154,7 @@ func (n *dqliteNode) Members(ctx context.Context) ([]MemberInfo, error) {
 // Leader returns the member currently leading the cluster, or nil if there is
 // no leader right now.
 func (n *dqliteNode) Leader(ctx context.Context) (*MemberInfo, error) {
-	cli, err := n.app.Client(ctx)
+	cli, err := n.app.Leader(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to reach the cluster leader: %w", err)
 	}
@@ -156,7 +177,7 @@ func (n *dqliteNode) Leader(ctx context.Context) (*MemberInfo, error) {
 
 // Promote assigns the voter role to a member.
 func (n *dqliteNode) Promote(ctx context.Context, id uint64) error {
-	cli, err := n.app.Client(ctx)
+	cli, err := n.app.Leader(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to reach the cluster leader: %w", err)
 	}
@@ -182,7 +203,7 @@ func (n *dqliteNode) Handover(ctx context.Context, id uint64) error {
 		return nil
 	}
 
-	cli, err := n.app.Client(ctx)
+	cli, err := n.app.Leader(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to reach the cluster leader: %w", err)
 	}
@@ -203,7 +224,7 @@ func (n *dqliteNode) Handover(ctx context.Context, id uint64) error {
 		// The connection was to the old leader, so it is no longer the one that
 		// can carry out the role change below.
 		_ = cli.Close()
-		if cli, err = n.app.Client(ctx); err != nil {
+		if cli, err = n.app.Leader(ctx); err != nil {
 			return fmt.Errorf("failed to reach the new cluster leader: %w", err)
 		}
 	}
@@ -236,7 +257,7 @@ func otherVoter(ctx context.Context, cli *client.Client, leaving uint64) (uint64
 // responsibilities is done separately (see Handover); a member removed from
 // here may well be one that is already gone.
 func (n *dqliteNode) Remove(ctx context.Context, id uint64) error {
-	cli, err := n.app.Client(ctx)
+	cli, err := n.app.Leader(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to reach the cluster leader: %w", err)
 	}

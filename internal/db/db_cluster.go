@@ -1,7 +1,7 @@
 package db
 
 import (
-	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -9,12 +9,9 @@ import (
 
 // CreateClusterJoinToken stores the hash of a newly issued join token. The token
 // itself is never persisted; see cluster.GenerateJoinToken.
-func (db *DatabaseRepository) CreateClusterJoinToken(tokenHash string, role ClusterRole, createdAt, expiresAt time.Time) (int64, error) {
+func (db *DatabaseRepository) CreateClusterJoinToken(tokenHash string, createdAt, expiresAt time.Time) (int64, error) {
 	if tokenHash == "" {
 		return 0, fmt.Errorf("failed to create cluster join token: %w: token hash is empty", ErrInvalidInput)
-	}
-	if role != ClusterRoleVoter && role != ClusterRoleStandBy {
-		return 0, fmt.Errorf("failed to create cluster join token: %w: unknown role %q", ErrInvalidInput, role)
 	}
 	if !expiresAt.After(createdAt) {
 		return 0, fmt.Errorf("failed to create cluster join token: %w: expiry is not in the future", ErrInvalidInput)
@@ -22,54 +19,60 @@ func (db *DatabaseRepository) CreateClusterJoinToken(tokenHash string, role Clus
 
 	row := ClusterJoinToken{
 		TokenHash: tokenHash,
-		Role:      role,
 		CreatedAt: createdAt.Unix(),
 		ExpiresAt: expiresAt.Unix(),
 	}
 	return CreateEntity[ClusterJoinToken](db, db.stmts.CreateClusterJoinToken, row)
 }
 
-// RedeemClusterJoinToken consumes a join token and returns the role it grants.
+// VerifyClusterJoinToken reports whether a join token is currently redeemable,
+// without consuming it.
+//
+// It exists so the join handler can reject a request it was never going to be
+// able to satisfy — a malformed CSR, a schema version it does not share — before
+// spending the operator's single-use token on it.
+func (db *DatabaseRepository) VerifyClusterJoinToken(tokenHash string, now time.Time) error {
+	var unused int
+	err := db.Conn.PlainDB().QueryRow(
+		"SELECT 1 FROM cluster_join_tokens WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?",
+		tokenHash, now.Unix(),
+	).Scan(&unused)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return fmt.Errorf("failed to verify cluster join token: %w", ErrNotFound)
+	case err != nil:
+		return fmt.Errorf("failed to verify cluster join token: %w: %w", ErrInternal, err)
+	}
+
+	return nil
+}
+
+// RedeemClusterJoinToken consumes a join token.
 //
 // Redemption is a single conditional UPDATE rather than a read followed by a
 // write: a token is valid exactly once, and two nodes may present the same token
 // to two different members at the same time. Only the update that observes
 // used_at still NULL wins, so the loser is rejected as already used.
-func (db *DatabaseRepository) RedeemClusterJoinToken(tokenHash string, now time.Time) (ClusterRole, error) {
-	tx, err := db.Conn.PlainDB().BeginTx(context.Background(), nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to redeem cluster join token: %w", ErrInternal)
-	}
-	defer tx.Rollback() //nolint:errcheck
-
-	result, err := tx.Exec(
+func (db *DatabaseRepository) RedeemClusterJoinToken(tokenHash string, now time.Time) error {
+	result, err := db.Conn.PlainDB().Exec(
 		"UPDATE cluster_join_tokens SET used_at = ? WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?",
 		now.Unix(), tokenHash, now.Unix(),
 	)
 	if err != nil {
-		return "", fmt.Errorf("failed to redeem cluster join token: %w", ErrInternal)
+		return fmt.Errorf("failed to redeem cluster join token: %w: %w", ErrInternal, err)
 	}
 	affected, err := result.RowsAffected()
 	if err != nil {
-		return "", fmt.Errorf("failed to redeem cluster join token: %w", ErrInternal)
+		return fmt.Errorf("failed to redeem cluster join token: %w: %w", ErrInternal, err)
 	}
 	if affected == 0 {
 		// The token is unknown, already used, or expired. These are deliberately
 		// indistinguishable to the caller so a failed join reveals nothing about
 		// which tokens exist.
-		return "", fmt.Errorf("failed to redeem cluster join token: %w", ErrNotFound)
+		return fmt.Errorf("failed to redeem cluster join token: %w", ErrNotFound)
 	}
 
-	var role string
-	if err := tx.QueryRow("SELECT role FROM cluster_join_tokens WHERE token_hash = ?", tokenHash).Scan(&role); err != nil {
-		return "", fmt.Errorf("failed to redeem cluster join token: %w", ErrInternal)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return "", fmt.Errorf("failed to redeem cluster join token: %w", ErrInternal)
-	}
-
-	return ClusterRole(role), nil
+	return nil
 }
 
 // ListClusterJoinTokens returns every issued join token, used and unused alike.

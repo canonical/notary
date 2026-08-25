@@ -33,6 +33,11 @@ func DataDir(stateDir string) string {
 // Linux-only feature; the rest of Notary still builds and runs everywhere.
 var ErrUnsupportedPlatform = errors.New("clustering is only supported on linux")
 
+// ErrNotInitialized is returned by Start when a node that was not asked to
+// bootstrap has no cluster PKI yet. Starting such a node would otherwise mint a
+// fresh CA and form a second, silently disjoint cluster.
+var ErrNotInitialized = errors.New("this node is not part of a cluster yet: run `notary cluster bootstrap` or `notary cluster join` first")
+
 // Options configures a Notary cluster node.
 type Options struct {
 	// StateDir holds the node's dqlite data and its cluster-internal PKI. It is
@@ -43,8 +48,13 @@ type Options struct {
 	// dqlite and Raft traffic. It must be reachable by every other member.
 	Address string
 
-	// Join lists the addresses of existing cluster members. An empty Join
-	// bootstraps a new cluster with this node as its only voter.
+	// Bootstrap forms a brand new cluster with this node as its only voter,
+	// generating the cluster CA. Only `notary cluster bootstrap` sets it: every
+	// other caller must find an initialized state directory or fail.
+	Bootstrap bool
+
+	// Join lists the addresses of existing cluster members, as handed back by
+	// the member that admitted this node.
 	Join []string
 
 	// OnRolesAdjustment, if set, is called on this node each time dqlite

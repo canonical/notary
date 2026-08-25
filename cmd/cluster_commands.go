@@ -19,7 +19,6 @@ import (
 
 var (
 	clusterAPIToken    string
-	clusterTokenRole   string
 	clusterTokenTTL    time.Duration
 	clusterTokenQuiet  bool
 	clusterRemoveForce bool
@@ -51,13 +50,11 @@ type clusterStatusView struct {
 }
 
 type createJoinTokenRequest struct {
-	Role       string `json:"role"`
-	TTLSeconds int64  `json:"ttl_seconds"`
+	TTLSeconds int64 `json:"ttl_seconds"`
 }
 
 type createJoinTokenView struct {
 	Token     string `json:"token"`
-	Role      string `json:"role"`
 	ExpiresAt int64  `json:"expires_at"`
 }
 
@@ -71,7 +68,7 @@ type joinClusterRequest struct {
 type joinClusterView struct {
 	Certificate     string   `json:"certificate"`
 	CACertificate   string   `json:"ca_certificate"`
-	Role            string   `json:"role"`
+	CAKey           string   `json:"ca_key"`
 	MemberAddresses []string `json:"member_addresses"`
 }
 
@@ -96,7 +93,6 @@ is stored. Transfer it to the new node out of band.`,
 
 		var created createJoinTokenView
 		err = client.do("POST", "/cluster/members/tokens", createJoinTokenRequest{
-			Role:       clusterTokenRole,
 			TTLSeconds: int64(clusterTokenTTL.Seconds()),
 		}, &created)
 		if err != nil {
@@ -109,8 +105,8 @@ is stored. Transfer it to the new node out of band.`,
 			return err
 		}
 
-		cmd.Printf("Join token (shown once, %s role, expires %s):\n\n  %s\n\nOn the new node, run:\n\n  notary cluster join %s --config <config file> --address <this member's API address>\n",
-			created.Role, time.Unix(created.ExpiresAt, 0).UTC().Format(time.RFC3339), created.Token, created.Token)
+		cmd.Printf("Join token (shown once, expires %s):\n\n  %s\n\nOn the new node, run:\n\n  notary cluster join %s --config <config file> --address <this member's API address>\n",
+			time.Unix(created.ExpiresAt, 0).UTC().Format(time.RFC3339), created.Token, created.Token)
 
 		return nil
 	},
@@ -271,7 +267,7 @@ Run this once, on the new node, before starting the Notary server on it.`,
 			return err
 		}
 
-		if err := cluster.CompleteJoin(clusterConfig.StateDir, []byte(signed.Certificate), []byte(signed.CACertificate)); err != nil {
+		if err := cluster.CompleteJoin(clusterConfig.StateDir, []byte(signed.Certificate), []byte(signed.CACertificate), []byte(signed.CAKey)); err != nil {
 			return err
 		}
 
@@ -310,13 +306,10 @@ Run this once, on the new node, before starting the Notary server on it.`,
 			return fmt.Errorf("joined the cluster but couldn't record the member name: %w", err)
 		}
 
-		// Every member joins as a stand-by and go-dqlite converges roles towards
-		// the configured targets on its own (spec §1.3). Promoting here would be
-		// undone by the handover this command performs on shutdown anyway.
+		// dqlite assigns Raft roles itself, keeping the configured number of
+		// voters filled and promoting a stand-by when one is lost. `notary cluster
+		// promote` forces it ahead of that.
 		cmd.Printf("joined the cluster as %s (node %s)\n", name, nodeID)
-		if signed.Role == string(cluster.RoleVoter) {
-			cmd.Printf("the join token asked for the voter role; roles converge automatically once this node is started, or run `notary cluster promote %s` to force it\n", name)
-		}
 
 		return nil
 	},

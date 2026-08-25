@@ -150,17 +150,6 @@ type ACMEServer struct {
 	ACMEAccountID *int64 `db:"acme_account_id"`
 }
 
-// ClusterRole is the Raft role a cluster member holds.
-type ClusterRole string
-
-const (
-	// ClusterRoleVoter participates in Raft consensus.
-	ClusterRoleVoter ClusterRole = "voter"
-	// ClusterRoleStandBy replicates the log without voting, so a lost voter can
-	// be healed by promotion rather than a fresh join.
-	ClusterRoleStandBy ClusterRole = "standby"
-)
-
 // ClusterJoinToken is a single-use, time-limited credential that authorizes one
 // node to join the cluster.
 //
@@ -169,10 +158,9 @@ const (
 type ClusterJoinToken struct {
 	ID int64 `db:"id"`
 
-	TokenHash string      `db:"token_hash"`
-	Role      ClusterRole `db:"role"`
-	CreatedAt int64       `db:"created_at"`
-	ExpiresAt int64       `db:"expires_at"`
+	TokenHash string `db:"token_hash"`
+	CreatedAt int64  `db:"created_at"`
+	ExpiresAt int64  `db:"expires_at"`
 	// UsedAt is nil until the token is redeemed. A token is valid exactly once.
 	UsedAt *int64 `db:"used_at"`
 }

@@ -151,12 +151,14 @@ export function ClusterTable({
 							</Button>
 							<Button
 								className="p-contextual-menu__link"
+								disabled={member.id === localNodeID}
 								onClick={() => handleRemove(member, false)}
 							>
 								Remove
 							</Button>
 							<Button
 								className="p-contextual-menu__link"
+								disabled={member.status === "ONLINE"}
 								onClick={() => handleRemove(member, true)}
 							>
 								Force Remove

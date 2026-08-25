@@ -66,9 +66,6 @@ type ClusterStatusResponse struct {
 }
 
 type CreateJoinTokenParams struct {
-	// Role is the role the new member should end up holding: "voter" or
-	// "standby". Empty means standby.
-	Role string `json:"role"`
 	// TTLSeconds bounds the token's lifetime. Empty means defaultJoinTokenTTL.
 	TTLSeconds int64 `json:"ttl_seconds"`
 }
@@ -76,7 +73,6 @@ type CreateJoinTokenParams struct {
 type CreateJoinTokenResponse struct {
 	// Token is returned exactly once, here. Only its hash is stored.
 	Token     string `json:"token"`
-	Role      string `json:"role"`
 	ExpiresAt int64  `json:"expires_at"`
 }
 
@@ -96,7 +92,8 @@ type JoinClusterParams struct {
 type JoinClusterResponse struct {
 	Certificate   string   `json:"certificate"`
 	CACertificate string   `json:"ca_certificate"`
-	Role          string   `json:"role"`
+	// CAKey lets the new member admit joins of its own. See cluster.CompleteJoin.
+	CAKey         string   `json:"ca_key"`
 	MemberAddress []string `json:"member_addresses"`
 }
 
@@ -172,15 +169,9 @@ func CreateClusterJoinToken(env *HandlerDependencies) http.HandlerFunc {
 		}
 
 		var params CreateJoinTokenParams
-		// An empty body is valid: it asks for a standby token with the default TTL.
+		// An empty body is valid: it asks for a token with the default TTL.
 		if err := json.NewDecoder(r.Body).Decode(&params); err != nil && !errors.Is(err, io.EOF) {
 			writeResponse(w, http.StatusBadRequest, "invalid request body", nil, env.SystemLogger)
-			return
-		}
-
-		role, err := parseClusterRole(params.Role)
-		if err != nil {
-			writeResponse(w, http.StatusBadRequest, err.Error(), nil, env.SystemLogger)
 			return
 		}
 
@@ -202,7 +193,7 @@ func CreateClusterJoinToken(env *HandlerDependencies) http.HandlerFunc {
 
 		now := time.Now().UTC()
 		expiresAt := now.Add(ttl)
-		if _, err := env.Database.CreateClusterJoinToken(hash, role, now, expiresAt); err != nil {
+		if _, err := env.Database.CreateClusterJoinToken(hash, now, expiresAt); err != nil {
 			env.SystemLogger.Error("failed to store cluster join token", zap.Error(err))
 			writeResponse(w, http.StatusInternalServerError, "failed to create join token", nil, env.SystemLogger)
 			return
@@ -210,7 +201,6 @@ func CreateClusterJoinToken(env *HandlerDependencies) http.HandlerFunc {
 
 		writeResponse(w, http.StatusCreated, "", CreateJoinTokenResponse{
 			Token:     token,
-			Role:      string(role),
 			ExpiresAt: expiresAt.Unix(),
 		}, env.SystemLogger)
 	}
@@ -239,8 +229,11 @@ func JoinCluster(env *HandlerDependencies) http.HandlerFunc {
 			return
 		}
 
-		role, err := env.Database.RedeemClusterJoinToken(cluster.HashJoinToken(params.Token), time.Now().UTC())
-		if err != nil {
+		// Everything below runs before the token is consumed, so a request that
+		// was never going to succeed leaves the operator's token still usable.
+		tokenHash := cluster.HashJoinToken(params.Token)
+		now := time.Now().UTC()
+		if err := env.Database.VerifyClusterJoinToken(tokenHash, now); err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				// Unknown, expired and already-used tokens are all reported the
 				// same way so a caller learns nothing about which tokens exist.
@@ -248,14 +241,17 @@ func JoinCluster(env *HandlerDependencies) http.HandlerFunc {
 				writeResponse(w, http.StatusUnauthorized, "invalid or expired join token", nil, env.SystemLogger)
 				return
 			}
-			env.SystemLogger.Error("failed to redeem cluster join token", zap.Error(err))
+			env.SystemLogger.Error("failed to verify cluster join token", zap.Error(err))
 			writeResponse(w, http.StatusInternalServerError, "failed to process join request", nil, env.SystemLogger)
 			return
 		}
 
-		// Checked only once the token proves the caller is authorized, so the
-		// cluster's schema version is not readable by anyone who can reach the
-		// endpoint.
+		if err := cluster.ValidateJoinCSR([]byte(params.CSR)); err != nil {
+			env.SystemLogger.Warn("rejected an unusable cluster join request", zap.Error(err))
+			writeResponse(w, http.StatusBadRequest, "csr is not a valid certificate signing request", nil, env.SystemLogger)
+			return
+		}
+
 		if err := env.Database.CheckSchemaVersion(params.SchemaVersion); err != nil {
 			if errors.Is(err, db.ErrSchemaVersionMismatch) {
 				env.SystemLogger.Warn("rejected cluster join with a mismatched schema version",
@@ -268,10 +264,10 @@ func JoinCluster(env *HandlerDependencies) http.HandlerFunc {
 			return
 		}
 
-		certPEM, caCertPEM, err := cluster.SignJoinRequest(env.ClusterConfig.StateDir, []byte(params.CSR), params.Address)
+		certPEM, caCertPEM, caKeyPEM, err := cluster.SignJoinRequest(env.ClusterConfig.StateDir, []byte(params.CSR), params.Address)
 		if err != nil {
 			env.SystemLogger.Error("failed to sign cluster join request", zap.Error(err))
-			writeResponse(w, http.StatusBadRequest, "failed to sign the certificate request", nil, env.SystemLogger)
+			writeResponse(w, http.StatusInternalServerError, "failed to sign the certificate request", nil, env.SystemLogger)
 			return
 		}
 
@@ -286,13 +282,26 @@ func JoinCluster(env *HandlerDependencies) http.HandlerFunc {
 			addresses = append(addresses, member.Address)
 		}
 
-		env.SystemLogger.Info("signed a cluster join request",
-			zap.String("address", params.Address), zap.String("role", string(role)))
+		// Consumed last: the request is now known to be one this member can serve.
+		// A token can still be presented twice concurrently, and the conditional
+		// update is what makes only the first of those win.
+		if err := env.Database.RedeemClusterJoinToken(tokenHash, now); err != nil {
+			if errors.Is(err, db.ErrNotFound) {
+				env.SystemLogger.Warn("rejected cluster join with an invalid token", zap.String("address", params.Address))
+				writeResponse(w, http.StatusUnauthorized, "invalid or expired join token", nil, env.SystemLogger)
+				return
+			}
+			env.SystemLogger.Error("failed to redeem cluster join token", zap.Error(err))
+			writeResponse(w, http.StatusInternalServerError, "failed to process join request", nil, env.SystemLogger)
+			return
+		}
+
+		env.SystemLogger.Info("signed a cluster join request", zap.String("address", params.Address))
 
 		writeResponse(w, http.StatusOK, "", JoinClusterResponse{
 			Certificate:   string(certPEM),
 			CACertificate: string(caCertPEM),
-			Role:          string(role),
+			CAKey:         string(caKeyPEM),
 			MemberAddress: addresses,
 		}, env.SystemLogger)
 	}
@@ -445,17 +454,4 @@ func clusterMemberID(w http.ResponseWriter, r *http.Request, env *HandlerDepende
 		return 0, false
 	}
 	return id, true
-}
-
-// parseClusterRole validates the role requested for a join token. An empty role
-// means standby, which is the role every member joins with (spec §1.3).
-func parseClusterRole(role string) (db.ClusterRole, error) {
-	switch db.ClusterRole(role) {
-	case "", db.ClusterRoleStandBy:
-		return db.ClusterRoleStandBy, nil
-	case db.ClusterRoleVoter:
-		return db.ClusterRoleVoter, nil
-	default:
-		return "", errors.New(`role must be "voter" or "standby"`)
-	}
 }

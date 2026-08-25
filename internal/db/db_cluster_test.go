@@ -16,18 +16,16 @@ func TestCreateClusterJoinTokenRejectsInvalidInput(t *testing.T) {
 	tests := []struct {
 		name      string
 		tokenHash string
-		role      db.ClusterRole
 		expiresAt time.Time
 	}{
-		{"empty hash", "", db.ClusterRoleStandBy, now.Add(time.Hour)},
-		{"unknown role", "hash", db.ClusterRole("leader"), now.Add(time.Hour)},
-		{"expiry in the past", "hash", db.ClusterRoleStandBy, now.Add(-time.Hour)},
-		{"expiry equal to creation", "hash", db.ClusterRoleStandBy, now},
+		{"empty hash", "", now.Add(time.Hour)},
+		{"expiry in the past", "hash", now.Add(-time.Hour)},
+		{"expiry equal to creation", "hash", now},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := database.CreateClusterJoinToken(tt.tokenHash, tt.role, now, tt.expiresAt)
+			_, err := database.CreateClusterJoinToken(tt.tokenHash, now, tt.expiresAt)
 			if !errors.Is(err, db.ErrInvalidInput) {
 				t.Fatalf("expected ErrInvalidInput, got %v", err)
 			}
@@ -39,22 +37,41 @@ func TestRedeemClusterJoinTokenSucceedsOnce(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)
 	now := time.Now().UTC()
 
-	if _, err := database.CreateClusterJoinToken("hash", db.ClusterRoleVoter, now, now.Add(time.Hour)); err != nil {
+	if _, err := database.CreateClusterJoinToken("hash", now, now.Add(time.Hour)); err != nil {
 		t.Fatalf("couldn't create join token: %s", err)
 	}
 
-	role, err := database.RedeemClusterJoinToken("hash", now)
-	if err != nil {
+	if err := database.RedeemClusterJoinToken("hash", now); err != nil {
 		t.Fatalf("couldn't redeem join token: %s", err)
-	}
-	if role != db.ClusterRoleVoter {
-		t.Errorf("got role %q, want %q", role, db.ClusterRoleVoter)
 	}
 
 	// A join token authorizes exactly one join; the second attempt must fail
 	// even though the row is still there.
-	if _, err := database.RedeemClusterJoinToken("hash", now); !errors.Is(err, db.ErrNotFound) {
+	if err := database.RedeemClusterJoinToken("hash", now); !errors.Is(err, db.ErrNotFound) {
 		t.Fatalf("expected the second redemption to fail with ErrNotFound, got %v", err)
+	}
+}
+
+// Verification is what lets the join handler reject a doomed request without
+// spending the operator's token on it.
+func TestVerifyClusterJoinTokenDoesNotConsumeIt(t *testing.T) {
+	database := tu.MustPrepareEmptyDB(t)
+	now := time.Now().UTC()
+
+	if _, err := database.CreateClusterJoinToken("hash", now, now.Add(time.Hour)); err != nil {
+		t.Fatalf("couldn't create join token: %s", err)
+	}
+
+	for range 3 {
+		if err := database.VerifyClusterJoinToken("hash", now); err != nil {
+			t.Fatalf("verification failed on a live token: %s", err)
+		}
+	}
+	if err := database.RedeemClusterJoinToken("hash", now); err != nil {
+		t.Fatalf("the token was no longer redeemable after verification: %s", err)
+	}
+	if err := database.VerifyClusterJoinToken("hash", now); !errors.Is(err, db.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound for a spent token, got %v", err)
 	}
 }
 
@@ -62,7 +79,7 @@ func TestRedeemClusterJoinTokenRejectsUnusableTokens(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)
 	now := time.Now().UTC()
 
-	if _, err := database.CreateClusterJoinToken("expired", db.ClusterRoleStandBy, now.Add(-2*time.Hour), now.Add(-time.Hour)); err != nil {
+	if _, err := database.CreateClusterJoinToken("expired", now.Add(-2*time.Hour), now.Add(-time.Hour)); err != nil {
 		t.Fatalf("couldn't create join token: %s", err)
 	}
 
@@ -76,7 +93,7 @@ func TestRedeemClusterJoinTokenRejectsUnusableTokens(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if _, err := database.RedeemClusterJoinToken(tt.tokenHash, now); !errors.Is(err, db.ErrNotFound) {
+			if err := database.RedeemClusterJoinToken(tt.tokenHash, now); !errors.Is(err, db.ErrNotFound) {
 				t.Fatalf("expected ErrNotFound, got %v", err)
 			}
 		})
@@ -87,10 +104,10 @@ func TestCreateClusterJoinTokenRejectsDuplicateHash(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)
 	now := time.Now().UTC()
 
-	if _, err := database.CreateClusterJoinToken("hash", db.ClusterRoleStandBy, now, now.Add(time.Hour)); err != nil {
+	if _, err := database.CreateClusterJoinToken("hash", now, now.Add(time.Hour)); err != nil {
 		t.Fatalf("couldn't create join token: %s", err)
 	}
-	if _, err := database.CreateClusterJoinToken("hash", db.ClusterRoleStandBy, now, now.Add(time.Hour)); !errors.Is(err, db.ErrAlreadyExists) {
+	if _, err := database.CreateClusterJoinToken("hash", now, now.Add(time.Hour)); !errors.Is(err, db.ErrAlreadyExists) {
 		t.Fatalf("expected ErrAlreadyExists, got %v", err)
 	}
 }
@@ -99,10 +116,10 @@ func TestDeleteExpiredClusterJoinTokens(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)
 	now := time.Now().UTC()
 
-	if _, err := database.CreateClusterJoinToken("expired", db.ClusterRoleStandBy, now.Add(-2*time.Hour), now.Add(-time.Hour)); err != nil {
+	if _, err := database.CreateClusterJoinToken("expired", now.Add(-2*time.Hour), now.Add(-time.Hour)); err != nil {
 		t.Fatalf("couldn't create join token: %s", err)
 	}
-	if _, err := database.CreateClusterJoinToken("live", db.ClusterRoleStandBy, now, now.Add(time.Hour)); err != nil {
+	if _, err := database.CreateClusterJoinToken("live", now, now.Add(time.Hour)); err != nil {
 		t.Fatalf("couldn't create join token: %s", err)
 	}
 

@@ -97,7 +97,7 @@ func restoreCluster(cmd *cobra.Command, clusterConfig config.ClusterConfig, arch
 		return "", err
 	}
 
-	node, err := startClusterNode(clusterConfig, nil)
+	node, err := startClusterNode(clusterConfig, true, nil)
 	if err != nil {
 		return "", err
 	}

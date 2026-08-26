@@ -85,8 +85,9 @@ func TestCreateOIDCUser(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)
 
 	email := "oidc@example.com"
+	oidcIssuer := "https://issuer.example.com"
 	oidcSubject := "auth0|123456"
-	user, err := database.CreateOIDCUser(email, oidcSubject, db.RoleReadOnly)
+	user, err := database.CreateOIDCUser(email, oidcIssuer, oidcSubject, db.RoleReadOnly)
 	if err != nil {
 		t.Fatalf("Failed to create OIDC user: %s", err)
 	}
@@ -106,23 +107,28 @@ func TestCreateOIDCUser(t *testing.T) {
 	if user.OIDCSubject == nil || *user.OIDCSubject != oidcSubject {
 		t.Fatalf("Expected OIDC subject %s, got %v", oidcSubject, user.OIDCSubject)
 	}
+	if user.OIDCIssuer == nil || *user.OIDCIssuer != oidcIssuer {
+		t.Fatalf("Expected OIDC issuer %s, got %v", oidcIssuer, user.OIDCIssuer)
+	}
 	if user.RoleID != db.RoleReadOnly {
 		t.Fatalf("Expected role RoleReadOnly, got %d", user.RoleID)
 	}
 }
 
 // TestCreateOIDCUserDuplicateSubject tests that duplicate OIDC subjects are rejected
+// when they come from the same issuer.
 func TestCreateOIDCUserDuplicateSubject(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)
 
+	oidcIssuer := "https://issuer.example.com"
 	oidcSubject := "auth0|duplicate"
-	_, err := database.CreateOIDCUser("user1@example.com", oidcSubject, db.RoleReadOnly)
+	_, err := database.CreateOIDCUser("user1@example.com", oidcIssuer, oidcSubject, db.RoleReadOnly)
 	if err != nil {
 		t.Fatalf("Failed to create first OIDC user: %s", err)
 	}
 
-	// Try to create another user with same OIDC subject
-	_, err = database.CreateOIDCUser("user2@example.com", oidcSubject, db.RoleReadOnly)
+	// Try to create another user with same OIDC issuer and subject
+	_, err = database.CreateOIDCUser("user2@example.com", oidcIssuer, oidcSubject, db.RoleReadOnly)
 	if err == nil {
 		t.Fatal("Should have failed when creating user with duplicate OIDC subject")
 	}
@@ -131,19 +137,59 @@ func TestCreateOIDCUserDuplicateSubject(t *testing.T) {
 	}
 }
 
-// TestGetUserByOIDCSubject tests retrieving a user by OIDC subject
+// TestCreateOIDCUserSameSubjectDifferentIssuer tests that the same subject value
+// coming from two different issuers is two distinct identities.
+func TestCreateOIDCUserSameSubjectDifferentIssuer(t *testing.T) {
+	database := tu.MustPrepareEmptyDB(t)
+
+	oidcSubject := "1234567890"
+	first, err := database.CreateOIDCUser("user1@example.com", "https://issuer-a.example.com", oidcSubject, db.RoleReadOnly)
+	if err != nil {
+		t.Fatalf("Failed to create first OIDC user: %s", err)
+	}
+	second, err := database.CreateOIDCUser("user2@example.com", "https://issuer-b.example.com", oidcSubject, db.RoleReadOnly)
+	if err != nil {
+		t.Fatalf("Failed to create second OIDC user with same subject from another issuer: %s", err)
+	}
+	if first.ID == second.ID {
+		t.Fatal("Users from different issuers should be distinct identities")
+	}
+
+	retrieved, err := database.GetUser(db.ByOIDCIdentity("https://issuer-b.example.com", oidcSubject))
+	if err != nil {
+		t.Fatalf("Failed to get user by OIDC identity: %s", err)
+	}
+	if retrieved.ID != second.ID {
+		t.Fatalf("Expected user ID %d, got %d", second.ID, retrieved.ID)
+	}
+}
+
+func TestOIDCIdentityRequiresAnIssuer(t *testing.T) {
+	database := tu.MustPrepareEmptyDB(t)
+
+	_, err := database.Conn.PlainDB().Exec(
+		"INSERT INTO users (oidc_subject, role_id) VALUES (?, ?)",
+		"subject-without-issuer", db.RoleReadOnly,
+	)
+	if err == nil {
+		t.Fatal("the schema accepted an OIDC subject without its issuer")
+	}
+}
+
+// TestGetUserByOIDCSubject tests retrieving a user by OIDC identity
 func TestGetUserByOIDCSubject(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)
 
 	email := "oidc@example.com"
+	oidcIssuer := "https://issuer.example.com"
 	oidcSubject := "auth0|test123"
-	createdUser, err := database.CreateOIDCUser(email, oidcSubject, db.RoleReadOnly)
+	createdUser, err := database.CreateOIDCUser(email, oidcIssuer, oidcSubject, db.RoleReadOnly)
 	if err != nil {
 		t.Fatalf("Failed to create OIDC user: %s", err)
 	}
 
-	// Retrieve by OIDC subject
-	retrievedUser, err := database.GetUser(db.ByOIDCSubject(oidcSubject))
+	// Retrieve by OIDC identity
+	retrievedUser, err := database.GetUser(db.ByOIDCIdentity(oidcIssuer, oidcSubject))
 	if err != nil {
 		t.Fatalf("Failed to get user by OIDC subject: %s", err)
 	}
@@ -161,8 +207,9 @@ func TestGetUserByOIDCSubject(t *testing.T) {
 func TestCreateOIDCUserWithoutEmail(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)
 
+	oidcIssuer := "https://issuer.example.com"
 	oidcSubject := "auth0|no-email-user"
-	user, err := database.CreateOIDCUser("", oidcSubject, db.RoleReadOnly)
+	user, err := database.CreateOIDCUser("", oidcIssuer, oidcSubject, db.RoleReadOnly)
 	if err != nil {
 		t.Fatalf("Failed to create OIDC user without email: %s", err)
 	}
@@ -183,8 +230,8 @@ func TestCreateOIDCUserWithoutEmail(t *testing.T) {
 		t.Fatalf("Expected OIDC subject %s, got %v", oidcSubject, user.OIDCSubject)
 	}
 
-	// Should be retrievable by OIDC subject
-	retrievedUser, err := database.GetUser(db.ByOIDCSubject(oidcSubject))
+	// Should be retrievable by OIDC identity
+	retrievedUser, err := database.GetUser(db.ByOIDCIdentity(oidcIssuer, oidcSubject))
 	if err != nil {
 		t.Fatalf("Failed to get user by OIDC subject: %s", err)
 	}
@@ -264,7 +311,7 @@ func TestMixedAuthenticationScenarios(t *testing.T) {
 	}
 
 	// Scenario 2: OIDC-only user
-	oidcUser, err := database.CreateOIDCUser("oidc@example.com", "auth0|oidc", db.RoleReadOnly)
+	oidcUser, err := database.CreateOIDCUser("oidc@example.com", "https://issuer.example.com", "auth0|oidc", db.RoleReadOnly)
 	if err != nil {
 		t.Fatalf("Failed to create OIDC user: %s", err)
 	}

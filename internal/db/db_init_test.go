@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"log"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/canonical/notary/internal/db"
@@ -30,9 +31,8 @@ func TestConnect(t *testing.T) {
 		t.Fatalf("Couldn't apply database migrations: %s", err)
 	}
 	db, err := db.NewDatabase(&db.DatabaseOpts{
-		DatabasePath:    filepath.Join(tempDir, "db.sqlite"),
-		ApplyMigrations: false,
-		Logger:          logger,
+		DatabasePath: filepath.Join(tempDir, "db.sqlite"),
+		Logger:       logger,
 	})
 	if err != nil {
 		t.Fatalf("Can't connect to SQLite: %s", err)
@@ -43,12 +43,37 @@ func TestConnect(t *testing.T) {
 	}
 }
 
+func TestConnectRejectsANonCurrentSchema(t *testing.T) {
+	logger := zap.NewNop()
+	path := filepath.Join(t.TempDir(), "db.sqlite")
+	sqlConnection, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatalf("Couldn't create temporary database: %s", err)
+	}
+	if err := goose.SetDialect("sqlite"); err != nil {
+		t.Fatalf("Couldn't set goose dialect: %s", err)
+	}
+	if _, err := goose.EnsureDBVersion(sqlConnection); err != nil {
+		t.Fatalf("Couldn't initialize schema metadata: %s", err)
+	}
+	if _, err := sqlConnection.Exec("UPDATE goose_db_version SET version_id = 2 WHERE id = (SELECT max(id) FROM goose_db_version)"); err != nil {
+		t.Fatalf("Couldn't set non-current schema version: %s", err)
+	}
+	if err := sqlConnection.Close(); err != nil {
+		t.Fatalf("Couldn't close temporary database: %s", err)
+	}
+
+	_, err = db.NewDatabase(&db.DatabaseOpts{DatabasePath: path, Logger: logger})
+	if err == nil || !strings.Contains(err.Error(), "start with an empty database") {
+		t.Fatalf("got %v, want a fresh-database error", err)
+	}
+}
+
 func Example() {
 	logger, _ := zap.NewDevelopment()
 	database, err := db.NewDatabase(&db.DatabaseOpts{
-		DatabasePath:    "./notary.db",
-		ApplyMigrations: false,
-		Logger:          logger,
+		DatabasePath: "./notary.db",
+		Logger:       logger,
 	})
 	if err != nil {
 		log.Fatalln(err)

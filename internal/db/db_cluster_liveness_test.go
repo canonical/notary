@@ -1,0 +1,140 @@
+package db_test
+
+import (
+	"testing"
+	"time"
+
+	"github.com/canonical/notary/internal/db"
+	tu "github.com/canonical/notary/internal/testutils"
+)
+
+func TestClusterMemberHeartbeatRoundTrip(t *testing.T) {
+	database := tu.MustPrepareEmptyDB(t)
+	now := time.Now().UTC()
+
+	if _, err := database.CreateClusterMember("1", "node-1", "10.0.0.1:9000", now); err != nil {
+		t.Fatalf("Couldn't create a cluster member: %s", err)
+	}
+
+	member, err := database.GetClusterMember("1")
+	if err != nil {
+		t.Fatalf("Couldn't read the cluster member: %s", err)
+	}
+	if member.Heartbeat != nil {
+		t.Errorf("a member that never beat has heartbeat %v, want nil", *member.Heartbeat)
+	}
+	if member.Online(now) {
+		t.Error("a member that never beat reads as online")
+	}
+
+	if err := database.RecordClusterMemberHeartbeat("1", "10.0.0.1:9000", true, now); err != nil {
+		t.Fatalf("Couldn't record a heartbeat: %s", err)
+	}
+
+	member, err = database.GetClusterMember("1")
+	if err != nil {
+		t.Fatalf("Couldn't read the cluster member: %s", err)
+	}
+	if member.Heartbeat == nil || *member.Heartbeat != now.Unix() {
+		t.Errorf("got heartbeat %v, want %d", member.Heartbeat, now.Unix())
+	}
+	if !member.Sealed {
+		t.Error("the recorded seal state was not kept")
+	}
+	if !member.Online(now) {
+		t.Error("a member that just beat reads as offline")
+	}
+}
+
+// A heartbeat only counts for as long as the offline threshold, which is what
+// turns a stopped node into an OFFLINE member without anyone polling it.
+func TestClusterMemberGoesOfflineAfterTheThreshold(t *testing.T) {
+	database := tu.MustPrepareEmptyDB(t)
+	// Heartbeats are stored as whole Unix seconds, so a sub-second `now` would
+	// put the boundary case fractionally past the threshold.
+	now := time.Now().UTC().Truncate(time.Second)
+
+	if _, err := database.CreateClusterMember("1", "node-1", "10.0.0.1:9000", now); err != nil {
+		t.Fatalf("Couldn't create a cluster member: %s", err)
+	}
+	if err := database.RecordClusterMemberHeartbeat("1", "10.0.0.1:9000", false, now); err != nil {
+		t.Fatalf("Couldn't record a heartbeat: %s", err)
+	}
+
+	member, err := database.GetClusterMember("1")
+	if err != nil {
+		t.Fatalf("Couldn't read the cluster member: %s", err)
+	}
+
+	if !member.Online(now.Add(db.OfflineThreshold)) {
+		t.Error("a member exactly at the threshold reads as offline")
+	}
+	if member.Online(now.Add(db.OfflineThreshold + time.Second)) {
+		t.Error("a member past the threshold still reads as online")
+	}
+}
+
+func TestRecordClusterMemberHeartbeatRejectsAnEmptyNodeID(t *testing.T) {
+	database := tu.MustPrepareEmptyDB(t)
+
+	if err := database.RecordClusterMemberHeartbeat("", "10.0.0.1:9000", false, time.Now().UTC()); err == nil {
+		t.Fatal("an empty node ID was accepted")
+	}
+}
+
+// A member whose bookkeeping row was never written is still in the cluster and
+// still beating. Without this it would report offline for as long as it ran,
+// because the heartbeat had nothing to update.
+func TestHeartbeatCreatesAMissingMemberRow(t *testing.T) {
+	database := tu.MustPrepareEmptyDB(t)
+	now := time.Now().UTC()
+
+	if err := database.RecordClusterMemberHeartbeat("9", "10.0.0.9:9000", false, now); err != nil {
+		t.Fatalf("couldn't record a heartbeat for an unrecorded member: %s", err)
+	}
+
+	member, err := database.GetClusterMember("9")
+	if err != nil {
+		t.Fatalf("the member was not recorded: %s", err)
+	}
+	if !member.Online(now) {
+		t.Error("a member that just beat is not online")
+	}
+	if member.Address != "10.0.0.9:9000" {
+		t.Errorf("got address %q, want the one the member reported", member.Address)
+	}
+
+	// Beating again must update the row it created, not fail on the conflict.
+	later := now.Add(time.Second)
+	if err := database.RecordClusterMemberHeartbeat("9", "10.0.0.9:9000", true, later); err != nil {
+		t.Fatalf("couldn't record a second heartbeat: %s", err)
+	}
+	member, err = database.GetClusterMember("9")
+	if err != nil {
+		t.Fatalf("couldn't read the member back: %s", err)
+	}
+	if !member.Sealed {
+		t.Error("the second heartbeat did not update the seal state")
+	}
+}
+
+// A name given when the member joined must survive its own heartbeats.
+func TestHeartbeatDoesNotOverwriteARecordedName(t *testing.T) {
+	database := tu.MustPrepareEmptyDB(t)
+	now := time.Now().UTC()
+
+	if _, err := database.CreateClusterMember("9", "notary-9", "10.0.0.9:9000", now); err != nil {
+		t.Fatalf("couldn't create the member: %s", err)
+	}
+	if err := database.RecordClusterMemberHeartbeat("9", "10.0.0.9:9000", false, now); err != nil {
+		t.Fatalf("couldn't record a heartbeat: %s", err)
+	}
+
+	member, err := database.GetClusterMember("9")
+	if err != nil {
+		t.Fatalf("couldn't read the member back: %s", err)
+	}
+	if member.Name != "notary-9" {
+		t.Errorf("got name %q, want the recorded one", member.Name)
+	}
+}

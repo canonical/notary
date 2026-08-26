@@ -11,6 +11,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { type ChangeEvent, useState } from "react";
 import { z } from "zod";
 import { passwordIsValid } from "@/utils/helpers";
+import { oidcProviders } from "@/utils/oidc";
 import { getStatus, login, postFirstUser } from "@/utils/queries";
 import { getErrorMessage, RoleID } from "@/utils/types";
 
@@ -130,15 +131,20 @@ function InitializePageComponent() {
 					<>
 						<hr />
 						<p style={{ textAlign: "center" }}>or</p>
-						<Button
-							appearance="positive"
-							onClick={(event) => {
-								event.preventDefault();
-								window.location.href = "/api/v1/oauth/login";
-							}}
-						>
-							Initialize with OIDC
-						</Button>
+						{oidcProviders(statusQ.data.oidc_providers).map((provider) => (
+							<Button
+								key={provider.name}
+								appearance="positive"
+								onClick={(event) => {
+									event.preventDefault();
+									window.location.href = provider.loginURL;
+								}}
+							>
+								{provider.label
+									? `Initialize with ${provider.label}`
+									: "Initialize with OIDC"}
+							</Button>
+						))}
 					</>
 				)}
 			</Form>

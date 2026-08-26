@@ -9,6 +9,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { type ChangeEvent, useState } from "react";
+import { oidcProviders } from "@/utils/oidc";
 import { getStatus, login } from "@/utils/queries";
 import { getErrorMessage } from "@/utils/types";
 
@@ -80,17 +81,21 @@ function LoginPageComponent() {
 				>
 					Log In
 				</Button>
-				{statusQ.data?.oidc_enabled && (
-					<Button
-						appearance="positive"
-						onClick={(event) => {
-							event.preventDefault();
-							window.location.href = "/api/v1/oauth/login";
-						}}
-					>
-						Log In with OIDC
-					</Button>
-				)}
+				{statusQ.data?.oidc_enabled &&
+					oidcProviders(statusQ.data.oidc_providers).map((provider) => (
+						<Button
+							key={provider.name}
+							appearance="positive"
+							onClick={(event) => {
+								event.preventDefault();
+								window.location.href = provider.loginURL;
+							}}
+						>
+							{provider.label
+								? `Log In with ${provider.label}`
+								: "Log In with OIDC"}
+						</Button>
+					))}
 			</Form>
 		</LoginPageLayout>
 	);

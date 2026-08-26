@@ -5,6 +5,8 @@ import {
 	type APIErrorResponse,
 	type APIResponse,
 	type CertificateAuthorityEntry,
+	type ClusterJoinTokenEntry,
+	type ClusterStatusEntry,
 	type ConfigEntry,
 	type CSREntry,
 	type UserEntry,
@@ -20,10 +22,27 @@ export type RequiredCAParams = {
 	id: string;
 };
 
-type GETStatus = {
+type ServerStatus = {
 	initialized: boolean;
 	version: string;
 	oidc_enabled: boolean;
+	oidc_providers?: string[];
+	/**
+	 * Whether this node has unwrapped its data encryption key. A sealed node
+	 * replicates and votes normally but serves 503 on routes needing plaintext.
+	 */
+	sealed: boolean;
+	/** This node's dqlite node ID. Absent when clustering is disabled. */
+	node_id?: string;
+	/** This node's configured Raft role. Absent when clustering is disabled. */
+	role?: string;
+	/** This node's relationship to the Raft leader. Absent when clustering is disabled. */
+	raft_state?: string;
+};
+
+export type GETStatus = ServerStatus & {
+	/** False when /status returned local diagnostics because replicated storage is unavailable. */
+	storage_available: boolean;
 };
 
 async function parseAPIResponse<T>(response: globalThis.Response) {
@@ -56,7 +75,27 @@ async function fetchAPI<T>(
 }
 
 export async function getStatus(): Promise<GETStatus> {
-	return (await fetchAPI<GETStatus>("/status")) as GETStatus;
+	const response = await fetch("/status");
+	if (response.status === 503) {
+		const degraded = (await response.json()) as APIResponse<ServerStatus>;
+		if (!degraded.data) {
+			throw new APIError(
+				response.status,
+				HTTPStatus(response.status),
+				degraded.message,
+			);
+		}
+		return { ...degraded.data, storage_available: false };
+	}
+	const status = await parseAPIResponse<ServerStatus>(response);
+	if (!status.data) {
+		throw new APIError(
+			response.status,
+			HTTPStatus(response.status),
+			"status response did not include data",
+		);
+	}
+	return { ...status.data, storage_available: true };
 }
 
 export async function getCertificateRequests(): Promise<CSREntry[]> {
@@ -180,9 +219,7 @@ export async function changePassword(changePasswordForm: {
 	});
 }
 
-export async function ListUsers(
-	_params: Record<string, never>,
-): Promise<UserEntry[]> {
+export async function ListUsers(): Promise<UserEntry[]> {
 	return (await fetchAPI<UserEntry[]>("/api/v1/accounts")) as UserEntry[];
 }
 
@@ -394,4 +431,43 @@ export async function setActiveACMEServer(params: {
 		`/api/v1/acme_servers/${params.id}/active`,
 		{ method: "put" },
 	)) as ACMEServerEntry;
+}
+
+export async function getClusterStatus(): Promise<ClusterStatusEntry> {
+	return (await fetchAPI<ClusterStatusEntry>(
+		"/api/v1/cluster/status",
+	)) as ClusterStatusEntry;
+}
+
+export async function createClusterJoinToken(params: {
+	ttl_seconds?: number;
+}): Promise<ClusterJoinTokenEntry> {
+	return (await fetchAPI<ClusterJoinTokenEntry>(
+		"/api/v1/cluster/members/tokens",
+		{
+			method: "post",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(params),
+		},
+	)) as ClusterJoinTokenEntry;
+}
+
+export async function promoteClusterMember(params: {
+	id: string;
+}): Promise<void> {
+	await fetchAPI(`/api/v1/cluster/members/${params.id}/promote`, {
+		method: "post",
+	});
+}
+
+// force skips the Raft handover the server would otherwise perform first. It
+// exists for a member that is already gone and cannot hand anything over.
+export async function deleteClusterMember(params: {
+	id: string;
+	force?: boolean;
+}): Promise<void> {
+	const query = params.force ? "?force=true" : "";
+	await fetchAPI(`/api/v1/cluster/members/${params.id}${query}`, {
+		method: "delete",
+	});
 }

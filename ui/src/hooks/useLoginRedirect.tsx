@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { getSelfAccount, getStatus } from "@/utils/queries";
+import { APIError } from "@/utils/types";
 // This hook manages some redirects based on the user's login status, notary's initialization status and the current page.
 // If Notary isn't initialized, it will redirect the user to the initialization page.
 // If the user isn't logged in, it will redirect the user to the login page.
@@ -27,8 +28,14 @@ export function useLoginRedirect() {
 	useEffect(() => {
 		const notaryStatusIsLoading = statusQ.isLoading;
 		const notaryUserDataIsLoading = userQ.isLoading;
-		const notaryIsNotInitialized = statusQ.data && !statusQ.data.initialized;
-		const notaryUserNotLoggedIn = !statusQ.isLoading && userQ.isError;
+		const notaryIsNotInitialized =
+			statusQ.data?.storage_available !== false &&
+			statusQ.data &&
+			!statusQ.data.initialized;
+		const notaryUserNotLoggedIn =
+			!statusQ.isLoading &&
+			userQ.error instanceof APIError &&
+			(userQ.error.status === 401 || userQ.error.status === 403);
 		const notaryUserLoggedIn = !statusQ.isLoading && userQ.data;
 
 		if (notaryStatusIsLoading || notaryUserDataIsLoading) return;
@@ -65,7 +72,7 @@ export function useLoginRedirect() {
 		statusQ.isLoading,
 		userQ.isLoading,
 		userQ.data,
-		userQ.isError,
+		userQ.error,
 		navigate,
 		location.pathname,
 	]);

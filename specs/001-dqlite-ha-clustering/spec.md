@@ -139,16 +139,11 @@ easily-corrected misconfiguration.
 
 ### 1.5 Removing and replacing a node
 
-`notary cluster remove <member>` and `notary cluster remove <member> --force` call `client.Remove`
-(obtained via `app.Leader(ctx)`/`app.FindLeader(ctx)`) directly. Notary does not add its own
-confirmation, quorum-projection, or safety-check layer on top of what go-dqlite's own `Remove`
-does. For a node being gracefully decommissioned (not a dead one), `app.Handover(ctx)` is called
-first — go-dqlite's own primitive for transferring leadership/voting rights away from a node
-before it stops, avoiding an unnecessary election.
-
-Replacement is: remove the dead member, then join a new node with a fresh token (§1.2). A
-replacement node starts sealed and unseals automatically (§2) — no admin action is required. It
-participates in Raft and replicates data immediately regardless of seal state.
+Member removal is disabled. dqlite accepts any certificate signed by the cluster CA and does not
+authorize it against current Raft membership; every admitted member can also read the encrypted CA
+signing key after unsealing. Removing only the Raft record would therefore leave the removed host
+trusted. Until coordinated PKI rotation or membership-bound authorization is implemented, excluding
+a member requires rebuilding the cluster and isolating every host that held its credentials.
 
 ---
 
@@ -459,7 +454,6 @@ notary cluster bootstrap
 notary cluster token create [--role voter|standby] [--ttl 1h]
 notary cluster join <token> --address <host:port>
 notary cluster promote <member>
-notary cluster remove <member> [--force]
 notary cluster status
 ```
 
@@ -487,7 +481,7 @@ read it. That makes authentication a CLI concern:
 GET    /cluster/members                # list, with role/raft-state/seal-state per member
 POST   /cluster/members/tokens          # create a join token
 POST   /cluster/members/join            # redeem a join token: sign the joiner's CSR
-DELETE /cluster/members/{id}            # remove (accepts ?force=true) — client.Remove passthrough
+DELETE /cluster/members/{id}            # returns 501 until credential revocation is implemented
 POST   /cluster/members/{id}/promote
 GET    /cluster/status                  # aggregate health
 GET    /status                          # existing endpoint, extended with seal state + raft role
@@ -512,9 +506,7 @@ A "Cluster" admin screen:
 - Member table: name/address, role, Raft state, seal state (observability badge), last-seen.
 - "Add node": generates a join token, displays the copyable `notary cluster join …` command. The
   token is shown once.
-- Per-row "Remove": a standard confirmation dialog, then calls the same
-  `DELETE /cluster/members/{id}` passthrough as the CLI. No quorum projection is computed or shown
-  by notary.
+- No member-removal action until cluster credentials can be revoked safely.
 - No "Unseal" action anywhere.
 
 ---
@@ -644,17 +636,12 @@ lasting ability to mint identities that every peer trusts. A member reads the ke
 once it is admitted and replicating, which keeps the property that any member can admit the next one
 without the key crossing the enrollment API.
 
-## Known limitation: a removed member keeps its cluster certificate
+## Member removal requires credential revocation
 
-Removing a member takes it out of the Raft configuration, but nothing revokes the
-certificate it holds. That certificate is signed by the cluster CA and remains
-valid for its full lifetime, so every remaining member still trusts it at the TLS
-layer. dqlite refuses it a place in the cluster, but the trust itself is not
-withdrawn, and a backup taken by streaming from the leader is protected by that
-same trust.
+Removing only the Raft record does not revoke the member's certificate or the CA
+signing key it could read after unsealing. Notary therefore disables member removal
+instead of presenting Raft removal as a security boundary.
 
-Closing this needs a design decision rather than a patch. The options are a
-revocation list the members consult, node certificates short enough that removal
-outlives them, or re-issuing the cluster PKI when a member is removed, which
-costs a rolling restart. Until one is chosen, treat a removed member's host as
-still holding cluster credentials, and rebuild or isolate it.
+Enabling removal requires a revocation list enforced by every listener or coordinated
+cluster-PKI rotation. Until one is implemented, rebuild the cluster and isolate any
+host that held cluster credentials.

@@ -132,9 +132,8 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 func openDatabase(ctx context.Context, appConfig *config.AppConfig, acmeReconciler *acme.Reconciler) (*db.DatabaseRepository, cluster.Node, func(), error) {
 	if !appConfig.ClusterConfig.Enabled {
 		database, err := db.NewDatabase(&db.DatabaseOpts{
-			DatabasePath:    appConfig.DBPath,
-			Logger:          zap.L(),
-			ApplyMigrations: appConfig.ShouldApplyMigrations,
+			DatabasePath: appConfig.DBPath,
+			Logger:       zap.L(),
 		})
 		if err != nil {
 			return nil, nil, nil, err
@@ -150,7 +149,7 @@ func openDatabase(ctx context.Context, appConfig *config.AppConfig, acmeReconcil
 	readyCtx, cancel := context.WithTimeout(ctx, clusterReadyTimeout)
 	defer cancel()
 
-	database, err := openClusteredDatabase(readyCtx, node, appConfig.ShouldApplyMigrations)
+	database, err := openClusteredDatabase(readyCtx, node)
 	if err != nil {
 		closeClusterNode(node, zap.L())
 		return nil, nil, nil, err
@@ -210,8 +209,6 @@ func init() {
 	rootCmd.AddCommand(startCmd)
 
 	startCmd.Flags().StringVarP(&configFilePath, "config", "c", "", "path to the configuration file")
-	startCmd.Flags().BoolP("migrate-database", "m", false, "automatically apply database migrations if needed (use with caution)")
-
 	err := startCmd.MarkFlagRequired("config")
 	if err != nil {
 		log.Fatalf("couldn't mark flag required: %s", err)

@@ -120,15 +120,6 @@ type Node interface {
 	// automatic; this exists so an operator can force it immediately.
 	Promote(ctx context.Context, id uint64) error
 
-	// Handover transfers a member's Raft responsibilities away, so that a member
-	// being decommissioned can leave without forcing an election. It fails for a
-	// member that is already unreachable, which is precisely when removal has to
-	// go ahead without it.
-	Handover(ctx context.Context, id uint64) error
-
-	// Remove drops a member from the cluster.
-	Remove(ctx context.Context, id uint64) error
-
 	// Close shuts the node down, first handing over any voting role it holds so
 	// the remaining members keep quorum.
 	Close(ctx context.Context) error

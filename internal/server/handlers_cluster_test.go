@@ -523,55 +523,24 @@ func TestJoinClusterDoesNotSignWithoutAValidToken(t *testing.T) {
 	}
 }
 
-// A member that is already gone cannot hand anything over, which is the case
-// force exists for.
-func TestRemoveClusterMemberRequiresForceWhenHandoverFails(t *testing.T) {
-	node := fakeThreeNodeCluster()
-	node.HandoverErr = errors.New("member is unreachable")
-	ts, _ := tu.MustPrepareClusterServer(t, node)
-	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
-
-	statusCode, _ := tu.DoClusterAPIRequest(t, ts, "DELETE", "/api/v1/cluster/members/3", adminToken, nil)
-	if statusCode != http.StatusInternalServerError {
-		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, statusCode)
-	}
-	if removed := node.Removed(); len(removed) != 0 {
-		t.Fatalf("the member was removed despite the failed handover: %v", removed)
-	}
-
-	statusCode, body := tu.DoClusterAPIRequest(t, ts, "DELETE", "/api/v1/cluster/members/3?force=true", adminToken, nil)
-	if statusCode != http.StatusOK {
-		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, statusCode, string(body))
-	}
-	if removed := node.Removed(); len(removed) != 1 || removed[0] != 3 {
-		t.Fatalf("got removals %v, want [3]", removed)
-	}
-}
-
-// Removing the member serving the request would take away the node the caller
-// is talking to, and with force it would do so without handing over first.
-func TestAClusterMemberCannotRemoveItself(t *testing.T) {
-	node := fakeThreeNodeCluster()
-	ts, _ := tu.MustPrepareClusterServer(t, node)
+func TestClusterMemberRemovalIsDisabledUntilCredentialsCanBeRevoked(t *testing.T) {
+	ts, _ := tu.MustPrepareClusterServer(t, fakeThreeNodeCluster())
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
 
 	for _, path := range []string{
-		"/api/v1/cluster/members/1",
-		"/api/v1/cluster/members/1?force=true",
+		"/api/v1/cluster/members/3",
+		"/api/v1/cluster/members/3?force=true",
 	} {
 		t.Run(path, func(t *testing.T) {
 			statusCode, body := tu.DoClusterAPIRequest(t, ts, "DELETE", path, adminToken, nil)
-			if statusCode != http.StatusConflict {
-				t.Fatalf("expected status %d, got %d: %s", http.StatusConflict, statusCode, string(body))
-			}
-			if removed := node.Removed(); len(removed) != 0 {
-				t.Fatalf("the local member was removed: %v", removed)
+			if statusCode != http.StatusNotImplemented {
+				t.Fatalf("expected status %d, got %d: %s", http.StatusNotImplemented, statusCode, string(body))
 			}
 		})
 	}
 }
 
-func TestPromoteAndRemoveClusterMember(t *testing.T) {
+func TestPromoteClusterMember(t *testing.T) {
 	node := fakeThreeNodeCluster()
 	ts, _ := tu.MustPrepareClusterServer(t, node)
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
@@ -586,29 +555,11 @@ func TestPromoteAndRemoveClusterMember(t *testing.T) {
 		}
 	})
 
-	t.Run("remove", func(t *testing.T) {
-		statusCode, body := tu.DoClusterAPIRequest(t, ts, "DELETE", "/api/v1/cluster/members/3", adminToken, nil)
-		if statusCode != http.StatusOK {
-			t.Fatalf("expected status %d, got %d: %s", http.StatusOK, statusCode, string(body))
-		}
-		if removed := node.Removed(); len(removed) != 1 || removed[0] != 3 {
-			t.Fatalf("got removals %v, want [3]", removed)
-		}
-		if handedOver := node.HandedOver(); len(handedOver) != 1 || handedOver[0] != 3 {
-			t.Fatalf("got handovers %v, want [3]", handedOver)
-		}
-	})
-
 	t.Run("invalid member id", func(t *testing.T) {
-		for _, path := range []string{"/api/v1/cluster/members/abc/promote", "/api/v1/cluster/members/abc"} {
-			method := "POST"
-			if path == "/api/v1/cluster/members/abc" {
-				method = "DELETE"
-			}
-			statusCode, _ := tu.DoClusterAPIRequest(t, ts, method, path, adminToken, nil)
-			if statusCode != http.StatusBadRequest {
-				t.Fatalf("expected status %d for %s, got %d", http.StatusBadRequest, path, statusCode)
-			}
+		path := "/api/v1/cluster/members/abc/promote"
+		statusCode, _ := tu.DoClusterAPIRequest(t, ts, "POST", path, adminToken, nil)
+		if statusCode != http.StatusBadRequest {
+			t.Fatalf("expected status %d for %s, got %d", http.StatusBadRequest, path, statusCode)
 		}
 	})
 }

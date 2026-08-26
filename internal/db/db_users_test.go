@@ -164,6 +164,18 @@ func TestCreateOIDCUserSameSubjectDifferentIssuer(t *testing.T) {
 	}
 }
 
+func TestOIDCIdentityRequiresAnIssuer(t *testing.T) {
+	database := tu.MustPrepareEmptyDB(t)
+
+	_, err := database.Conn.PlainDB().Exec(
+		"INSERT INTO users (oidc_subject, role_id) VALUES (?, ?)",
+		"subject-without-issuer", db.RoleReadOnly,
+	)
+	if err == nil {
+		t.Fatal("the schema accepted an OIDC subject without its issuer")
+	}
+}
+
 // TestGetUserByOIDCSubject tests retrieving a user by OIDC identity
 func TestGetUserByOIDCSubject(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)

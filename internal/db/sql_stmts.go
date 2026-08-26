@@ -304,16 +304,12 @@ WITH RECURSIVE cas_with_chain AS (
 	listUsersStmt         = "SELECT &User.* from users"
 	getUserStmt           = "SELECT &User.* from users WHERE id==$User.id or email==$User.email"
 	getUserByOIDCIdentity = "SELECT &User.* from users WHERE oidc_issuer==$User.oidc_issuer and oidc_subject==$User.oidc_subject"
-	// Users that predate the oidc_issuer column carry NULL, so no lookup by
-	// (issuer, subject) can ever match them.
-	getUserByLegacyOIDCSubject = "SELECT &User.* from users WHERE oidc_issuer IS NULL and oidc_subject==$User.oidc_subject"
-	adoptOIDCIssuerStmt        = "UPDATE users SET oidc_issuer=$User.oidc_issuer WHERE id==$User.id and oidc_issuer IS NULL"
-	createUserStmt             = "INSERT INTO users (email, hashed_password, role_id) VALUES ($User.email, $User.hashed_password, $User.role_id)"
-	createOIDCUserStmt         = "INSERT INTO users (email, hashed_password, role_id, oidc_issuer, oidc_subject) VALUES ($User.email, NULL, $User.role_id, $User.oidc_issuer, $User.oidc_subject)"
-	updateUserStmt             = "UPDATE users SET hashed_password=$User.hashed_password WHERE id==$User.id or email==$User.email"
-	updateUserRoleStmt         = "UPDATE users SET role_id=$User.role_id WHERE id==$User.id"
-	deleteUserStmt             = "DELETE FROM users WHERE id==$User.id"
-	getNumUsersStmt            = "SELECT COUNT(*) AS &NumUsers.count FROM users"
+	createUserStmt        = "INSERT INTO users (email, hashed_password, role_id) VALUES ($User.email, $User.hashed_password, $User.role_id)"
+	createOIDCUserStmt    = "INSERT INTO users (email, hashed_password, role_id, oidc_issuer, oidc_subject) VALUES ($User.email, NULL, $User.role_id, $User.oidc_issuer, $User.oidc_subject)"
+	updateUserStmt        = "UPDATE users SET hashed_password=$User.hashed_password WHERE id==$User.id or email==$User.email"
+	updateUserRoleStmt    = "UPDATE users SET role_id=$User.role_id WHERE id==$User.id"
+	deleteUserStmt        = "DELETE FROM users WHERE id==$User.id"
+	getNumUsersStmt       = "SELECT COUNT(*) AS &NumUsers.count FROM users"
 
 	// // // // // // // // // //
 	// Encryption Key SQL Strings //
@@ -402,17 +398,15 @@ type Statements struct {
 	DeletePrivateKey *sqlair.Statement
 
 	// User statements
-	CreateUser                 *sqlair.Statement
-	CreateOIDCUser             *sqlair.Statement
-	GetUser                    *sqlair.Statement
-	GetUserByOIDCIdentity      *sqlair.Statement
-	GetUserByLegacyOIDCSubject *sqlair.Statement
-	AdoptOIDCIssuer            *sqlair.Statement
-	UpdateUser                 *sqlair.Statement
-	UpdateUserRole             *sqlair.Statement
-	ListUsers                  *sqlair.Statement
-	DeleteUser                 *sqlair.Statement
-	GetNumUsers                *sqlair.Statement
+	CreateUser            *sqlair.Statement
+	CreateOIDCUser        *sqlair.Statement
+	GetUser               *sqlair.Statement
+	GetUserByOIDCIdentity *sqlair.Statement
+	UpdateUser            *sqlair.Statement
+	UpdateUserRole        *sqlair.Statement
+	ListUsers             *sqlair.Statement
+	DeleteUser            *sqlair.Statement
+	GetNumUsers           *sqlair.Statement
 
 	// Encryption Key statements
 	CreateEncryptionKey *sqlair.Statement
@@ -505,8 +499,6 @@ func PrepareStatements() *Statements {
 	stmts.CreateOIDCUser = sqlair.MustPrepare(createOIDCUserStmt, User{})
 	stmts.GetUser = sqlair.MustPrepare(getUserStmt, User{})
 	stmts.GetUserByOIDCIdentity = sqlair.MustPrepare(getUserByOIDCIdentity, User{})
-	stmts.GetUserByLegacyOIDCSubject = sqlair.MustPrepare(getUserByLegacyOIDCSubject, User{})
-	stmts.AdoptOIDCIssuer = sqlair.MustPrepare(adoptOIDCIssuerStmt, User{})
 	stmts.UpdateUser = sqlair.MustPrepare(updateUserStmt, User{})
 	stmts.UpdateUserRole = sqlair.MustPrepare(updateUserRoleStmt, User{})
 	stmts.ListUsers = sqlair.MustPrepare(listUsersStmt, User{})

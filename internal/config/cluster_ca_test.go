@@ -54,9 +54,8 @@ func mustOpenDatabase(t *testing.T) *db.DatabaseRepository {
 	t.Helper()
 
 	database, err := db.NewDatabase(&db.DatabaseOpts{
-		DatabasePath:    filepath.Join(t.TempDir(), "notary.db"),
-		ApplyMigrations: true,
-		Logger:          zap.NewNop(),
+		DatabasePath: filepath.Join(t.TempDir(), "notary.db"),
+		Logger:       zap.NewNop(),
 	})
 	if err != nil {
 		t.Fatalf("couldn't open the database: %s", err)

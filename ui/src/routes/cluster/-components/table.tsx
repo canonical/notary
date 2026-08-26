@@ -9,7 +9,7 @@ import {
 	NotaryConfirmationModal,
 	type NotaryConfirmationModalData,
 } from "@/components/NotaryConfirmationModal";
-import { deleteClusterMember, promoteClusterMember } from "@/utils/queries";
+import { promoteClusterMember } from "@/utils/queries";
 import type { ClusterMemberEntry, ClusterStatusEntry } from "@/utils/types";
 
 type ClusterTableProps = {
@@ -72,22 +72,6 @@ export function ClusterTable({
 		});
 	};
 
-	const handleRemove = (member: ClusterMemberEntry, force: boolean) => {
-		setConfirmationModalData({
-			queryFn: deleteClusterMember,
-			queryParams: { id: member.id, force: force },
-			queryKey: "cluster_status",
-			closeFn: () => setConfirmationModalData(null),
-			buttonConfirmText: force ? "Force Remove" : "Remove",
-			warningText: force
-				? `"${memberLabel(member)}" will be removed without handing over its Raft responsibilities first. Only do this for a member that is already gone.`
-				: `"${memberLabel(member)}" will hand over its Raft responsibilities and leave the cluster. Rejoining requires a new join token.`,
-			successTitle: "Member removed",
-			successMessage: `"${memberLabel(member)}" was removed from the cluster.`,
-			failureMessage: "Failed to remove the cluster member.",
-		});
-	};
-
 	const rows = status.members.map((member) => ({
 		sortData: {
 			name: memberLabel(member),
@@ -121,22 +105,6 @@ export function ClusterTable({
 								onClick={() => handlePromote(member)}
 							>
 								Promote to Voter
-							</Button>
-							<Button
-								className="p-contextual-menu__link"
-								disabled={member.id === localNodeID}
-								onClick={() => handleRemove(member, false)}
-							>
-								Remove
-							</Button>
-							<Button
-								className="p-contextual-menu__link"
-								disabled={
-									member.id === localNodeID || member.status === "ONLINE"
-								}
-								onClick={() => handleRemove(member, true)}
-							>
-								Force Remove
 							</Button>
 						</span>
 					</ContextualMenu>

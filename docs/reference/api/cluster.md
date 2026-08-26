@@ -150,8 +150,8 @@ which is what lets any member admit the next one.
 
 This path returns `401` when the token is unknown, expired or already used; the three are reported
 identically so that a caller learns nothing about which tokens exist. It returns `409` when the
-joining node's `schema_version` differs from the cluster's, which is what stops a node running a
-different version of Notary from replicating a schema its binary was not built for. The token is
+joining node's `schema_version` differs from the cluster's. Database schemas are not upgraded in
+place: all members must run a build with the exact schema used to initialize the cluster. The token is
 checked, then redeemed, before the certificate is signed: a malformed request or a version mismatch
 leaves the token usable, and two concurrent uses of the same token cannot both receive a
 certificate.
@@ -177,34 +177,14 @@ members join and leave; this exists for an operator who needs it to happen now.
 
 ## Remove a member
 
-This path removes a member from the cluster. The member hands over its Raft responsibilities
-first, so a running member leaves without forcing an election.
+Member removal is disabled and returns `501 Not Implemented`.
 
 | Method   | Path                       |
 | :------- | :------------------------- |
 | `DELETE` | `/cluster/members/{id}`    |
 
-### Parameters
-
-`{id}` is the member's dqlite node ID, as reported by `GET /cluster/members`.
-
-- `force` (boolean, query parameter): Skip the handover. Required for a member that is already
-  unreachable, which is precisely when the handover cannot succeed.
-
-Without `force` this path returns `409` for a member that is not reporting a heartbeat. The handover
-is carried out by the leader and never contacts the member itself, so it would otherwise succeed
-against a member that is already gone and `force` would mean nothing.
-
-It also returns `409` when the member being removed is the one serving the request, with or without
-`force`. Removing it would take away the node the caller is talking to, and forcing it would do so
-without handing over first. Issue the removal against another member.
-
-### Sample Response
-
-```json
-{}
-```
-
-Removing a member is the only supported way to take a node out of the cluster. Deleting its state
-directory instead leaves the remaining members with a stale view of membership, which affects
-quorum.
+dqlite authenticates peers with certificates signed by the shared cluster CA and does not authorize
+them against current Raft membership. Every admitted member can also read the encrypted CA signing
+key after unsealing. Removing only the Raft record would therefore leave the removed host able to
+authenticate or mint replacement credentials. Until Notary implements revocation or coordinated PKI
+rotation, rebuild the cluster to exclude a member and isolate any host that held cluster credentials.

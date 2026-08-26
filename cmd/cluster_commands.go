@@ -22,7 +22,6 @@ var (
 	clusterAPIToken    string
 	clusterTokenTTL    time.Duration
 	clusterTokenQuiet  bool
-	clusterRemoveForce bool
 	clusterJoinAddress string
 	clusterJoinName    string
 	clusterJoinCACert  string
@@ -103,8 +102,8 @@ var clusterStatusCmd = &cobra.Command{
 		for _, member := range status.Members {
 			name := member.Name
 			if name == "" {
-				// The ID is printed for every nameless member so promote and remove
-				// still have something to address.
+				// The ID is printed for every nameless member so promote still has
+				// something to address.
 				name = member.ID
 			}
 			_, _ = fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\n",
@@ -143,43 +142,6 @@ the automatic adjustment interval.
 		}
 
 		cmd.Printf("promoted %s to voter\n", args[0])
-
-		return nil
-	},
-}
-
-var clusterRemoveCmd = &cobra.Command{
-	Use:   "remove <member>",
-	Short: "Remove a member from the cluster",
-	Long: `Removes a member from the cluster.
-
-<member> is the name recorded when the member joined, or its dqlite node ID.
-
-The member's Raft responsibilities are handed over before it is removed, so a
-running member leaves without forcing an election. Use --force for a member that
-is already gone, where the handover cannot succeed.`,
-	Args: cobra.ExactArgs(1),
-
-	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := localClusterAPIClient(cmd)
-		if err != nil {
-			return err
-		}
-
-		member, err := resolveClusterMember(client, args[0])
-		if err != nil {
-			return err
-		}
-
-		path := "/cluster/members/" + escapePathSegment(member.ID)
-		if clusterRemoveForce {
-			path += "?force=true"
-		}
-		if err := client.do("DELETE", path, nil, nil); err != nil {
-			return err
-		}
-
-		cmd.Printf("removed %s from the cluster\n", args[0])
 
 		return nil
 	},

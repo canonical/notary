@@ -62,9 +62,8 @@ func mustOpenTestDatabase(t *testing.T) *db.DatabaseRepository {
 
 	if os.Getenv(ClusteredTestsEnvVar) == "" {
 		database, err := db.NewDatabase(&db.DatabaseOpts{
-			DatabasePath:    filepath.Join(t.TempDir(), "db.sqlite"),
-			ApplyMigrations: true,
-			Logger:          logger,
+			DatabasePath: filepath.Join(t.TempDir(), "db.sqlite"),
+			Logger:       logger,
 		})
 		if err != nil {
 			t.Fatalf("Couldn't complete NewDatabase: %s", err)
@@ -126,9 +125,8 @@ func mustOpenClusteredTestDatabase(t *testing.T) *db.DatabaseRepository {
 		t.Fatalf("Couldn't open clustered database: %s", err)
 	}
 	database, err := db.NewDatabaseFromConn(conn, &db.DatabaseOpts{
-		DatabasePath:    cluster.DatabaseName,
-		ApplyMigrations: true,
-		Logger:          logger,
+		DatabasePath: cluster.DatabaseName,
+		Logger:       logger,
 	})
 	if err != nil {
 		t.Fatalf("Couldn't complete NewDatabaseFromConn: %s", err)
@@ -200,7 +198,6 @@ func MustCreateTestAppConfig(t *testing.T) *config.AppConfig {
 		Port:                            8000,
 		ExternalHostname:                "example.com",
 		DBPath:                          ":memory:",
-		ShouldApplyMigrations:           false,
 		ShouldEnablePebbleNotifications: false,
 		TLSCertificate:                  []byte(TestServerCertificate),
 		TLSPrivateKey:                   []byte(TestServerKey),

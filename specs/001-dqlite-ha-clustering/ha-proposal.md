@@ -64,7 +64,7 @@ sign a CSR against the cluster CA. Every route returns `404` when clustering is 
 |---|---|---|
 | `POST /cluster/members/tokens` | `{"role": "voter" \| "standby", "ttl_seconds": int}` | `{"token": "<single-use token>", "role": string, "expires_at": <unix seconds>}` |
 | `POST /cluster/members/join` | `{"token": string, "csr": "<PEM-encoded CSR>", "address": string, "schema_version": int}` | `{"certificate": "<PEM>", "ca_certificate": "<PEM>", "role": string, "member_addresses": ["<address>", ...]}` |
-| `DELETE /cluster/members/{id}` | `?force=true` (optional query param) | N/A |
+| `DELETE /cluster/members/{id}` | N/A | Returns `501` until credential revocation is implemented. |
 | `POST /cluster/members/{id}/promote` | N/A | N/A |
 | `GET /cluster/members` | N/A | `[{"id", "name", "address", "role", "leader", "sealed", "last_seen", "status", "message"}, ...]` |
 | `GET /cluster/status` | N/A | `{"enabled", "node_id", "address", "leader_id", "voters", "members": [...]}` |
@@ -78,7 +78,7 @@ anchor, having had none before.
 
 `POST /cluster/members/tokens` and `POST /cluster/members/join` together replace the earlier single `POST /cluster/token` endpoint: token issuance is separated from the join/CSR exchange because the new node doesn't generate its keypair and CSR until it actually attempts to join, not at the point an operator requests a token on its behalf.
 
-`DELETE /cluster/members/{id}` replaces `POST /cluster/remove`, following REST convention for the resource being deleted, and is a direct passthrough to `go-dqlite`'s own `client.Remove` — Notary does not add its own confirmation or quorum-projection logic on top of it.
+`DELETE /cluster/members/{id}` is reserved but returns `501`: dqlite Raft removal does not revoke the member's certificate or its access to the cluster CA signing key.
 
 #### CLI Arguments
 
@@ -90,7 +90,6 @@ Cluster operations are exposed as `notary cluster` subcommands rather than flags
 | `notary cluster token create` | `--config`, `--token`, `--role voter\|standby`, `--ttl 1h`, `--quiet` | Generates a single-use join token. `--quiet` prints only the token, for scripting. |
 | `notary cluster join` | `<token>`, `--config`, `--address <existing-member-addr>`, `--name`, `--ca-cert` | Joins this node to the cluster identified by an existing member's address, using the given token. |
 | `notary cluster promote` | `<member>`, `--config`, `--token` | Explicit override to promote a standby to voter ahead of automatic role convergence. |
-| `notary cluster remove` | `<member>`, `--config`, `--token`, `[--force]` | Removes a member. `--force` is required for a member that isn't reachable. |
 | `notary cluster status` | `--config`, `--token` | Prints each member's name, address, role, leadership, seal state, and ONLINE/OFFLINE state. |
 | `notary cluster restore` | `--config`, `--file` | Disaster recovery: rebuilds a cluster from a `notary backup` archive as a fresh single node. Out of scope for this document; see spec.md §7. |
 
@@ -164,6 +163,7 @@ an `ONLINE`/`OFFLINE` state with a human-readable message.
 
 ### Decommissioning
 
-To remove a node, an operator sends `DELETE /cluster/members/{id}` (or runs `notary cluster remove <member>`) for the node's ID, as shown in `notary cluster status` output. For a reachable node being gracefully decommissioned, this triggers `app.Handover(ctx)` first — transferring leadership/voting rights away before the node is removed — followed by `client.Remove`. For an unreachable (dead) node, `--force` is required, which skips the handover step and removes the member directly.
-
-Operators should not delete a node's `state_dir` directly as a way of removing it from the cluster — doing so leaves the remaining members with a stale view of membership and can affect quorum accounting. `DELETE /cluster/members/{id}` (with `--force` if necessary) works for a member in any status, including one that is currently down, and is the only supported removal path.
+Member removal is disabled because Raft removal does not revoke the member's CA-signed certificate
+or the CA signing key it could read after unsealing. `DELETE /cluster/members/{id}` returns `501`.
+Until revocation or coordinated PKI rotation exists, excluding a member requires rebuilding the
+cluster and isolating the old host.

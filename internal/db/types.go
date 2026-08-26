@@ -6,9 +6,8 @@ import (
 )
 
 type DatabaseOpts struct {
-	DatabasePath    string
-	ApplyMigrations bool
-	Logger          *zap.Logger
+	DatabasePath string
+	Logger       *zap.Logger
 }
 
 // DatabaseRepository is the object used to communicate with the established repository.

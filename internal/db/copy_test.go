@@ -137,7 +137,7 @@ func TestCopyDatabaseCarriesNotarysOwnSchema(t *testing.T) {
 	sourcePath := filepath.Join(t.TempDir(), "notary")
 	logger := zap.NewNop()
 
-	source, err := db.NewDatabase(&db.DatabaseOpts{DatabasePath: sourcePath, ApplyMigrations: true, Logger: logger})
+	source, err := db.NewDatabase(&db.DatabaseOpts{DatabasePath: sourcePath, Logger: logger})
 	if err != nil {
 		t.Fatalf("failed to create the source database: %v", err)
 	}
@@ -154,7 +154,7 @@ func TestCopyDatabaseCarriesNotarysOwnSchema(t *testing.T) {
 		t.Fatalf("failed to copy database: %v", err)
 	}
 
-	restored, err := db.NewDatabaseFromConn(dest, &db.DatabaseOpts{DatabasePath: destPath, ApplyMigrations: false, Logger: logger})
+	restored, err := db.NewDatabaseFromConn(dest, &db.DatabaseOpts{DatabasePath: destPath, Logger: logger})
 	if err != nil {
 		t.Fatalf("failed to open the restored database: %v", err)
 	}

@@ -110,15 +110,15 @@ primitives Phase 1 already has access to.
   name, joined-at), populated when a join completes. `client.NodeInfo` carries only ID, address,
   and role — this table is what makes `notary cluster status` (below) show names instead of raw
   dqlite node IDs.
-- CLI (`cmd/cluster.go`): `token create`, `join`, `promote`, `remove [--force]`, `status`
+- CLI (`cmd/cluster.go`): `token create`, `join`, `promote`, `status`
   (spec.md §6.1). `join` drives the new-node side of the CSR-signing exchange above, then calls
   `app.New(..., app.WithCluster(peerAddrs))` to actually join Raft.
 - Admin API (new `internal/server/handlers_cluster.go`, wired into `internal/server/router.go`
   alongside the existing `handlers_*.go` files): `/cluster/members`,
   `/cluster/members/tokens`, `/cluster/members/join` (the CSR-signing endpoint above),
   `/cluster/members/{id}`, `/cluster/members/{id}/promote`, `/cluster/status` (spec.md §6.2).
-  `DELETE /cluster/members/{id}` calls `app.Handover(ctx)` first if the target is reachable
-  (graceful), then `client.Remove` (spec.md §1.5).
+  `DELETE /cluster/members/{id}` returns `501` until member credentials can be revoked
+  (spec.md §1.5).
 - Build a local 3-node dev harness (docker-compose or an equivalent multi-process script) capable
   of bootstrapping, killing, and restarting individual nodes. This harness is reused by Phases 3,
   4, and 6 — build it once here.

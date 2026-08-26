@@ -321,72 +321,18 @@ func PromoteClusterMember(env *HandlerDependencies) http.HandlerFunc {
 	}
 }
 
-// DeleteClusterMember removes a member from the cluster and drops its name
-// record. Beyond the graceful handover below it is a passthrough to dqlite's own
-// Remove: Notary adds no quorum projection or safety checks of its own
-// (spec §1.5).
-//
-// Without ?force=true the member's Raft responsibilities are handed over first,
-// which is what makes decommissioning a live member cheap. force exists for the
-// case the handover cannot work: a member that is already gone.
+// DeleteClusterMember rejects removal until cluster credentials can be revoked.
+// Removing only the Raft member leaves its CA-signed certificate trusted, and
+// every admitted member has had access to the replicated CA signing key.
 func DeleteClusterMember(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !clusterEnabled(w, env) {
 			return
 		}
 
-		id, ok := clusterMemberID(w, r, env)
-		if !ok {
-			return
-		}
-
-		// A member cannot remove itself, forced or not. It would be taking away
-		// the node serving the request, and with --force it would do so without
-		// handing over first. Removal is issued from another member.
-		if id == env.ClusterNode.ID() {
-			writeResponse(w, http.StatusConflict,
-				"a cluster member cannot remove itself, run this against another member",
-				nil, env.SystemLogger)
-			return
-		}
-
-		force := r.URL.Query().Get("force") == "true"
-		if !force {
-			// dqlite's handover goes through the leader and never contacts the
-			// member itself, so it succeeds against one that is already gone. The
-			// member's own heartbeat is what actually says whether it is there.
-			if record, err := env.Database.GetClusterMember(strconv.FormatUint(id, 10)); err == nil && !record.Online(time.Now().UTC()) {
-				writeResponse(w, http.StatusConflict,
-					"the cluster member is not reporting a heartbeat, retry with force to remove it anyway",
-					nil, env.SystemLogger)
-				return
-			}
-
-			if err := env.ClusterNode.Handover(r.Context(), id); err != nil {
-				env.SystemLogger.Error("failed to hand over cluster member responsibilities",
-					zap.Error(err), zap.Uint64("node_id", id))
-				writeResponse(w, http.StatusInternalServerError,
-					"failed to hand over the cluster member's responsibilities, retry with force to remove it anyway",
-					nil, env.SystemLogger)
-				return
-			}
-		}
-
-		if err := env.ClusterNode.Remove(r.Context(), id); err != nil {
-			env.SystemLogger.Error("failed to remove cluster member", zap.Error(err), zap.Uint64("node_id", id))
-			writeResponse(w, http.StatusInternalServerError, "failed to remove cluster member", nil, env.SystemLogger)
-			return
-		}
-
-		// The member is already out of the cluster at this point; a stale name
-		// record is cosmetic, so it must not turn a successful removal into a
-		// failed request.
-		if err := env.Database.DeleteClusterMember(strconv.FormatUint(id, 10)); err != nil && !errors.Is(err, db.ErrNotFound) {
-			env.SystemLogger.Error("removed cluster member but failed to delete its name record",
-				zap.Error(err), zap.Uint64("node_id", id))
-		}
-
-		writeResponse(w, http.StatusOK, "cluster member removed", nil, env.SystemLogger)
+		writeResponse(w, http.StatusNotImplemented,
+			"cluster member removal is disabled because dqlite does not revoke the member's certificate; rebuild the cluster to exclude a compromised member",
+			nil, env.SystemLogger)
 	}
 }
 

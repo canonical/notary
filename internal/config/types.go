@@ -28,8 +28,6 @@ type AppConfig struct {
 
 	// Path to store the sqlite database
 	DBPath string
-	// Whether to apply database migrations automatically on startup if the database is outdated
-	ShouldApplyMigrations bool
 
 	// ClusterConfig holds the dqlite clustering settings. Clustering is opt-in;
 	// while it is disabled Notary stores its data in the single file at DBPath,

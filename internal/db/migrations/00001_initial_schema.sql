@@ -1,83 +1,141 @@
 -- +goose Up
 -- +goose StatementBegin
-CREATE TABLE IF NOT EXISTS certificate_requests
+CREATE TABLE certificate_requests
 (
     csr_id          INTEGER PRIMARY KEY AUTOINCREMENT,
-	csr             TEXT NOT NULL UNIQUE,
-	status          TEXT DEFAULT 'Outstanding',
-	certificate_id  INTEGER,
-	user_email      TEXT,
+    csr             TEXT NOT NULL UNIQUE,
+    status          TEXT NOT NULL DEFAULT 'Outstanding',
+    certificate_id  INTEGER,
+    user_email      TEXT,
 
-	CHECK (status IN ('Outstanding', 'Rejected', 'Revoked', 'Active')),
-	CHECK (NOT (certificate_id == NULL AND status == 'Active' )),
-	CHECK (NOT (certificate_id != NULL AND status == 'Outstanding')),
-    CHECK (NOT (certificate_id != NULL AND status == 'Rejected')),
-    CHECK (NOT (certificate_id != NULL AND status == 'Revoked'))
+    CHECK (status IN ('Outstanding', 'Rejected', 'Revoked', 'Active', 'Failed')),
+    CHECK ((status = 'Active') = (certificate_id IS NOT NULL))
 );
-CREATE TABLE IF NOT EXISTS certificates
+
+CREATE TABLE certificates
 (
-    certificate_id  INTEGER PRIMARY KEY AUTOINCREMENT,
-	certificate     TEXT NOT NULL UNIQUE,
-	issuer_id       INTEGER
+    certificate_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    certificate    TEXT NOT NULL UNIQUE,
+    issuer_id      INTEGER NOT NULL DEFAULT 0,
+    serial_number  TEXT NOT NULL
 );
-CREATE TABLE IF NOT EXISTS certificate_authorities
+
+CREATE TABLE certificate_authorities
 (
     certificate_authority_id INTEGER PRIMARY KEY AUTOINCREMENT,
-	crl                      TEXT,
-	enabled                  INTEGER DEFAULT 0,
-	private_key_id           INTEGER,
-	certificate_id           INTEGER,
-	csr_id                   INTEGER NOT NULL UNIQUE
+    crl                      TEXT,
+    enabled                  INTEGER NOT NULL DEFAULT 0,
+    private_key_id           INTEGER,
+    certificate_id           INTEGER,
+    csr_id                   INTEGER NOT NULL UNIQUE
 );
-CREATE TABLE IF NOT EXISTS private_keys
+
+CREATE TABLE private_keys
 (
     private_key_id INTEGER PRIMARY KEY AUTOINCREMENT,
-	private_key    TEXT NOT NULL UNIQUE
+    private_key    TEXT NOT NULL UNIQUE
 );
-CREATE TABLE IF NOT EXISTS users
+
+CREATE TABLE users
 (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
-	oidc_subject    TEXT,  -- OIDC provider's subject identifier (sub claim)
-	email           TEXT,  -- Nullable to support OIDC-only users without email
-	hashed_password TEXT,  -- Nullable to support OIDC-only users
-	role_id         INTEGER NOT NULL,
+    oidc_issuer     TEXT,
+    oidc_subject    TEXT,
+    email           TEXT,
+    hashed_password TEXT,
+    role_id         INTEGER NOT NULL,
 
-	CHECK (role_id IN (0, 1, 2, 3)),
-	CHECK (
-		-- Either email or oidc_subject must be present
-		(email IS NOT NULL AND trim(email) != '') OR
-		(oidc_subject IS NOT NULL AND trim(oidc_subject) != '')
-	)
+    CHECK (role_id IN (0, 1, 2, 3)),
+    CHECK ((oidc_issuer IS NULL) = (oidc_subject IS NULL)),
+    CHECK (email IS NOT NULL OR oidc_subject IS NOT NULL)
 );
--- Create unique index on email for non-NULL values
-CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email
-ON users(email)
-WHERE email IS NOT NULL;
--- Create unique index on oidc_subject to prevent duplicate OIDC identities
--- Partial index only indexes non-NULL values
-CREATE UNIQUE INDEX IF NOT EXISTS idx_users_oidc_subject
-ON users(oidc_subject)
-WHERE oidc_subject IS NOT NULL;
-CREATE TABLE IF NOT EXISTS encryption_keys
+
+CREATE UNIQUE INDEX idx_users_email ON users(email) WHERE email IS NOT NULL;
+CREATE UNIQUE INDEX idx_users_oidc_identity
+ON users(oidc_issuer, oidc_subject) WHERE oidc_subject IS NOT NULL;
+
+CREATE TABLE encryption_keys
 (
     encryption_key_id INTEGER PRIMARY KEY AUTOINCREMENT,
-	encryption_key    TEXT NOT NULL UNIQUE
+    encryption_key    TEXT NOT NULL UNIQUE
 );
-CREATE TABLE IF NOT EXISTS jwt_secret
+
+CREATE TABLE jwt_secret
 (
-	id               INTEGER PRIMARY KEY CHECK (id = 1),
-	encrypted_secret TEXT NOT NULL
+    id               INTEGER PRIMARY KEY CHECK (id = 1),
+    encrypted_secret TEXT NOT NULL
+);
+
+CREATE TABLE acme_accounts
+(
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    email             TEXT NOT NULL,
+    directory_url     TEXT NOT NULL,
+    private_key       TEXT NOT NULL,
+    registration_uri  TEXT NOT NULL,
+    registration_body TEXT NOT NULL,
+    UNIQUE (email, directory_url)
+);
+
+CREATE TABLE acme_servers
+(
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    name            TEXT NOT NULL,
+    directory_url   TEXT NOT NULL,
+    email           TEXT NOT NULL,
+    dns_provider    TEXT NOT NULL,
+    env_vars        TEXT NOT NULL DEFAULT '{}',
+    active          INTEGER NOT NULL DEFAULT 0,
+    acme_account_id INTEGER REFERENCES acme_accounts(id) ON DELETE SET NULL
+);
+
+CREATE TABLE cluster_join_tokens
+(
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    token_hash TEXT NOT NULL UNIQUE,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    used_at    INTEGER
+);
+
+CREATE TABLE cluster_members
+(
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    node_id   TEXT NOT NULL UNIQUE,
+    name      TEXT NOT NULL UNIQUE,
+    address   TEXT NOT NULL UNIQUE,
+    joined_at INTEGER NOT NULL,
+    heartbeat INTEGER,
+    sealed    INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE acme_issuance_attempts
+(
+    csr_id     INTEGER PRIMARY KEY REFERENCES certificate_requests(csr_id) ON DELETE CASCADE,
+    node_id    TEXT NOT NULL,
+    started_at INTEGER NOT NULL
+);
+
+CREATE TABLE cluster_ca_key
+(
+    id            INTEGER PRIMARY KEY CHECK (id = 1),
+    encrypted_key TEXT NOT NULL
 );
 -- +goose StatementEnd
 
-
 -- +goose Down
 -- +goose StatementBegin
-DROP TABLE IF EXISTS "certificate_requests";
-DROP TABLE IF EXISTS "certificate_authorities";
-DROP TABLE IF EXISTS "certificates";
-DROP TABLE IF EXISTS "private_keys";
-DROP TABLE IF EXISTS "users";
-DROP TABLE IF EXISTS "encryption_keys";
-DROP TABLE IF EXISTS "jwt_secret";
+DROP TABLE cluster_ca_key;
+DROP TABLE acme_issuance_attempts;
+DROP TABLE cluster_members;
+DROP TABLE cluster_join_tokens;
+DROP TABLE acme_servers;
+DROP TABLE acme_accounts;
+DROP TABLE jwt_secret;
+DROP TABLE encryption_keys;
+DROP TABLE users;
+DROP TABLE private_keys;
+DROP TABLE certificate_authorities;
+DROP TABLE certificates;
+DROP TABLE certificate_requests;
 -- +goose StatementEnd

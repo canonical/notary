@@ -119,7 +119,7 @@ func startClusterNode(clusterConfig config.ClusterConfig, bootstrap bool, onRole
 // It refuses to hand back a database whose schema this binary was not built for
 // (spec §4.1), so a node that is mid-rolling-upgrade stops here rather than
 // serving traffic against its peers' schema.
-func openClusteredDatabase(ctx context.Context, node cluster.Node, applyMigrations bool) (*db.DatabaseRepository, error) {
+func openClusteredDatabase(ctx context.Context, node cluster.Node) (*db.DatabaseRepository, error) {
 	if err := node.Ready(ctx); err != nil {
 		return nil, fmt.Errorf("couldn't reach cluster readiness: %w", err)
 	}
@@ -130,9 +130,8 @@ func openClusteredDatabase(ctx context.Context, node cluster.Node, applyMigratio
 	}
 
 	database, err := db.NewDatabaseFromConn(conn, &db.DatabaseOpts{
-		DatabasePath:    cluster.DatabaseName,
-		Logger:          zap.L(),
-		ApplyMigrations: applyMigrations,
+		DatabasePath: cluster.DatabaseName,
+		Logger:       zap.L(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("couldn't initialize clustered database: %w", err)
@@ -168,7 +167,6 @@ func init() {
 	clusterTokenCmd.AddCommand(clusterTokenCreateCmd)
 	clusterCmd.AddCommand(clusterJoinCmd)
 	clusterCmd.AddCommand(clusterPromoteCmd)
-	clusterCmd.AddCommand(clusterRemoveCmd)
 	clusterCmd.AddCommand(clusterStatusCmd)
 	clusterCmd.AddCommand(clusterRestoreCmd)
 
@@ -190,7 +188,7 @@ func init() {
 
 	// The commands below drive a node that is already running, so they go
 	// through its admin API rather than opening dqlite themselves.
-	for _, cmd := range []*cobra.Command{clusterTokenCreateCmd, clusterPromoteCmd, clusterRemoveCmd, clusterStatusCmd} {
+	for _, cmd := range []*cobra.Command{clusterTokenCreateCmd, clusterPromoteCmd, clusterStatusCmd} {
 		cmd.Flags().StringVarP(&clusterConfigFilePath, "config", "c", "", "path to the configuration file")
 		cmd.Flags().StringVar(&clusterAPIToken, "token", "", "admin API token (defaults to the "+apiTokenEnvVar+" environment variable)")
 		if err := cmd.MarkFlagRequired("config"); err != nil {
@@ -200,8 +198,6 @@ func init() {
 
 	clusterTokenCreateCmd.Flags().DurationVar(&clusterTokenTTL, "ttl", time.Hour, "how long the token stays valid")
 	clusterTokenCreateCmd.Flags().BoolVarP(&clusterTokenQuiet, "quiet", "q", false, "print only the token, for scripting")
-
-	clusterRemoveCmd.Flags().BoolVar(&clusterRemoveForce, "force", false, "skip the graceful handover; for a member that is already gone")
 
 	clusterJoinCmd.Flags().StringVarP(&clusterConfigFilePath, "config", "c", "", "path to the configuration file")
 	clusterJoinCmd.Flags().StringVar(&clusterJoinAddress, "address", "", "admin API address (host:port) of an existing cluster member")

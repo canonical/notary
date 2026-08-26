@@ -63,8 +63,8 @@ func localDSN(path string) string {
 }
 
 // NewDatabaseFromConn prepares an already-open SQL connection for use as a Notary
-// repository: it enables foreign keys, applies the goose migrations, prepares the
-// statement set and wraps the connection for sqlair.
+// repository: it enables foreign keys, initializes an empty schema, verifies an
+// existing schema, prepares the statement set and wraps the connection for sqlair.
 //
 // It exists so that a clustered (dqlite-backed) connection, opened elsewhere, goes
 // through the exact same initialization as the local single-file connection opened
@@ -87,25 +87,20 @@ func NewDatabaseFromConn(sqlConnection *sql.DB, dbOpts *DatabaseOpts) (*Database
 		return nil, err
 	}
 
-	// Compared against the embedded version, not just against zero. A database
-	// that already carries migrations is the ordinary upgrade case, and treating
-	// it as up to date would run this binary against a schema it was not built
-	// for: columns it writes would not exist.
+	// Notary has no deployed schema to preserve yet. Version zero is a fresh
+	// database and receives the current schema; every other version must match
+	// exactly. In-place upgrades would let older cluster members keep serving
+	// against a schema their binaries do not understand.
 	switch {
-	case version > embedded:
-		return nil, fmt.Errorf(
-			"the database is at migration %d but this version of Notary only knows %d: upgrade Notary or restore a matching backup",
-			version, embedded)
-	case version < embedded:
-		if !dbOpts.ApplyMigrations {
-			return nil, fmt.Errorf(
-				"database migrations not applied: the database is at migration %d and this version of Notary needs %d, apply them with `notary migrate up`",
-				version, embedded)
-		}
+	case version == 0:
 		goose.SetBaseFS(migrations.EmbedMigrations)
 		if err := goose.Up(sqlConnection, ".", goose.WithNoColor(true)); err != nil {
-			return nil, fmt.Errorf("failed to apply migrations: %w", err)
+			return nil, fmt.Errorf("failed to initialize database schema: %w", err)
 		}
+	case version != embedded:
+		return nil, fmt.Errorf(
+			"the database is at schema %d but this version of Notary requires schema %d: start with an empty database",
+			version, embedded)
 	}
 	db := new(DatabaseRepository)
 	db.stmts = PrepareStatements()

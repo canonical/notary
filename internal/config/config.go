@@ -41,7 +41,6 @@ func ParseConfig(cmdFlags *pflag.FlagSet, configFilePath string) (*AppConfig, er
 	appConfig.ExternalHostname = cfg.GetString("external_hostname")
 
 	appConfig.DBPath = cfg.GetString("db_path")
-	appConfig.ShouldApplyMigrations = cfg.GetBool("migrate-database")
 
 	appConfig.ClusterConfig = ClusterConfig{
 		Enabled:  cfg.GetBool("cluster.enabled"),

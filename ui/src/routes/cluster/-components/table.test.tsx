@@ -127,32 +127,10 @@ function clickAction(name: string) {
 const local = status.members[0];
 const remote = status.members[1];
 
-// Removing the node serving this page would take away the API the request is
-// travelling over, so the local member is never removable from its own UI.
-test("blocks removal of the local node but allows it for the others", () => {
-	openMenuFor(local);
-	clickAction("Remove");
-	expect(screen.queryByText(/will hand over its Raft/)).toBeNull();
-
+test("does not offer removal while cluster credentials cannot be revoked", () => {
 	openMenuFor(remote);
-	clickAction("Remove");
-	expect(screen.getByText(/will hand over its Raft/)).toBeDefined();
-});
-
-// Force removal skips the Raft handover, which is only safe for a member that
-// is already gone.
-test("offers force removal only for an offline member", () => {
-	openMenuFor(remote);
-	clickAction("Force Remove");
-	expect(screen.queryByText(/removed without handing over/)).toBeNull();
-
-	openMenuFor({
-		...remote,
-		status: "OFFLINE",
-		message: "No heartbeat since 2026-08-24T11:05:25Z",
-	});
-	clickAction("Force Remove");
-	expect(screen.getByText(/removed without handing over/)).toBeDefined();
+	expect(screen.queryByRole("button", { name: "Remove" })).toBeNull();
+	expect(screen.queryByRole("button", { name: "Force Remove" })).toBeNull();
 });
 
 test("does not offer to promote a member that is already a voter", () => {

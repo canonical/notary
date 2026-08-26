@@ -156,18 +156,10 @@ membership rules (i.e. free), but nothing beyond that needs building.
 
 ### 1.5 Removing / replacing a node
 
-`notary cluster remove <member>` (and `--force` for a dead/unreachable node) is a thin passthrough
-to MicroCluster's own `remove` primitive — notary doesn't add a bespoke confirmation/quorum-check
-layer on top of it. MicroCluster already has to solve "is this removal safe for the cluster" as
-part of its own membership model, and reimplementing that logic in notary would just be a second,
-possibly-inconsistent copy of the same safety check. If MicroCluster's `remove` refuses, prompts,
-or warns, that behavior surfaces as-is through the CLI/API; notary's job is exposing the primitive
-cleanly, not second-guessing it.
-
-Replacement = remove the dead member + join a fresh node with a new token (§1.2). A replacement
-node starts sealed and unseals automatically per §2 — no admin action required — but as
-established in §1.2/§2.3, it participates in Raft and replicates data immediately regardless of
-seal state. This is the load-bearing fact for resolving tension #2 in the brief; see §5.
+Member removal is disabled. Raft removal does not revoke the member's CA-signed certificate or the
+CA signing key it could read after unsealing. Until listeners enforce revocation or the cluster can
+rotate its PKI coherently, excluding a member requires rebuilding the cluster and isolating the old
+host.
 
 ---
 
@@ -556,7 +548,6 @@ notary cluster bootstrap
 notary cluster token create [--role voter|standby] [--ttl 1h]
 notary cluster join <token> --address <host:port>
 notary cluster promote <member>
-notary cluster remove <member> [--force]
 notary cluster status
 ```
 
@@ -571,7 +562,7 @@ because unsealing has no manual step (§2).
 ```
 GET    /cluster/members                # list, with role/raft-state/seal-state per member
 POST   /cluster/members/tokens          # create a join token
-DELETE /cluster/members/{id}            # remove (accepts ?force=true) — passthrough to MicroCluster
+DELETE /cluster/members/{id}            # returns 501 until credential revocation is implemented
 POST   /cluster/members/{id}/promote
 GET    /cluster/status                  # aggregate health
 GET    /status                          # already exists; extend with seal state + raft role

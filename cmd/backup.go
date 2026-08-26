@@ -87,9 +87,8 @@ func createBackup(cmd *cobra.Command, backupDir string, logger *zap.Logger) (str
 	}
 
 	database, err := db.NewDatabase(&db.DatabaseOpts{
-		DatabasePath:    databasePath,
-		ApplyMigrations: false,
-		Logger:          logger,
+		DatabasePath: databasePath,
+		Logger:       logger,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to initialize database: %w", err)

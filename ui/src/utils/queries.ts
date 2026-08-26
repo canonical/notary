@@ -22,7 +22,7 @@ export type RequiredCAParams = {
 	id: string;
 };
 
-export type GETStatus = {
+type ServerStatus = {
 	initialized: boolean;
 	version: string;
 	oidc_enabled: boolean;
@@ -38,6 +38,11 @@ export type GETStatus = {
 	role?: string;
 	/** This node's relationship to the Raft leader. Absent when clustering is disabled. */
 	raft_state?: string;
+};
+
+export type GETStatus = ServerStatus & {
+	/** False when /status returned local diagnostics because replicated storage is unavailable. */
+	storage_available: boolean;
 };
 
 async function parseAPIResponse<T>(response: globalThis.Response) {
@@ -70,7 +75,27 @@ async function fetchAPI<T>(
 }
 
 export async function getStatus(): Promise<GETStatus> {
-	return (await fetchAPI<GETStatus>("/status")) as GETStatus;
+	const response = await fetch("/status");
+	if (response.status === 503) {
+		const degraded = (await response.json()) as APIResponse<ServerStatus>;
+		if (!degraded.data) {
+			throw new APIError(
+				response.status,
+				HTTPStatus(response.status),
+				degraded.message,
+			);
+		}
+		return { ...degraded.data, storage_available: false };
+	}
+	const status = await parseAPIResponse<ServerStatus>(response);
+	if (!status.data) {
+		throw new APIError(
+			response.status,
+			HTTPStatus(response.status),
+			"status response did not include data",
+		);
+	}
+	return { ...status.data, storage_available: true };
 }
 
 export async function getCertificateRequests(): Promise<CSREntry[]> {

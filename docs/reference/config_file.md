@@ -87,6 +87,10 @@ A node's operator-facing name is not part of this file. It is given once with `-
 
 Before `notary start` will serve as part of a cluster, the node must have run either `notary cluster bootstrap` (to start a new cluster) or `notary cluster join` (to join an existing one) against an empty `state_dir`. Once a node has joined, its `address` is fixed: Notary refuses to start if the configured address no longer matches the one recorded in `state_dir`.
 
+Notary initializes its current schema in an empty database and does not perform in-place schema
+upgrades. All members of a cluster must run a build with the same embedded schema. During development,
+start with an empty `db_path` and `state_dir` after a schema change.
+
 ## Examples
 
 ### Without an Encryption Backend

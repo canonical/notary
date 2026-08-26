@@ -152,9 +152,8 @@ func restoreCluster(cmd *cobra.Command, clusterConfig config.ClusterConfig, arch
 	}
 
 	database, err := db.NewDatabaseFromConn(conn, &db.DatabaseOpts{
-		DatabasePath:    cluster.DatabaseName,
-		Logger:          logger,
-		ApplyMigrations: false,
+		DatabasePath: cluster.DatabaseName,
+		Logger:       logger,
 	})
 	if err != nil {
 		return "", fmt.Errorf("couldn't open the restored database: %w", err)

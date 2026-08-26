@@ -31,15 +31,9 @@ type FakeClusterNode struct {
 	LeaderID    uint64
 	// Err, when set, is returned by every membership query, which is what a
 	// handler sees when the cluster is unreachable.
-	Err error
-	// HandoverErr, when set, is returned by Handover alone, which is what a
-	// handler sees when the member being removed is already gone.
-	HandoverErr error
-
-	mu         sync.Mutex
-	promoted   []uint64
-	handedOver []uint64
-	removed    []uint64
+	Err      error
+	mu       sync.Mutex
+	promoted []uint64
 }
 
 func (n *FakeClusterNode) Open(ctx context.Context, name string) (*sql.DB, error) {
@@ -81,29 +75,6 @@ func (n *FakeClusterNode) Promote(ctx context.Context, id uint64) error {
 	return nil
 }
 
-func (n *FakeClusterNode) Handover(ctx context.Context, id uint64) error {
-	if n.HandoverErr != nil {
-		return n.HandoverErr
-	}
-	if n.Err != nil {
-		return n.Err
-	}
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	n.handedOver = append(n.handedOver, id)
-	return nil
-}
-
-func (n *FakeClusterNode) Remove(ctx context.Context, id uint64) error {
-	if n.Err != nil {
-		return n.Err
-	}
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	n.removed = append(n.removed, id)
-	return nil
-}
-
 func (n *FakeClusterNode) Close(ctx context.Context) error { return nil }
 
 // Promoted returns the node IDs Promote was called with, in order.
@@ -111,20 +82,6 @@ func (n *FakeClusterNode) Promoted() []uint64 {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	return append([]uint64(nil), n.promoted...)
-}
-
-// Removed returns the node IDs Remove was called with, in order.
-func (n *FakeClusterNode) Removed() []uint64 {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	return append([]uint64(nil), n.removed...)
-}
-
-// HandedOver returns the node IDs Handover was called with, in order.
-func (n *FakeClusterNode) HandedOver() []uint64 {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	return append([]uint64(nil), n.handedOver...)
 }
 
 // MustPrepareClusterServer starts a test server with the cluster API enabled,

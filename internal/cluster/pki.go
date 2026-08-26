@@ -106,8 +106,8 @@ func loadPKI(dir string, caCertPEM []byte) (*PKI, error) {
 }
 
 // bootstrapPKI generates a self-signed cluster CA and the first node
-// certificate signed by it. The CA private key stays on this node; Phase 2's
-// join flow uses it to sign the certificate signing requests of joining nodes.
+// certificate signed by it. The CA private key stays on this node until the
+// replicated database is up, then it is moved there so every member can sign joins.
 func bootstrapPKI(dir string, address string) (*PKI, error) {
 	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {

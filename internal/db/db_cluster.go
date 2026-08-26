@@ -17,6 +17,10 @@ func (db *DatabaseRepository) CreateClusterJoinToken(tokenHash string, createdAt
 		return 0, fmt.Errorf("failed to create cluster join token: %w: expiry is not in the future", ErrInvalidInput)
 	}
 
+	if err := db.DeleteExpiredClusterJoinTokens(createdAt); err != nil {
+		return 0, err
+	}
+
 	row := ClusterJoinToken{
 		TokenHash: tokenHash,
 		CreatedAt: createdAt.Unix(),
@@ -73,18 +77,6 @@ func (db *DatabaseRepository) RedeemClusterJoinToken(tokenHash string, now time.
 	}
 
 	return nil
-}
-
-// ListClusterJoinTokens returns every issued join token, used and unused alike.
-// Only hashes are returned; the tokens themselves are unrecoverable.
-func (db *DatabaseRepository) ListClusterJoinTokens() ([]ClusterJoinToken, error) {
-	return ListEntities[ClusterJoinToken](db, db.stmts.ListClusterJoinTokens)
-}
-
-// DeleteClusterJoinToken removes a join token by its row ID.
-func (db *DatabaseRepository) DeleteClusterJoinToken(id int64) error {
-	row := ClusterJoinToken{ID: id}
-	return DeleteEntity[ClusterJoinToken](db, db.stmts.DeleteClusterJoinToken, row)
 }
 
 // DeleteExpiredClusterJoinTokens removes every token that expired before now. An
@@ -147,7 +139,7 @@ func (db *DatabaseRepository) RecordClusterMemberHeartbeat(nodeID, address strin
 
 	beat := at.Unix()
 	row := ClusterMember{
-		NodeID:  nodeID,
+		NodeID: nodeID,
 		// Only used if no row exists yet, which is the repair case: the member is
 		// in the cluster but its bookkeeping was never written, and without this
 		// it would report as offline for as long as it ran.
@@ -165,13 +157,6 @@ func (db *DatabaseRepository) RecordClusterMemberHeartbeat(nodeID, address strin
 func (db *DatabaseRepository) GetClusterMember(nodeID string) (*ClusterMember, error) {
 	row := ClusterMember{NodeID: nodeID}
 	return GetOneEntity[ClusterMember](db, db.stmts.GetClusterMember, row)
-}
-
-// GetClusterMemberByName looks a member up by its operator-assigned name, which
-// is how the CLI and API address members.
-func (db *DatabaseRepository) GetClusterMemberByName(name string) (*ClusterMember, error) {
-	row := ClusterMember{Name: name}
-	return GetOneEntity[ClusterMember](db, db.stmts.GetClusterMemberByName, row)
 }
 
 // DeleteClusterMember drops the name record for a removed member.

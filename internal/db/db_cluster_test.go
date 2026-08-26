@@ -127,17 +127,30 @@ func TestDeleteExpiredClusterJoinTokens(t *testing.T) {
 		t.Fatalf("couldn't delete expired join tokens: %s", err)
 	}
 
-	tokens, err := database.ListClusterJoinTokens()
-	if err != nil {
-		t.Fatalf("couldn't list join tokens: %s", err)
+	if err := database.RedeemClusterJoinToken("expired", now); !errors.Is(err, db.ErrNotFound) {
+		t.Fatalf("expected the expired token to be gone, got %v", err)
 	}
-	if len(tokens) != 1 || tokens[0].TokenHash != "live" {
-		t.Fatalf("got %d token(s) %v, want only the live one", len(tokens), tokens)
+	if err := database.RedeemClusterJoinToken("live", now); err != nil {
+		t.Fatalf("the live token was deleted: %s", err)
 	}
 
-	// Deleting again must not report a missing row as an error.
 	if err := database.DeleteExpiredClusterJoinTokens(now); err != nil {
 		t.Fatalf("expected deleting nothing to succeed, got %s", err)
+	}
+}
+
+func TestCreateClusterJoinTokenPrunesExpiredTokens(t *testing.T) {
+	database := tu.MustPrepareEmptyDB(t)
+	now := time.Now().UTC()
+
+	if _, err := database.CreateClusterJoinToken("expired", now.Add(-2*time.Hour), now.Add(-time.Hour)); err != nil {
+		t.Fatalf("couldn't create join token: %s", err)
+	}
+	if _, err := database.CreateClusterJoinToken("live", now, now.Add(time.Hour)); err != nil {
+		t.Fatalf("couldn't create join token: %s", err)
+	}
+	if err := database.RedeemClusterJoinToken("expired", now); !errors.Is(err, db.ErrNotFound) {
+		t.Fatalf("expected issuing a token to prune expired ones, got %v", err)
 	}
 }
 
@@ -155,14 +168,6 @@ func TestClusterMembersEndToEnd(t *testing.T) {
 	}
 	if member.Name != "node-1" || member.Address != "10.0.0.1:9000" {
 		t.Errorf("got %+v, want node-1 at 10.0.0.1:9000", member)
-	}
-
-	byName, err := database.GetClusterMemberByName("node-1")
-	if err != nil {
-		t.Fatalf("couldn't get cluster member by name: %s", err)
-	}
-	if byName.NodeID != "1234567890123456789" {
-		t.Errorf("got node ID %q, want 1234567890123456789", byName.NodeID)
 	}
 
 	if err := database.DeleteClusterMember("1234567890123456789"); err != nil {

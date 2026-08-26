@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/canonical/notary/internal/config"
+	"github.com/canonical/notary/internal/server"
 )
 
 // external_hostname is documented as accepting an optional port, so the
@@ -57,5 +58,22 @@ func TestAdvertisedAddress(t *testing.T) {
 				t.Errorf("got %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestClusterMemberRoles(t *testing.T) {
+	tests := []struct {
+		member server.ClusterMemberResponse
+		want   string
+	}{
+		{server.ClusterMemberResponse{Role: "voter", Leader: true}, "database-leader"},
+		{server.ClusterMemberResponse{Role: "voter"}, "database-voter"},
+		{server.ClusterMemberResponse{Role: "standby"}, "database-standby"},
+		{server.ClusterMemberResponse{Role: "spare"}, "spare"},
+	}
+	for _, tt := range tests {
+		if got := clusterMemberRoles(tt.member); got != tt.want {
+			t.Errorf("role %q leader %t: got %q, want %q", tt.member.Role, tt.member.Leader, got, tt.want)
+		}
 	}
 }

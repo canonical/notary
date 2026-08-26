@@ -64,9 +64,8 @@ export function AddNodeModal({ close, apiAddress }: AddNodeModalProps) {
 				/>
 				<p className="u-text--muted">
 					Replace the paths with the new node's configuration file, and with a
-					copy of this node's API certificate. Without <code>--ca-cert</code>{" "}
-					the join is verified against the system trust store, which will reject
-					a self-signed certificate.
+					copy of this node's API certificate. <code>--ca-cert</code> pins that
+					certificate so the join cannot be redirected.
 				</p>
 				<p className="u-text--muted">
 					Expires {new Date(token.expires_at * 1000).toLocaleString()}. The new

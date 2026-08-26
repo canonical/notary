@@ -75,6 +75,12 @@ func TestPrepareJoinRequiresAnAddress(t *testing.T) {
 	}
 }
 
+func TestPrepareJoinRejectsAURL(t *testing.T) {
+	if _, err := cluster.PrepareJoin(t.TempDir(), "https://10.0.0.2:9000"); err == nil {
+		t.Fatal("expected preparing a join with a URL address to fail")
+	}
+}
+
 func TestJoinRoundTripProducesAVerifiableCertificate(t *testing.T) {
 	const joinerAddress = "10.0.0.2:9000"
 
@@ -198,7 +204,8 @@ func TestSignJoinRequestRejectsMalformedRequests(t *testing.T) {
 
 // A CA key that does not belong to the cluster CA certificate must be refused
 // rather than used to issue a certificate no peer will trust.
-func TestSignJoinRequestRejectsAForeignCAKey(t *testing.T) {	existingDir := t.TempDir()
+func TestSignJoinRequestRejectsAForeignCAKey(t *testing.T) {
+	existingDir := t.TempDir()
 	if _, err := cluster.EnsurePKI(existingDir, "10.0.0.1:9000"); err != nil {
 		t.Fatalf("couldn't bootstrap the cluster PKI: %s", err)
 	}

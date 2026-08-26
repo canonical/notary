@@ -206,9 +206,9 @@ func init() {
 	clusterJoinCmd.Flags().StringVarP(&clusterConfigFilePath, "config", "c", "", "path to the configuration file")
 	clusterJoinCmd.Flags().StringVar(&clusterJoinAddress, "address", "", "admin API address (host:port) of an existing cluster member")
 	clusterJoinCmd.Flags().StringVar(&clusterJoinName, "name", "", "name to record for this member (defaults to its cluster address)")
-	clusterJoinCmd.Flags().StringVar(&clusterJoinCACert, "ca-cert", "", "PEM certificate to verify the existing member's API against")
+	clusterJoinCmd.Flags().StringVar(&clusterJoinCACert, "ca-cert", "", "PEM certificate of the existing member's API (required)")
 
-	for _, flag := range []string{"config", "address"} {
+	for _, flag := range []string{"config", "address", "ca-cert"} {
 		if err := clusterJoinCmd.MarkFlagRequired(flag); err != nil {
 			log.Fatalf("couldn't mark flag required: %s", err)
 		}

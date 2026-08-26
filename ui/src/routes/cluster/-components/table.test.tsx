@@ -56,8 +56,8 @@ test("renders every member with its role", () => {
 	renderTable();
 
 	expect(screen.getByText("node-a")).toBeDefined();
-	expect(screen.getByText("Voter")).toBeDefined();
-	expect(screen.getByText("Standby")).toBeDefined();
+	expect(screen.getByText("database-leader")).toBeDefined();
+	expect(screen.getByText("database-standby")).toBeDefined();
 });
 
 test("falls back to the address for a member with no recorded name", () => {
@@ -66,59 +66,24 @@ test("falls back to the address for a member with no recorded name", () => {
 	expect(screen.getAllByText("10.0.0.2:7000").length).toBe(2);
 });
 
-test("reports each member's own seal state, not just the local node's", () => {
+test("shows seal detail in the message column", () => {
 	renderTable({
 		members: [
-			{ ...status.members[0], sealed: false },
-			{ ...status.members[1], sealed: true },
-		],
-	});
-
-	expect(screen.getByText("● Unsealed")).toBeDefined();
-	expect(screen.getByText("● Sealed")).toBeDefined();
-	expect(screen.queryByText("Unknown")).toBeNull();
-});
-
-// An offline member's last report is stale, so it is not presented as current.
-test("withholds seal state for a member that is offline", () => {
-	renderTable({
-		members: [
-			status.members[0],
+			{ ...status.members[0], sealed: false, message: "Fully operational" },
 			{
 				...status.members[1],
-				sealed: false,
-				status: "OFFLINE",
-				message: "No heartbeat since 2026-08-24T11:05:25Z",
+				sealed: true,
+				message: "Sealed, waiting to unwrap its encryption key",
 			},
 		],
 	});
 
-	expect(screen.getByText("● ONLINE")).toBeDefined();
-	expect(screen.getByText("● OFFLINE")).toBeDefined();
-	expect(screen.getByText("Unknown")).toBeDefined();
+	expect(screen.getByText("Fully operational")).toBeDefined();
+	expect(
+		screen.getByText("Sealed, waiting to unwrap its encryption key"),
+	).toBeDefined();
 });
 
-test("does not call any member a follower while no leader is elected", () => {
-	renderTable({
-		leader_id: "",
-		members: status.members.map((member) => ({ ...member, leader: false })),
-	});
-
-	expect(screen.queryByText("Follower")).toBeNull();
-	expect(screen.getAllByText("No leader")).toHaveLength(2);
-});
-
-// promote and remove are addressed by node ID, and it is all there is to go on
-// for a member whose name was never recorded.
-test("shows the node ID of a member that has no name", () => {
-	renderTable({
-		members: [{ ...status.members[1], id: "15559759156573841049", name: "" }],
-	});
-
-	expect(screen.getByText("15559759156573841049")).toBeDefined();
-});
-
-// Hidden in a title attribute the reason would be reachable only with a pointer.
 test("shows why a member is offline as text, not only on hover", () => {
 	renderTable({
 		members: [
@@ -130,9 +95,18 @@ test("shows why a member is offline as text, not only on hover", () => {
 		],
 	});
 
+	expect(screen.getByText("● OFFLINE")).toBeDefined();
 	expect(
 		screen.getByText("No heartbeat since 2026-08-24T11:05:25Z"),
 	).toBeDefined();
+});
+
+test("shows the node ID of a member that has no name", () => {
+	renderTable({
+		members: [{ ...status.members[1], id: "15559759156573841049", name: "" }],
+	});
+
+	expect(screen.getByText("15559759156573841049")).toBeDefined();
 });
 
 // The row actions live behind a contextual menu, so it has to be opened before

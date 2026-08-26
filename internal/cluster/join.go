@@ -21,8 +21,8 @@ import (
 // is not usable on its own — an existing member will only sign it in exchange
 // for a valid join token.
 func PrepareJoin(stateDir string, address string) ([]byte, error) {
-	if address == "" {
-		return nil, errors.New("cluster address is required")
+	if err := ParseAdvertiseAddress(address); err != nil {
+		return nil, err
 	}
 
 	dir := PKIDir(stateDir)
@@ -129,8 +129,8 @@ func ValidateJoinCSR(csrPEM []byte) error {
 // what its certificate authorizes by crafting the request. address is supplied
 // by the caller alongside the CSR and is what the certificate is bound to.
 func SignJoinRequest(stateDir string, caKeyPEM, csrPEM []byte, address string) (certPEM, caCertPEM []byte, err error) {
-	if address == "" {
-		return nil, nil, errors.New("cluster address is required")
+	if err := ParseAdvertiseAddress(address); err != nil {
+		return nil, nil, err
 	}
 
 	csr, err := parseCertificateRequestPEM(csrPEM)

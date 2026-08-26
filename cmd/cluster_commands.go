@@ -13,6 +13,7 @@ import (
 	"github.com/canonical/notary/internal/cluster"
 	"github.com/canonical/notary/internal/config"
 	"github.com/canonical/notary/internal/db"
+	"github.com/canonical/notary/internal/server"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -26,50 +27,6 @@ var (
 	clusterJoinName    string
 	clusterJoinCACert  string
 )
-
-// clusterMemberView mirrors the member representation the admin API returns.
-type clusterMemberView struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Address  string `json:"address"`
-	Role     string `json:"role"`
-	Leader   bool   `json:"leader"`
-	Sealed   bool   `json:"sealed"`
-	LastSeen int64  `json:"last_seen"`
-	Status   string `json:"status"`
-	Message  string `json:"message"`
-}
-
-type clusterStatusView struct {
-	Enabled  bool                `json:"enabled"`
-	NodeID   string              `json:"node_id"`
-	Address  string              `json:"address"`
-	LeaderID string              `json:"leader_id"`
-	Voters   int                 `json:"voters"`
-	Members  []clusterMemberView `json:"members"`
-}
-
-type createJoinTokenRequest struct {
-	TTLSeconds int64 `json:"ttl_seconds"`
-}
-
-type createJoinTokenView struct {
-	Token     string `json:"token"`
-	ExpiresAt int64  `json:"expires_at"`
-}
-
-type joinClusterRequest struct {
-	Token         string `json:"token"`
-	Address       string `json:"address"`
-	CSR           string `json:"csr"`
-	SchemaVersion int64  `json:"schema_version"`
-}
-
-type joinClusterView struct {
-	Certificate     string   `json:"certificate"`
-	CACertificate   string   `json:"ca_certificate"`
-	MemberAddresses []string `json:"member_addresses"`
-}
 
 // clusterTokenCmd groups the join-token commands.
 var clusterTokenCmd = &cobra.Command{
@@ -90,8 +47,8 @@ is stored. Transfer it to the new node out of band.`,
 			return err
 		}
 
-		var created createJoinTokenView
-		err = client.do("POST", "/cluster/members/tokens", createJoinTokenRequest{
+		var created server.CreateJoinTokenResponse
+		err = client.do("POST", "/cluster/members/tokens", server.CreateJoinTokenParams{
 			TTLSeconds: int64(clusterTokenTTL.Seconds()),
 		}, &created)
 		if err != nil {
@@ -121,7 +78,7 @@ is stored. Transfer it to the new node out of band.`,
 
 var clusterStatusCmd = &cobra.Command{
 	Use:   "status",
-	Short: "Show the role, leader and seal state of every cluster member",
+	Short: "List cluster members and their state",
 
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := localClusterAPIClient(cmd)
@@ -129,29 +86,29 @@ var clusterStatusCmd = &cobra.Command{
 			return err
 		}
 
-		var status clusterStatusView
+		var status server.ClusterStatusResponse
 		if err := client.do("GET", "/cluster/status", nil, &status); err != nil {
 			return err
 		}
 
 		leader := status.LeaderID
 		if leader == "" {
-			leader = "none (no leader elected)"
+			leader = "none"
 		}
 		// Everything goes through the tabwriter, which buffers: Flush is where a
 		// write error actually surfaces, so the individual writes are ignored.
 		writer := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 3, ' ', 0)
 		_, _ = fmt.Fprintf(writer, "Cluster: %d member(s), %d voter(s), leader %s\n\n", len(status.Members), status.Voters, leader)
-		_, _ = fmt.Fprintln(writer, "NAME\tID\tADDRESS\tROLE\tLEADER\tSEALED\tSTATE\tMESSAGE")
+		_, _ = fmt.Fprintln(writer, "NAME\tURL\tROLES\tSTATE\tMESSAGE")
 		for _, member := range status.Members {
 			name := member.Name
 			if name == "" {
-				// The ID is printed for every member so that one whose name was
-				// never recorded is still addressable by promote and remove.
-				name = "-"
+				// The ID is printed for every nameless member so promote and remove
+				// still have something to address.
+				name = member.ID
 			}
-			_, _ = fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%t\t%t\t%s\t%s\n",
-				name, member.ID, member.Address, member.Role, member.Leader, member.Sealed, member.Status, member.Message)
+			_, _ = fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\n",
+				name, member.Address, clusterMemberRoles(member), member.Status, member.Message)
 		}
 
 		return writer.Flush()
@@ -251,6 +208,10 @@ Run this once, on the new node, before starting the Notary server on it.`,
 
 		clusterConfig := appConfig.ClusterConfig
 
+		if err := cluster.ParseAdvertiseAddress(clusterJoinAddress); err != nil {
+			return fmt.Errorf("existing member --address: %w", err)
+		}
+
 		// Checked before anything is written. PrepareJoin replaces this node's
 		// private key, so reaching cluster.Start's own guard would already have
 		// destroyed a working member's identity, and spent a join token doing it.
@@ -276,8 +237,8 @@ Run this once, on the new node, before starting the Notary server on it.`,
 			return err
 		}
 
-		var signed joinClusterView
-		err = client.do("POST", "/cluster/members/join", joinClusterRequest{
+		var signed server.JoinClusterResponse
+		err = client.do("POST", "/cluster/members/join", server.JoinClusterParams{
 			Token:         args[0],
 			Address:       clusterConfig.Address,
 			CSR:           string(csrPEM),
@@ -291,7 +252,7 @@ Run this once, on the new node, before starting the Notary server on it.`,
 			return err
 		}
 
-		peers := excludeAddress(signed.MemberAddresses, clusterConfig.Address)
+		peers := excludeAddress(signed.MemberAddress, clusterConfig.Address)
 		if len(peers) == 0 {
 			return errors.New("the existing member reported no cluster addresses to join")
 		}
@@ -366,8 +327,8 @@ func formatNodeID(id uint64) string {
 
 // resolveClusterMember accepts either the name recorded for a member or its raw
 // dqlite node ID, so operators are never forced to handle node IDs.
-func resolveClusterMember(client *apiClient, identifier string) (*clusterMemberView, error) {
-	var members []clusterMemberView
+func resolveClusterMember(client *apiClient, identifier string) (*server.ClusterMemberResponse, error) {
+	var members []server.ClusterMemberResponse
 	if err := client.do("GET", "/cluster/members", nil, &members); err != nil {
 		return nil, err
 	}
@@ -388,6 +349,22 @@ func resolveClusterMember(client *apiClient, identifier string) (*clusterMemberV
 	}
 
 	return nil, fmt.Errorf("no cluster member named %q; known members: %s", identifier, strings.Join(known, ", "))
+}
+
+// clusterMemberRoles renders a member's Raft role the way `lxc cluster list`
+// shows database roles: the leader is named distinctly from the other voters.
+func clusterMemberRoles(member server.ClusterMemberResponse) string {
+	if member.Leader {
+		return "database-leader"
+	}
+	switch member.Role {
+	case "voter":
+		return "database-voter"
+	case "standby":
+		return "database-standby"
+	default:
+		return member.Role
+	}
 }
 
 // excludeAddress drops this node's own address from the peer list an existing

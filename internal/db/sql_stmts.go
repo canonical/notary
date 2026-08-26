@@ -308,12 +308,12 @@ WITH RECURSIVE cas_with_chain AS (
 	// (issuer, subject) can ever match them.
 	getUserByLegacyOIDCSubject = "SELECT &User.* from users WHERE oidc_issuer IS NULL and oidc_subject==$User.oidc_subject"
 	adoptOIDCIssuerStmt        = "UPDATE users SET oidc_issuer=$User.oidc_issuer WHERE id==$User.id and oidc_issuer IS NULL"
-	createUserStmt        = "INSERT INTO users (email, hashed_password, role_id) VALUES ($User.email, $User.hashed_password, $User.role_id)"
-	createOIDCUserStmt    = "INSERT INTO users (email, hashed_password, role_id, oidc_issuer, oidc_subject) VALUES ($User.email, NULL, $User.role_id, $User.oidc_issuer, $User.oidc_subject)"
-	updateUserStmt        = "UPDATE users SET hashed_password=$User.hashed_password WHERE id==$User.id or email==$User.email"
-	updateUserRoleStmt    = "UPDATE users SET role_id=$User.role_id WHERE id==$User.id"
-	deleteUserStmt        = "DELETE FROM users WHERE id==$User.id"
-	getNumUsersStmt       = "SELECT COUNT(*) AS &NumUsers.count FROM users"
+	createUserStmt             = "INSERT INTO users (email, hashed_password, role_id) VALUES ($User.email, $User.hashed_password, $User.role_id)"
+	createOIDCUserStmt         = "INSERT INTO users (email, hashed_password, role_id, oidc_issuer, oidc_subject) VALUES ($User.email, NULL, $User.role_id, $User.oidc_issuer, $User.oidc_subject)"
+	updateUserStmt             = "UPDATE users SET hashed_password=$User.hashed_password WHERE id==$User.id or email==$User.email"
+	updateUserRoleStmt         = "UPDATE users SET role_id=$User.role_id WHERE id==$User.id"
+	deleteUserStmt             = "DELETE FROM users WHERE id==$User.id"
+	getNumUsersStmt            = "SELECT COUNT(*) AS &NumUsers.count FROM users"
 
 	// // // // // // // // // //
 	// Encryption Key SQL Strings //
@@ -351,16 +351,12 @@ WITH RECURSIVE cas_with_chain AS (
 
 	// Cluster join token statements
 	createClusterJoinTokenStmt  = "INSERT INTO cluster_join_tokens (token_hash, created_at, expires_at) VALUES ($ClusterJoinToken.token_hash, $ClusterJoinToken.created_at, $ClusterJoinToken.expires_at)"
-	getClusterJoinTokenStmt     = "SELECT &ClusterJoinToken.* FROM cluster_join_tokens WHERE token_hash==$ClusterJoinToken.token_hash"
-	listClusterJoinTokensStmt   = "SELECT &ClusterJoinToken.* FROM cluster_join_tokens"
-	deleteClusterJoinTokenStmt  = "DELETE FROM cluster_join_tokens WHERE id==$ClusterJoinToken.id"
 	deleteExpiredJoinTokensStmt = "DELETE FROM cluster_join_tokens WHERE expires_at < $ClusterJoinToken.expires_at"
 
 	// Cluster member statements
 	createClusterMemberStmt    = "INSERT INTO cluster_members (node_id, name, address, joined_at) VALUES ($ClusterMember.node_id, $ClusterMember.name, $ClusterMember.address, $ClusterMember.joined_at)"
 	listClusterMembersStmt     = "SELECT &ClusterMember.* FROM cluster_members"
 	getClusterMemberStmt       = "SELECT &ClusterMember.* FROM cluster_members WHERE node_id==$ClusterMember.node_id"
-	getClusterMemberByNameStmt = "SELECT &ClusterMember.* FROM cluster_members WHERE name==$ClusterMember.name"
 	deleteClusterMemberStmt    = "DELETE FROM cluster_members WHERE node_id==$ClusterMember.node_id"
 	heartbeatClusterMemberStmt = "INSERT INTO cluster_members (node_id, name, address, joined_at, heartbeat, sealed) VALUES ($ClusterMember.node_id, $ClusterMember.name, $ClusterMember.address, $ClusterMember.joined_at, $ClusterMember.heartbeat, $ClusterMember.sealed) ON CONFLICT(node_id) DO UPDATE SET heartbeat=excluded.heartbeat, sealed=excluded.sealed"
 
@@ -406,17 +402,17 @@ type Statements struct {
 	DeletePrivateKey *sqlair.Statement
 
 	// User statements
-	CreateUser            *sqlair.Statement
-	CreateOIDCUser        *sqlair.Statement
-	GetUser               *sqlair.Statement
-	GetUserByOIDCIdentity *sqlair.Statement
+	CreateUser                 *sqlair.Statement
+	CreateOIDCUser             *sqlair.Statement
+	GetUser                    *sqlair.Statement
+	GetUserByOIDCIdentity      *sqlair.Statement
 	GetUserByLegacyOIDCSubject *sqlair.Statement
 	AdoptOIDCIssuer            *sqlair.Statement
-	UpdateUser            *sqlair.Statement
-	UpdateUserRole        *sqlair.Statement
-	ListUsers             *sqlair.Statement
-	DeleteUser            *sqlair.Statement
-	GetNumUsers           *sqlair.Statement
+	UpdateUser                 *sqlair.Statement
+	UpdateUserRole             *sqlair.Statement
+	ListUsers                  *sqlair.Statement
+	DeleteUser                 *sqlair.Statement
+	GetNumUsers                *sqlair.Statement
 
 	// Encryption Key statements
 	CreateEncryptionKey *sqlair.Statement
@@ -450,16 +446,12 @@ type Statements struct {
 
 	// Cluster join token statements
 	CreateClusterJoinToken  *sqlair.Statement
-	GetClusterJoinToken     *sqlair.Statement
-	ListClusterJoinTokens   *sqlair.Statement
-	DeleteClusterJoinToken  *sqlair.Statement
 	DeleteExpiredJoinTokens *sqlair.Statement
 
 	// Cluster member statements
 	CreateClusterMember    *sqlair.Statement
 	ListClusterMembers     *sqlair.Statement
 	GetClusterMember       *sqlair.Statement
-	GetClusterMemberByName *sqlair.Statement
 	DeleteClusterMember    *sqlair.Statement
 	HeartbeatClusterMember *sqlair.Statement
 
@@ -551,18 +543,12 @@ func PrepareStatements() *Statements {
 	stmts.DeleteACMEServer = sqlair.MustPrepare(deleteACMEServerStmt, ACMEServer{})
 	stmts.LinkACMEAccountToServer = sqlair.MustPrepare(linkACMEAccountToServerStmt, ACMEServer{})
 
-	// Cluster join token statements
 	stmts.CreateClusterJoinToken = sqlair.MustPrepare(createClusterJoinTokenStmt, ClusterJoinToken{})
-	stmts.GetClusterJoinToken = sqlair.MustPrepare(getClusterJoinTokenStmt, ClusterJoinToken{})
-	stmts.ListClusterJoinTokens = sqlair.MustPrepare(listClusterJoinTokensStmt, ClusterJoinToken{})
-	stmts.DeleteClusterJoinToken = sqlair.MustPrepare(deleteClusterJoinTokenStmt, ClusterJoinToken{})
 	stmts.DeleteExpiredJoinTokens = sqlair.MustPrepare(deleteExpiredJoinTokensStmt, ClusterJoinToken{})
 
-	// Cluster member statements
 	stmts.CreateClusterMember = sqlair.MustPrepare(createClusterMemberStmt, ClusterMember{})
 	stmts.ListClusterMembers = sqlair.MustPrepare(listClusterMembersStmt, ClusterMember{})
 	stmts.GetClusterMember = sqlair.MustPrepare(getClusterMemberStmt, ClusterMember{})
-	stmts.GetClusterMemberByName = sqlair.MustPrepare(getClusterMemberByNameStmt, ClusterMember{})
 	stmts.DeleteClusterMember = sqlair.MustPrepare(deleteClusterMemberStmt, ClusterMember{})
 	stmts.HeartbeatClusterMember = sqlair.MustPrepare(heartbeatClusterMemberStmt, ClusterMember{})
 

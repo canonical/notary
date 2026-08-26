@@ -226,21 +226,18 @@ func JoinCluster(env *HandlerDependencies) http.HandlerFunc {
 			writeResponse(w, http.StatusBadRequest, "token, address and csr are required", nil, env.SystemLogger)
 			return
 		}
+		if err := cluster.ParseAdvertiseAddress(params.Address); err != nil {
+			writeResponse(w, http.StatusBadRequest, "address must be host:port, not a URL", nil, env.SystemLogger)
+			return
+		}
 
-		// Everything below runs before the token is consumed, so a request that
-		// was never going to succeed leaves the operator's token still usable.
+		// Everything below that can fail without consuming the token runs first, so a
+		// request that was never going to succeed leaves the operator's token usable.
+		// The token is redeemed before the certificate is signed: two concurrent
+		// joins with the same token must not both receive a cert.
 		tokenHash := cluster.HashJoinToken(params.Token)
 		now := time.Now().UTC()
-		if err := env.Database.VerifyClusterJoinToken(tokenHash, now); err != nil {
-			if errors.Is(err, db.ErrNotFound) {
-				// Unknown, expired and already-used tokens are all reported the
-				// same way so a caller learns nothing about which tokens exist.
-				env.SystemLogger.Warn("rejected cluster join with an invalid token", zap.String("address", params.Address))
-				writeResponse(w, http.StatusUnauthorized, "invalid or expired join token", nil, env.SystemLogger)
-				return
-			}
-			env.SystemLogger.Error("failed to verify cluster join token", zap.Error(err))
-			writeResponse(w, http.StatusInternalServerError, "failed to process join request", nil, env.SystemLogger)
+		if writeInvalidJoinToken(w, env, env.Database.VerifyClusterJoinToken(tokenHash, now), params.Address) {
 			return
 		}
 
@@ -269,13 +266,6 @@ func JoinCluster(env *HandlerDependencies) http.HandlerFunc {
 			return
 		}
 
-		certPEM, caCertPEM, err := cluster.SignJoinRequest(env.ClusterConfig.StateDir, caKeyPEM, []byte(params.CSR), params.Address)
-		if err != nil {
-			env.SystemLogger.Error("failed to sign cluster join request", zap.Error(err))
-			writeResponse(w, http.StatusInternalServerError, "failed to sign the certificate request", nil, env.SystemLogger)
-			return
-		}
-
 		members, err := env.ClusterNode.Members(r.Context())
 		if err != nil {
 			env.SystemLogger.Error("failed to list cluster members", zap.Error(err))
@@ -287,17 +277,14 @@ func JoinCluster(env *HandlerDependencies) http.HandlerFunc {
 			addresses = append(addresses, member.Address)
 		}
 
-		// Consumed last: the request is now known to be one this member can serve.
-		// A token can still be presented twice concurrently, and the conditional
-		// update is what makes only the first of those win.
-		if err := env.Database.RedeemClusterJoinToken(tokenHash, now); err != nil {
-			if errors.Is(err, db.ErrNotFound) {
-				env.SystemLogger.Warn("rejected cluster join with an invalid token", zap.String("address", params.Address))
-				writeResponse(w, http.StatusUnauthorized, "invalid or expired join token", nil, env.SystemLogger)
-				return
-			}
-			env.SystemLogger.Error("failed to redeem cluster join token", zap.Error(err))
-			writeResponse(w, http.StatusInternalServerError, "failed to process join request", nil, env.SystemLogger)
+		if writeInvalidJoinToken(w, env, env.Database.RedeemClusterJoinToken(tokenHash, now), params.Address) {
+			return
+		}
+
+		certPEM, caCertPEM, err := cluster.SignJoinRequest(env.ClusterConfig.StateDir, caKeyPEM, []byte(params.CSR), params.Address)
+		if err != nil {
+			env.SystemLogger.Error("failed to sign cluster join request", zap.Error(err))
+			writeResponse(w, http.StatusInternalServerError, "failed to sign the certificate request", nil, env.SystemLogger)
 			return
 		}
 
@@ -478,4 +465,21 @@ func clusterMemberID(w http.ResponseWriter, r *http.Request, env *HandlerDepende
 		return 0, false
 	}
 	return id, true
+}
+
+// writeInvalidJoinToken reports an invalid or unusable join token. Unknown,
+// expired and already-used tokens are the same 401 so a caller learns nothing
+// about which tokens exist.
+func writeInvalidJoinToken(w http.ResponseWriter, env *HandlerDependencies, err error, address string) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, db.ErrNotFound) {
+		env.SystemLogger.Warn("rejected cluster join with an invalid token", zap.String("address", address))
+		writeResponse(w, http.StatusUnauthorized, "invalid or expired join token", nil, env.SystemLogger)
+		return true
+	}
+	env.SystemLogger.Error("failed to process join token", zap.Error(err))
+	writeResponse(w, http.StatusInternalServerError, "failed to process join request", nil, env.SystemLogger)
+	return true
 }

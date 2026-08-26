@@ -19,59 +19,31 @@ type ClusterTableProps = {
 	onAddNode: () => void;
 };
 
-const roleLabels: Record<string, string> = {
-	voter: "Voter",
-	standby: "Standby",
-	spare: "Spare",
-};
-
 const onlineColour = "rgba(14, 132, 32, 1)";
 const offlineColour = "rgba(199, 22, 44, 1)";
 
-// Every member reports its own seal state through the replicated database, but
-// that report is only as fresh as its last heartbeat: a member that has stopped
-// sending them has no current seal state to show.
-function sealStateLabel(member: ClusterMemberEntry) {
-	if (member.status !== "ONLINE") {
-		return (
-			<span
-				className="u-text--muted"
-				title="This member has not reported recently, so its seal state is out of date."
-			>
-				Unknown
-			</span>
-		);
+// Matches `lxc cluster list`: the leader is a role, not a separate column.
+function memberRoles(member: ClusterMemberEntry) {
+	if (member.leader) {
+		return "database-leader";
 	}
-	return member.sealed ? (
-		<span style={{ color: offlineColour }}>● Sealed</span>
-	) : (
-		<span style={{ color: onlineColour }}>● Unsealed</span>
-	);
+	switch (member.role) {
+		case "voter":
+			return "database-voter";
+		case "standby":
+			return "database-standby";
+		default:
+			return member.role;
+	}
 }
 
-// The message carries the detail behind the state, including when an offline
-// member was last seen. It is rendered as text, not only as a tooltip, so it is
-// reachable without a pointer.
 function memberStateLabel(member: ClusterMemberEntry) {
 	const online = member.status === "ONLINE";
 	return (
-		<>
-			<span style={{ color: online ? onlineColour : offlineColour }}>
-				● {member.status}
-			</span>
-			<br />
-			<small className="u-text--muted">{member.message}</small>
-		</>
+		<span style={{ color: online ? onlineColour : offlineColour }}>
+			● {member.status}
+		</span>
 	);
-}
-
-function raftStateLabel(member: ClusterMemberEntry, leaderID: string) {
-	if (member.leader) {
-		return "Leader";
-	}
-	// An empty leader ID means no leader is elected: an in-flight election, or a
-	// lost quorum. Calling every member a follower then would be a lie.
-	return leaderID === "" ? "No leader" : "Follower";
 }
 
 export function ClusterTable({
@@ -131,19 +103,14 @@ export function ClusterTable({
 							<span className="u-text--muted"> (this node)</span>
 						)}
 						<br />
-						{/* The ID is what promote and remove take, and it is all there is
-						    to go on for a member whose name was never recorded. */}
 						<small className="u-text--muted">{member.id}</small>
 					</>
 				),
 			},
 			{ content: member.address },
-			{ content: roleLabels[member.role] ?? member.role },
-			{ content: raftStateLabel(member, status.leader_id) },
+			{ content: memberRoles(member) },
 			{ content: memberStateLabel(member) },
-			{
-				content: sealStateLabel(member),
-			},
+			{ content: member.message },
 			{
 				content: (
 					<ContextualMenu hasToggleIcon position="right">
@@ -202,11 +169,10 @@ export function ClusterTable({
 			<MainTable
 				headers={[
 					{ content: "Name" },
-					{ content: "Address" },
-					{ content: "Role" },
-					{ content: "Raft State" },
+					{ content: "URL" },
+					{ content: "Roles" },
 					{ content: "State" },
-					{ content: "Seal State" },
+					{ content: "Message" },
 					{
 						content: "Actions",
 						className: "u-align--right has-overflow",

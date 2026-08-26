@@ -152,8 +152,9 @@ This path returns `401` when the token is unknown, expired or already used; the 
 identically so that a caller learns nothing about which tokens exist. It returns `409` when the
 joining node's `schema_version` differs from the cluster's, which is what stops a node running a
 different version of Notary from replicating a schema its binary was not built for. The token is
-redeemed only once the request is known to be one the member can serve, so a join refused for a
-malformed request or a version mismatch leaves the token usable.
+checked, then redeemed, before the certificate is signed: a malformed request or a version mismatch
+leaves the token usable, and two concurrent uses of the same token cannot both receive a
+certificate.
 
 ## Promote a member to voter
 

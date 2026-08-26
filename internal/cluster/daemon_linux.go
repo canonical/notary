@@ -148,72 +148,65 @@ func (n *dqliteNode) ID() uint64 {
 	return n.app.ID()
 }
 
-// Members returns every member of the cluster with its current Raft role.
-//
-// The client comes from app.Leader rather than app.Client: app.Client connects
-// to this node's own dqlite socket, and a node that is not a voter has no Raft
-// configuration to answer from, so it would report an empty cluster.
-func (n *dqliteNode) Members(ctx context.Context) ([]MemberInfo, error) {
-	cli, err := n.app.Leader(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to reach the cluster leader: %w", err)
-	}
-	defer cli.Close() //nolint:errcheck
-
-	nodes, err := cli.Cluster(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list cluster members: %w", err)
-	}
-
-	members := make([]MemberInfo, 0, len(nodes))
-	for _, node := range nodes {
-		members = append(members, MemberInfo{
-			ID:      node.ID,
-			Address: node.Address,
-			Role:    roleFromNodeRole(node.Role),
-		})
-	}
-
-	return members, nil
-}
-
-// Leader returns the member currently leading the cluster, or nil if there is
-// no leader right now.
-func (n *dqliteNode) Leader(ctx context.Context) (*MemberInfo, error) {
-	cli, err := n.app.Leader(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to reach the cluster leader: %w", err)
-	}
-	defer cli.Close() //nolint:errcheck
-
-	leader, err := cli.Leader(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to identify the cluster leader: %w", err)
-	}
-	if leader == nil {
-		return nil, nil
-	}
-
-	return &MemberInfo{
-		ID:      leader.ID,
-		Address: leader.Address,
-		Role:    roleFromNodeRole(leader.Role),
-	}, nil
-}
-
-// Promote assigns the voter role to a member.
-func (n *dqliteNode) Promote(ctx context.Context, id uint64) error {
+// withLeader runs fn against a client connected to the current Raft leader.
+// app.Client talks to this node's own socket, which has no cluster configuration
+// when the node is not a voter, so membership and role changes go through here.
+func (n *dqliteNode) withLeader(ctx context.Context, fn func(*client.Client) error) error {
 	cli, err := n.app.Leader(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to reach the cluster leader: %w", err)
 	}
 	defer cli.Close() //nolint:errcheck
+	return fn(cli)
+}
 
-	if err := cli.Assign(ctx, id, client.Voter); err != nil {
-		return fmt.Errorf("failed to promote cluster member %d: %w", id, err)
-	}
+func (n *dqliteNode) Members(ctx context.Context) ([]MemberInfo, error) {
+	var members []MemberInfo
+	err := n.withLeader(ctx, func(cli *client.Client) error {
+		nodes, err := cli.Cluster(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to list cluster members: %w", err)
+		}
+		members = make([]MemberInfo, 0, len(nodes))
+		for _, node := range nodes {
+			members = append(members, MemberInfo{
+				ID:      node.ID,
+				Address: node.Address,
+				Role:    roleFromNodeRole(node.Role),
+			})
+		}
+		return nil
+	})
+	return members, err
+}
 
-	return nil
+func (n *dqliteNode) Leader(ctx context.Context) (*MemberInfo, error) {
+	var leader *MemberInfo
+	err := n.withLeader(ctx, func(cli *client.Client) error {
+		info, err := cli.Leader(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to identify the cluster leader: %w", err)
+		}
+		if info == nil {
+			return nil
+		}
+		leader = &MemberInfo{
+			ID:      info.ID,
+			Address: info.Address,
+			Role:    roleFromNodeRole(info.Role),
+		}
+		return nil
+	})
+	return leader, err
+}
+
+func (n *dqliteNode) Promote(ctx context.Context, id uint64) error {
+	return n.withLeader(ctx, func(cli *client.Client) error {
+		if err := cli.Assign(ctx, id, client.Voter); err != nil {
+			return fmt.Errorf("failed to promote cluster member %d: %w", id, err)
+		}
+		return nil
+	})
 }
 
 // Handover transfers a member's cluster responsibilities away so it can be
@@ -283,17 +276,12 @@ func otherVoter(ctx context.Context, cli *client.Client, leaving uint64) (uint64
 // responsibilities is done separately (see Handover); a member removed from
 // here may well be one that is already gone.
 func (n *dqliteNode) Remove(ctx context.Context, id uint64) error {
-	cli, err := n.app.Leader(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to reach the cluster leader: %w", err)
-	}
-	defer cli.Close() //nolint:errcheck
-
-	if err := cli.Remove(ctx, id); err != nil {
-		return fmt.Errorf("failed to remove cluster member %d: %w", id, err)
-	}
-
-	return nil
+	return n.withLeader(ctx, func(cli *client.Client) error {
+		if err := cli.Remove(ctx, id); err != nil {
+			return fmt.Errorf("failed to remove cluster member %d: %w", id, err)
+		}
+		return nil
+	})
 }
 
 // roleFromNodeRole maps dqlite's role enum onto Notary's own, so nothing outside

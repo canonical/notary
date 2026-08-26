@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/canonical/notary/internal/cluster"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
@@ -167,6 +168,9 @@ func validateClusterConfig(cfg *viper.Viper) error {
 	}
 	if !cfg.IsSet("cluster.address") {
 		return errors.New("`cluster.address` is empty")
+	}
+	if err := cluster.ParseAdvertiseAddress(cfg.GetString("cluster.address")); err != nil {
+		return fmt.Errorf("`cluster.address`: %w", err)
 	}
 	return nil
 }

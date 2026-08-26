@@ -472,6 +472,7 @@ func TestJoinClusterRejectsBadRequests(t *testing.T) {
 		{"missing fields", server.JoinClusterParams{Token: token}, http.StatusBadRequest},
 		{"unknown token", server.JoinClusterParams{Token: "nope", Address: "10.0.0.4:9000", CSR: string(csrPEM)}, http.StatusUnauthorized},
 		{"valid token, unusable csr", server.JoinClusterParams{Token: token, Address: "10.0.0.4:9000", CSR: "not a csr", SchemaVersion: mustSchemaVersion(t)}, http.StatusBadRequest},
+		{"url as address", server.JoinClusterParams{Token: token, Address: "https://10.0.0.4:9000", CSR: string(csrPEM), SchemaVersion: mustSchemaVersion(t)}, http.StatusBadRequest},
 	}
 
 	t.Run("not json", func(t *testing.T) {

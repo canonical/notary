@@ -111,26 +111,27 @@ func advertisedAddress(hostPort string) string {
 // node that has not joined yet. It carries no admin token: the join token in the
 // request body is the credential (spec §1.2).
 //
-// caCertPath is optional; without it the system trust store is used.
+// caCertPath is required so the join cannot be intercepted by a host presenting
+// any certificate the system trust store would accept.
 func newJoinAPIClient(address string, caCertPath string) (*apiClient, error) {
-	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12}
-	if caCertPath != "" {
-		caCertPEM, err := os.ReadFile(caCertPath)
-		if err != nil {
-			return nil, fmt.Errorf("couldn't read %s: %w", caCertPath, err)
-		}
-		pool := x509.NewCertPool()
-		if !pool.AppendCertsFromPEM(caCertPEM) {
-			return nil, fmt.Errorf("%s does not contain a PEM certificate", caCertPath)
-		}
-		tlsConfig.RootCAs = pool
+	if caCertPath == "" {
+		return nil, errors.New("--ca-cert is required: pin the existing member's API certificate")
+	}
+
+	caCertPEM, err := os.ReadFile(caCertPath)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't read %s: %w", caCertPath, err)
+	}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(caCertPEM) {
+		return nil, fmt.Errorf("%s does not contain a PEM certificate", caCertPath)
 	}
 
 	return &apiClient{
 		baseURL: fmt.Sprintf("https://%s/api/v1", address),
 		http: &http.Client{
 			Timeout:   clusterAPITimeout,
-			Transport: &http.Transport{TLSClientConfig: tlsConfig},
+			Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}},
 		},
 	}, nil
 }

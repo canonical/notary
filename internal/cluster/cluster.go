@@ -138,8 +138,5 @@ func validateOptions(opts Options) error {
 	if opts.StateDir == "" {
 		return errors.New("cluster state directory is required")
 	}
-	if opts.Address == "" {
-		return errors.New("cluster address is required")
-	}
-	return nil
+	return ParseAdvertiseAddress(opts.Address)
 }

@@ -14,7 +14,10 @@ import (
 // setUpJWTSecret checks if a JWT secret exists in the database, if not, it generates a new one and stores it.
 func SetUpJWTSecret(database *db.DatabaseRepository) error {
 	jwtSecret, err := database.GetJWTSecret()
-	if err != nil && errors.Is(err, db.ErrNotFound) {
+	if err != nil {
+		if !errors.Is(err, db.ErrNotFound) {
+			return fmt.Errorf("failed to get JWT secret: %w", err)
+		}
 		// Generate new JWT secret if none exists
 		jwtSecret, err = generateJWTSecret()
 		if err != nil {
@@ -23,10 +26,6 @@ func SetUpJWTSecret(database *db.DatabaseRepository) error {
 		if err := database.CreateJWTSecret(jwtSecret); err != nil {
 			return fmt.Errorf("failed to store JWT secret: %w", err)
 		}
-		return nil
-	}
-	if err != nil && !errors.Is(err, db.ErrNotFound) {
-		return fmt.Errorf("failed to get JWT secret: %w", err)
 	}
 	database.JWTSecret = jwtSecret
 	return nil

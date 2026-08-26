@@ -84,12 +84,22 @@ func NewRouter(config *HandlerDependencies) http.Handler {
 	apiV1Router.HandleFunc("PUT /accounts/{id}/role", requirePermission(adminOnly, config, UpdateAccountRole(config)))
 	apiV1Router.HandleFunc("POST /accounts/me/change_password", requirePermission(allRoles, config, ChangeMyPassword(config)))
 
-	if config.AuthnRepository != nil {
+	if config.AuthnRepository.Enabled() {
 		apiV1Router.HandleFunc("GET /oauth/login", LoginOIDC(config))
 		apiV1Router.HandleFunc("GET /oauth/callback", CallbackOIDC(config))
 	}
 
 	apiV1Router.HandleFunc("GET /config", requirePermission(allRoles, config, GetConfigContent(config)))
+
+	// Cluster endpoints. Everything here is admin-only except the join endpoint,
+	// which is authenticated by the single-use join token it carries: a node that
+	// has not joined yet has no account and no cluster certificate to present.
+	apiV1Router.HandleFunc("GET /cluster/members", requirePermission(adminOnly, config, ListClusterMembers(config)))
+	apiV1Router.HandleFunc("POST /cluster/members/tokens", requirePermission(adminOnly, config, CreateClusterJoinToken(config)))
+	apiV1Router.HandleFunc("POST /cluster/members/join", JoinCluster(config))
+	apiV1Router.HandleFunc("DELETE /cluster/members/{id}", requirePermission(adminOnly, config, DeleteClusterMember(config)))
+	apiV1Router.HandleFunc("POST /cluster/members/{id}/promote", requirePermission(adminOnly, config, PromoteClusterMember(config)))
+	apiV1Router.HandleFunc("GET /cluster/status", requirePermission(adminOnly, config, GetClusterStatus(config)))
 
 	m := metrics.NewMetricsSubsystem(config.Database, config.SystemLogger)
 	frontendHandler, err := newFrontendFileServer()
@@ -97,7 +107,7 @@ func NewRouter(config *HandlerDependencies) http.Handler {
 		config.SystemLogger.Fatal("Failed to create frontend file server", zap.Error(err))
 	}
 	ctx := middlewareContext{
-		jwtSecret:    config.Database.JWTSecret,
+		jwtSecret:    func() []byte { return config.Database.JWTSecret },
 		systemLogger: config.SystemLogger,
 		auditLogger:  config.AuditLogger,
 		tracer:       config.TracingRepository,
@@ -108,6 +118,9 @@ func NewRouter(config *HandlerDependencies) http.Handler {
 		auditLoggingMiddleware(&ctx),
 		loggingMiddleware(&ctx),
 		tracingMiddleware(&ctx),
+		// Innermost, so a request rejected for being sealed is still counted,
+		// traced and logged like any other.
+		requireUnsealed(config),
 	)
 	metricsMiddlewareStack := createMiddlewareStack(
 		metricsMiddleware(m),
@@ -115,8 +128,12 @@ func NewRouter(config *HandlerDependencies) http.Handler {
 	)
 
 	router := http.NewServeMux()
-	router.HandleFunc("POST /login", Login(config))
+	// Login needs the JWT secret, which is stored under the data encryption key.
+	// Logout only clears the session cookie, so it keeps working while sealed.
+	router.HandleFunc("POST /login", requireUnsealedHandler(config, Login(config)))
 	router.HandleFunc("POST /logout", Logout(config))
+	// /status reports seal state itself, and /metrics plus the static frontend
+	// read no key material, so all three stay available on a sealed node.
 	router.HandleFunc("GET /status", GetStatus(config))
 	router.Handle("/metrics", m.Handler)
 	router.Handle("/api/v1/", http.StripPrefix("/api/v1", apiMiddlewareStack(apiV1Router)))

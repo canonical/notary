@@ -176,8 +176,12 @@ func createCertificateAuthority(fields CreateCertificateAuthorityParams) (string
 	if !fields.SelfSigned {
 		return csrPEM.String(), privPEM.String(), "", "", nil
 	}
+	serialNumber, err := db.GenerateSerialNumber()
+	if err != nil {
+		return "", "", "", "", fmt.Errorf("error creating certificate authority: %w", err)
+	}
 	template := &x509.Certificate{
-		SerialNumber: big.NewInt(time.Now().UnixNano()),
+		SerialNumber: serialNumber,
 		Subject: pkix.Name{
 			CommonName:         fields.CommonName,
 			Country:            []string{fields.CountryName},

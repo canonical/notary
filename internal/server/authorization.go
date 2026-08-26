@@ -1,13 +1,18 @@
 package server
 
-import "github.com/canonical/notary/internal/db"
+import (
+	"github.com/canonical/notary/internal/backends/authorization"
+	"github.com/canonical/notary/internal/db"
+)
 
-// Role name constants used in OpenFGA tuples and checks against "system:notary".
+// Role name constants used in OpenFGA checks against "system:notary". They
+// alias the relation names declared alongside the model itself so the two can
+// never drift apart.
 const (
-	RoleNameAdmin                = "admin"
-	RoleNameCertificateManager   = "certificate_manager"
-	RoleNameCertificateRequestor = "certificate_requestor"
-	RoleNameReader               = "reader"
+	RoleNameAdmin                = authorization.RelationAdmin
+	RoleNameCertificateManager   = authorization.RelationCertificateManager
+	RoleNameCertificateRequestor = authorization.RelationCertificateRequestor
+	RoleNameReader               = authorization.RelationReader
 )
 
 // RoleID mirrors db.RoleID for use within the server package.

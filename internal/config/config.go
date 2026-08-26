@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/canonical/notary/internal/cluster"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
@@ -40,16 +41,49 @@ func ParseConfig(cmdFlags *pflag.FlagSet, configFilePath string) (*AppConfig, er
 	appConfig.ExternalHostname = cfg.GetString("external_hostname")
 
 	appConfig.DBPath = cfg.GetString("db_path")
-	appConfig.ShouldApplyMigrations = cfg.GetBool("migrate-database")
+
+	appConfig.ClusterConfig = ClusterConfig{
+		Enabled:  cfg.GetBool("cluster.enabled"),
+		StateDir: cfg.GetString("cluster.state_dir"),
+		Address:  cfg.GetString("cluster.address"),
+	}
 
 	appConfig.ShouldEnablePebbleNotifications = cfg.GetBool("pebble_notifications")
 
 	appConfig.LoggingConfig = cfg.Sub("logging")
 	appConfig.TracingConfig = cfg.Sub("tracing")
-	appConfig.OIDCConfig = cfg.Sub("authentication.oidc")
+	appConfig.OIDCConfig = parseOIDCConfigs(cfg)
 	appConfig.EncryptionConfig = cfg.Sub("encryption_backend")
 
 	return appConfig, nil
+}
+
+// parseOIDCConfigs reads `authentication.oidc`, accepting either a list of
+// provider mappings or a single mapping. The single-mapping form is what
+// existing single-provider config files use and keeps working unchanged.
+func parseOIDCConfigs(cfg *viper.Viper) []*viper.Viper {
+	raw := cfg.Get("authentication.oidc")
+	entries, isList := raw.([]any)
+	if !isList {
+		if sub := cfg.Sub("authentication.oidc"); sub != nil {
+			return []*viper.Viper{sub}
+		}
+		return nil
+	}
+
+	configs := make([]*viper.Viper, 0, len(entries))
+	for _, entry := range entries {
+		fields, ok := entry.(map[string]any)
+		if !ok {
+			continue
+		}
+		sub := viper.New()
+		for key, value := range fields {
+			sub.Set(key, value)
+		}
+		configs = append(configs, sub)
+	}
+	return configs
 }
 
 // This function initializes the server config by merging the config file, command line options and environment variables.
@@ -112,8 +146,30 @@ func validateServerConfig(cfg *viper.Viper) error {
 	if cfg.IsSet("logging.system.level") && !slices.Contains(validLogLevels, cfg.GetString("logging.system.level")) {
 		return fmt.Errorf("invalid log level: %s", cfg.GetString("logging.system.level"))
 	}
+	if err := validateClusterConfig(cfg); err != nil {
+		return err
+	}
 	if err := validateEncryptionBackendConfig(cfg.Sub("encryption_backend")); err != nil {
 		return err
+	}
+	return nil
+}
+
+// validateClusterConfig validates the clustering configuration. Clustering is
+// off unless `cluster.enabled` is explicitly true, so an existing config file
+// keeps behaving exactly as it does today.
+func validateClusterConfig(cfg *viper.Viper) error {
+	if !cfg.GetBool("cluster.enabled") {
+		return nil
+	}
+	if !cfg.IsSet("cluster.state_dir") {
+		return errors.New("`cluster.state_dir` is empty")
+	}
+	if !cfg.IsSet("cluster.address") {
+		return errors.New("`cluster.address` is empty")
+	}
+	if err := cluster.ParseAdvertiseAddress(cfg.GetString("cluster.address")); err != nil {
+		return fmt.Errorf("`cluster.address`: %w", err)
 	}
 	return nil
 }

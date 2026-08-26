@@ -1,17 +1,22 @@
 package config
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
+	"time"
 
 	"github.com/MicahParks/keyfunc/v3"
+	"github.com/canonical/notary/internal/acme"
 	"github.com/canonical/notary/internal/backends/authentication"
 	authz "github.com/canonical/notary/internal/backends/authorization"
 	"github.com/canonical/notary/internal/backends/encryption"
 	"github.com/canonical/notary/internal/backends/observability/log"
 	"github.com/canonical/notary/internal/backends/observability/tracing"
+	"github.com/canonical/notary/internal/cluster"
 	"github.com/canonical/notary/internal/db"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/spf13/viper"
@@ -19,13 +24,34 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/oauth2"
+	"golang.org/x/time/rate"
+)
+
+const (
+	// jwksRefreshInterval is how often the cached JWK Set is refreshed in the background.
+	jwksRefreshInterval = time.Hour
+	// jwksUnknownKIDRefreshInterval bounds how often a token carrying an unknown
+	// `kid` may trigger an out-of-band JWKS refetch.
+	jwksUnknownKIDRefreshInterval = 30 * time.Second
+	// unsealRetryInterval is how often a sealed node retries its encryption
+	// backend. The node unseals itself within one interval of the backend
+	// becoming reachable again; no operator action is involved.
+	unsealRetryInterval = 10 * time.Second
 )
 
 // InitializeAppEnvironment takes an AppConfig and database, then initializes all subsystems,
 // returning an AppEnvironment with the initialized resources.
-func InitializeAppEnvironment(appConfig *AppConfig, database *db.DatabaseRepository) (*AppEnvironment, error) {
+//
+// clusterNode is this node's dqlite membership, or nil when clustering is
+// disabled; the cluster API reports itself unavailable in that case.
+//
+// ctx bounds the background work the environment starts, most notably the retry
+// loop of a node that could not reach its encryption backend at startup.
+func InitializeAppEnvironment(ctx context.Context, appConfig *AppConfig, database *db.DatabaseRepository, clusterNode cluster.Node, acmeReconciler *acme.Reconciler) (*AppEnvironment, error) {
 	appEnv := &AppEnvironment{}
 	appEnv.Database = database
+	appEnv.ClusterNode = clusterNode
+	appEnv.ACMEReconciler = acmeReconciler
 
 	// initialize system logger
 	systemLogger, err := initializeLogger(appConfig.LoggingConfig.Sub("system"))
@@ -46,13 +72,13 @@ func InitializeAppEnvironment(appConfig *AppConfig, database *db.DatabaseReposit
 	}
 
 	// initialize encryption backend connection
-	encryptionRepo, err := initializeEncryptionBackend(appConfig.EncryptionConfig, database, systemLogger)
+	encryptionRepo, err := initializeEncryptionBackend(ctx, appConfig.EncryptionConfig, appConfig.ClusterConfig, database, systemLogger)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't initialize encryption subsystem: %w", err)
 	}
 
 	// initialize OIDC config
-	authnRepo, err := initializeOIDC(appConfig.OIDCConfig, database, appConfig.ExternalHostname)
+	authnRepo, err := initializeOIDC(appConfig.OIDCConfig, appConfig.ExternalHostname)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't initialize OIDC subsystem: %w", err)
 	}
@@ -74,7 +100,7 @@ func InitializeAppEnvironment(appConfig *AppConfig, database *db.DatabaseReposit
 }
 
 // initializeEncryptionBackend reads the configuration of the backend and chooses the appropriate decryption method.
-func initializeEncryptionBackend(encryptionCfg *viper.Viper, database *db.DatabaseRepository, logger *zap.Logger) (*encryption.EncryptionRepository, error) {
+func initializeEncryptionBackend(ctx context.Context, encryptionCfg *viper.Viper, clusterCfg ClusterConfig, database *db.DatabaseRepository, logger *zap.Logger) (*encryption.EncryptionRepository, error) {
 	backendType := encryptionCfg.GetString("type")
 	encryptionRepo := &encryption.EncryptionRepository{}
 	switch backendType {
@@ -152,10 +178,95 @@ func initializeEncryptionBackend(encryptionCfg *viper.Viper, database *db.Databa
 	default:
 		return nil, errors.New("invalid encryption backend type; must be 'none', 'vault' or 'pkcs11'")
 	}
-	if err := encryption.SetUpEncryptionKey(database, encryptionRepo.Service, logger); err != nil {
-		return nil, fmt.Errorf("failed to set up encryption key: %w", err)
-	}
+	encryptionRepo.SealState = startUnsealing(ctx, database, clusterCfg, encryptionRepo.Service, logger, unsealRetryInterval)
 	return encryptionRepo, nil
+}
+
+// startUnsealing unwraps the data encryption key and loads the secrets stored
+// under it. If the configured backend is unreachable the node stays sealed and
+// keeps retrying every retryInterval in the background rather than refusing to
+// start: a node that cannot reach Vault/HSM still joins Raft, replicates, and
+// votes, and unseals itself the moment the backend comes back. It serves 503 on
+// the routes that need plaintext key material until then.
+func startUnsealing(
+	ctx context.Context,
+	database *db.DatabaseRepository,
+	clusterCfg ClusterConfig,
+	backend encryption.EncryptionService,
+	logger *zap.Logger,
+	retryInterval time.Duration,
+) *encryption.SealState {
+	return encryption.StartUnsealing(ctx, retryInterval, logger, func() error {
+		if err := encryption.SetUpEncryptionKey(database, backend, logger); err != nil {
+			return fmt.Errorf("failed to set up encryption key: %w", err)
+		}
+		// The JWT secret is stored encrypted under the data encryption key, so it
+		// can only be loaded once the unwrap has succeeded.
+		if err := authentication.SetUpJWTSecret(database); err != nil {
+			return fmt.Errorf("failed to set up JWT secret: %w", err)
+		}
+		// So is the cluster CA key, and for the same reason it belongs here: a
+		// node that bootstrapped while its backend was unreachable would
+		// otherwise never store it, and every join would fail until a restart.
+		if clusterCfg.Enabled {
+			if err := ensureClusterCAKey(database, clusterCfg.StateDir); err != nil {
+				return fmt.Errorf("failed to store the cluster CA key: %w", err)
+			}
+		}
+		return nil
+	})
+}
+
+// ensureClusterCAKey makes the replicated database the only place the cluster CA
+// key is kept.
+//
+// The bootstrapping node writes it to disk before any database exists, so it is
+// moved across on the first start that gets far enough to encrypt it, and the
+// plaintext copy is removed once the replicated write reads back. Every other
+// member has no disk copy and gets the key through replication, so this is a
+// no-op for them, and it is safe to run on every unseal attempt.
+func ensureClusterCAKey(database *db.DatabaseRepository, stateDir string) error {
+	diskKey, diskErr := cluster.LoadCAKey(stateDir)
+	// Absent is the ordinary case for a member that joined. Anything else — bad
+	// permissions, a truncated file — must not be mistaken for it, or the node
+	// would come up reporting itself healthy while no key ever reaches the
+	// cluster and every join fails.
+	if diskErr != nil && !errors.Is(diskErr, os.ErrNotExist) {
+		return diskErr
+	}
+
+	stored, storedErr := database.GetClusterCAKey()
+	switch {
+	case storedErr == nil:
+		// Already replicated. Sweep up a plaintext copy left by this node's own
+		// bootstrap, or by a version that kept one; anything that does not match
+		// is not ours to delete.
+		if diskErr == nil && bytes.Equal(stored, diskKey) {
+			return cluster.RemoveCAKey(stateDir)
+		}
+		return nil
+	case !errors.Is(storedErr, db.ErrNotFound):
+		return storedErr
+	case diskErr != nil:
+		// Nothing stored and nothing on disk: a joined member, still waiting for
+		// the row to replicate.
+		return nil
+	}
+
+	if err := database.CreateClusterCAKey(diskKey); err != nil {
+		return err
+	}
+
+	// Confirmed before the only other copy is destroyed.
+	readBack, err := database.GetClusterCAKey()
+	if err != nil {
+		return fmt.Errorf("failed to read back the stored cluster CA key: %w", err)
+	}
+	if !bytes.Equal(readBack, diskKey) {
+		return errors.New("the stored cluster CA key does not match the one on disk")
+	}
+
+	return cluster.RemoveCAKey(stateDir)
 }
 
 // initializeLogger creates and configures a logger based on the provided configuration.
@@ -222,14 +333,37 @@ func InitializeAuthorizationConfig(database *db.DatabaseRepository, logger *zap.
 	return ofgaConfig, nil
 }
 
-func initializeOIDC(cfg *viper.Viper, database *db.DatabaseRepository, externalHostname string) (*authentication.OIDCRepository, error) {
-	if cfg == nil {
+// initializeOIDC builds one OIDCRepository per configured provider. Any number of
+// providers may be configured simultaneously, each with its own issuer, client
+// credentials, claim mapping and JWKS cache.
+func initializeOIDC(cfgs []*viper.Viper, externalHostname string) (authentication.OIDCProviders, error) {
+	if len(cfgs) == 0 {
 		return nil, nil
 	}
 
-	err := authentication.SetUpJWTSecret(database)
-	if err != nil {
-		return nil, fmt.Errorf("failed to set up JWT secret: %w", err)
+	providers := make(authentication.OIDCProviders, 0, len(cfgs))
+	seenNames := make(map[string]bool, len(cfgs))
+	for i, cfg := range cfgs {
+		provider, err := initializeOIDCProvider(cfg, externalHostname, i)
+		if err != nil {
+			return nil, err
+		}
+		if seenNames[provider.Name] {
+			return nil, fmt.Errorf("duplicate OIDC provider name %q", provider.Name)
+		}
+		seenNames[provider.Name] = true
+		providers = append(providers, provider)
+	}
+	return providers, nil
+}
+
+func initializeOIDCProvider(cfg *viper.Viper, externalHostname string, index int) (*authentication.OIDCRepository, error) {
+	name := cfg.GetString("name")
+	if name == "" {
+		name = cfg.GetString("domain")
+	}
+	if name == "" {
+		return nil, fmt.Errorf("OIDC provider %d is missing both `name` and `domain`", index)
 	}
 
 	oidcServer := fmt.Sprintf("https://%s/", cfg.GetString("domain"))
@@ -242,7 +376,7 @@ func initializeOIDC(cfg *viper.Viper, database *db.DatabaseRepository, externalH
 
 	provider, err := oidc.NewProvider(context.Background(), oidcServer)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("OIDC provider %q discovery failed: %w", name, err)
 	}
 
 	var discovery struct {
@@ -255,9 +389,17 @@ func initializeOIDC(cfg *viper.Viper, database *db.DatabaseRepository, externalH
 	if jwksURL == "" {
 		jwksURL = oidcServer + ".well-known/jwks.json"
 	}
-	keyfunc, err := keyfunc.NewDefaultCtx(context.Background(), []string{jwksURL})
+	// RefreshUnknownKID makes the JWKS cache fetch out-of-band when a token
+	// carries a `kid` the cache doesn't know about, so an IdP key rotation that
+	// lands between scheduled refreshes doesn't reject valid tokens for a full
+	// refresh interval. The rate limiter bounds how often an unknown `kid` can
+	// trigger a fetch, so unknown-`kid` tokens can't be used to hammer the IdP.
+	keyfunc, err := keyfunc.NewDefaultOverrideCtx(context.Background(), []string{jwksURL}, keyfunc.Override{
+		RefreshInterval:   jwksRefreshInterval,
+		RefreshUnknownKID: rate.NewLimiter(rate.Every(jwksUnknownKIDRefreshInterval), 1),
+	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("OIDC provider %q JWKS setup failed: %w", name, err)
 	}
 
 	oauth2Config := &oauth2.Config{
@@ -271,6 +413,7 @@ func initializeOIDC(cfg *viper.Viper, database *db.DatabaseRepository, externalH
 	}
 
 	return &authentication.OIDCRepository{
+		Name:                name,
 		OAuth2Config:        oauth2Config,
 		Audience:            audience,
 		OIDCProvider:        provider,
@@ -278,7 +421,27 @@ func initializeOIDC(cfg *viper.Viper, database *db.DatabaseRepository, externalH
 		KeyFunc:             keyfunc,
 		EmailClaimKey:       emailScope,
 		PermissionsClaimKey: permissionsScope,
+		RoleMapping: authentication.RoleMapping{
+			Claim:  cfg.GetString("role_mapping.claim"),
+			Values: parseRoleMappingValues(cfg.GetStringMap("role_mapping.values")),
+		},
 	}, nil
+}
+
+// parseRoleMappingValues converts the raw `role_mapping.values` mapping into
+// claim value -> role ID. Entries whose value isn't an integer are dropped
+// rather than silently granting an unintended role.
+func parseRoleMappingValues(raw map[string]any) map[string]int {
+	if len(raw) == 0 {
+		return nil
+	}
+	values := make(map[string]int, len(raw))
+	for claimValue, roleID := range raw {
+		if role, ok := roleID.(int); ok {
+			values[claimValue] = role
+		}
+	}
+	return values
 }
 
 // initializeTracing creates and configures a tracer based on the configuration.

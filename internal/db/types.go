@@ -6,9 +6,8 @@ import (
 )
 
 type DatabaseOpts struct {
-	DatabasePath    string
-	ApplyMigrations bool
-	Logger          *zap.Logger
+	DatabasePath string
+	Logger       *zap.Logger
 }
 
 // DatabaseRepository is the object used to communicate with the established repository.
@@ -57,6 +56,10 @@ type Certificate struct {
 	IssuerID      int64 `db:"issuer_id"`
 
 	CertificatePEM string `db:"certificate"`
+	// SerialNumber is the lowercase hexadecimal representation of the x.509 serial
+	// number carried inside CertificatePEM. It is stored in its own column so the
+	// database can enforce uniqueness.
+	SerialNumber string `db:"serial_number"`
 }
 
 // CertificateRequest contains information about a request for Notary. This is a distinct object
@@ -109,6 +112,7 @@ type User struct {
 	HashedPassword *string `db:"hashed_password"` // Nullable for OIDC-only users
 	RoleID         RoleID  `db:"role_id"`
 	OIDCSubject    *string `db:"oidc_subject"` // OIDC provider's subject identifier
+	OIDCIssuer     *string `db:"oidc_issuer"`  // Issuer that minted OIDCSubject; identity is (issuer, subject)
 }
 
 // HasPassword checks if a user has a local password set
@@ -143,4 +147,54 @@ type ACMEServer struct {
 	EnvVars       string `db:"env_vars"`
 	Active        bool   `db:"active"`
 	ACMEAccountID *int64 `db:"acme_account_id"`
+}
+
+// ClusterJoinToken is a single-use, time-limited credential that authorizes one
+// node to join the cluster.
+//
+// Only the token's SHA-256 hash is stored, never the token itself: possessing a
+// database dump must not be enough to join the cluster.
+type ClusterJoinToken struct {
+	ID int64 `db:"id"`
+
+	TokenHash string `db:"token_hash"`
+	CreatedAt int64  `db:"created_at"`
+	ExpiresAt int64  `db:"expires_at"`
+	// UsedAt is nil until the token is redeemed. A token is valid exactly once.
+	UsedAt *int64 `db:"used_at"`
+}
+
+// ClusterMember maps a dqlite node ID to the name an operator gave it when it
+// joined. dqlite itself only knows IDs, addresses and roles.
+type ClusterMember struct {
+	ID int64 `db:"id"`
+
+	// NodeID is dqlite's node ID rendered in decimal. It is stored as text
+	// because dqlite node IDs are uint64 and overflow SQLite's signed INTEGER.
+	NodeID   string `db:"node_id"`
+	Name     string `db:"name"`
+	Address  string `db:"address"`
+	JoinedAt int64  `db:"joined_at"`
+
+	// Heartbeat is when the member last reported itself alive, in Unix seconds,
+	// or nil if it never has. A member writes its own; everyone else reads it
+	// back through replication.
+	Heartbeat *int64 `db:"heartbeat"`
+
+	// Sealed is the member's own last report of whether it still has to unwrap
+	// its encryption key.
+	Sealed bool `db:"sealed"`
+}
+
+// ACMEIssuanceAttempt records that a certificate request has been handed to an
+// ACME provider and is being polled by a specific node. The row lives only for
+// the duration of the attempt; one that outlives its owner marks an issuance
+// interrupted by that node's failure.
+type ACMEIssuanceAttempt struct {
+	CSRID int64 `db:"csr_id"`
+
+	// NodeID is the dqlite node ID of the node running the attempt, in decimal.
+	// It is empty for an unclustered deployment, which has no node IDs.
+	NodeID    string `db:"node_id"`
+	StartedAt int64  `db:"started_at"`
 }

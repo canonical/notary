@@ -176,7 +176,7 @@ WHERE (csr_id = $CertificateRequestWithChain.csr_id OR csr = $CertificateRequest
 	// // // // // // // // // //
 	// Certificate SQL Strings //
 	// // // // // // // // // //
-	createCertificateStmt   = "INSERT INTO certificates (certificate, issuer_id) VALUES ($Certificate.certificate, $Certificate.issuer_id)"
+	createCertificateStmt   = "INSERT INTO certificates (certificate, issuer_id, serial_number) VALUES ($Certificate.certificate, $Certificate.issuer_id, $Certificate.serial_number)"
 	addCertificateToCSRStmt = "UPDATE certificates SET certificate_id=$Certificate.certificate_id, status=$CertificateRequest.status WHERE id==$CertificateRequest.id or csr==$CertificateRequest.csr"
 	getCertificateStmt      = "SELECT &Certificate.* FROM certificates WHERE certificate_id==$Certificate.certificate_id or certificate==$Certificate.certificate"
 	updateCertificateStmt   = "UPDATE certificates SET issuer_id=$Certificate.issuer_id WHERE certificate_id==$Certificate.certificate_id or certificate==$Certificate.certificate"
@@ -185,14 +185,14 @@ WHERE (csr_id = $CertificateRequestWithChain.csr_id OR csr = $CertificateRequest
 
 	getCertificateChainStmt = `WITH RECURSIVE cert_chain AS (
     -- Initial query: Start search from the end certificate
-    SELECT certificate_id, certificate, issuer_id
+    SELECT certificate_id, certificate, issuer_id, serial_number
     FROM certificates
     WHERE certificate_id = $Certificate.certificate_id or certificate = $Certificate.certificate
 
     UNION ALL
 
     -- Recursive Query: Move up the chain until issuer_id is 0 (root)
-    SELECT certs.certificate_id, certs.certificate, certs.issuer_id
+    SELECT certs.certificate_id, certs.certificate, certs.issuer_id, certs.serial_number
     FROM certificates certs
     JOIN cert_chain
       ON certs.certificate_id = cert_chain.issuer_id
@@ -301,14 +301,15 @@ WITH RECURSIVE cas_with_chain AS (
 	// // // // // // // // // //
 	// Users Table SQL Strings //
 	// // // // // // // // // //
-	listUsersStmt      = "SELECT &User.* from users"
-	getUserStmt        = "SELECT &User.* from users WHERE id==$User.id or email==$User.email or oidc_subject==$User.oidc_subject"
-	createUserStmt     = "INSERT INTO users (email, hashed_password, role_id) VALUES ($User.email, $User.hashed_password, $User.role_id)"
-	createOIDCUserStmt = "INSERT INTO users (email, hashed_password, role_id, oidc_subject) VALUES ($User.email, NULL, $User.role_id, $User.oidc_subject)"
-	updateUserStmt     = "UPDATE users SET hashed_password=$User.hashed_password WHERE id==$User.id or email==$User.email"
-	updateUserRoleStmt = "UPDATE users SET role_id=$User.role_id WHERE id==$User.id"
-	deleteUserStmt     = "DELETE FROM users WHERE id==$User.id"
-	getNumUsersStmt    = "SELECT COUNT(*) AS &NumUsers.count FROM users"
+	listUsersStmt         = "SELECT &User.* from users"
+	getUserStmt           = "SELECT &User.* from users WHERE id==$User.id or email==$User.email"
+	getUserByOIDCIdentity = "SELECT &User.* from users WHERE oidc_issuer==$User.oidc_issuer and oidc_subject==$User.oidc_subject"
+	createUserStmt        = "INSERT INTO users (email, hashed_password, role_id) VALUES ($User.email, $User.hashed_password, $User.role_id)"
+	createOIDCUserStmt    = "INSERT INTO users (email, hashed_password, role_id, oidc_issuer, oidc_subject) VALUES ($User.email, NULL, $User.role_id, $User.oidc_issuer, $User.oidc_subject)"
+	updateUserStmt        = "UPDATE users SET hashed_password=$User.hashed_password WHERE id==$User.id or email==$User.email"
+	updateUserRoleStmt    = "UPDATE users SET role_id=$User.role_id WHERE id==$User.id"
+	deleteUserStmt        = "DELETE FROM users WHERE id==$User.id"
+	getNumUsersStmt       = "SELECT COUNT(*) AS &NumUsers.count FROM users"
 
 	// // // // // // // // // //
 	// Encryption Key SQL Strings //
@@ -323,6 +324,10 @@ WITH RECURSIVE cas_with_chain AS (
 	createJWTSecretStmt = "INSERT INTO jwt_secret (id, encrypted_secret) VALUES ($JWTSecret.id, $JWTSecret.encrypted_secret)"
 	getJWTSecretStmt    = "SELECT &JWTSecret.* FROM jwt_secret WHERE id=$JWTSecret.id"
 	deleteJWTSecretStmt = "DELETE FROM jwt_secret WHERE id=$JWTSecret.id"
+
+	createClusterCAKeyStmt = "INSERT INTO cluster_ca_key (id, encrypted_key) VALUES ($ClusterCAKey.id, $ClusterCAKey.encrypted_key)"
+	getClusterCAKeyStmt    = "SELECT &ClusterCAKey.* FROM cluster_ca_key WHERE id=$ClusterCAKey.id"
+	deleteClusterCAKeyStmt = "DELETE FROM cluster_ca_key WHERE id=$ClusterCAKey.id"
 
 	// ACME Account statements
 	insertACMEAccountStmt           = "INSERT INTO acme_accounts (email, directory_url, private_key, registration_uri, registration_body) VALUES ($ACMEAccount.email, $ACMEAccount.directory_url, $ACMEAccount.private_key, $ACMEAccount.registration_uri, $ACMEAccount.registration_body)"
@@ -339,6 +344,22 @@ WITH RECURSIVE cas_with_chain AS (
 	updateACMEServerStmt        = "UPDATE acme_servers SET name=$ACMEServer.name, directory_url=$ACMEServer.directory_url, email=$ACMEServer.email, dns_provider=$ACMEServer.dns_provider, env_vars=$ACMEServer.env_vars WHERE id==$ACMEServer.id"
 	deleteACMEServerStmt        = "DELETE FROM acme_servers WHERE id==$ACMEServer.id"
 	linkACMEAccountToServerStmt = "UPDATE acme_servers SET acme_account_id=$ACMEServer.acme_account_id WHERE id==$ACMEServer.id"
+
+	// Cluster join token statements
+	createClusterJoinTokenStmt  = "INSERT INTO cluster_join_tokens (token_hash, created_at, expires_at) VALUES ($ClusterJoinToken.token_hash, $ClusterJoinToken.created_at, $ClusterJoinToken.expires_at)"
+	deleteExpiredJoinTokensStmt = "DELETE FROM cluster_join_tokens WHERE expires_at < $ClusterJoinToken.expires_at"
+
+	// Cluster member statements
+	createClusterMemberStmt    = "INSERT INTO cluster_members (node_id, name, address, joined_at) VALUES ($ClusterMember.node_id, $ClusterMember.name, $ClusterMember.address, $ClusterMember.joined_at)"
+	listClusterMembersStmt     = "SELECT &ClusterMember.* FROM cluster_members"
+	getClusterMemberStmt       = "SELECT &ClusterMember.* FROM cluster_members WHERE node_id==$ClusterMember.node_id"
+	deleteClusterMemberStmt    = "DELETE FROM cluster_members WHERE node_id==$ClusterMember.node_id"
+	heartbeatClusterMemberStmt = "INSERT INTO cluster_members (node_id, name, address, joined_at, heartbeat, sealed) VALUES ($ClusterMember.node_id, $ClusterMember.name, $ClusterMember.address, $ClusterMember.joined_at, $ClusterMember.heartbeat, $ClusterMember.sealed) ON CONFLICT(node_id) DO UPDATE SET heartbeat=excluded.heartbeat, sealed=excluded.sealed"
+
+	// ACME issuance attempt statements
+	createACMEIssuanceAttemptStmt = "INSERT INTO acme_issuance_attempts (csr_id, node_id, started_at) VALUES ($ACMEIssuanceAttempt.csr_id, $ACMEIssuanceAttempt.node_id, $ACMEIssuanceAttempt.started_at)"
+	listACMEIssuanceAttemptsStmt  = "SELECT &ACMEIssuanceAttempt.* FROM acme_issuance_attempts"
+	deleteACMEIssuanceAttemptStmt = "DELETE FROM acme_issuance_attempts WHERE csr_id==$ACMEIssuanceAttempt.csr_id"
 )
 
 // Statements contains all prepared SQL statements used by the database
@@ -377,14 +398,15 @@ type Statements struct {
 	DeletePrivateKey *sqlair.Statement
 
 	// User statements
-	CreateUser     *sqlair.Statement
-	CreateOIDCUser *sqlair.Statement
-	GetUser        *sqlair.Statement
-	UpdateUser     *sqlair.Statement
-	UpdateUserRole *sqlair.Statement
-	ListUsers      *sqlair.Statement
-	DeleteUser     *sqlair.Statement
-	GetNumUsers    *sqlair.Statement
+	CreateUser            *sqlair.Statement
+	CreateOIDCUser        *sqlair.Statement
+	GetUser               *sqlair.Statement
+	GetUserByOIDCIdentity *sqlair.Statement
+	UpdateUser            *sqlair.Statement
+	UpdateUserRole        *sqlair.Statement
+	ListUsers             *sqlair.Statement
+	DeleteUser            *sqlair.Statement
+	GetNumUsers           *sqlair.Statement
 
 	// Encryption Key statements
 	CreateEncryptionKey *sqlair.Statement
@@ -395,6 +417,10 @@ type Statements struct {
 	CreateJWTSecret *sqlair.Statement
 	GetJWTSecret    *sqlair.Statement
 	DeleteJWTSecret *sqlair.Statement
+
+	CreateClusterCAKey *sqlair.Statement
+	GetClusterCAKey    *sqlair.Statement
+	DeleteClusterCAKey *sqlair.Statement
 
 	// ACME Account statements
 	InsertACMEAccount           *sqlair.Statement
@@ -411,6 +437,22 @@ type Statements struct {
 	UpdateACMEServer        *sqlair.Statement
 	DeleteACMEServer        *sqlair.Statement
 	LinkACMEAccountToServer *sqlair.Statement
+
+	// Cluster join token statements
+	CreateClusterJoinToken  *sqlair.Statement
+	DeleteExpiredJoinTokens *sqlair.Statement
+
+	// Cluster member statements
+	CreateClusterMember    *sqlair.Statement
+	ListClusterMembers     *sqlair.Statement
+	GetClusterMember       *sqlair.Statement
+	DeleteClusterMember    *sqlair.Statement
+	HeartbeatClusterMember *sqlair.Statement
+
+	// ACME issuance attempt statements
+	CreateACMEIssuanceAttempt *sqlair.Statement
+	ListACMEIssuanceAttempts  *sqlair.Statement
+	DeleteACMEIssuanceAttempt *sqlair.Statement
 }
 
 // PrepareStatements prepares all SQL statements used by the database.
@@ -456,6 +498,7 @@ func PrepareStatements() *Statements {
 	stmts.CreateUser = sqlair.MustPrepare(createUserStmt, User{})
 	stmts.CreateOIDCUser = sqlair.MustPrepare(createOIDCUserStmt, User{})
 	stmts.GetUser = sqlair.MustPrepare(getUserStmt, User{})
+	stmts.GetUserByOIDCIdentity = sqlair.MustPrepare(getUserByOIDCIdentity, User{})
 	stmts.UpdateUser = sqlair.MustPrepare(updateUserStmt, User{})
 	stmts.UpdateUserRole = sqlair.MustPrepare(updateUserRoleStmt, User{})
 	stmts.ListUsers = sqlair.MustPrepare(listUsersStmt, User{})
@@ -472,6 +515,10 @@ func PrepareStatements() *Statements {
 	stmts.GetJWTSecret = sqlair.MustPrepare(getJWTSecretStmt, JWTSecret{})
 	stmts.DeleteJWTSecret = sqlair.MustPrepare(deleteJWTSecretStmt, JWTSecret{})
 
+	stmts.CreateClusterCAKey = sqlair.MustPrepare(createClusterCAKeyStmt, ClusterCAKey{})
+	stmts.GetClusterCAKey = sqlair.MustPrepare(getClusterCAKeyStmt, ClusterCAKey{})
+	stmts.DeleteClusterCAKey = sqlair.MustPrepare(deleteClusterCAKeyStmt, ClusterCAKey{})
+
 	// ACME Account statements
 	stmts.InsertACMEAccount = sqlair.MustPrepare(insertACMEAccountStmt, ACMEAccount{})
 	stmts.GetACMEAccount = sqlair.MustPrepare(getACMEAccountStmt, ACMEAccount{})
@@ -487,6 +534,20 @@ func PrepareStatements() *Statements {
 	stmts.UpdateACMEServer = sqlair.MustPrepare(updateACMEServerStmt, ACMEServer{})
 	stmts.DeleteACMEServer = sqlair.MustPrepare(deleteACMEServerStmt, ACMEServer{})
 	stmts.LinkACMEAccountToServer = sqlair.MustPrepare(linkACMEAccountToServerStmt, ACMEServer{})
+
+	stmts.CreateClusterJoinToken = sqlair.MustPrepare(createClusterJoinTokenStmt, ClusterJoinToken{})
+	stmts.DeleteExpiredJoinTokens = sqlair.MustPrepare(deleteExpiredJoinTokensStmt, ClusterJoinToken{})
+
+	stmts.CreateClusterMember = sqlair.MustPrepare(createClusterMemberStmt, ClusterMember{})
+	stmts.ListClusterMembers = sqlair.MustPrepare(listClusterMembersStmt, ClusterMember{})
+	stmts.GetClusterMember = sqlair.MustPrepare(getClusterMemberStmt, ClusterMember{})
+	stmts.DeleteClusterMember = sqlair.MustPrepare(deleteClusterMemberStmt, ClusterMember{})
+	stmts.HeartbeatClusterMember = sqlair.MustPrepare(heartbeatClusterMemberStmt, ClusterMember{})
+
+	// ACME issuance attempt statements
+	stmts.CreateACMEIssuanceAttempt = sqlair.MustPrepare(createACMEIssuanceAttemptStmt, ACMEIssuanceAttempt{})
+	stmts.ListACMEIssuanceAttempts = sqlair.MustPrepare(listACMEIssuanceAttemptsStmt, ACMEIssuanceAttempt{})
+	stmts.DeleteACMEIssuanceAttempt = sqlair.MustPrepare(deleteACMEIssuanceAttemptStmt, ACMEIssuanceAttempt{})
 
 	return stmts
 }

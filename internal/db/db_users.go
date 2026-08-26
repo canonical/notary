@@ -16,6 +16,9 @@ func (db *DatabaseRepository) ListUsers() ([]User, error) {
 // GetUser retrieves the name, password and the role ID of a user.
 func (db *DatabaseRepository) GetUser(filter UserFilter) (*User, error) {
 	userRow := filter.AsUser()
+	if userRow.OIDCIssuer != nil && userRow.OIDCSubject != nil {
+		return GetOneEntity[User](db, db.stmts.GetUserByOIDCIdentity, *userRow)
+	}
 	return GetOneEntity[User](db, db.stmts.GetUser, *userRow)
 }
 
@@ -47,9 +50,9 @@ func (db *DatabaseRepository) CreateUser(email string, password string, roleID R
 }
 
 // CreateOIDCUser creates a new user from OIDC login (no password required)
-// Email is optional - the oidcSubject is the primary identifier
-func (db *DatabaseRepository) CreateOIDCUser(email, oidcSubject string, roleID RoleID) (*User, error) {
-	err := ValidateOIDCUser(oidcSubject, roleID)
+// Email is optional - the (issuer, subject) pair is the primary identifier
+func (db *DatabaseRepository) CreateOIDCUser(email, oidcIssuer, oidcSubject string, roleID RoleID) (*User, error) {
+	err := ValidateOIDCUser(oidcIssuer, oidcSubject, roleID)
 	if err != nil {
 		return nil, err
 	}
@@ -58,6 +61,7 @@ func (db *DatabaseRepository) CreateOIDCUser(email, oidcSubject string, roleID R
 		Email:          email,
 		HashedPassword: nil, // OIDC users don't have passwords
 		RoleID:         roleID,
+		OIDCIssuer:     &oidcIssuer,
 		OIDCSubject:    &oidcSubject,
 	}
 	insertedRowID, err := CreateEntity(db, db.stmts.CreateOIDCUser, row)

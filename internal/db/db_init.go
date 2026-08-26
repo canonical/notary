@@ -38,16 +38,42 @@ func (db *DatabaseRepository) Close() error {
 // The database path must be a valid file path or ":memory:".
 // The table will be created if it doesn't exist in the format expected by the package.
 func NewDatabase(dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
-	sqlConnection, err := sql.Open("sqlite", dbOpts.DatabasePath)
+	sqlConnection, err := sql.Open("sqlite", localDSN(dbOpts.DatabasePath))
 	if err != nil {
-		return nil, err
-	}
-	if _, err := sqlConnection.Exec("PRAGMA foreign_keys = ON;"); err != nil {
 		return nil, err
 	}
 	sqlConnection.SetMaxIdleConns(2)
 	sqlConnection.SetMaxOpenConns(2)
-	err = goose.SetDialect("sqlite")
+
+	return NewDatabaseFromConn(sqlConnection, dbOpts)
+}
+
+// localDSN turns a database path into a driver DSN carrying the pragmas that
+// must hold on every pooled connection.
+//
+// Pragmas are per-connection, so executing them once against the *sql.DB only
+// configures whichever connection happened to serve that statement. The pool
+// holds more than one connection, so the pragmas have to travel with the DSN.
+//
+// busy_timeout matters because the pool lets a read and a write run on separate
+// connections at the same time; without it, the writer fails immediately with
+// SQLITE_BUSY instead of waiting for the reader to finish.
+func localDSN(path string) string {
+	return fmt.Sprintf("file:%s?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)", path)
+}
+
+// NewDatabaseFromConn prepares an already-open SQL connection for use as a Notary
+// repository: it enables foreign keys, initializes an empty schema, verifies an
+// existing schema, prepares the statement set and wraps the connection for sqlair.
+//
+// It exists so that a clustered (dqlite-backed) connection, opened elsewhere, goes
+// through the exact same initialization as the local single-file connection opened
+// by NewDatabase. Callers own the connection's lifetime and pool settings.
+func NewDatabaseFromConn(sqlConnection *sql.DB, dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
+	if _, err := sqlConnection.Exec("PRAGMA foreign_keys = ON;"); err != nil {
+		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
+	}
+	err := goose.SetDialect("sqlite")
 	if err != nil {
 		return nil, err
 	}
@@ -55,15 +81,26 @@ func NewDatabase(dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
 	if err != nil {
 		return nil, err
 	}
-	if version < 1 {
-		if dbOpts.ApplyMigrations {
-			goose.SetBaseFS(migrations.EmbedMigrations)
-			if err := goose.Up(sqlConnection, ".", goose.WithNoColor(true)); err != nil {
-				return nil, fmt.Errorf("failed to apply migrations: %w", err)
-			}
-		} else {
-			return nil, errors.New("database migrations not applied. please migrate database using `notary migrate up`")
+
+	embedded, err := EmbeddedSchemaVersion()
+	if err != nil {
+		return nil, err
+	}
+
+	// Notary has no deployed schema to preserve yet. Version zero is a fresh
+	// database and receives the current schema; every other version must match
+	// exactly. In-place upgrades would let older cluster members keep serving
+	// against a schema their binaries do not understand.
+	switch {
+	case version == 0:
+		goose.SetBaseFS(migrations.EmbedMigrations)
+		if err := goose.Up(sqlConnection, ".", goose.WithNoColor(true)); err != nil {
+			return nil, fmt.Errorf("failed to initialize database schema: %w", err)
 		}
+	case version != embedded:
+		return nil, fmt.Errorf(
+			"the database is at schema %d but this version of Notary requires schema %d: start with an empty database",
+			version, embedded)
 	}
 	db := new(DatabaseRepository)
 	db.stmts = PrepareStatements()
@@ -74,11 +111,15 @@ func NewDatabase(dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
 }
 
 // ListEntities retrieves all entities of a given type from the database.
+//
+// Failures wrap both ErrInternal, which callers match on, and the driver's own
+// error, which is the only thing that says what actually went wrong. Handlers
+// log these; none of them are written back to a client.
 func ListEntities[T any](db *DatabaseRepository, stmt *sqlair.Statement, inputArgs ...any) ([]T, error) {
 	var entities []T
 	err := db.Conn.Query(context.Background(), stmt, inputArgs...).GetAll(&entities)
 	if err != nil && !errors.Is(err, sqlair.ErrNoRows) {
-		return nil, fmt.Errorf("failed to list %s: %w", getTypeName[T](), ErrInternal)
+		return nil, fmt.Errorf("failed to list %s: %w: %w", getTypeName[T](), ErrInternal, err)
 	}
 	return entities, nil
 }
@@ -91,7 +132,7 @@ func GetOneEntity[T any](db *DatabaseRepository, stmt *sqlair.Statement, inputAr
 		if errors.Is(err, sqlair.ErrNoRows) {
 			return nil, fmt.Errorf("failed to get %s: %w", getTypeName[T](), ErrNotFound)
 		}
-		return nil, fmt.Errorf("failed to get %s: %w", getTypeName[T](), ErrInternal)
+		return nil, fmt.Errorf("failed to get %s: %w: %w", getTypeName[T](), ErrInternal, err)
 	}
 
 	return &result, nil
@@ -104,11 +145,11 @@ func CreateEntity[T any](db *DatabaseRepository, stmt *sqlair.Statement, new_ent
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			return 0, fmt.Errorf("failed to create %s: %w", getTypeName[T](), ErrAlreadyExists)
 		}
-		return 0, fmt.Errorf("failed to create %s: %w", getTypeName[T](), ErrInternal)
+		return 0, fmt.Errorf("failed to create %s: %w: %w", getTypeName[T](), ErrInternal, err)
 	}
 	insertedRowID, err := outcome.Result().LastInsertId()
 	if err != nil {
-		return 0, fmt.Errorf("failed to create %s: %w", getTypeName[T](), ErrInternal)
+		return 0, fmt.Errorf("failed to create %s: %w: %w", getTypeName[T](), ErrInternal, err)
 	}
 	return insertedRowID, nil
 }
@@ -117,11 +158,11 @@ func UpdateEntity[T any](db *DatabaseRepository, stmt *sqlair.Statement, updated
 	var outcome sqlair.Outcome
 	err := db.Conn.Query(context.Background(), stmt, updated_entity).Get(&outcome)
 	if err != nil {
-		return fmt.Errorf("failed to update %s: %w", getTypeName[T](), ErrInternal)
+		return fmt.Errorf("failed to update %s: %w: %w", getTypeName[T](), ErrInternal, err)
 	}
 	affectedRows, err := outcome.Result().RowsAffected()
 	if err != nil {
-		return fmt.Errorf("failed to update %s: %w", getTypeName[T](), ErrInternal)
+		return fmt.Errorf("failed to update %s: %w: %w", getTypeName[T](), ErrInternal, err)
 	}
 	if affectedRows == 0 {
 		return fmt.Errorf("failed to update %s: %w", getTypeName[T](), ErrNotFound)
@@ -133,11 +174,11 @@ func DeleteEntity[T any](db *DatabaseRepository, stmt *sqlair.Statement, entity_
 	var outcome sqlair.Outcome
 	err := db.Conn.Query(context.Background(), stmt, entity_to_delete).Get(&outcome)
 	if err != nil {
-		return fmt.Errorf("failed to delete %s: %w", getTypeName[T](), ErrInternal)
+		return fmt.Errorf("failed to delete %s: %w: %w", getTypeName[T](), ErrInternal, err)
 	}
 	affectedRows, err := outcome.Result().RowsAffected()
 	if err != nil {
-		return fmt.Errorf("failed to delete %s: %w", getTypeName[T](), ErrInternal)
+		return fmt.Errorf("failed to delete %s: %w: %w", getTypeName[T](), ErrInternal, err)
 	}
 	if affectedRows == 0 {
 		return fmt.Errorf("failed to delete %s: %w", getTypeName[T](), ErrNotFound)

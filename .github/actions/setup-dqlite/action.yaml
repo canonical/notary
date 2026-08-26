@@ -1,0 +1,18 @@
+name: Set up dqlite
+description: >
+  Installs the libdqlite headers and runtime that Notary's clustered storage path
+  is built against. Without them, every Go job fails to compile
+  internal/cluster/daemon_linux.go, which is the only place dqlite is used.
+
+runs:
+  using: composite
+  steps:
+    - name: Install dqlite
+      shell: bash
+      # ppa:dqlite/dev carries both the bleeding-edge packages and the LTS ones.
+      # libdqlite1.17-dev is the LTS series go-dqlite/v3 is built against, and it
+      # matches the v1.17.0 source tag snap/snapcraft.yaml and rockcraft.yaml build.
+      run: |
+        sudo add-apt-repository -y ppa:dqlite/dev
+        sudo apt-get update
+        sudo apt-get install -y libsqlite3-dev libuv1-dev liblz4-dev libdqlite1.17-dev

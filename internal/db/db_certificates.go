@@ -43,9 +43,14 @@ func (db *DatabaseRepository) AddCertificateChainToCertificateRequest(csrFilter 
 	}
 	var parentID int64 = 0
 	if isSelfSigned(certBundle) {
+		serialNumber, err := serialNumberFromPEM(certBundle[0])
+		if err != nil {
+			return 0, err
+		}
 		certRow := Certificate{
 			IssuerID:       0,
 			CertificatePEM: certBundle[0],
+			SerialNumber:   serialNumber,
 		}
 		// Create the certificate
 		childID, err := CreateEntity(db, db.stmts.CreateCertificate, certRow)
@@ -56,9 +61,14 @@ func (db *DatabaseRepository) AddCertificateChainToCertificateRequest(csrFilter 
 	} else {
 		// Otherwise, go through the certificate chain in reverse and add certs as their parents
 		for _, v := range slices.Backward(certBundle) {
+			serialNumber, err := serialNumberFromPEM(v)
+			if err != nil {
+				return 0, err
+			}
 			certRow := Certificate{
 				IssuerID:       parentID,
 				CertificatePEM: v,
+				SerialNumber:   serialNumber,
 			}
 			cert, err := GetOneEntity[Certificate](db, db.stmts.GetCertificate, certRow)
 			var childID int64

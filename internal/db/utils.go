@@ -6,9 +6,50 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
+	"math/big"
 	"reflect"
 	"time"
 )
+
+// serialNumberBits is the size of generated certificate serial numbers. RFC 5280
+// caps serials at 20 octets; 128 bits leaves room for the sign byte and matches
+// what public CAs use.
+const serialNumberBits = 128
+
+// GenerateSerialNumber returns a cryptographically random, positive certificate
+// serial number. It replaces wall-clock-derived serials, which are a weak source
+// of uniqueness and offer no defense against concurrent generation.
+func GenerateSerialNumber() (*big.Int, error) {
+	limit := new(big.Int).Lsh(big.NewInt(1), serialNumberBits)
+	serial, err := rand.Int(rand.Reader, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate certificate serial number: %w", err)
+	}
+	// rand.Int returns a value in [0, limit); shift it into [1, limit] so the
+	// serial is never zero.
+	return serial.Add(serial, big.NewInt(1)), nil
+}
+
+// FormatSerialNumber renders a serial number in the lowercase hexadecimal form
+// used by the certificates table's serial_number column.
+func FormatSerialNumber(serial *big.Int) string {
+	return serial.Text(16)
+}
+
+// serialNumberFromPEM extracts the serial number of a single PEM encoded
+// certificate in the storage format used by the serial_number column.
+func serialNumberFromPEM(certPEM string) (string, error) {
+	block, _ := pem.Decode([]byte(certPEM))
+	if block == nil {
+		return "", fmt.Errorf("%w: certificate is not valid PEM", ErrInvalidCertificate)
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return "", fmt.Errorf("%w: %w", ErrInvalidCertificate, err)
+	}
+	return FormatSerialNumber(cert.SerialNumber), nil
+}
 
 // ParseCertificateChain receives a PEM string chain and returns an x.509.Certificate list.
 func ParseCertificateChain(pemChain string) ([]*x509.Certificate, error) {

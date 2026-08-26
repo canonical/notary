@@ -189,10 +189,10 @@ func TestListClusterMembersReportsLivenessAndSealState(t *testing.T) {
 		t.Fatalf("Couldn't record member 2: %s", err)
 	}
 	// 1 beat just now and is sealed, 2 beat long ago, 3 has never beaten.
-	if err := database.RecordClusterMemberHeartbeat("1", true, now); err != nil {
+	if err := database.RecordClusterMemberHeartbeat("1", "10.0.0.1:9000", true, now); err != nil {
 		t.Fatalf("Couldn't record a heartbeat: %s", err)
 	}
-	if err := database.RecordClusterMemberHeartbeat("2", false, now.Add(-2*db.OfflineThreshold)); err != nil {
+	if err := database.RecordClusterMemberHeartbeat("2", "10.0.0.2:9000", false, now.Add(-2*db.OfflineThreshold)); err != nil {
 		t.Fatalf("Couldn't record a stale heartbeat: %s", err)
 	}
 

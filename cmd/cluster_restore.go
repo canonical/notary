@@ -79,6 +79,16 @@ func restoreCluster(cmd *cobra.Command, clusterConfig config.ClusterConfig, arch
 		return "", fmt.Errorf("%q already holds cluster state: stop Notary on this node and move the directory aside before restoring", cluster.DataDir(clusterConfig.StateDir))
 	}
 
+	// Checked separately from the dqlite data because it is written separately.
+	// A PKI left from a previous membership would either hand the restored
+	// cluster somebody else's CA, or leave it holding a CA certificate whose key
+	// is gone and no way to admit a member.
+	if _, err := os.Stat(cluster.PKIDir(clusterConfig.StateDir)); err == nil {
+		return "", fmt.Errorf("%q already holds a cluster PKI: stop Notary on this node and move the directory aside before restoring", cluster.PKIDir(clusterConfig.StateDir))
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return "", fmt.Errorf("failed to inspect the cluster PKI directory: %w", err)
+	}
+
 	files, err := cluster.ExtractDump(archivePath)
 	if err != nil {
 		return "", err
@@ -121,7 +131,7 @@ func restoreCluster(cmd *cobra.Command, clusterConfig config.ClusterConfig, arch
 	}
 	defer closeClusterNode(node, logger)
 
-	ctx, cancel := context.WithTimeout(cmd.Context(), clusterReadyTimeout)
+	ctx, cancel := context.WithTimeout(cmd.Context(), clusterTransferTimeout)
 	defer cancel()
 
 	if err := node.Ready(ctx); err != nil {

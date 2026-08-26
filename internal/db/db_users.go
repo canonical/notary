@@ -17,9 +17,36 @@ func (db *DatabaseRepository) ListUsers() ([]User, error) {
 func (db *DatabaseRepository) GetUser(filter UserFilter) (*User, error) {
 	userRow := filter.AsUser()
 	if userRow.OIDCIssuer != nil && userRow.OIDCSubject != nil {
-		return GetOneEntity[User](db, db.stmts.GetUserByOIDCIdentity, *userRow)
+		user, err := GetOneEntity[User](db, db.stmts.GetUserByOIDCIdentity, *userRow)
+		if err == nil || !errors.Is(err, ErrNotFound) {
+			return user, err
+		}
+		return db.adoptLegacyOIDCUser(*userRow)
 	}
 	return GetOneEntity[User](db, db.stmts.GetUser, *userRow)
+}
+
+// adoptLegacyOIDCUser claims a user that was created before OIDC identity became
+// (issuer, subject).
+//
+// Those rows carry a NULL issuer, so no lookup matches them and the login would
+// try to create a second user for an email that is already taken — locking the
+// operator out of their own account. Notary configures one OIDC provider, so the
+// issuer such a row must have had is the one presenting itself now.
+func (db *DatabaseRepository) adoptLegacyOIDCUser(userRow User) (*User, error) {
+	legacy, err := GetOneEntity[User](db, db.stmts.GetUserByLegacyOIDCSubject, userRow)
+	if err != nil {
+		// ErrNotFound here means what it says: nobody by that subject, so the
+		// caller goes on to create one.
+		return nil, err
+	}
+
+	legacy.OIDCIssuer = userRow.OIDCIssuer
+	if err := UpdateEntity[User](db, db.stmts.AdoptOIDCIssuer, *legacy); err != nil {
+		return nil, err
+	}
+
+	return legacy, nil
 }
 
 // CreateUser creates a new user from a given email, password and role ID.

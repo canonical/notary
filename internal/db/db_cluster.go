@@ -137,18 +137,28 @@ func (db *DatabaseRepository) ListClusterMembers() ([]ClusterMember, error) {
 // Only a member ever writes its own row. The write is replicated, so every
 // other member learns of it without reaching this node's API, and the write
 // succeeding is itself proof this node can still reach the Raft leader.
-func (db *DatabaseRepository) RecordClusterMemberHeartbeat(nodeID string, sealed bool, at time.Time) error {
+func (db *DatabaseRepository) RecordClusterMemberHeartbeat(nodeID, address string, sealed bool, at time.Time) error {
 	if nodeID == "" {
 		return fmt.Errorf("failed to record cluster member heartbeat: %w: node ID is empty", ErrInvalidInput)
+	}
+	if address == "" {
+		return fmt.Errorf("failed to record cluster member heartbeat: %w: address is empty", ErrInvalidInput)
 	}
 
 	beat := at.Unix()
 	row := ClusterMember{
-		NodeID:    nodeID,
+		NodeID:  nodeID,
+		// Only used if no row exists yet, which is the repair case: the member is
+		// in the cluster but its bookkeeping was never written, and without this
+		// it would report as offline for as long as it ran.
+		Name:      address,
+		Address:   address,
+		JoinedAt:  beat,
 		Heartbeat: &beat,
 		Sealed:    sealed,
 	}
-	return UpdateEntity[ClusterMember](db, db.stmts.HeartbeatClusterMember, row)
+	_, err := CreateEntity[ClusterMember](db, db.stmts.HeartbeatClusterMember, row)
+	return err
 }
 
 // GetClusterMember looks a member up by its dqlite node ID.

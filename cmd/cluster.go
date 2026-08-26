@@ -18,6 +18,12 @@ import (
 // to finish bootstrapping or joining before giving up.
 const clusterReadyTimeout = 30 * time.Second
 
+// clusterTransferTimeout bounds the commands that move the whole database rather
+// than just waiting for a node to come up. Readiness is a handshake and 30s is
+// generous for it; streaming a dump from the leader, or loading one back, scales
+// with how much data there is.
+const clusterTransferTimeout = 30 * time.Minute
+
 var clusterConfigFilePath string
 
 var clusterBootstrapName string

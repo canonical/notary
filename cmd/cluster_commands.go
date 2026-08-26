@@ -250,6 +250,17 @@ Run this once, on the new node, before starting the Notary server on it.`,
 		}
 
 		clusterConfig := appConfig.ClusterConfig
+
+		// Checked before anything is written. PrepareJoin replaces this node's
+		// private key, so reaching cluster.Start's own guard would already have
+		// destroyed a working member's identity, and spent a join token doing it.
+		occupied, err := cluster.HasState(clusterConfig.StateDir)
+		if err != nil {
+			return err
+		}
+		if occupied {
+			return cluster.ErrAlreadyInitialized
+		}
 		csrPEM, err := cluster.PrepareJoin(clusterConfig.StateDir, clusterConfig.Address)
 		if err != nil {
 			return err

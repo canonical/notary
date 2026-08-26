@@ -81,14 +81,30 @@ func NewDatabaseFromConn(sqlConnection *sql.DB, dbOpts *DatabaseOpts) (*Database
 	if err != nil {
 		return nil, err
 	}
-	if version < 1 {
-		if dbOpts.ApplyMigrations {
-			goose.SetBaseFS(migrations.EmbedMigrations)
-			if err := goose.Up(sqlConnection, ".", goose.WithNoColor(true)); err != nil {
-				return nil, fmt.Errorf("failed to apply migrations: %w", err)
-			}
-		} else {
-			return nil, errors.New("database migrations not applied. please migrate database using `notary migrate up`")
+
+	embedded, err := EmbeddedSchemaVersion()
+	if err != nil {
+		return nil, err
+	}
+
+	// Compared against the embedded version, not just against zero. A database
+	// that already carries migrations is the ordinary upgrade case, and treating
+	// it as up to date would run this binary against a schema it was not built
+	// for: columns it writes would not exist.
+	switch {
+	case version > embedded:
+		return nil, fmt.Errorf(
+			"the database is at migration %d but this version of Notary only knows %d: upgrade Notary or restore a matching backup",
+			version, embedded)
+	case version < embedded:
+		if !dbOpts.ApplyMigrations {
+			return nil, fmt.Errorf(
+				"database migrations not applied: the database is at migration %d and this version of Notary needs %d, apply them with `notary migrate up`",
+				version, embedded)
+		}
+		goose.SetBaseFS(migrations.EmbedMigrations)
+		if err := goose.Up(sqlConnection, ".", goose.WithNoColor(true)); err != nil {
+			return nil, fmt.Errorf("failed to apply migrations: %w", err)
 		}
 	}
 	db := new(DatabaseRepository)

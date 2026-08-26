@@ -32,7 +32,7 @@ func TestEntityHelpersKeepBothTheSentinelAndTheCause(t *testing.T) {
 			_, err := database.CreateClusterMember("1", "node-1", "10.0.0.1:9000", time.Now().UTC())
 			return err
 		}},
-		{"update", func() error { return database.RecordClusterMemberHeartbeat("1", false, time.Now().UTC()) }},
+		{"update", func() error { return database.RecordClusterMemberHeartbeat("1", "10.0.0.1:9000", false, time.Now().UTC()) }},
 		{"delete", func() error { return database.DeleteClusterMember("1") }},
 	}
 

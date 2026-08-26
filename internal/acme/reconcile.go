@@ -179,9 +179,24 @@ func (r *Reconciler) Reconcile() error {
 	for _, attempt := range attempts {
 		r.mu.Lock()
 		_, running := r.live[attempt.CSRID]
+		nodeID := r.nodeID
 		r.mu.Unlock()
 		if running {
 			continue
+		}
+
+		// An attempt belonging to another member is only an orphan if that
+		// member is gone. Leadership moving is not the same as the node that was
+		// issuing dying, and failing a live attempt would abandon issuance that
+		// is still in progress, or lose the certificate it is about to store.
+		if attempt.NodeID != "" && attempt.NodeID != nodeID {
+			owner, err := database.GetClusterMember(attempt.NodeID)
+			if err != nil && !errors.Is(err, db.ErrNotFound) {
+				return fmt.Errorf("failed to look up the member owning ACME issuance attempt %d: %w", attempt.CSRID, err)
+			}
+			if err == nil && owner.Online(time.Now().UTC()) {
+				continue
+			}
 		}
 
 		// The request is failed before the attempt is cleared. If this node dies

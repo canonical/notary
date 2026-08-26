@@ -1,6 +1,7 @@
 import {
 	Application,
 	AppMain,
+	Notification,
 	Panel,
 	ToastNotificationProvider,
 } from "@canonical/react-components";
@@ -67,7 +68,31 @@ function ClusterPageComponent() {
 	} else if (clusterQuery.status === "pending") {
 		content = <Loading />;
 	} else if (clusterQuery.status === "error") {
-		content = <ErrorComponent msg={getErrorMessage(clusterQuery.error)} />;
+		// Losing the leader is exactly when this page matters, and it is exactly
+		// when the cluster-wide view cannot be built. What this node knows about
+		// itself still comes from /status, so it is shown rather than replaced
+		// with an error that says nothing about where the node stands.
+		content = (
+			<Panel stickyHeader title="Cluster" className="u-fixed-width">
+				<Notification severity="negative" title="Cluster view unavailable">
+					{getErrorMessage(clusterQuery.error)}
+				</Notification>
+				<p className="u-text--muted">
+					The cluster-wide view needs the Raft leader. This node is still
+					running, and reports the following about itself.
+				</p>
+				<dl>
+					<dt>Node ID</dt>
+					<dd>{statusQuery.data.node_id}</dd>
+					<dt>Role</dt>
+					<dd>{statusQuery.data.role ?? "unknown"}</dd>
+					<dt>Raft state</dt>
+					<dd>{statusQuery.data.raft_state ?? "unknown"}</dd>
+					<dt>Seal state</dt>
+					<dd>{statusQuery.data.sealed ? "Sealed" : "Unsealed"}</dd>
+				</dl>
+			</Panel>
+		);
 	} else {
 		content = (
 			<ClusterTable

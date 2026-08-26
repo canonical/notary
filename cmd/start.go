@@ -62,7 +62,7 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 		}
 		l := appEnv.SystemLogger
 		acmeReconciler.Attach(database, l, clusterNodeID(clusterNode))
-		startHeartbeat(cmd.Context(), database, clusterNodeID(clusterNode), appEnv, l)
+		startHeartbeat(cmd.Context(), database, clusterNodeID(clusterNode), appConfig.ClusterConfig.Address, appEnv, l)
 		if clusterNode == nil {
 			// Unclustered, so this process is the only one that has ever run an
 			// attempt. Anything still recorded was interrupted by a previous crash.
@@ -176,14 +176,14 @@ const heartbeatInterval = 10 * time.Second
 // startHeartbeat keeps this member's liveness and seal state current until ctx
 // is done. It does nothing when clustering is disabled, where there are no
 // peers to report to.
-func startHeartbeat(ctx context.Context, database *db.DatabaseRepository, nodeID string, appEnv *config.AppEnvironment, logger *zap.Logger) {
+func startHeartbeat(ctx context.Context, database *db.DatabaseRepository, nodeID, address string, appEnv *config.AppEnvironment, logger *zap.Logger) {
 	if nodeID == "" {
 		return
 	}
 
 	beat := func() {
 		sealed := appEnv.EncryptionRepository.SealState.Sealed()
-		if err := database.RecordClusterMemberHeartbeat(nodeID, sealed, time.Now().UTC()); err != nil {
+		if err := database.RecordClusterMemberHeartbeat(nodeID, address, sealed, time.Now().UTC()); err != nil {
 			// A member that cannot write cannot reach the leader, which is exactly
 			// what its peers should see it as: this beat is simply missed.
 			logger.Warn("couldn't record cluster heartbeat",

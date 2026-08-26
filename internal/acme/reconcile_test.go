@@ -225,3 +225,59 @@ func TestOnRolesAdjustmentReconcilesOnlyOnBecomingLeader(t *testing.T) {
 		t.Errorf("expected no reconciliation without a leadership transition, got %q", status)
 	}
 }
+
+// Leadership moving is not the same as the node that was issuing dying. A new
+// leader must leave a live peer's attempt alone, or it abandons issuance that is
+// still in progress and fails a request that is about to succeed.
+func TestReconcileLeavesAttemptsOwnedByALiveMemberAlone(t *testing.T) {
+	reconciler, database := mustAttachedReconciler(t)
+	csrID := mustCreateCertificateRequest(t, database, tu.AppleCSR)
+
+	const peerNodeID = "7"
+	if err := database.CreateACMEIssuanceAttempt(csrID, peerNodeID, time.Now()); err != nil {
+		t.Fatalf("couldn't record ACME issuance attempt: %s", err)
+	}
+
+	// The peer is reporting for duty, so its attempt is not an orphan.
+	if err := database.RecordClusterMemberHeartbeat(peerNodeID, "10.0.0.7:9000", false, time.Now().UTC()); err != nil {
+		t.Fatalf("couldn't record the peer's heartbeat: %s", err)
+	}
+
+	if err := reconciler.Reconcile(); err != nil {
+		t.Fatalf("couldn't reconcile: %s", err)
+	}
+
+	if status := mustGetStatus(t, database, csrID); status == "Failed" {
+		t.Error("a live member's issuance attempt was failed by another node's reconciliation")
+	}
+	attempts, err := database.ListACMEIssuanceAttempts()
+	if err != nil {
+		t.Fatalf("couldn't list attempts: %s", err)
+	}
+	if len(attempts) != 1 {
+		t.Errorf("got %d attempts, want the peer's to be left in place", len(attempts))
+	}
+}
+
+// Once that peer stops reporting, the attempt is an orphan like any other.
+func TestReconcileFailsAttemptsOwnedByAMemberThatStoppedReporting(t *testing.T) {
+	reconciler, database := mustAttachedReconciler(t)
+	csrID := mustCreateCertificateRequest(t, database, tu.AppleCSR)
+
+	const peerNodeID = "7"
+	if err := database.CreateACMEIssuanceAttempt(csrID, peerNodeID, time.Now()); err != nil {
+		t.Fatalf("couldn't record ACME issuance attempt: %s", err)
+	}
+	stale := time.Now().UTC().Add(-2 * db.OfflineThreshold)
+	if err := database.RecordClusterMemberHeartbeat(peerNodeID, "10.0.0.7:9000", false, stale); err != nil {
+		t.Fatalf("couldn't record the peer's heartbeat: %s", err)
+	}
+
+	if err := reconciler.Reconcile(); err != nil {
+		t.Fatalf("couldn't reconcile: %s", err)
+	}
+
+	if status := mustGetStatus(t, database, csrID); status != "Failed" {
+		t.Errorf("got status %q, want Failed", status)
+	}
+}

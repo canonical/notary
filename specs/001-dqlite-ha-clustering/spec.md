@@ -643,3 +643,18 @@ endpoint is authenticated only by a single-use token, so a stolen token would ot
 lasting ability to mint identities that every peer trusts. A member reads the key from the database
 once it is admitted and replicating, which keeps the property that any member can admit the next one
 without the key crossing the enrollment API.
+
+## Known limitation: a removed member keeps its cluster certificate
+
+Removing a member takes it out of the Raft configuration, but nothing revokes the
+certificate it holds. That certificate is signed by the cluster CA and remains
+valid for its full lifetime, so every remaining member still trusts it at the TLS
+layer. dqlite refuses it a place in the cluster, but the trust itself is not
+withdrawn, and a backup taken by streaming from the leader is protected by that
+same trust.
+
+Closing this needs a design decision rather than a patch. The options are a
+revocation list the members consult, node certificates short enough that removal
+outlives them, or re-issuing the cluster PKI when a member is removed, which
+costs a rolling restart. Until one is chosen, treat a removed member's host as
+still holding cluster credentials, and rebuild or isolate it.

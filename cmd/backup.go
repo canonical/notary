@@ -72,7 +72,7 @@ func createBackup(cmd *cobra.Command, backupDir string, logger *zap.Logger) (str
 		}
 
 		if appConfig.ClusterConfig.Enabled {
-			ctx, cancel := context.WithTimeout(cmd.Context(), clusterReadyTimeout)
+			ctx, cancel := context.WithTimeout(cmd.Context(), clusterTransferTimeout)
 			defer cancel()
 
 			files, err := cluster.DumpLeader(ctx, appConfig.ClusterConfig.StateDir)

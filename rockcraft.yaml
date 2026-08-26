@@ -17,7 +17,36 @@ services:
     startup: enabled
 
 parts:
+  dqlite:
+    source: https://github.com/canonical/dqlite
+    source-type: git
+    source-depth: 1
+    source-tag: v1.17.0
+    plugin: autotools
+    autotools-configure-parameters:
+      - --prefix=
+      - --enable-build-raft
+    stage-packages:
+      - libuv1
+      - libsqlite3-0
+      - liblz4-1
+    build-packages:
+      - make
+      - libuv1-dev
+      - liblz4-dev
+      - libsqlite3-dev
+      - pkg-config
+    organize:
+      usr/lib/: lib/
+    prime:
+      - lib/libdqlite*so*
+      - lib/libraft*so*
+      - lib/*/libuv*so*
+      - lib/*/liblz4*so*
+      - lib/*/libsqlite3*so*
+
   notary:
+    after: [dqlite]
     plugin: go
     source: .
     source-type: local
@@ -26,6 +55,8 @@ parts:
       - node/20/stable
     build-environment:
       - GOTOOLCHAIN: local
+      - CGO_CFLAGS: -I${CRAFT_STAGE}/include/ -I${CRAFT_STAGE}/usr/local/include/
+      - CGO_LDFLAGS: -L${CRAFT_STAGE}/lib/ -L${CRAFT_STAGE}/usr/local/lib/
     override-build: |
       npm install --prefix ui
       npm run build --prefix ui

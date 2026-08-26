@@ -4,7 +4,7 @@ This section describes the RESTful API for system user authentication.
 
 ## Login
 
-This path returns a token that can be used to authenticate with Notary.
+This path authenticates a user and starts a session.
 
 | Method | Path     |
 | :----- | :------- |
@@ -17,10 +17,15 @@ This path returns a token that can be used to authenticate with Notary.
 
 ### Sample Response
 
-```json
-{
-    "result": {
-        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsImV4cCI6MTczNTU4NTk0MX0.0BsZVMLCzJ6mzCXlf3qfAR2k6Fk7aUsGfHV7Tj1Dqy4"
-    }
-}
+The session token is returned as a `user_token` cookie, not in the response body:
+
 ```
+Set-Cookie: user_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; Path=/; HttpOnly; Secure; SameSite=Strict
+```
+
+```json
+{}
+```
+
+Every authenticated path reads that cookie. Sending the token as an
+`Authorization: Bearer` header instead does not authenticate the request.

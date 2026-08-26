@@ -18,7 +18,7 @@ None
 
 ```json
 {
-    "result": [
+    "data": [
         {
             "id": 1,
             "email": "admin@canonical.com",
@@ -52,8 +52,7 @@ To view the role definitions, see the [Roles reference](../roles.md).
 
 ```json
 {
-    "result": {
-        "message": "success",
+    "data": {
         "id": 1
     }
 }
@@ -74,11 +73,7 @@ This path updates an existing account.
 ### Sample Response
 
 ```json
-{
-    "result": {
-        "message": "success"
-    }
-}
+{}
 ```
 
 ## Get an Account
@@ -97,7 +92,7 @@ None
 
 ```json
 {
-    "result": {
+    "data": {
         "id": 2,
         "email": "admin@canonical.com",
         "role_id": 0
@@ -120,9 +115,5 @@ None
 ### Sample Response
 
 ```json
-{
-    "result": {
-        "message": "success"
-    }
-}
+{}
 ```

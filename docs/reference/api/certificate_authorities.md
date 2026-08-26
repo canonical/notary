@@ -16,7 +16,7 @@ None
 
 ```json
 {
-    "result": [
+    "data": [
         {
             "id": 1,
             "status": "active",
@@ -51,8 +51,7 @@ This path creates a new certificate authority.
 
 ```json
 {
-    "result": {
-        "message": "Certificate Authority created successfully",
+    "data": {
         "id": 1
     }
 }
@@ -74,7 +73,7 @@ None
 
 ```json
 {
-    "result": {
+    "data": {
         "id": 1,
         "status": "active",
         "certificate": "-----BEGIN CERTIFICATE-----\nMIIFRzCCAy+gAwIBAgIIGCQX6mmQZ14wDQYJKoZIhvcNAQELBQAwNzEJMAcGA1UE\nBhMAMQkwBwYDVQQIEwAxCTAHBgNVBAcTADEJMAcGA1UEChMAMQkwBwYDVQQLEwAw\nHhcNMjUwMjE0MTQwMDUxWhcNMzUwMjE0MTQwMDUxWjA3MQkwBwYDVQQGEwAxCTAH\nBgNVBAgTADEJMAcGA1UEBxMAMQkwBwYDVQQKEwAxCTAHBgNVBAsTADCCAiIwDQYJ\nKoZIhvcNAQEBBQADggIPADCCAgoCggIBANQGNZlgVNl/eVympjZyyfCHWG8MmNOf\nnuxZrWYZL5UuD9RWt0wJByeNSbl/rg79PcYoqt5M2/g3w5BFFB+U0RbgFoR5x5Mp\npB4bk8MNxKnn1zF4zalfe0FIjfByByqNY6CSVDOYQywJzIRB85Yt3P8wDqdY94fl\nLM3sm5TVATrwhJJxOredQuQPnznm65nSdB7v5eP7ttv5XRvOkT6W9V/omVHwM+Te\nc2ZwfMuo9iXhmuA+9ldFVZ5NkQGk5VXZt496/4txK3NSvWT3SY+EAdrx1GmQivfl\nHjJiQwHp/akXLrmM5QD79Dm29JEXZY5hLk5oOtOCaEHPI4CSoCjwLCmeRYSmTo1X\nxaJ84Ud+8+brw8pq9Mau7JjVgHuzqoI06/7AZS9so9+GyXzA49HwXp1UtdGncmQ1\ni1vempnzAiOXx/m/g+Y5KTc0klVfFSXEipa2bJ0Gx77ZcaePBrtVn2sX9/SSqMo+\nmSK6lxBukIcE4NxZSGCz2cGZwipK0U0Scs+hbobM1BDufmU7AFgWJliRisWu5+Jy\nncYt+bKKPGJ497OA1PT4AvyJBW7XqtoiTFnCCiR3YckAMxi6J4J3AQQoOOCJUIQr\nQ1UuDy5qI+Pekc2azg0oV1qDQRF/uFAqIY/8n1j/YDMYKEnwKt3Qd+BLo4cAxP5Z\n1TxrKJqFNTtBAgMBAAGjVzBVMA4GA1UdDwEB/wQEAwIBBjATBgNVHSUEDDAKBggr\nBgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBRmA85Z94R5V0u9Qsci\nodAVM/kgzDANBgkqhkiG9w0BAQsFAAOCAgEAc9sCdpRnwrLDgB0BxQBjEWLJAmbM\ns0SNkqre1PqjMCrGRAcyg32a8hukkkMDpbvrc24LB7R+s0Z/Zso6amTEwubZiky/\nCt7AXudeC47YQjYVaBb6GArIKw4Tzjqlei+C8+zwVbECmb3u7aMyQcyD44Q93nuG\nKG3lOX33hdpm2DuqKRG8tVcHbAqSLiXsFqiDpTtK6geFsa3UFEnCtmY+cPvmztYH\nE8Ve+sSCkG64uMPSGHs7INaMvbZwyOkUVctsEYAqVKL9pV9Hium4LdLRRSu3otzJ\nB7Zh0TT+XC50hjUzc39314dltwkOe8mv0LvkQi8lkTuEwdHajdM0hHVY5vxu8zbw\nvH2rNp71WMgWbcSo+M5DaGmUBQorMOhvEursKVJ37IS/q/d05RrSH/CnFnkhNl8d\no9VTtUkhS7xa4fS0N+hKmp4wZkejLl/xjXXTgBPpgmVDGafmShEni1WML02YoLXt\n+kN8PIUnw7Mn3FHBwHjutBHy9TevvgxuY/RQFYP9CfLT9EHN9GLBPEosq21q2ko+\naaNGmZkL/TTGil1FjrH5QVEj7C1dERW9FZdO7ABp/2Wn79+duuKDBlpwpgrVhpBJ\nKH3fShW0RSRuyY8lTniARmCIFRLCgB/dggzlRZS6w43yHODQ+pN0/TQhYoLSzKfS\nuPF+SZPBClAZo5Y=\n-----END CERTIFICATE-----\n",
@@ -99,7 +98,7 @@ None
 
 ```json
 {
-    "result": {
+    "data": {
         "crl": "-----BEGIN X509 CRL-----
         MIIB8zCB3AIBATANBgkqhkiG9w0BAQsFADByMQswCQYDVQQGEwJUUjEOMAwGA1UE
         CBMFSXptaXIxEjAQBgNVBAcTCU5hcmxpZGVyZTESMBAGA1UEChMJQ2Fub25pY2Fs
@@ -132,11 +131,7 @@ This path updates the status of a certificate authority.
 ### Sample Response
 
 ```json
-{
-    "result": {
-        "message": "success"
-    }
-}
+{}
 ```
 
 ## Delete a Certificate Authority
@@ -154,11 +149,7 @@ None
 ### Sample Response
 
 ```json
-{
-    "result": {
-        "message": "success"
-    }
-}
+{}
 ```
 
 ## Upload a Certificate for a Certificate Authority
@@ -176,11 +167,7 @@ This path uploads a certificate for a certificate authority.
 ### Sample Response
 
 ```json
-{
-    "result": {
-        "message": "success"
-    }
-}
+{}
 ```
 
 ## Sign a Certificate Authority with another Certificate Authority
@@ -198,11 +185,7 @@ This path signs any intermediate certificate authority with another active root 
 ### Sample Response
 
 ```json
-{
-    "result": {
-        "message": "success"
-    }
-}
+{}
 ```
 
 ## Revoke a Certificate Authority
@@ -221,9 +204,5 @@ None
 ### Sample Response
 
 ```json
-{
-    "result": {
-        "message": "success"
-    }
-}
+{}
 ```

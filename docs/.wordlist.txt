@@ -42,6 +42,10 @@ oauth
 OIDC
 OpenID
 Requestor
+requestor
 Grafana
 OpenTelemetry
 url
+dqlite
+plaintext
+JWT

@@ -10,12 +10,15 @@ The API exposes both Notary-specific and generic resources. The Notary-specific 
 | :------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [**Certificate Authority**](certificate_authorities.md) | Represents a Notary-owned Certificate Authority. These authorities can be used by Notary users to sign certificate requests submitted by external entities.                                                                                                                                                                                                             |
 | [**Certificate Request**](certificate_requests.md)      | Represents a certificate request made by an external entity. Users can get the certificate request signed in one of two ways:<ul><li>Internally: the request is signed with one of Notary's Certificate Authorities</li><li>Externally: The CSR is retrieved, signed by an external process, and the resulting certificate is then imported back into Notary.</li></ul> |
+| [**Cluster**](cluster.md)                               | Represents the members of a highly available Notary deployment, and the join tokens that admit new ones. Available only when clustering is enabled.                                                                                                                                                                                                                     |
 
 In addition to the Notary-specific resources, the API also provides access to generic resources (e.g., `accounts`, `login`, `metrics`) with commonly understood definitions.
 
 ## Authentication
 
-Almost every operation requires a client token, in the form of a Bearer Token.
+Almost every operation requires an authenticated session. `POST /login` sets a `user_token` cookie
+holding a signed JWT, and every authenticated path reads that cookie. Sending the token as an
+`Authorization: Bearer` header instead does not authenticate the request.
 
 ## Responses
 
@@ -23,10 +26,13 @@ Notary's API responses are JSON objects with the following structure:
 
 ```json
 {
-  "result": "Result content",
-  "error": "Error message",
+  "message": "Error message",
+  "data": "Result content"
 }
 ```
+
+Both fields are omitted when empty, so a successful call that returns nothing is `{}`, a successful
+call that returns something has only `data`, and a failure has only `message`.
 
 ```{note}
 GET calls to the `/metrics` endpoint don't follow this rule; they return text response in the [Prometheus exposition format](https://prometheus.io/docs/instrumenting/exposition_formats/).
@@ -40,6 +46,7 @@ GET calls to the `/metrics` endpoint don't follow this rule; they return text re
 accounts.md
 certificate_authorities.md
 certificate_requests.md
+cluster.md
 login.md
 metrics.md
 status.md

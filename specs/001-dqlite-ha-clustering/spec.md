@@ -9,8 +9,13 @@ this document as `design.md`. Where any of them differ, this document wins.
 
 This specification covers: cluster lifecycle (dqlite, via `github.com/canonical/go-dqlite/v3/app`
 directly — no MicroCluster, see §1's note), encryption key lifecycle, OIDC authentication, the
-resulting data model changes, system behavior under failure, and the operator-facing CLI/API/UI
+resulting data model changes, system behavior under failure, and the operator-facing CLI/API
 surface.
+
+The first HA release proves replicated Notary storage. It is HA for the service, not HA for
+in-flight ACME issuance, and not a complete cluster lifecycle product. It does not mint cluster
+certificates, does not couple ACME to Raft leadership, does not ship role promotion, and does
+not ship working member removal.
 
 ---
 
@@ -28,67 +33,90 @@ normal semantics (§4.1 has the full trace). OpenFGA no longer touches the SQL c
 `github.com/canonical/go-dqlite/v3/app` (the lower-level package MicroCluster itself is built on)
 covers most of what MicroCluster would otherwise have provided directly: bootstrap (`app.New`),
 join (`app.WithCluster`), mTLS (`app.WithTLS`), automatic voter/standby role convergence
-(`app.WithVoters`, `app.WithStandBys`, `app.WithRolesAdjustmentHook`), graceful leadership handover
-(`app.Handover`), and cluster membership operations via its `client.Client`
-(`Add`/`Assign`/`Remove`/`Dump`). Critically, `app.Open(ctx, name)` returns a genuine `*sql.DB` —
-go-dqlite's own driver, no wrapper, none of MicroCluster's replay/timeout/single-connection
-constraints — which is what makes §4.1's resolution possible at all.
+(`app.WithVoters`, `app.WithStandBys`), graceful leadership handover (`app.Handover`), and cluster
+membership inspection via its `client.Client` (`Leader`/`Cluster`/`Dump`). Critically,
+`app.Open(ctx, name)` returns a genuine `*sql.DB` — go-dqlite's own driver, no wrapper, none of
+MicroCluster's replay/timeout/single-connection constraints — which is what makes §4.1's
+resolution possible at all.
 
-What notary owns that MicroCluster would otherwise have supplied: **join-token issuance, trust
-distribution (getting cluster-internal PKI material to a new node), and member bookkeeping**
-(associating an operator-facing name with a raw dqlite node ID/address — `client.NodeInfo` carries
-neither). That's the genuinely new engineering surface this introduces; everything else below is a
-comparatively thin layer over `app`/`client` primitives that already exist.
+What notary owns on top of that: **operator-provisioned cluster PKI validation, a bootstrap token
+for join preflight and peer discovery, and member bookkeeping** (associating an operator-facing
+name with a raw dqlite node ID/address — `client.NodeInfo` carries neither). Notary does not
+generate, store, replicate, or use a cluster CA signing key. Certificate issuance policy is the
+enforceable dqlite admission boundary; the token is not.
 
-### 1.1 Bootstrap
+### 1.1 Cluster-internal PKI
+
+Cluster mTLS is fully separate from notary's product-facing CA/certificate-issuance system:
+separate root, separate storage, separate code path. No cluster-membership credential is ever
+accepted as input to product certificate issuance, and no issued product certificate is ever valid
+against the cluster's internal root.
+
+The operator or deployment system provisions, before bootstrap or join:
+
+- the cluster CA certificate (trust anchor only — never a CA private key)
+- this node's certificate
+- this node's private key, kept node-local
+
+Notary loads those files from `cluster.state_dir/pki/` (`cluster.crt`, `node.crt`, `node.key`)
+and refuses to start if they are missing, unreadable, wrongly permissioned, or unusable:
+
+- the CA certificate must parse as a CA
+- the node certificate must chain to that CA
+- the node certificate must match the node private key
+- the node certificate must carry both client and server authentication EKU
+- the first DNS SAN must be `notary-cluster` (go-dqlite derives peer TLS `ServerName` from it)
+- an additional SAN should carry the advertised host or IP
+
+Notary never writes `cluster.key` and never creates a CA or node certificate.
+
+### 1.2 Bootstrap
 
 `notary cluster bootstrap` performs, as a single atomic operator action:
 
-1. Generates the cluster-internal PKI (root CA + per-node mTLS certificate) — notary's own code,
-   fed into `app.WithTLS(...)`. This PKI is fully separate from notary's product-facing
-   CA/certificate-issuance system: separate root, separate storage, separate code path. No
-   cluster-membership credential is ever accepted as input to product certificate issuance, and
-   no issued product certificate is ever valid against the cluster's internal root.
+1. Loads the provisioned cluster PKI (§1.1) into `app.WithTLS(...)`. It does not generate PKI.
 2. Calls `app.New(dataDir, app.WithAddress(addr), app.WithTLS(...), app.WithVoters(3), app.WithStandBys(2))`
    with no `app.WithCluster(...)` — this is what makes it a bootstrap rather than a join. The node
    comes up as the sole Raft voter.
-3. Runs the existing goose migrations against `app.Open(ctx, "notary")`'s `*sql.DB` (§4.1). The
-   schema is unchanged by clustering itself (see §4).
+3. Runs the existing goose migrations against `app.Open(ctx, "notary")`'s `*sql.DB` (§4.1).
+4. Records this member and sets the replicated ACME issuer identity to this node's dqlite ID
+   (§4.3).
 
-The node serves traffic immediately after bootstrap, once its DEK unwrap completes (§2).
+The node serves traffic immediately after bootstrap, once its DEK unwrap completes (§2). Missing
+state must never silently create a new cluster: only this command bootstraps.
 
-### 1.2 Joining a node
+### 1.3 Joining a node
 
-There is no MicroCluster token API to build on here — this is the "net-new work" flagged in §1's
-opening note, and it's the one piece of this design with no ready-made library primitive
-underneath it. The shape:
+The join workflow coordinates schema preflight and peer discovery. It does not issue certificates.
+A certificate that chains to the configured cluster CA can authenticate to dqlite when a peer
+address is known; issuance policy is the admission boundary.
 
-1. On any existing member: `notary cluster token create --role standby --ttl 1h` generates a
-   single-use, random, time-limited token and stores it (a row in `notary.db`, so it's visible to
-   whichever member the new node happens to contact — see below).
-2. The operator transfers the token to the new node out-of-band (secrets manager, provisioning
-   script, or direct copy-paste — the short TTL is what makes this an acceptable channel, not the
-   transport mechanism), along with the address of at least one existing member to contact.
+1. On any existing member: `notary cluster token create --identity <joining-node-identity> [--ttl 1h]`
+   generates a single-use, random, time-limited token bound to that identity and stores only the
+   token hash plus the identity (a row in `notary.db`, visible to whichever member the new node
+   contacts). The identity is the joining node's advertise address, which must match a SAN or CN
+   on its provisioned certificate.
+2. The operator transfers the token to the new node out-of-band, along with the address of at
+   least one existing member. The joining node's PKI files must already be in place.
 3. On the new node: `notary cluster join <token> --address <existing-member-addr>`. The new node
-   generates its own keypair and a CSR, and presents `{token, CSR}` to the existing member's admin
-   API over plain TLS (server-authenticated only — the token itself is what's proving the new
-   node's legitimacy at this point, the same trust model a join token inherently requires). The
-   existing member validates the token (single-use, checks TTL), signs the CSR against the cluster
-   CA, and responds with the signed certificate plus the current member address list.
-4. The new node now holds a valid cluster-internal certificate and the peer list, and calls
-   `app.New(dataDir, app.WithAddress(addr), app.WithTLS(...), app.WithCluster(peerAddrs))`. This is
-   go-dqlite's own join: the new node contacts a peer, is added to the Raft configuration with role
-   **standby** by default, and dqlite handles the actual log replication from there.
-5. Once `app.New` returns, notary records the operator-assigned name against the new member's
-   dqlite node ID in a small `cluster_members` table in `notary.db` (§1's opening note — raw
-   `client.NodeInfo` carries only ID/address/role, no name) — this is what `notary cluster status`
-   (§6.1) displays.
-6. The node immediately begins full dqlite replication, including the encrypted DEK row and all
-   encrypted columns. Replication does not require the DEK to be unwrapped. The node serves no
-   product API routes that require plaintext key material until its own unwrap completes (§2).
+   loads its local PKI, then presents `{token, address, schema_version}` to the existing member's
+   admin API over the product TLS listener (server-authenticated; `--ca-cert` pins that
+   certificate). The existing member verifies the token is unused, unexpired, and bound to the
+   presented address, checks the declared schema version against the cluster's own, redeems the
+   token, and responds with the current member address list. It does not sign a CSR and does not
+   return certificates.
+4. The new node calls `app.New(..., app.WithTLS(local PKI), app.WithCluster(peerAddrs))`. This is
+   go-dqlite's own join. New members join as standby by default; dqlite then converges toward the
+   configured voter/standby targets.
+5. Once `app.New` returns, notary records the operator-assigned name (default: advertise address)
+   against the new member's dqlite node ID in `cluster_members`.
+6. The node immediately begins full dqlite replication, including the encrypted DEK row. The node
+   serves no product API routes that require plaintext key material until its own unwrap completes
+   (§2).
 
-Join tokens are single-use and scoped to one join. No long-lived or reusable join credential
-exists.
+Join tokens are single-use and scoped to one identity. No long-lived or reusable join credential
+exists. Redeeming a token does not prevent a holder of a valid cluster certificate from contacting
+dqlite directly.
 
 ```mermaid
 sequenceDiagram
@@ -97,33 +125,31 @@ sequenceDiagram
     participant N as New Node
     participant C as Cluster (dqlite)
 
-    Op->>V: notary cluster token create --role standby --ttl 1h
-    V-->>Op: join token (single-use, 1h TTL)
+    Op->>N: provision CA cert, node cert, node key
+    Op->>V: notary cluster token create --identity <joining-address>
+    V-->>Op: bootstrap token (single-use, identity-bound)
     Op->>N: notary cluster join <token> --address <addr>
-    N->>N: generate keypair + CSR
-    N->>V: present {token, CSR} over TLS
-    V->>V: validate token, sign CSR against cluster CA
-    V-->>N: signed cert + current member address list
-    N->>C: app.New(WithTLS(cert), WithCluster(peers)) — go-dqlite join
+    N->>N: load local PKI
+    N->>V: present {token, address, schema_version}
+    V->>V: verify identity-bound token, check schema, redeem
+    V-->>N: current member address list
+    N->>C: app.New(WithTLS(local PKI), WithCluster(peers))
     C-->>N: added as standby, full dqlite replication begins
     N->>C: record {node ID, operator name} in cluster_members
     Note over N: Sealed until its own unwrap completes (§2).<br/>Replication and Raft voting are unaffected by seal state.
 ```
 
-### 1.3 Voter and standby roles
+### 1.4 Voter and standby roles
 
 - **Voter**: participates in Raft consensus (leader election, log replication, quorum). Every
   additional voter adds one RTT hop to write latency.
 - **Standby**: replicates the full log but does not vote. Exists so that a lost voter is healed
-  by promotion, not a fresh join.
+  by automatic promotion, not a fresh join.
 - New members join as standby. Role convergence toward the configured targets
-  (`app.WithVoters(3)`, `app.WithStandBys(2)`) is go-dqlite's own automatic behavior — it
-  continuously adjusts roles (`app.WithRolesAdjustmentFrequency`) to move members toward those
-  targets as membership changes, including promoting a standby when a voter is permanently removed.
-  `notary cluster promote <member>` exists as an explicit override for cases an operator wants to
-  force ahead of the automatic convergence interval, not as the primary mechanism.
+  (`app.WithVoters(3)`, `app.WithStandBys(2)`) is go-dqlite's own automatic behavior. There is no
+  `notary cluster promote` command and no promote API in this release.
 
-### 1.4 Cluster size
+### 1.5 Cluster size
 
 | Voters | Tolerates simultaneous failures | Use                                                                                                                   |
 | ------ | ------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
@@ -134,16 +160,18 @@ sequenceDiagram
 3 is the default (`app.WithVoters(3)`). 5 is the ceiling — additional fault tolerance beyond 5 is
 bought with standby members (fast promotion), not more voters (permanent consensus overhead). Odd
 voter counts are the documented default and target; notary's tooling does not add its own
-validation to reject an operator-configured even count — not worth the complexity for an
-easily-corrected misconfiguration.
+validation to reject an operator-configured even count.
 
-### 1.5 Removing and replacing a node
+### 1.6 Removing and replacing a node
 
 Member removal is disabled. dqlite accepts any certificate signed by the cluster CA and does not
-authorize it against current Raft membership; every admitted member can also read the encrypted CA
-signing key after unsealing. Removing only the Raft record would therefore leave the removed host
-trusted. Until coordinated PKI rotation or membership-bound authorization is implemented, excluding
-a member requires rebuilding the cluster and isolating every host that held its credentials.
+authorize it against current Raft membership. Removing only the Raft record would leave the
+removed host trusted. `DELETE /cluster/members/{id}` returns 501.
+
+Until revocation, CA rotation, or membership-bound authorization is implemented, excluding a
+member means: isolate the excluded or compromised host, establish a new cluster CA/trust identity,
+wipe stale dqlite state on retained healthy hosts, restore or bootstrap a new cluster identity,
+issue new node credentials, and rejoin the retained hosts.
 
 ---
 
@@ -287,31 +315,59 @@ standard `database/sql/driver` implementation — real `Begin`/`Commit`/`Rollbac
 closure, no imposed timeout, no artificial connection cap beyond what notary itself configures.
 `sqlair.NewDB(...)` wraps it exactly as it wraps the current `modernc.org/sqlite` connection today
 (`internal/db/db_init.go:70`). This is what goose and `sqlair` need it for — the remaining hard
-`*sql.DB` dependency once OpenFGA is out of the picture (§4.4: OpenFGA no longer touches the SQL
-connection at all, so it's no longer part of the reason `app.Open` is needed — it just also
-benefits from not being a special case).
+`*sql.DB` dependency once OpenFGA is out of the picture (§4.4).
 
 Connection concurrency is notary's own call, via `app.WithConcurrentLeaderConns`/
 `app.WithBusyTimeout` at `app.New` time — set to match today's `SetMaxOpenConns(2)`, not
 inherited from anything MicroCluster would have imposed.
 
 Notary's product data — including the authorization data OpenFGA's Check/ListObjects engine reads
-(§4.4) — lives in `notary`, the single database name this node's `app.App` opens. There is no
-separate MicroCluster membership database to keep apart from it; cluster membership state
-(voter/standby roles, node IDs) lives inside dqlite's own Raft configuration, not in a SQL table
-notary owns or touches.
+(§4.4) — lives in `notary`, the single database name this node's `app.App` opens. Cluster
+membership state (voter/standby roles, node IDs) lives inside dqlite's own Raft configuration, not
+in a SQL table notary owns or touches. Notary's `cluster_members` table is bookkeeping only
+(name, heartbeat, seal).
 
-**Schema-version consistency across nodes.** Migrations run through goose, unchanged, rather than
-through a MicroCluster-style cross-member schema-version gate — nothing built into the storage
-layer stops a node with a different set of applied migrations from joining or starting inside an
-existing cluster. This is closed explicitly rather than left as a gap: at join, and at every
-subsequent startup, a node compares its own applied goose migration version against the version
-currently active among reachable cluster members, and refuses to join or start on a mismatch,
-logging the specific migration that's out of step. This is what makes rolling upgrades safe without
-relying on a mechanism notary doesn't have — an operator upgrades nodes one at a time, in a defined
-order, and a node that would otherwise start with a stale or ahead-of-cluster schema simply won't.
+**Schema-version consistency across nodes.** Migrations run through goose, unchanged. At join,
+and at every subsequent startup, a node compares its own applied goose migration version against
+the version currently active among reachable cluster members, and refuses to join or start on a
+mismatch, logging the specific migration that's out of step.
 
-Two schema changes are made:
+Clustering adds these tables:
+
+```sql
+CREATE TABLE cluster_join_tokens (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    token_hash TEXT NOT NULL UNIQUE,
+    identity   TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    used_at    INTEGER
+);
+
+CREATE TABLE cluster_members (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    node_id   TEXT NOT NULL UNIQUE,
+    name      TEXT NOT NULL UNIQUE,
+    address   TEXT NOT NULL UNIQUE,
+    joined_at INTEGER NOT NULL,
+    heartbeat INTEGER,
+    sealed    INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE acme_issuance_attempts (
+    csr_id     INTEGER PRIMARY KEY REFERENCES certificate_requests(csr_id) ON DELETE CASCADE,
+    node_id    TEXT NOT NULL,
+    started_at INTEGER NOT NULL
+);
+
+-- Single-row settings. acme_issuer_node_id is the designated ACME issuer (§4.3).
+CREATE TABLE cluster_settings (
+    id                  INTEGER PRIMARY KEY CHECK (id = 1),
+    acme_issuer_node_id TEXT NOT NULL
+);
+```
+
+There is no `cluster_ca_key` table. Two product schema changes are also made:
 
 ```sql
 -- Multi-provider OIDC identity
@@ -319,7 +375,6 @@ DROP INDEX idx_users_oidc_subject;
 CREATE UNIQUE INDEX idx_users_oidc_issuer_subject
 ON users(oidc_issuer, oidc_subject)
 WHERE oidc_subject IS NOT NULL;
--- requires adding an oidc_issuer column to users
 
 -- Certificate serial number: dedicated column + uniqueness constraint
 ALTER TABLE certificates ADD COLUMN serial_number TEXT NOT NULL UNIQUE;
@@ -334,26 +389,28 @@ CA certificate serials are generated with a CSPRNG (128-bit random value), not
 the database layer. Single-leader write serialization already prevents concurrent-write races;
 the constraint exists as defense-in-depth against the generator itself, independent of clustering.
 
-### 4.3 ACME requests on leader change
+### 4.3 ACME: one designated issuer
 
 Notary is an ACME client, not a server — there is no order/challenge state machine to keep
-correct. What is added: `app.WithRolesAdjustmentHook(func(leader client.NodeInfo, cluster
-[]client.NodeInfo) error)` fires with the current leader's `NodeInfo` whenever go-dqlite adjusts
-roles; notary's hook compares `leader.ID` against its own node ID to detect that it has just
-become leader, and on that transition scans for any ACME-backed certificate request left in a
-non-terminal, in-progress state by the previous leader and marks it **Failed**, with a reason
-indicating an internal interruption. The request is not resumed. This surfaces through the
-existing certificate request status/API exactly like any other failure, and the user re-submits
-the request.
+correct. Clustered ACME runs on one statically designated member, identified by dqlite node ID in
+`cluster_settings.acme_issuer_node_id`. That value is set at bootstrap to the bootstrap node and
+read by every member from the replicated database. ACME execution does not follow Raft leadership.
+The designated issuer may be a follower; database writes still go to the leader.
 
-This is a deliberate choice over resuming the in-flight workflow: resuming would require
-reconstructing `lego`'s in-memory order/challenge state from DB rows alone, on a code path that's
-rare enough to be poorly exercised, with real failure modes if done wrong (re-publishing a DNS-01
-challenge record mid-validation, duplicate orders against the external CA's rate limits). Failing
-cleanly and letting the user retry is simpler, has no such failure modes, and costs the user one
-resubmission for what should be a rare event (a leader change coinciding with an in-flight
-request). Detection still requires the leader-change hook — without it, an orphaned request would
-sit in a non-terminal state indefinitely with no indication anything went wrong.
+Only the matching member may start issuance. A request received by another member is rejected with
+enough information to identify the designated issuer. There is no proxy of a long-running DNS-01
+operation.
+
+ACME server/account configuration and encrypted account material stay in the replicated database.
+A durable in-flight attempt row rejects a second request for the same CSR. On restart of the
+designated issuer, leftover attempts are marked Failed and cleared. Heartbeats are not consulted:
+no other member may execute ACME, so the prior issuer process is necessarily gone.
+
+Do not automatically move the issuer. Replacing it requires `notary cluster acme-issuer set
+<node-id>` after the old issuer is stopped or proven dead. Automatic failover is out of scope.
+Direct SQLite deployments keep today's ACME behavior unchanged.
+
+This is HA for Notary with a temporarily unavailable ACME operation, not HA for issuance itself.
 
 ### 4.4 OpenFGA
 
@@ -413,11 +470,11 @@ connection as a whole.
 
 | Condition                                    | Behavior                                                                                                                                                                                                                                                                                                                               |
 | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Majority of voters unreachable (quorum lost) | Both reads and writes fail — no leader can be elected, and the driver routes every connection through the leader, so there is no path to serve reads from the surviving minority either. Recovery: restore a majority of voters (bring nodes back, or remove the unreachable ones and join replacements once quorum can be re-formed). |
-| Single voter lost, quorum intact             | Brief write pause (sub-second to seconds) during re-election; reads unaffected. No durable capability lost. Recovery: automatic (Raft re-election). Replace the lost node per §1.5 at any time afterward.                                                                                                                              |
+| Majority of voters unreachable (quorum lost) | Both reads and writes fail — no leader can be elected, and the driver routes every connection through the leader, so there is no path to serve reads from the surviving minority either. Recovery: restore a majority of voters. Member replacement is §1.6 (rebuild with rotated trust), not an in-place remove.                        |
+| Single voter lost, quorum intact             | Brief write pause (sub-second to seconds) during re-election; reads unaffected. No durable capability lost. Recovery: automatic (Raft re-election). dqlite may promote a standby. ACME is unavailable if the lost node was the designated issuer until an operator sets a new issuer.                                                    |
 | Vault/HSM unreachable when a node starts     | The node still joins Raft, replicates data, and can vote or become leader — seal state does not affect Raft membership. Its own API layer returns 503 on plaintext-requiring routes until it unseals. Recovery: automatic, the moment Vault/HSM becomes reachable — no admin action.                                                   |
 | OIDC IdP unreachable                         | Existing sessions continue working until their access token expires (10–15 min). New logins through that provider, and refresh for sessions using it, fail. Local username/password login (`hashed_password` in `users`, Argon2id) is unaffected and remains available. Recovery: automatic once the IdP is reachable again.           |
-| Individual node lost (any role)              | Cluster continues per the quorum table above. If the lost node was leader, a brief write pause occurs during re-election. Recovery: automatic re-election if it was a voter; replace via §1.5.                                                                                                                                         |
+| Individual node lost (any role)              | Cluster continues per the quorum table above. If the lost node was leader, a brief write pause occurs during re-election. Recovery: automatic re-election if it was a voter. Replacing the host is §1.6.                                                                                                                                |
 
 ```mermaid
 sequenceDiagram
@@ -427,11 +484,12 @@ sequenceDiagram
     participant K as Vault/HSM (unreachable)
 
     Note over B: Voter A died. Vault is also down.<br/>2 of 3 voters remain — quorum intact.
+    Op->>R: provision new node PKI chained to the cluster CA
+    Op->>B: notary cluster token create --identity <R address>
     Op->>R: notary cluster join <token>
-    R->>B: mTLS handshake, join Raft as standby
+    R->>B: preflight, then mTLS join Raft as standby
     B->>R: dqlite replication (incl. wrapped DEK row)
-    Note over R: Fully replicated & voteable.<br/>Quorum restored to 3 members.
-    Op->>R: promote to voter (optional)
+    Note over R: Fully replicated. dqlite may promote it to voter.
     R-->>K: attempt unwrap — unreachable
     Note over R: SEALED. API routes needing plaintext → 503.<br/>Raft membership unaffected.
     Note over R: Keeps retrying automatically.<br/>Unseals itself once Vault is reachable.
@@ -451,18 +509,22 @@ bypasses that (§2.5).
 
 ```
 notary cluster bootstrap
-notary cluster token create [--role voter|standby] [--ttl 1h]
+notary cluster token create --identity <joining-address> [--ttl 1h]
 notary cluster join <token> --address <host:port>
-notary cluster promote <member>
 notary cluster status
+notary cluster acme-issuer set <node-id>
+notary cluster restore --file <archive>
 ```
 
-`cluster status` prints voter/standby role, Raft term/leader, and seal state per member in one
-table. Seal state is read-only observability; there is no unseal command.
+There is no `promote` command.
 
-Every subcommand except `bootstrap` and `join` is a client of the admin API below, not a direct
-consumer of dqlite: the running node holds its data directory open, so a second process cannot
-read it. That makes authentication a CLI concern:
+`cluster status` prints voter/standby role, Raft leader, seal state, and ONLINE/OFFLINE liveness
+per member in one table. Seal state is read-only observability; there is no unseal command.
+Liveness comes from replicated application heartbeats, not from ACME.
+
+Every subcommand except `bootstrap`, `join`, and `restore` is a client of the admin API below, not
+a direct consumer of dqlite: the running node holds its data directory open, so a second process
+cannot read it. That makes authentication a CLI concern:
 
 - The operator supplies a Notary admin session token with `--token`, or in `NOTARY_TOKEN` so it
   stays out of shell history and process arguments. There is no separate cluster credential and no
@@ -470,28 +532,29 @@ read it. That makes authentication a CLI concern:
 - `--config` points at the node's config file. The TLS certificate declared there is used as the
   trust anchor for the call, so a self-signed deployment needs no extra flags and verification is
   never skipped.
-- `join` is the exception: it runs before the node has any admin account or cluster certificate,
-  so it carries no session token. The join token in the request body is the sole credential, per
-  §1.2. `--ca-cert` optionally pins the contacted member's certificate; without it the system
-  trust store applies.
+- `join` is the exception: it runs before the node has any admin account, so it carries no session
+  token. The bootstrap token in the request body is the preflight credential, per §1.3.
+  `--ca-cert` pins the contacted member's product API certificate.
 
 ### 6.2 Admin API
 
 ```
-GET    /cluster/members                # list, with role/raft-state/seal-state per member
-POST   /cluster/members/tokens          # create a join token
-POST   /cluster/members/join            # redeem a join token: sign the joiner's CSR
-DELETE /cluster/members/{id}            # returns 501 until credential revocation is implemented
-POST   /cluster/members/{id}/promote
-GET    /cluster/status                  # aggregate health
-GET    /status                          # existing endpoint, extended with seal state + raft role
+GET    /cluster/members                      # list, with role/raft-state/seal-state/liveness per member
+POST   /cluster/members/tokens                # create an identity-bound bootstrap token
+POST   /cluster/members/join                  # redeem a token: schema preflight and peer list
+DELETE /cluster/members/{id}                  # returns 501
+GET    /cluster/status                        # aggregate health
+PUT    /cluster/acme-issuer                   # set the designated ACME issuer node ID
+GET    /status                                # existing endpoint, extended with seal state + raft role
 ```
+
+There is no promote route.
 
 Every route requires an admin session and is unavailable (404) when clustering is disabled, with
 one deliberate exception: `POST /cluster/members/join` sits outside session authentication
-entirely. A joining node has no account on the cluster it is joining, so requiring one would make
-the join impossible; the single-use, time-limited join token is the whole credential, and the only
-thing the route will do with it is sign a CSR against the cluster CA.
+entirely. A joining node has no account on the cluster it is joining. The single-use,
+identity-bound token is that route's credential; the only things it will do are schema preflight
+and returning peer addresses. It does not issue certificates.
 
 `GET /status` answers even when storage is unreachable — it responds `503` with the node's Raft
 state rather than nothing at all, because it is what an operator reaches for during the failures
@@ -501,13 +564,10 @@ No `/unseal` endpoint exists.
 
 ### 6.3 Web UI
 
-A "Cluster" admin screen:
-
-- Member table: name/address, role, Raft state, seal state (observability badge), last-seen.
-- "Add node": generates a join token, displays the copyable `notary cluster join …` command. The
-  token is shown once.
-- No member-removal action until cluster credentials can be revoked safely.
-- No "Unseal" action anywhere.
+The first release has no cluster administration UI. Existing UI may show cluster status (member
+id, address, role, leader, liveness, seal) and a copyable join command as observability. It must
+not expose promote, remove, or certificate enrollment. Login/OIDC UI is unrelated to this
+section.
 
 ---
 
@@ -525,13 +585,15 @@ For clustered deployments, `notary backup` calls `client.Dump(ctx, dbname)` from
 network-protocol backup primitive: it returns the main database file and the WAL file as raw
 bytes, dialed directly, no local file access required. Notary packages these two files into the
 same tar.gz format `CreateBackup` already produces today, so the on-disk backup artifact format is
-unchanged.
+unchanged. SQLite snapshot acquisition and dqlite dump acquisition stay separate; only archive
+validation may be shared.
 
 Restore is not a live file substitution into a running node — dqlite's on-disk representation
 isn't something a running cluster member can have swapped underneath it, the same way a
 single-file SQLite database could. Clustered restore is a disaster-recovery procedure: stop the
-cluster, bootstrap a fresh single-node cluster on a node with no state of its own, load the dump
-into it, then rejoin the remaining nodes against it.
+cluster, provision new cluster credentials for a new trust identity, bootstrap a fresh
+single-node cluster on a node with no state of its own, load the dump into it, then rejoin the
+remaining nodes against it.
 
 Loading the dump is a logical restore, not a file import. go-dqlite runs the node in its default
 memory mode, where the authoritative copy of the database lives in the Raft log and its snapshots;
@@ -544,9 +606,10 @@ bookkeeping travels with it, so the restored cluster knows its own schema versio
 
 The restored cluster is a new cluster: its node has a new dqlite ID, and the membership records
 the backup carried describe a cluster that no longer exists. `notary cluster restore` replaces
-them with the single member that now holds the data, and the remaining nodes rejoin from scratch
-with `notary cluster join` — their old state directories, including their cluster PKI, are issued
-by a CA the restored cluster does not have and must be discarded first.
+them with the single member that now holds the data, and records that node as the ACME issuer.
+Remaining nodes rejoin from scratch with `notary cluster join`. A backup must not be treated as
+carrying reusable cluster PKI; every restored or rejoining node needs newly provisioned
+credentials.
 
 The existing single-file backup/restore path (`CreateBackup`/`RestoreBackup` as they exist today)
 is retained unchanged for non-clustered (`cluster.enabled: false`) deployments.
@@ -614,34 +677,19 @@ The unit-test workflow runs the suite twice: once against local SQLite files, an
 run is the regression gate for the storage swap and the only place `internal/cluster` executes —
 it is Linux-only, so it cannot run on a developer's macOS machine.
 
-## Deviations from this specification
+Operational documentation must include: generating the cluster CA and per-node certificates
+(including the `notary-cluster` SAN), token-assisted join, designated ACME issuer replacement, and
+rebuild with rotated trust. Combined Snap and Rock artifacts continue to bundle dqlite. There is
+no optional dqlite build tag in this delivery.
 
-These are the points where the implementation knowingly differs from the text above. Each needs
-sign-off, or a change to the implementation.
+## First-release limitations
 
-**The join token carries no role.** §1.5 sketches `notary cluster token create --role voter|standby`
-and §1.3 says new members join as stand-by until promoted. Neither is achievable while `go-dqlite`
-manages roles: `app.WithVoters(3)` keeps the voter count filled, so a `standby` token still produced
-a voter whenever the cluster was short of one, and the flag promised control it never had. It was
-removed rather than left as a no-op. `notary cluster promote` remains the way to force a role, and
-§1.4's automatic promotion of a stand-by when a voter is lost is what dqlite already does.
+These are accepted limitations, not deviations to be "fixed" in this delivery:
 
-Honouring the flag would mean taking role assignment away from dqlite and running Notary's own
-role manager against it, which contradicts §1.4.
-
-**The cluster CA private key lives in the replicated database.** The design implies the joining node
-receives everything it needs over the join exchange. It does not receive the CA key: the join
-endpoint is authenticated only by a single-use token, so a stolen token would otherwise become a
-lasting ability to mint identities that every peer trusts. A member reads the key from the database
-once it is admitted and replicating, which keeps the property that any member can admit the next one
-without the key crossing the enrollment API.
-
-## Member removal requires credential revocation
-
-Removing only the Raft record does not revoke the member's certificate or the CA
-signing key it could read after unsealing. Notary therefore disables member removal
-instead of presenting Raft removal as a security boundary.
-
-Enabling removal requires a revocation list enforced by every listener or coordinated
-cluster-PKI rotation. Until one is implemented, rebuild the cluster and isolate any
-host that held cluster credentials.
+- Notary does not mint cluster certificates. Automated enrollment is a follow-up.
+- ACME has no automatic issuer failover.
+- Member removal stays 501 until a revocation design exists.
+- There is no manual role promotion.
+- There is no cluster administration UI or rich cluster administration CLI.
+- A valid cluster certificate can still authenticate to dqlite without a Notary token. Token
+  binding protects preflight and peer discovery only.

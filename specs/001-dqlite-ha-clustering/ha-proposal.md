@@ -2,7 +2,7 @@
 
 ## Abstract
 
-High Availability in Notary is facilitated by [dqlite](https://github.com/canonical/dqlite), accessed directly through [go-dqlite](https://github.com/canonical/go-dqlite)'s `app` package — **not** through `canonical/microcluster`. dqlite provides Raft consensus for a replicated embedded database; `go-dqlite/app` provides node bootstrap, join, automatic voter/standby role management, and leadership handover as library primitives. What MicroCluster would otherwise have supplied on top of that — join-token issuance, trust distribution, and cluster membership bookkeeping — is implemented directly in Notary. The user experience is unchanged from what was originally scoped: the operator supplies cluster configuration, and Notary automatically initializes and operates as part of a Raft cluster, joins by token, and can be inspected and managed through the same shape of CLI, API, and status surface.
+High Availability in Notary is facilitated by [dqlite](https://github.com/canonical/dqlite), accessed directly through [go-dqlite](https://github.com/canonical/go-dqlite)'s `app` package — **not** through `canonical/microcluster`. dqlite provides Raft consensus for a replicated embedded database; `go-dqlite/app` provides node bootstrap, join, automatic voter/standby role management, and leadership handover as library primitives. What Notary adds on top — operator-provisioned cluster PKI validation, a bootstrap token for join preflight and peer discovery, and member bookkeeping — is implemented directly in Notary. The operator provisions cluster certificates, supplies cluster configuration, bootstraps or joins with an identity-bound token, and inspects the cluster through CLI and status APIs. The first release does not mint cluster certificates, does not promote members, and does not remove members.
 
 ## Rationale
 
@@ -25,7 +25,7 @@ Two mitigations were evaluated and rejected before settling on the approach belo
 - **`sqlx`** (a different, popular Go SQL convenience library) can wrap an externally-obtained `*sql.Tx` — unlike `sqlair`, its `Tx` type embeds `*sql.Tx` via an exported field, so it doesn't need to own `Begin()` itself. This would have let `sqlair` be replaced with something MicroCluster-compatible while keeping struct-mapping convenience. It was set aside because its upstream has had no commits in over two years — a real risk to take on in exchange for MicroCluster's plumbing.
 - **`sqlc`**, a SQL code generator, was verified directly against Notary's actual queries — including its recursive CTEs (used for certificate-chain traversal) — and works correctly, with one specific, fixable requirement (column references in a recursive CTE's anchor branch must be table-qualified for `sqlc`'s SQLite analyzer). It is actively maintained (commits as recent as the day this was checked). It was still set aside: adopting it means porting roughly 60 existing SQL statements, introducing a code-generation step into the build, and maintaining a schema file kept in sync with the actual migration source of truth — real, ongoing cost, for the sole purpose of making MicroCluster's plumbing usable. That cost was judged larger than simply building Notary's own thin membership layer directly on `go-dqlite/app`, which needs none of it.
 
-`go-dqlite/app` — the lower-level package MicroCluster itself is built on — solves the underlying problem directly: `app.Open(ctx, name)` returns a genuine `*sql.DB`, backed by a standard, complete `database/sql` driver implementation, with normal `Begin()`/`Commit()` semantics and no replay behavior. `sqlair` and `goose` work against it completely unmodified. The trade is that Notary owns the membership/token/PKI layer MicroCluster would otherwise have supplied — a small, well-understood piece of new code, detailed below, rather than a data-layer migration.
+`go-dqlite/app` — the lower-level package MicroCluster itself is built on — solves the underlying problem directly: `app.Open(ctx, name)` returns a genuine `*sql.DB`, backed by a standard, complete `database/sql` driver implementation, with normal `Begin()`/`Commit()` semantics and no replay behavior. `sqlair` and `goose` work against it completely unmodified. The trade is that Notary owns token preflight, PKI validation, and member bookkeeping — a small layer, detailed below, rather than a data-layer migration or a Notary-owned cluster CA.
 
 ## Specification
 
@@ -42,10 +42,10 @@ Notary uses `github.com/canonical/go-dqlite/v3/app` directly to run each node's 
 
 What Notary provides on top of `go-dqlite/app`, since MicroCluster is not present to supply it:
 
-- **Cluster-internal PKI**: a root CA and per-node mTLS certificate, generated and managed by Notary, entirely separate from Notary's product-facing certificate-issuance PKI. No cluster-membership credential is ever valid for product certificate issuance, and no issued product certificate is valid against the cluster's internal root.
-- **Join-token issuance and validation**: single-use, time-limited tokens, generated by an existing member and validated by whichever member the new node contacts.
-- **Trust distribution**: a join endpoint that accepts a new node's CSR alongside its token, validates the token, and signs the CSR against the cluster CA.
+- **Cluster-internal PKI validation**: operator-provisioned CA certificate and per-node mTLS certificate/key, entirely separate from Notary's product-facing certificate-issuance PKI. Notary does not generate or store a cluster CA signing key.
+- **Bootstrap-token issuance and validation**: single-use, time-limited, identity-bound tokens for join preflight and peer discovery. They are not the dqlite admission boundary; a certificate chaining to the cluster CA is.
 - **Member bookkeeping**: an operator-facing name associated with each node's underlying dqlite node ID, since `go-dqlite`'s own `NodeInfo` carries only ID, address, and role. The same records carry each member's heartbeat and seal state, which is what makes liveness observable without polling.
+- **Designated ACME issuer**: one replicated member identity may run ACME; leadership is irrelevant.
 
 ### New Interfaces
 
@@ -56,41 +56,39 @@ Paths are shown without their `/api/v1` prefix, and every response is wrapped in
 
 All endpoints in this table require an admin session **except `POST /cluster/members/join`**, which
 sits outside session authentication entirely: a node that has not joined yet has no account on the
-cluster it is joining, so requiring one would make joining impossible. The single-use,
-time-limited join token is that route's whole credential, and the only thing it will do with it is
-sign a CSR against the cluster CA. Every route returns `404` when clustering is disabled.
+cluster it is joining. The single-use, identity-bound token is that route's preflight credential.
+It returns peer addresses; it does not issue certificates. Every route returns `404` when
+clustering is disabled.
 
 | API Endpoint | Request Body | Response (`data`) |
 |---|---|---|
-| `POST /cluster/members/tokens` | `{"role": "voter" \| "standby", "ttl_seconds": int}` | `{"token": "<single-use token>", "role": string, "expires_at": <unix seconds>}` |
-| `POST /cluster/members/join` | `{"token": string, "csr": "<PEM-encoded CSR>", "address": string, "schema_version": int}` | `{"certificate": "<PEM>", "ca_certificate": "<PEM>", "role": string, "member_addresses": ["<address>", ...]}` |
+| `POST /cluster/members/tokens` | `{"identity": string, "ttl_seconds": int}` | `{"token": "<single-use token>", "identity": string, "expires_at": <unix seconds>}` |
+| `POST /cluster/members/join` | `{"token": string, "address": string, "schema_version": int}` | `{"member_addresses": ["<address>", ...]}` |
 | `DELETE /cluster/members/{id}` | N/A | Returns `501` until credential revocation is implemented. |
-| `POST /cluster/members/{id}/promote` | N/A | N/A |
 | `GET /cluster/members` | N/A | `[{"id", "name", "address", "role", "leader", "sealed", "last_seen", "status", "message"}, ...]` |
 | `GET /cluster/status` | N/A | `{"enabled", "node_id", "address", "leader_id", "voters", "members": [...]}` |
+| `PUT /cluster/acme-issuer` | `{"node_id": string}` | `{"node_id": string}` |
 
-`ca_certificate` is not optional detail: it is how the joining node obtains the cluster's trust
-anchor, having had none before.
+There is no promote endpoint.
 
 `GET /cluster/status` is a new endpoint rather than a modification of `GET /status`. The existing
 `GET /status` is separately extended with this node's own `node_id`, `role`, `raft_state` and
 `sealed`, so a single node can be checked without an admin session.
 
-`POST /cluster/members/tokens` and `POST /cluster/members/join` together replace the earlier single `POST /cluster/token` endpoint: token issuance is separated from the join/CSR exchange because the new node doesn't generate its keypair and CSR until it actually attempts to join, not at the point an operator requests a token on its behalf.
-
-`DELETE /cluster/members/{id}` is reserved but returns `501`: dqlite Raft removal does not revoke the member's certificate or its access to the cluster CA signing key.
+`DELETE /cluster/members/{id}` is reserved but returns `501`: dqlite Raft removal does not revoke
+the member's externally issued certificate.
 
 #### CLI Arguments
 
-Cluster operations are exposed as `notary cluster` subcommands rather than flags on `notary start`, so that join/bootstrap/removal/status each have their own argument shape without overloading a single command:
+Cluster operations are exposed as `notary cluster` subcommands rather than flags on `notary start`, so that bootstrap/join/status each have their own argument shape without overloading a single command:
 
 | Command | Parameters | Description |
 |---|---|---|
-| `notary cluster bootstrap` | `--config`, `--name` | Initializes a new cluster with this node as the sole voter. |
-| `notary cluster token create` | `--config`, `--token`, `--role voter\|standby`, `--ttl 1h`, `--quiet` | Generates a single-use join token. `--quiet` prints only the token, for scripting. |
-| `notary cluster join` | `<token>`, `--config`, `--address <existing-member-addr>`, `--name`, `--ca-cert` | Joins this node to the cluster identified by an existing member's address, using the given token. |
-| `notary cluster promote` | `<member>`, `--config`, `--token` | Explicit override to promote a standby to voter ahead of automatic role convergence. |
+| `notary cluster bootstrap` | `--config`, `--name` | Initializes a new cluster with this node as the sole voter. Requires provisioned PKI. |
+| `notary cluster token create` | `--config`, `--token`, `--identity`, `--ttl 1h`, `--quiet` | Generates a single-use, identity-bound bootstrap token. `--quiet` prints only the token, for scripting. |
+| `notary cluster join` | `<token>`, `--config`, `--address <existing-member-addr>`, `--name`, `--ca-cert` | Joins this node using the token for preflight and peer discovery. Requires provisioned PKI. |
 | `notary cluster status` | `--config`, `--token` | Prints each member's name, address, role, leadership, seal state, and ONLINE/OFFLINE state. |
+| `notary cluster acme-issuer set` | `<node-id>`, `--config`, `--token` | Sets the designated ACME issuer after the previous issuer is stopped. |
 | `notary cluster restore` | `--config`, `--file` | Disaster recovery: rebuilds a cluster from a `notary backup` archive as a fresh single node. Out of scope for this document; see spec.md §7. |
 
 `--config` is required by every subcommand. The subcommands that drive an already-running node go
@@ -130,19 +128,19 @@ Cluster membership is established through explicit subcommands rather than infer
 
 #### New cluster
 
-`notary cluster bootstrap` initializes `state_dir` as a new, single-voter cluster. It generates the cluster-internal PKI, starts dqlite via `app.New` with no `app.WithCluster(...)` (which is what makes it a bootstrap rather than a join), applies the existing goose migrations against the resulting connection, and records this node's `--name` against its dqlite node ID. The node serves traffic once its DEK unwrap completes (unrelated to clustering, unchanged from single-node behavior).
+`notary cluster bootstrap` initializes `state_dir` as a new, single-voter cluster. It loads the operator-provisioned cluster PKI, starts dqlite via `app.New` with no `app.WithCluster(...)` (which is what makes it a bootstrap rather than a join), applies the existing goose migrations against the resulting connection, records this node's `--name` against its dqlite node ID, and sets this node as the designated ACME issuer. The node serves traffic once its DEK unwrap completes (unrelated to clustering, unchanged from single-node behavior).
 
 #### Joining an existing cluster
 
-On any existing member: `notary cluster token create` generates a token. The operator transfers it out-of-band to the new node, along with the address of at least one existing member.
+On any existing member: `notary cluster token create --identity <joining-address>` generates a token bound to that identity. The operator transfers it out-of-band to the new node, along with the address of at least one existing member. The joining node's CA certificate, node certificate, and private key must already be in `state_dir/pki/`.
 
-On the new node: `notary cluster join <token> --address <existing-member-addr>`. The new node generates its own keypair and CSR, and presents `{token, csr, address, schema_version}` to the existing member's `POST /cluster/members/join` endpoint. The existing member validates the token (single-use, TTL-checked), then checks the declared schema version against the cluster's own, signs the CSR against the cluster CA, and responds with the signed certificate, the cluster CA certificate, and the current member address list. The new node then calls `app.New(..., app.WithCluster(peerAddrs))` — `go-dqlite`'s own join — and is added with role **standby** by default. Once joined, the name given by `--name` is recorded against the new node's dqlite ID in cluster membership bookkeeping.
+On the new node: `notary cluster join <token> --address <existing-member-addr>`. The new node loads its local PKI and presents `{token, address, schema_version}` to the existing member's `POST /cluster/members/join` endpoint. The existing member validates the identity-bound token (single-use, TTL-checked), then checks the declared schema version against the cluster's own, redeems the token, and responds with the current member address list. The new node then calls `app.New(..., app.WithTLS(local PKI), app.WithCluster(peerAddrs))` — `go-dqlite`'s own join — and is added with role **standby** by default. Once joined, the name given by `--name` is recorded against the new node's dqlite ID in cluster membership bookkeeping.
 
-If the token is invalid, expired, or already used, the existing member rejects the join and Notary logs the failure; the operator must issue a new token and retry. A join refused for a schema-version mismatch consumes the token as well, since the token is redeemed before the version is compared — deliberately, so that the cluster's schema version is not readable by anyone who can reach an unauthenticated endpoint.
+If the token is invalid, expired, already used, or bound to a different identity, the existing member rejects the join and Notary logs the failure; the operator must issue a new token and retry. Schema mismatch is rejected without leaking the cluster schema to an unauthenticated caller.
 
 #### Existing node
 
-If `state_dir` is not empty, `notary start` resumes from the state already there — no `bootstrap` or `join` subcommand is needed or accepted. Cluster membership, once established, is authoritative over static configuration: the advertised address is recorded in the node's own dqlite state at bootstrap or join, and `go-dqlite` refuses to start a node whose configured `cluster.address` no longer matches it. Changing a member's address is therefore a remove-and-rejoin, not a config edit.
+If `state_dir` is not empty, `notary start` resumes from the state already there — no `bootstrap` or `join` subcommand is needed or accepted. Cluster membership, once established, is authoritative over static configuration: the advertised address is recorded in the node's own dqlite state at bootstrap or join, and `go-dqlite` refuses to start a node whose configured `cluster.address` no longer matches it. Changing a member's address is therefore a rebuild with rotated trust (§1.6 of spec.md), not a config edit.
 
 ### Operation
 
@@ -163,7 +161,7 @@ an `ONLINE`/`OFFLINE` state with a human-readable message.
 
 ### Decommissioning
 
-Member removal is disabled because Raft removal does not revoke the member's CA-signed certificate
-or the CA signing key it could read after unsealing. `DELETE /cluster/members/{id}` returns `501`.
-Until revocation or coordinated PKI rotation exists, excluding a member requires rebuilding the
-cluster and isolating the old host.
+Member removal is disabled because Raft removal does not revoke the member's externally issued
+certificate. `DELETE /cluster/members/{id}` returns `501`. Until revocation or coordinated PKI
+rotation exists, excluding a member requires isolating the host, rotating cluster trust, and
+rebuilding retained healthy hosts with new dqlite state and credentials.

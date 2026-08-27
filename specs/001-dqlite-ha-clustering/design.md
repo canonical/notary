@@ -29,9 +29,10 @@ current single-node implementation before designing on top of them, and one does
   auto-restart) by construction, since there's no human gate for orchestration to conflict with.
   See §2.1.
 
-- Everything else in "decisions already made" (dqlite, MicroCluster, DEK/KEK envelope,
-  stateless JWT) holds up under review; I've noted smaller sharp edges inline where they came up
-  (serial number generation, OpenFGA's storage backend, ACME leader affinity).
+- Everything else in "decisions already made" (dqlite, DEK/KEK envelope,
+  stateless JWT) holds up under review. MicroCluster was dropped (spec.md §1). ACME is a
+  designated issuer, not leader affinity (spec.md §4.3). Cluster PKI is operator-provisioned
+  (spec.md §1.1).
 
 ---
 
@@ -423,13 +424,10 @@ from an external CA over DNS-01), not an ACME server issuing to others — confi
 failover, because notary doesn't operate one.
 
 What *does* need attention under clustering, and doesn't exist today because there's only ever
-one process: **in-flight ACME issuance requests need to survive leader failover.** Today, a
-DNS-01 polling loop just runs in the one process that started it. In a cluster, if that node
-loses leadership (or dies) mid-poll, nothing currently resumes it. Recommend a small
-reconciliation loop, gated to run only on the current Raft leader (subscribing to MicroCluster's
-leader-change notification): on becoming leader, scan `acme_accounts`/in-flight request state for
-anything left in a non-terminal status and resume polling. This is a genuinely new piece of logic
-this design introduces — not a reframing of something that already exists.
+one process: **in-flight ACME issuance must not be left non-terminal when the issuing process
+dies.** The specification does **not** resume work on leader failover and does not couple ACME
+to Raft leadership. spec.md §4.3 designates one member as the ACME issuer; leftover attempts are
+failed on that issuer's restart. Automatic failover is a follow-up.
 
 ### 4.4 OpenFGA
 

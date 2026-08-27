@@ -20,7 +20,7 @@ flowchart LR
     P1["Phase 1<br/>Storage foundation"] --> P2["Phase 2<br/>Cluster membership"]
     P1 --> P3["Phase 3<br/>Encryption unseal"]
     P1 --> P4["Phase 4<br/>Native authorization datastore"]
-    P1 --> P6["Phase 6<br/>ACME leader-change handling"]
+    P1 --> P6["Phase 6<br/>Designated ACME issuer"]
     P1 --> P9["Phase 9<br/>Backup/restore rework"]
     P2 --> P8["Phase 8<br/>Operator UX/UI"]
     P3 --> P8
@@ -59,8 +59,8 @@ Phase 4 bypasses OpenFGA's own storage layer entirely.)
   `sqlair.NewDB(...)` exactly as today (`db_init.go:70`) — the rest of `NewDatabase` (goose
   migrations, `PrepareStatements()`) runs unchanged against it.
 - New `internal/cluster` package wrapping `app.New(dataDir, app.WithAddress(addr),
-app.WithTLS(...), app.WithVoters(3), app.WithStandBys(2))` for bootstrap (spec.md §1.1) —
-  generates the cluster-internal PKI (notary's own code, not borrowed from anywhere), and exposes
+app.WithTLS(...), app.WithVoters(3), app.WithStandBys(2))` for bootstrap (spec.md §1.2) —
+  loads operator-provisioned cluster PKI and refuses to generate any, and exposes
   the resulting `*app.App` for `db.NewDatabase`'s clustered path (`.Open`) and later phases
   (`.Leader`, `.Handover`, `.Close`) to use. Because the dqlite driver is CGo against Linux-only
   `libdqlite`, this implementation needs a `linux` build tag with a stub elsewhere, so the rest of
@@ -93,44 +93,38 @@ message naming the mismatch.
 ## Phase 2 — Cluster membership
 
 This is where the work MicroCluster would otherwise have supplied for free actually lives (spec.md
-§1's opening note): join-token issuance, trust distribution, and member bookkeeping. Everything
-else — the actual Raft join, role convergence, removal — is a thin wrapper over `app`/`client`
+§1's opening note): bootstrap-token issuance, PKI validation, and member bookkeeping. Everything
+else — the actual Raft join and role convergence — is a thin wrapper over `app`/`client`
 primitives Phase 1 already has access to.
 
-- **Token issuance and validation**: `notary cluster token create` generates a single-use, random,
-  TTL-bound token and stores it as a row in `notary.db` (spec.md §1.2). A new admin API endpoint
-  (below) validates a presented token — single-use, TTL check — against that row.
-- **Trust distribution (the CSR-signing join endpoint)**: the new node generates its own keypair
-  and CSR locally, then presents `{token, CSR}` to an existing member's admin API. The handler
-  validates the token, signs the CSR against the cluster CA (`internal/cluster`'s PKI, Phase 1),
-  and responds with the signed certificate plus the current member address list. This is the one
-  genuinely new protocol in this plan — small, but real: it did not exist before and has no
-  off-the-shelf equivalent to lean on.
+- **Token issuance and validation**: `notary cluster token create --identity` generates a
+  single-use, random, TTL-bound, identity-bound token and stores its hash (spec.md §1.3). A new
+  admin API endpoint validates a presented token against that row and identity.
+- **Join preflight (no CSR signing)**: the new node already holds provisioned PKI. It presents
+  `{token, address, schema_version}` to an existing member's admin API. The handler validates the
+  identity-bound token, checks schema version, redeems the token, and responds with the current
+  member address list. It does not sign certificates.
 - **Member bookkeeping**: a `cluster_members` table in `notary.db` (node ID → operator-assigned
-  name, joined-at), populated when a join completes. `client.NodeInfo` carries only ID, address,
-  and role — this table is what makes `notary cluster status` (below) show names instead of raw
-  dqlite node IDs.
-- CLI (`cmd/cluster.go`): `token create`, `join`, `promote`, `status`
-  (spec.md §6.1). `join` drives the new-node side of the CSR-signing exchange above, then calls
-  `app.New(..., app.WithCluster(peerAddrs))` to actually join Raft.
-- Admin API (new `internal/server/handlers_cluster.go`, wired into `internal/server/router.go`
-  alongside the existing `handlers_*.go` files): `/cluster/members`,
-  `/cluster/members/tokens`, `/cluster/members/join` (the CSR-signing endpoint above),
-  `/cluster/members/{id}`, `/cluster/members/{id}/promote`, `/cluster/status` (spec.md §6.2).
+  name, joined-at, heartbeat, seal), populated when a join completes.
+- CLI (`cmd/cluster.go`): `token create`, `join`, `status`, `acme-issuer set`
+  (spec.md §6.1). `join` drives preflight, then calls `app.New(..., app.WithCluster(peerAddrs))`.
+  There is no `promote` command.
+- Admin API (new `internal/server/handlers_cluster.go`): `/cluster/members`,
+  `/cluster/members/tokens`, `/cluster/members/join`, `/cluster/members/{id}`,
+  `/cluster/status`, `/cluster/acme-issuer` (spec.md §6.2).
   `DELETE /cluster/members/{id}` returns `501` until member credentials can be revoked
-  (spec.md §1.5).
+  (spec.md §1.6).
 - Build a local 3-node dev harness (docker-compose or an equivalent multi-process script) capable
   of bootstrapping, killing, and restarting individual nodes. This harness is reused by Phases 3,
   4, and 6 — build it once here.
 - The `POST /cluster/members/join` handler runs Phase 1's schema-version check against the
   requesting node's declared version before accepting the join, rejecting it with a clear error
-  otherwise — the same check, applied at the point a new node is admitted, not just at its own
-  startup.
+  otherwise.
 
-**Exit criteria**: the dev harness can bootstrap, join two more nodes via the real token/CSR flow
-(not a shortcut), promote/remove them, and `notary cluster status` reports correct names, role,
-and Raft state for all three. A join attempt from a node with a mismatched migration version is
-rejected with a clear error, not silently accepted.
+**Exit criteria**: the dev harness can bootstrap, join two more nodes via the real token/preflight
+flow (not a shortcut) using provisioned PKI, and `notary cluster status` reports correct names,
+role, and Raft state for all three. A join attempt from a node with a mismatched migration version
+is rejected with a clear error, not silently accepted. There is no promote/remove success path.
 
 ---
 
@@ -222,18 +216,19 @@ track.
 
 ---
 
-## Phase 6 — ACME leader-change handling
+## Phase 6 — Designated ACME issuer
 
-- New `internal/acme/reconcile.go`, registered via `app.WithRolesAdjustmentHook`. On each
-  invocation, compare the reported leader's node ID to this node's own; on a transition to leader,
-  scan for ACME-linked `certificate_requests` rows not in a terminal status and mark them `Failed`
-  with an internal-interruption reason. No resume logic — spec.md §4.3 has the reasoning.
+- Store the designated issuer's dqlite node ID in replicated `cluster_settings` at bootstrap.
+- Only that member starts ACME issuance. Other members reject with the issuer identity.
+- On designated-issuer restart, fail leftover in-flight attempts locally. Do not use heartbeats
+  or Raft leadership. `app.WithRolesAdjustmentHook` is not used for ACME.
+- `notary cluster acme-issuer set` replaces the issuer after the previous process is stopped.
 
-**Exit criteria**: in the dev harness, killing the current leader mid-poll of a DNS-01 challenge
-results in the affected request surfacing as `Failed` within one leader-election cycle. Also add
-a regression test confirming that during a simulated quorum loss (majority of voters killed),
-both reads and writes fail cleanly with a clear error — this is the expected, final behavior per
-spec.md §5, not a gap to close.
+**Exit criteria**: in the dev harness, ACME on a follower that is the designated issuer succeeds;
+the same request on another member is rejected; restarting the issuer fails leftover attempts.
+Also add a regression test confirming that during a simulated quorum loss (majority of voters
+killed), both reads and writes fail cleanly with a clear error — this is the expected, final
+behavior per spec.md §5, not a gap to close.
 
 > **Deviation, as implemented.** The quorum-loss regression test
 > (`internal/server/quorum_loss_test.go`) injects the condition rather than killing voters:
@@ -270,11 +265,10 @@ No dependency on clustering; can run in parallel with Phase 5 and with the clust
 
 ## Phase 8 — Operator UX / Web UI
 
-- "Cluster" admin screen in `ui/`, consuming the Phase 2 admin API: member table, add-node flow
-  (join token + copyable command), remove-node confirmation, seal-state badges (spec.md §6.3).
+- No cluster administration UI in the first release (spec.md §6.3). Status may appear as
+  observability (member table, copyable join command). Login/OIDC UI from Phase 7 is unrelated.
 
-**Exit criteria**: an admin can bootstrap, join, promote, remove, and observe seal state
-end-to-end through the UI alone, no CLI required.
+**Exit criteria**: cluster status is visible; there is no promote, remove, or enrollment action.
 
 ---
 

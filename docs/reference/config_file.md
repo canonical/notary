@@ -81,6 +81,15 @@ authentication:
   - `address` (string): The `host:port` this node advertises to the other cluster members for replication and join traffic. Required when `enabled` is `true`. It must be reachable by every other member, and it is a bare address, not a URL — do not include a scheme.
   - `state_dir` (string): Directory holding this node's replicated database and its cluster-internal certificates. Required when `enabled` is `true`. It is created if it does not exist, and it must not be shared with another node.
 
+Provision cluster certificates into `<state_dir>/pki` before `notary cluster bootstrap` or
+`notary cluster join`. Notary never generates these files and never stores a cluster CA private
+key. Required files:
+
+- `cluster.crt`: the cluster CA certificate (trust only)
+- `node.crt`: this node's certificate, signed by that CA, with client and server extended key usage.
+  The first DNS SAN must be `notary-cluster`. The certificate must be bound to `cluster.address`.
+- `node.key`: this node's private key, not world-readable
+
 `db_path` is still required when clustering is enabled, but it is not where a clustered node keeps its data; the replicated database lives in `state_dir`.
 
 A node's operator-facing name is not part of this file. It is given once with `--name` when the node runs `notary cluster bootstrap` or `notary cluster join`, and is recorded in the cluster from then on.

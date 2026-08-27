@@ -10,7 +10,7 @@ Requirements: Docker, and a built frontend (`cd ui && bun install && bun run bui
 ```sh
 ./harness.sh up            # build the image and binary, start three idle containers
 ./harness.sh bootstrap     # bootstrap the cluster on notary-1, create the admin account
-./harness.sh join 2        # join notary-2 through the real token/CSR exchange
+./harness.sh join 2        # join notary-2 with provisioned PKI and an identity-bound token
 ./harness.sh join 3
 ./harness.sh status
 ```
@@ -34,6 +34,6 @@ The first `up` compiles dqlite from source and takes several minutes; later runs
 reuse the image.
 
 Everything under `build/` is generated, including the self-signed API
-certificate shared by the three nodes. The cluster-internal PKI is not generated
-here: Notary creates it itself on bootstrap and hands out node certificates
-through the join exchange.
+certificate shared by the three nodes and a throwaway cluster CA with per-node
+certificates. The first DNS SAN on each node certificate is `notary-cluster`.
+The CA private key stays on the host and is not copied into the containers.

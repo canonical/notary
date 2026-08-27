@@ -49,3 +49,7 @@ url
 dqlite
 plaintext
 JWT
+ACME
+PKI
+SAN
+notary-cluster

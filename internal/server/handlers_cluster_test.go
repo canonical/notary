@@ -2,11 +2,10 @@ package server_test
 
 import (
 	"bytes"
-	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -38,6 +37,20 @@ func decodeClusterResponse[T any](t *testing.T, body []byte) tu.APIResponse[T] {
 	return response
 }
 
+func mustCreateJoinToken(t *testing.T, ts *httptest.Server, adminToken, identity string) string {
+	t.Helper()
+
+	body, err := json.Marshal(server.CreateJoinTokenParams{Identity: identity})
+	if err != nil {
+		t.Fatalf("couldn't build token request: %s", err)
+	}
+	statusCode, responseBody := tu.DoClusterAPIRequest(t, ts, "POST", "/api/v1/cluster/members/tokens", adminToken, body)
+	if statusCode != http.StatusCreated {
+		t.Fatalf("couldn't create a join token: %d %s", statusCode, string(responseBody))
+	}
+	return decodeClusterResponse[server.CreateJoinTokenResponse](t, responseBody).Data.Token
+}
+
 func fakeThreeNodeCluster() *tu.FakeClusterNode {
 	return &tu.FakeClusterNode{
 		NodeID:      1,
@@ -65,7 +78,7 @@ func TestClusterAPIIsAbsentWhenClusteringIsDisabled(t *testing.T) {
 		{"GET", "/api/v1/cluster/status"},
 		{"POST", "/api/v1/cluster/members/tokens"},
 		{"POST", "/api/v1/cluster/members/join"},
-		{"POST", "/api/v1/cluster/members/2/promote"},
+		{"PUT", "/api/v1/cluster/acme-issuer"},
 		{"DELETE", "/api/v1/cluster/members/2"},
 	}
 
@@ -91,7 +104,7 @@ func TestClusterAPIRequiresAdmin(t *testing.T) {
 		{"GET", "/api/v1/cluster/members"},
 		{"GET", "/api/v1/cluster/status"},
 		{"POST", "/api/v1/cluster/members/tokens"},
-		{"POST", "/api/v1/cluster/members/2/promote"},
+		{"PUT", "/api/v1/cluster/acme-issuer"},
 		{"DELETE", "/api/v1/cluster/members/2"},
 	}
 
@@ -248,11 +261,13 @@ func TestCreateClusterJoinTokenValidatesInput(t *testing.T) {
 		body       string
 		wantStatus int
 	}{
-		{"empty body uses the default ttl", "", http.StatusCreated},
-		{"empty object uses the default ttl", `{}`, http.StatusCreated},
-		{"negative ttl", `{"ttl_seconds":-1}`, http.StatusBadRequest},
-		{"ttl beyond the maximum", `{"ttl_seconds":90000}`, http.StatusBadRequest},
-		{"ttl within the maximum", `{"ttl_seconds":600}`, http.StatusCreated},
+		{"empty body requires identity", "", http.StatusBadRequest},
+		{"empty object requires identity", `{}`, http.StatusBadRequest},
+		{"identity as a URL", `{"identity":"https://10.0.0.4:9000"}`, http.StatusBadRequest},
+		{"negative ttl", `{"identity":"10.0.0.4:9000","ttl_seconds":-1}`, http.StatusBadRequest},
+		{"ttl beyond the maximum", `{"identity":"10.0.0.4:9000","ttl_seconds":90000}`, http.StatusBadRequest},
+		{"identity with the default ttl", `{"identity":"10.0.0.4:9000"}`, http.StatusCreated},
+		{"ttl within the maximum", `{"identity":"10.0.0.4:9000","ttl_seconds":600}`, http.StatusCreated},
 	}
 
 	for _, tt := range tests {
@@ -272,6 +287,9 @@ func TestCreateClusterJoinTokenValidatesInput(t *testing.T) {
 			if response.Token == "" {
 				t.Error("no token was returned")
 			}
+			if response.Identity != "10.0.0.4:9000" {
+				t.Errorf("got identity %q, want 10.0.0.4:9000", response.Identity)
+			}
 			if response.ExpiresAt == 0 {
 				t.Error("no expiry was returned")
 			}
@@ -286,55 +304,25 @@ func TestRejectedJoinRequestsDoNotSpendTheToken(t *testing.T) {
 
 	ts, _ := tu.MustPrepareClusterServer(t, fakeThreeNodeCluster())
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
-
-	statusCode, body := tu.DoClusterAPIRequest(t, ts, "POST", "/api/v1/cluster/members/tokens", adminToken, nil)
-	if statusCode != http.StatusCreated {
-		t.Fatalf("couldn't create a join token: %d %s", statusCode, string(body))
-	}
-	token := decodeClusterResponse[server.CreateJoinTokenResponse](t, body).Data.Token
-
+	token := mustCreateJoinToken(t, ts, adminToken, joinerAddress)
 	schemaVersion := mustSchemaVersion(t)
-	joinerDir := t.TempDir()
-	csrPEM, err := cluster.PrepareJoin(joinerDir, joinerAddress)
-	if err != nil {
-		t.Fatalf("couldn't prepare a join: %s", err)
-	}
 
-	rejected := []struct {
-		name       string
-		params     server.JoinClusterParams
-		wantStatus int
-	}{
-		{
-			"malformed csr",
-			server.JoinClusterParams{Token: token, Address: joinerAddress, CSR: "not a csr", SchemaVersion: schemaVersion},
-			http.StatusBadRequest,
-		},
-		{
-			"mismatched schema version",
-			server.JoinClusterParams{Token: token, Address: joinerAddress, CSR: string(csrPEM), SchemaVersion: schemaVersion + 1},
-			http.StatusConflict,
-		},
-	}
-
-	for _, tt := range rejected {
-		t.Run(tt.name, func(t *testing.T) {
-			requestBody, err := json.Marshal(tt.params)
-			if err != nil {
-				t.Fatalf("couldn't build the join request: %s", err)
-			}
-			statusCode, body := tu.DoClusterAPIRequest(t, ts, "POST", "/api/v1/cluster/members/join", "", requestBody)
-			if statusCode != tt.wantStatus {
-				t.Fatalf("expected status %d, got %d: %s", tt.wantStatus, statusCode, string(body))
-			}
-		})
-	}
-
-	// The token survived every rejection and still admits a valid request.
 	requestBody, err := json.Marshal(server.JoinClusterParams{
 		Token:         token,
 		Address:       joinerAddress,
-		CSR:           string(csrPEM),
+		SchemaVersion: schemaVersion + 1,
+	})
+	if err != nil {
+		t.Fatalf("couldn't build the join request: %s", err)
+	}
+	statusCode, body := tu.DoClusterAPIRequest(t, ts, "POST", "/api/v1/cluster/members/join", "", requestBody)
+	if statusCode != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusConflict, statusCode, string(body))
+	}
+
+	requestBody, err = json.Marshal(server.JoinClusterParams{
+		Token:         token,
+		Address:       joinerAddress,
 		SchemaVersion: schemaVersion,
 	})
 	if err != nil {
@@ -349,34 +337,22 @@ func TestRejectedJoinRequestsDoNotSpendTheToken(t *testing.T) {
 func TestJoinClusterEndToEnd(t *testing.T) {
 	const joinerAddress = "10.0.0.4:9000"
 
-	node := fakeThreeNodeCluster()
-	ts, _ := tu.MustPrepareClusterServer(t, node)
+	ts, _ := tu.MustPrepareClusterServer(t, fakeThreeNodeCluster())
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+	token := mustCreateJoinToken(t, ts, adminToken, joinerAddress)
 
-	statusCode, body := tu.DoClusterAPIRequest(t, ts, "POST", "/api/v1/cluster/members/tokens", adminToken, nil)
-	if statusCode != http.StatusCreated {
-		t.Fatalf("couldn't create a join token: %d %s", statusCode, string(body))
-	}
-	token := decodeClusterResponse[server.CreateJoinTokenResponse](t, body).Data.Token
-
-	joinerDir := t.TempDir()
-	csrPEM, err := cluster.PrepareJoin(joinerDir, joinerAddress)
-	if err != nil {
-		t.Fatalf("couldn't prepare a join: %s", err)
-	}
 	joinBody, err := json.Marshal(server.JoinClusterParams{
 		Token:         token,
 		Address:       joinerAddress,
-		CSR:           string(csrPEM),
 		SchemaVersion: mustSchemaVersion(t),
 	})
 	if err != nil {
 		t.Fatalf("couldn't build the join request: %s", err)
 	}
 
-	// The joining node has no account and no cluster certificate yet: the join
-	// token is the only credential it presents.
-	statusCode, body = tu.DoClusterAPIRequest(t, ts, "POST", "/api/v1/cluster/members/join", "", joinBody)
+	// The joining node has no account yet: the join token is the only credential
+	// it presents, and only for schema preflight and peer discovery.
+	statusCode, body := tu.DoClusterAPIRequest(t, ts, "POST", "/api/v1/cluster/members/join", "", joinBody)
 	if statusCode != http.StatusOK {
 		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, statusCode, string(body))
 	}
@@ -386,31 +362,45 @@ func TestJoinClusterEndToEnd(t *testing.T) {
 		t.Errorf("got %d peer addresses, want 3", len(joinResponse.MemberAddress))
 	}
 
-	// The join endpoint is authenticated only by a single-use token, so nothing
-	// it returns may be a lasting credential.
-	if bytes.Contains(body, []byte("PRIVATE KEY")) {
-		t.Error("the join response carries a private key")
+	if bytes.Contains(body, []byte("PRIVATE KEY")) || bytes.Contains(body, []byte("BEGIN CERTIFICATE")) {
+		t.Error("the join response carries certificate material")
 	}
 
-	if err := cluster.CompleteJoin(joinerDir, []byte(joinResponse.Certificate), []byte(joinResponse.CACertificate)); err != nil {
-		t.Fatalf("couldn't complete the join: %s", err)
-	}
-	pki, err := cluster.EnsurePKI(joinerDir, joinerAddress)
-	if err != nil {
-		t.Fatalf("couldn't load the joined node's PKI: %s", err)
-	}
-	cert, err := x509.ParseCertificate(pki.Certificate.Certificate[0])
-	if err != nil {
-		t.Fatalf("couldn't parse the issued certificate: %s", err)
-	}
-	if _, err := cert.Verify(x509.VerifyOptions{Roots: pki.Pool, KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny}}); err != nil {
-		t.Errorf("the issued certificate does not verify against the cluster CA: %s", err)
-	}
-
-	// A join token authorizes exactly one node.
 	statusCode, _ = tu.DoClusterAPIRequest(t, ts, "POST", "/api/v1/cluster/members/join", "", joinBody)
 	if statusCode != http.StatusUnauthorized {
 		t.Fatalf("expected the reused token to be rejected with %d, got %d", http.StatusUnauthorized, statusCode)
+	}
+}
+
+func TestJoinClusterRejectsAMismatchedIdentity(t *testing.T) {
+	ts, _ := tu.MustPrepareClusterServer(t, fakeThreeNodeCluster())
+	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+	token := mustCreateJoinToken(t, ts, adminToken, "10.0.0.4:9000")
+
+	joinBody, err := json.Marshal(server.JoinClusterParams{
+		Token:         token,
+		Address:       "10.0.0.5:9000",
+		SchemaVersion: mustSchemaVersion(t),
+	})
+	if err != nil {
+		t.Fatalf("couldn't build the join request: %s", err)
+	}
+	statusCode, _ := tu.DoClusterAPIRequest(t, ts, "POST", "/api/v1/cluster/members/join", "", joinBody)
+	if statusCode != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, statusCode)
+	}
+
+	joinBody, err = json.Marshal(server.JoinClusterParams{
+		Token:         token,
+		Address:       "10.0.0.4:9000",
+		SchemaVersion: mustSchemaVersion(t),
+	})
+	if err != nil {
+		t.Fatalf("couldn't build the join request: %s", err)
+	}
+	statusCode, body := tu.DoClusterAPIRequest(t, ts, "POST", "/api/v1/cluster/members/join", "", joinBody)
+	if statusCode != http.StatusOK {
+		t.Fatalf("the token was spent by a mismatched identity: %d %s", statusCode, string(body))
 	}
 }
 
@@ -419,50 +409,30 @@ func TestJoinClusterEndToEnd(t *testing.T) {
 func TestJoinClusterRejectsAMismatchedSchemaVersion(t *testing.T) {
 	ts, _ := tu.MustPrepareClusterServer(t, fakeThreeNodeCluster())
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+	token := mustCreateJoinToken(t, ts, adminToken, "10.0.0.4:9000")
 
-	statusCode, body := tu.DoClusterAPIRequest(t, ts, "POST", "/api/v1/cluster/members/tokens", adminToken, nil)
-	if statusCode != http.StatusCreated {
-		t.Fatalf("couldn't create a join token: %d %s", statusCode, string(body))
-	}
-	token := decodeClusterResponse[server.CreateJoinTokenResponse](t, body).Data.Token
-
-	csrPEM, err := cluster.PrepareJoin(t.TempDir(), "10.0.0.4:9000")
-	if err != nil {
-		t.Fatalf("couldn't prepare a join: %s", err)
-	}
 	joinBody, err := json.Marshal(server.JoinClusterParams{
 		Token:         token,
 		Address:       "10.0.0.4:9000",
-		CSR:           string(csrPEM),
 		SchemaVersion: mustSchemaVersion(t) - 1,
 	})
 	if err != nil {
 		t.Fatalf("couldn't build the join request: %s", err)
 	}
 
-	statusCode, body = tu.DoClusterAPIRequest(t, ts, "POST", "/api/v1/cluster/members/join", "", joinBody)
+	statusCode, body := tu.DoClusterAPIRequest(t, ts, "POST", "/api/v1/cluster/members/join", "", joinBody)
 	if statusCode != http.StatusConflict {
 		t.Fatalf("expected status %d, got %d: %s", http.StatusConflict, statusCode, string(body))
 	}
-	if block, _ := pem.Decode(body); block != nil {
-		t.Error("a certificate was returned despite the schema version mismatch")
+	if bytes.Contains(body, []byte("member_addresses")) {
+		t.Error("peer addresses were returned despite the schema version mismatch")
 	}
 }
 
 func TestJoinClusterRejectsBadRequests(t *testing.T) {
 	ts, _ := tu.MustPrepareClusterServer(t, fakeThreeNodeCluster())
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
-
-	statusCode, body := tu.DoClusterAPIRequest(t, ts, "POST", "/api/v1/cluster/members/tokens", adminToken, nil)
-	if statusCode != http.StatusCreated {
-		t.Fatalf("couldn't create a join token: %d %s", statusCode, string(body))
-	}
-	token := decodeClusterResponse[server.CreateJoinTokenResponse](t, body).Data.Token
-
-	csrPEM, err := cluster.PrepareJoin(t.TempDir(), "10.0.0.4:9000")
-	if err != nil {
-		t.Fatalf("couldn't prepare a join: %s", err)
-	}
+	token := mustCreateJoinToken(t, ts, adminToken, "10.0.0.4:9000")
 
 	tests := []struct {
 		name       string
@@ -470,9 +440,8 @@ func TestJoinClusterRejectsBadRequests(t *testing.T) {
 		wantStatus int
 	}{
 		{"missing fields", server.JoinClusterParams{Token: token}, http.StatusBadRequest},
-		{"unknown token", server.JoinClusterParams{Token: "nope", Address: "10.0.0.4:9000", CSR: string(csrPEM)}, http.StatusUnauthorized},
-		{"valid token, unusable csr", server.JoinClusterParams{Token: token, Address: "10.0.0.4:9000", CSR: "not a csr", SchemaVersion: mustSchemaVersion(t)}, http.StatusBadRequest},
-		{"url as address", server.JoinClusterParams{Token: token, Address: "https://10.0.0.4:9000", CSR: string(csrPEM), SchemaVersion: mustSchemaVersion(t)}, http.StatusBadRequest},
+		{"unknown token", server.JoinClusterParams{Token: "nope", Address: "10.0.0.4:9000", SchemaVersion: mustSchemaVersion(t)}, http.StatusUnauthorized},
+		{"url as address", server.JoinClusterParams{Token: token, Address: "https://10.0.0.4:9000", SchemaVersion: mustSchemaVersion(t)}, http.StatusBadRequest},
 	}
 
 	t.Run("not json", func(t *testing.T) {
@@ -496,19 +465,13 @@ func TestJoinClusterRejectsBadRequests(t *testing.T) {
 	}
 }
 
-// An invalid token must not be distinguishable from an unknown one, and neither
-// must reveal anything about the CSR that was sent with it.
-func TestJoinClusterDoesNotSignWithoutAValidToken(t *testing.T) {
+func TestJoinClusterDoesNotAdmitWithoutAValidToken(t *testing.T) {
 	ts, _ := tu.MustPrepareClusterServer(t, fakeThreeNodeCluster())
 
-	csrPEM, err := cluster.PrepareJoin(t.TempDir(), "10.0.0.4:9000")
-	if err != nil {
-		t.Fatalf("couldn't prepare a join: %s", err)
-	}
 	joinBody, err := json.Marshal(server.JoinClusterParams{
-		Token:   "not-a-real-token",
-		Address: "10.0.0.4:9000",
-		CSR:     string(csrPEM),
+		Token:         "not-a-real-token",
+		Address:       "10.0.0.4:9000",
+		SchemaVersion: mustSchemaVersion(t),
 	})
 	if err != nil {
 		t.Fatalf("couldn't build the join request: %s", err)
@@ -518,8 +481,8 @@ func TestJoinClusterDoesNotSignWithoutAValidToken(t *testing.T) {
 	if statusCode != http.StatusUnauthorized {
 		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, statusCode)
 	}
-	if block, _ := pem.Decode(body); block != nil {
-		t.Error("a certificate was returned despite the invalid token")
+	if bytes.Contains(body, []byte("member_addresses")) {
+		t.Error("peer addresses were returned despite the invalid token")
 	}
 }
 
@@ -540,26 +503,49 @@ func TestClusterMemberRemovalIsDisabledUntilCredentialsCanBeRevoked(t *testing.T
 	}
 }
 
-func TestPromoteClusterMember(t *testing.T) {
-	node := fakeThreeNodeCluster()
-	ts, _ := tu.MustPrepareClusterServer(t, node)
+func TestSetACMEIssuer(t *testing.T) {
+	ts, database := tu.MustPrepareClusterServerWithDatabase(t, fakeThreeNodeCluster())
 	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+	now := time.Now().UTC()
+	if _, err := database.CreateClusterMember("2", "node-2", "10.0.0.2:9000", now); err != nil {
+		t.Fatalf("couldn't record member 2: %s", err)
+	}
 
-	t.Run("promote", func(t *testing.T) {
-		statusCode, body := tu.DoClusterAPIRequest(t, ts, "POST", "/api/v1/cluster/members/3/promote", adminToken, nil)
-		if statusCode != http.StatusOK {
-			t.Fatalf("expected status %d, got %d: %s", http.StatusOK, statusCode, string(body))
+	body, err := json.Marshal(server.SetACMEIssuerParams{NodeID: "2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	statusCode, responseBody := tu.DoClusterAPIRequest(t, ts, "PUT", "/api/v1/cluster/acme-issuer", adminToken, body)
+	if statusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, statusCode, string(responseBody))
+	}
+	got := decodeClusterResponse[server.ACMEIssuerResponse](t, responseBody).Data.NodeID
+	if got != "2" {
+		t.Errorf("got issuer %q, want 2", got)
+	}
+	stored, err := database.GetACMEIssuerNodeID()
+	if err != nil {
+		t.Fatalf("couldn't read stored issuer: %s", err)
+	}
+	if stored != "2" {
+		t.Errorf("stored issuer %q, want 2", stored)
+	}
+
+	t.Run("unknown member", func(t *testing.T) {
+		body, err := json.Marshal(server.SetACMEIssuerParams{NodeID: "99"})
+		if err != nil {
+			t.Fatal(err)
 		}
-		if promoted := node.Promoted(); len(promoted) != 1 || promoted[0] != 3 {
-			t.Fatalf("got promotions %v, want [3]", promoted)
+		statusCode, _ := tu.DoClusterAPIRequest(t, ts, "PUT", "/api/v1/cluster/acme-issuer", adminToken, body)
+		if statusCode != http.StatusNotFound {
+			t.Fatalf("expected status %d, got %d", http.StatusNotFound, statusCode)
 		}
 	})
 
-	t.Run("invalid member id", func(t *testing.T) {
-		path := "/api/v1/cluster/members/abc/promote"
-		statusCode, _ := tu.DoClusterAPIRequest(t, ts, "POST", path, adminToken, nil)
+	t.Run("empty node id", func(t *testing.T) {
+		statusCode, _ := tu.DoClusterAPIRequest(t, ts, "PUT", "/api/v1/cluster/acme-issuer", adminToken, []byte(`{}`))
 		if statusCode != http.StatusBadRequest {
-			t.Fatalf("expected status %d for %s, got %d", http.StatusBadRequest, path, statusCode)
+			t.Fatalf("expected status %d, got %d", http.StatusBadRequest, statusCode)
 		}
 	})
 }

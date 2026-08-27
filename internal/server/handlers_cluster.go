@@ -21,7 +21,7 @@ import (
 const defaultJoinTokenTTL = time.Hour
 
 // maxJoinTokenTTL bounds what an operator may ask for. A join token is on its
-// own sufficient to obtain a cluster certificate, so it must never be a
+// own sufficient to complete join preflight, so it must never be a
 // long-lived credential (spec §1.2).
 const maxJoinTokenTTL = 24 * time.Hour
 
@@ -325,8 +325,7 @@ func SetACMEIssuer(env *HandlerDependencies) http.HandlerFunc {
 }
 
 // DeleteClusterMember rejects removal until cluster credentials can be revoked.
-// Removing only the Raft member leaves its CA-signed certificate trusted, and
-// every admitted member has had access to the replicated CA signing key.
+// Removing only the Raft member leaves its CA-signed certificate trusted.
 func DeleteClusterMember(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !clusterEnabled(w, env) {

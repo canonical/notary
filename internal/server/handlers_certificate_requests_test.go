@@ -662,65 +662,79 @@ func TestSignCertificateRequestSigningMethodBranching(t *testing.T) {
 	})
 }
 
-// ACME issuance is confined to the cluster leader: the DNS-01 challenge
+// ACME issuance is confined to the designated issuer: the DNS-01 challenge
 // publishes a record that is global to the domain, and confining issuance to one
-// node is what lets a new leader treat every recorded attempt as orphaned. A
-// follower must therefore refuse the request and say where to send it instead.
-func TestACMESigningIsRefusedOffTheClusterLeader(t *testing.T) {
-	tests := []struct {
-		name    string
-		node    *tu.StubClusterNode
-		message string
-	}{
-		{
-			name: "another node leads",
-			node: &tu.StubClusterNode{
-				NodeID:     2,
-				NodeAddr:   "10.0.0.2:7000",
-				LeaderInfo: &cluster.MemberInfo{ID: 1, Address: "10.0.0.1:7000"},
-			},
-			message: "ACME signing is only available on the cluster leader, currently 10.0.0.1:7000",
-		},
-		{
-			name: "no leader has been elected",
-			node: &tu.StubClusterNode{
-				NodeID:   2,
-				NodeAddr: "10.0.0.2:7000",
-			},
-			message: "ACME signing is only available on the cluster leader",
+// node is what lets that issuer treat leftover attempts as dead on restart. A
+// non-issuer must therefore refuse the request and say where to send it instead.
+func TestACMESigningIsRefusedOffTheDesignatedIssuer(t *testing.T) {
+	node := &tu.FakeClusterNode{
+		NodeID:      2,
+		NodeAddress: "10.0.0.2:7000",
+		LeaderID:    1,
+		MemberList: []cluster.MemberInfo{
+			{ID: 1, Address: "10.0.0.1:7000", Role: cluster.RoleVoter},
+			{ID: 2, Address: "10.0.0.2:7000", Role: cluster.RoleVoter},
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			ts, _ := tu.MustPrepareServerWithClusterNode(t, test.node)
-			adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
-			client := ts.Client()
+	t.Run("another node is the issuer", func(t *testing.T) {
+		ts, database := tu.MustPrepareClusterServerWithDatabase(t, node)
+		if err := database.SetACMEIssuerNodeID("1"); err != nil {
+			t.Fatalf("couldn't set ACME issuer: %s", err)
+		}
+		adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+		client := ts.Client()
 
-			statusCode, _, err := tu.CreateCertificateRequest(ts.URL, client, adminToken, tu.CreateCertificateRequestParams{CSR: tu.AppleCSR})
-			if err != nil {
-				t.Fatalf("failed to create certificate request: %v", err)
-			}
-			if statusCode != http.StatusCreated {
-				t.Fatalf("expected status %d creating CSR, got %d", http.StatusCreated, statusCode)
-			}
+		statusCode, _, err := tu.CreateCertificateRequest(ts.URL, client, adminToken, tu.CreateCertificateRequestParams{CSR: tu.AppleCSR})
+		if err != nil {
+			t.Fatalf("failed to create certificate request: %v", err)
+		}
+		if statusCode != http.StatusCreated {
+			t.Fatalf("expected status %d creating CSR, got %d", http.StatusCreated, statusCode)
+		}
 
-			statusCode, response, err := tu.SignCertificateRequest(ts.URL, client, adminToken, 1, server.SignCertificateRequestParams{
-				SigningMethod: "acme",
-			})
-			if err != nil {
-				t.Fatalf("SignCertificateRequest() error: %v", err)
-			}
-			if statusCode != http.StatusServiceUnavailable {
-				t.Fatalf("expected status %d, got %d", http.StatusServiceUnavailable, statusCode)
-			}
-			// A follower must be rejected before any ACME configuration is read,
-			// so the message must name leadership rather than the missing server.
-			if response.Message != test.message {
-				t.Fatalf("expected message %q, got %q", test.message, response.Message)
-			}
+		statusCode, response, err := tu.SignCertificateRequest(ts.URL, client, adminToken, 1, server.SignCertificateRequestParams{
+			SigningMethod: "acme",
 		})
-	}
+		if err != nil {
+			t.Fatalf("SignCertificateRequest() error: %v", err)
+		}
+		if statusCode != http.StatusServiceUnavailable {
+			t.Fatalf("expected status %d, got %d", http.StatusServiceUnavailable, statusCode)
+		}
+		want := "ACME signing is only available on the designated issuer, currently 10.0.0.1:7000"
+		if response.Message != want {
+			t.Fatalf("expected message %q, got %q", want, response.Message)
+		}
+	})
+
+	t.Run("issuer is not configured", func(t *testing.T) {
+		ts, _ := tu.MustPrepareClusterServerWithDatabase(t, node)
+		adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+		client := ts.Client()
+
+		statusCode, _, err := tu.CreateCertificateRequest(ts.URL, client, adminToken, tu.CreateCertificateRequestParams{CSR: tu.AppleCSR})
+		if err != nil {
+			t.Fatalf("failed to create certificate request: %v", err)
+		}
+		if statusCode != http.StatusCreated {
+			t.Fatalf("expected status %d creating CSR, got %d", http.StatusCreated, statusCode)
+		}
+
+		statusCode, response, err := tu.SignCertificateRequest(ts.URL, client, adminToken, 1, server.SignCertificateRequestParams{
+			SigningMethod: "acme",
+		})
+		if err != nil {
+			t.Fatalf("SignCertificateRequest() error: %v", err)
+		}
+		if statusCode != http.StatusServiceUnavailable {
+			t.Fatalf("expected status %d, got %d", http.StatusServiceUnavailable, statusCode)
+		}
+		want := "the ACME issuer is not configured"
+		if response.Message != want {
+			t.Fatalf("expected message %q, got %q", want, response.Message)
+		}
+	})
 }
 
 // TestRevokeNonCACertificateReturns422 is a regression test for the bug where revoking

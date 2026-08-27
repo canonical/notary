@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/canonical/notary/internal/cluster"
+	tu "github.com/canonical/notary/internal/testutils"
 )
 
 const testAddress = "10.0.0.1:9000"
@@ -41,26 +42,20 @@ func TestStartRefusesWithoutCompleteMetadata(t *testing.T) {
 			// holding dqlite's data did not.
 			"PKI intact but no dqlite data",
 			func(t *testing.T, stateDir string) {
-				if _, err := cluster.EnsurePKI(stateDir, testAddress); err != nil {
-					t.Fatalf("couldn't create the PKI: %s", err)
-				}
+				tu.WriteProvisionedPKI(t, stateDir, testAddress)
 			},
 		},
 		{
 			"data directory holds only fragments",
 			func(t *testing.T, stateDir string) {
-				if _, err := cluster.EnsurePKI(stateDir, testAddress); err != nil {
-					t.Fatalf("couldn't create the PKI: %s", err)
-				}
+				tu.WriteProvisionedPKI(t, stateDir, testAddress)
 				writeDataDirFile(t, stateDir, "dqlite-lock")
 			},
 		},
 		{
 			"identity without a peer list",
 			func(t *testing.T, stateDir string) {
-				if _, err := cluster.EnsurePKI(stateDir, testAddress); err != nil {
-					t.Fatalf("couldn't create the PKI: %s", err)
-				}
+				tu.WriteProvisionedPKI(t, stateDir, testAddress)
 				writeDataDirFile(t, stateDir, "info.yaml")
 			},
 		},

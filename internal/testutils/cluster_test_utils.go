@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"sync"
 	"testing"
 
 	"github.com/canonical/notary/internal/backends/encryption"
@@ -31,9 +30,7 @@ type FakeClusterNode struct {
 	LeaderID    uint64
 	// Err, when set, is returned by every membership query, which is what a
 	// handler sees when the cluster is unreachable.
-	Err      error
-	mu       sync.Mutex
-	promoted []uint64
+	Err error
 }
 
 func (n *FakeClusterNode) Open(ctx context.Context, name string) (*sql.DB, error) {
@@ -65,24 +62,7 @@ func (n *FakeClusterNode) Leader(ctx context.Context) (*cluster.MemberInfo, erro
 	return nil, nil
 }
 
-func (n *FakeClusterNode) Promote(ctx context.Context, id uint64) error {
-	if n.Err != nil {
-		return n.Err
-	}
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	n.promoted = append(n.promoted, id)
-	return nil
-}
-
 func (n *FakeClusterNode) Close(ctx context.Context) error { return nil }
-
-// Promoted returns the node IDs Promote was called with, in order.
-func (n *FakeClusterNode) Promoted() []uint64 {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	return append([]uint64(nil), n.promoted...)
-}
 
 // MustPrepareClusterServer starts a test server with the cluster API enabled,
 // backed by node and by a freshly bootstrapped cluster PKI, and returns it
@@ -120,21 +100,9 @@ func mustPrepareClusterServer(t *testing.T, node cluster.Node, sealed bool) (*ht
 	t.Helper()
 
 	stateDir := t.TempDir()
-	if _, err := cluster.EnsurePKI(stateDir, "127.0.0.1:9000"); err != nil {
-		t.Fatalf("Couldn't bootstrap the cluster PKI: %s", err)
-	}
+	WriteProvisionedPKI(t, stateDir, "127.0.0.1:9000")
 
 	database := MustPrepareEmptyDB(t)
-
-	// Signing a join reads the CA key from the database, as a bootstrapped node
-	// puts it there.
-	caKeyPEM, err := cluster.LoadCAKey(stateDir)
-	if err != nil {
-		t.Fatalf("Couldn't read the cluster CA key: %s", err)
-	}
-	if err := database.CreateClusterCAKey(caKeyPEM); err != nil {
-		t.Fatalf("Couldn't store the cluster CA key: %s", err)
-	}
 
 	core, _ := observer.New(zapcore.InfoLevel)
 

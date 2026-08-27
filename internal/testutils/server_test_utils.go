@@ -34,7 +34,8 @@ func MustPrepareServer(t *testing.T) (*httptest.Server, *observer.ObservedLogs) 
 // MustPrepareServerWithClusterNode starts a test server whose app environment
 // reports the given cluster membership. Passing nil produces an unclustered
 // server; passing a StubClusterNode exercises handlers that behave differently
-// depending on which node leads, without needing a real dqlite cluster.
+// depending on which node is the designated ACME issuer, without needing a
+// real dqlite cluster.
 func MustPrepareServerWithClusterNode(t *testing.T, node cluster.Node) (*httptest.Server, *observer.ObservedLogs) {
 	t.Helper()
 
@@ -89,7 +90,6 @@ func (n *StubClusterNode) Open(context.Context, string) (*sql.DB, error) {
 	panic("StubClusterNode cannot open a database")
 }
 func (n *StubClusterNode) Ready(context.Context) error            { return nil }
-func (n *StubClusterNode) Promote(context.Context, uint64) error  { panic("not implemented") }
 func (n *StubClusterNode) Handover(context.Context, uint64) error { panic("not implemented") }
 func (n *StubClusterNode) Remove(context.Context, uint64) error   { panic("not implemented") }
 func (n *StubClusterNode) Close(context.Context) error            { return nil }

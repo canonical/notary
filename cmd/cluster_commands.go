@@ -104,8 +104,8 @@ var clusterStatusCmd = &cobra.Command{
 		for _, member := range status.Members {
 			name := member.Name
 			if name == "" {
-				// The ID is printed for every nameless member so promote still has
-				// something to address.
+				// The ID is printed for every nameless member so status and
+				// acme-issuer still have something to address.
 				name = member.ID
 			}
 			_, _ = fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\n",
@@ -248,8 +248,7 @@ Run this once, on the new node, before starting the Notary server on it.`,
 		}
 
 		// dqlite assigns Raft roles itself, keeping the configured number of
-		// voters filled and promoting a stand-by when one is lost. `notary cluster
-		// promote` forces it ahead of that.
+		// voters filled and promoting a stand-by when one is lost.
 		cmd.Printf("joined the cluster as %s (node %s)\n", name, nodeID)
 
 		return nil

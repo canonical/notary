@@ -37,8 +37,8 @@ func (db *DatabaseRepository) CreateClusterJoinToken(tokenHash, identity string,
 // without consuming it.
 //
 // It exists so the join handler can reject a request it was never going to be
-// able to satisfy — a malformed CSR, a schema version it does not share — before
-// spending the operator's single-use token on it.
+// able to satisfy — a schema version it does not share — before spending the
+// operator's single-use token on it.
 func (db *DatabaseRepository) VerifyClusterJoinToken(tokenHash, identity string, now time.Time) error {
 	var unused int
 	err := db.Conn.PlainDB().QueryRow(

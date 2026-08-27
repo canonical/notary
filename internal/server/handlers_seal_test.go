@@ -61,7 +61,7 @@ func TestSealedNodeServesOnlyObservabilityRoutes(t *testing.T) {
 		{"create account", http.MethodPost, "/api/v1/accounts"},
 		{"create join token", http.MethodPost, "/api/v1/cluster/members/tokens"},
 		{"join cluster", http.MethodPost, "/api/v1/cluster/members/join"},
-		{"promote member", http.MethodPost, "/api/v1/cluster/members/1/promote"},
+		{"set ACME issuer", http.MethodPut, "/api/v1/cluster/acme-issuer"},
 		{"remove member", http.MethodDelete, "/api/v1/cluster/members/1"},
 	}
 	for _, route := range gated {

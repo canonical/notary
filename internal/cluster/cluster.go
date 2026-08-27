@@ -53,20 +53,14 @@ type Options struct {
 	// dqlite and Raft traffic. It must be reachable by every other member.
 	Address string
 
-	// Bootstrap forms a brand new cluster with this node as its only voter,
-	// generating the cluster CA. Only `notary cluster bootstrap` sets it: every
-	// other caller must find an initialized state directory or fail.
+	// Bootstrap forms a brand new cluster with this node as its only voter.
+	// Only `notary cluster bootstrap` sets it: every other caller must find an
+	// initialized state directory or fail. Cluster PKI must already be provisioned.
 	Bootstrap bool
 
 	// Join lists the addresses of existing cluster members, as handed back by
 	// the member that admitted this node.
 	Join []string
-
-	// OnRolesAdjustment, if set, is called on this node each time dqlite
-	// re-evaluates cluster roles, with the ID of the current leader. It is how
-	// Notary learns that leadership has moved. It runs on dqlite's own loop, so
-	// it must not block for long; an error is logged and otherwise ignored.
-	OnRolesAdjustment func(leaderID uint64) error
 }
 
 // Role is the Raft role a cluster member holds.
@@ -115,10 +109,6 @@ type Node interface {
 	// Leader returns the member currently leading the Raft cluster, or nil if
 	// there is no leader right now.
 	Leader(ctx context.Context) (*MemberInfo, error)
-
-	// Promote assigns the voter role to a member. Role convergence is otherwise
-	// automatic; this exists so an operator can force it immediately.
-	Promote(ctx context.Context, id uint64) error
 
 	// Close shuts the node down, first handing over any voting role it holds so
 	// the remaining members keep quorum.

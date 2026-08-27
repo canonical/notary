@@ -586,21 +586,19 @@ func SignCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 				log.WithRequest(r),
 			)
 		case "acme":
-			// ACME issuance runs on the cluster leader alone. The DNS-01
+			// ACME issuance runs on the designated issuer alone. The DNS-01
 			// challenge publishes a _acme-challenge record that is global to the
-			// domain, so two nodes issuing at once would overwrite each other's;
-			// and confining issuance to one node is what lets a new leader treat
-			// every attempt it did not start as orphaned.
-			leaderAddress, onLeader, err := acmeIssuanceLeader(r.Context(), env)
+			// domain, so two nodes issuing at once would overwrite each other's.
+			issuerAddress, onIssuer, err := acmeIssuanceIssuer(r.Context(), env)
 			if err != nil {
-				env.SystemLogger.Error("failed to identify the cluster leader for ACME signing", zap.Error(err), zap.Int64("csr_id", idNum))
-				writeResponse(w, http.StatusServiceUnavailable, "the cluster leader is unreachable", nil, env.SystemLogger)
+				env.SystemLogger.Error("failed to identify the ACME issuer", zap.Error(err), zap.Int64("csr_id", idNum))
+				writeResponse(w, http.StatusServiceUnavailable, "the ACME issuer is not configured", nil, env.SystemLogger)
 				return
 			}
-			if !onLeader {
-				message := "ACME signing is only available on the cluster leader"
-				if leaderAddress != "" {
-					message = fmt.Sprintf("%s, currently %s", message, leaderAddress)
+			if !onIssuer {
+				message := "ACME signing is only available on the designated issuer"
+				if issuerAddress != "" {
+					message = fmt.Sprintf("%s, currently %s", message, issuerAddress)
 				}
 				writeResponse(w, http.StatusServiceUnavailable, message, nil, env.SystemLogger)
 				return
@@ -688,26 +686,33 @@ func realError(err error) bool {
 	return err != nil && !errors.Is(err, db.ErrNotFound)
 }
 
-// acmeIssuanceLeader reports whether ACME issuance may run on this node, and the
-// address of the node it should be sent to instead.
-//
-// An unclustered deployment is always its own leader. In a cluster with no
-// leader right now, issuance is refused with an empty address: there is nowhere
-// to point the caller at until an election settles.
-func acmeIssuanceLeader(ctx context.Context, env *HandlerDependencies) (address string, onLeader bool, err error) {
+// acmeIssuanceIssuer reports whether ACME issuance may run on this node, and the
+// address of the designated issuer if not.
+func acmeIssuanceIssuer(ctx context.Context, env *HandlerDependencies) (address string, onIssuer bool, err error) {
 	if env.ClusterNode == nil {
 		return "", true, nil
 	}
 
-	leader, err := env.ClusterNode.Leader(ctx)
+	issuerID, err := env.Database.GetACMEIssuerNodeID()
 	if err != nil {
 		return "", false, err
 	}
-	if leader == nil {
-		return "", false, nil
+
+	members, err := env.ClusterNode.Members(ctx)
+	if err != nil {
+		return "", false, err
+	}
+	for _, member := range members {
+		if formatMemberID(member.ID) == issuerID {
+			return member.Address, member.ID == env.ClusterNode.ID(), nil
+		}
 	}
 
-	return leader.Address, leader.ID == env.ClusterNode.ID(), nil
+	return "", false, nil
+}
+
+func formatMemberID(id uint64) string {
+	return strconv.FormatUint(id, 10)
 }
 
 func rowFound(err error) bool {

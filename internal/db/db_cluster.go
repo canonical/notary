@@ -9,9 +9,12 @@ import (
 
 // CreateClusterJoinToken stores the hash of a newly issued join token. The token
 // itself is never persisted; see cluster.GenerateJoinToken.
-func (db *DatabaseRepository) CreateClusterJoinToken(tokenHash string, createdAt, expiresAt time.Time) (int64, error) {
+func (db *DatabaseRepository) CreateClusterJoinToken(tokenHash, identity string, createdAt, expiresAt time.Time) (int64, error) {
 	if tokenHash == "" {
 		return 0, fmt.Errorf("failed to create cluster join token: %w: token hash is empty", ErrInvalidInput)
+	}
+	if identity == "" {
+		return 0, fmt.Errorf("failed to create cluster join token: %w: identity is empty", ErrInvalidInput)
 	}
 	if !expiresAt.After(createdAt) {
 		return 0, fmt.Errorf("failed to create cluster join token: %w: expiry is not in the future", ErrInvalidInput)
@@ -23,6 +26,7 @@ func (db *DatabaseRepository) CreateClusterJoinToken(tokenHash string, createdAt
 
 	row := ClusterJoinToken{
 		TokenHash: tokenHash,
+		Identity:  identity,
 		CreatedAt: createdAt.Unix(),
 		ExpiresAt: expiresAt.Unix(),
 	}
@@ -35,11 +39,11 @@ func (db *DatabaseRepository) CreateClusterJoinToken(tokenHash string, createdAt
 // It exists so the join handler can reject a request it was never going to be
 // able to satisfy — a malformed CSR, a schema version it does not share — before
 // spending the operator's single-use token on it.
-func (db *DatabaseRepository) VerifyClusterJoinToken(tokenHash string, now time.Time) error {
+func (db *DatabaseRepository) VerifyClusterJoinToken(tokenHash, identity string, now time.Time) error {
 	var unused int
 	err := db.Conn.PlainDB().QueryRow(
-		"SELECT 1 FROM cluster_join_tokens WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?",
-		tokenHash, now.Unix(),
+		"SELECT 1 FROM cluster_join_tokens WHERE token_hash = ? AND identity = ? AND used_at IS NULL AND expires_at > ?",
+		tokenHash, identity, now.Unix(),
 	).Scan(&unused)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
@@ -57,10 +61,10 @@ func (db *DatabaseRepository) VerifyClusterJoinToken(tokenHash string, now time.
 // write: a token is valid exactly once, and two nodes may present the same token
 // to two different members at the same time. Only the update that observes
 // used_at still NULL wins, so the loser is rejected as already used.
-func (db *DatabaseRepository) RedeemClusterJoinToken(tokenHash string, now time.Time) error {
+func (db *DatabaseRepository) RedeemClusterJoinToken(tokenHash, identity string, now time.Time) error {
 	result, err := db.Conn.PlainDB().Exec(
-		"UPDATE cluster_join_tokens SET used_at = ? WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?",
-		now.Unix(), tokenHash, now.Unix(),
+		"UPDATE cluster_join_tokens SET used_at = ? WHERE token_hash = ? AND identity = ? AND used_at IS NULL AND expires_at > ?",
+		now.Unix(), tokenHash, identity, now.Unix(),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to redeem cluster join token: %w: %w", ErrInternal, err)

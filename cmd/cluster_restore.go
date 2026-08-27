@@ -125,7 +125,7 @@ func restoreCluster(cmd *cobra.Command, clusterConfig config.ClusterConfig, arch
 			staged, embedded)
 	}
 
-	node, err := startClusterNode(clusterConfig, true, nil)
+	node, err := startClusterNode(clusterConfig, true)
 	if err != nil {
 		return "", err
 	}
@@ -174,8 +174,8 @@ func recordRestoredMember(database *db.DatabaseRepository, node cluster.Node, ad
 	// not match the CA this node generated for itself while bootstrapping. Left
 	// in place it would be used to sign joins against the wrong CA and every one
 	// of them would be rejected; cleared, the node stores its own on first start.
-	if err := database.DeleteClusterCAKey(); err != nil {
-		return "", fmt.Errorf("couldn't clear the restored cluster CA key: %w", err)
+	if err := database.ClearACMEIssuer(); err != nil {
+		return "", fmt.Errorf("couldn't clear the restored ACME issuer: %w", err)
 	}
 
 	members, err := database.ListClusterMembers()
@@ -196,6 +196,9 @@ func recordRestoredMember(database *db.DatabaseRepository, node cluster.Node, ad
 	nodeID := formatNodeID(node.ID())
 	if _, err := database.CreateClusterMember(nodeID, name, address, time.Now().UTC()); err != nil {
 		return "", fmt.Errorf("couldn't record the restored cluster member: %w", err)
+	}
+	if err := database.SetACMEIssuerNodeID(nodeID); err != nil {
+		return "", fmt.Errorf("couldn't record the restored ACME issuer: %w", err)
 	}
 
 	return fmt.Sprintf("%s (node %s)", name, nodeID), nil

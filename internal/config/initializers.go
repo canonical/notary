@@ -1,11 +1,9 @@
 package config
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
 	"time"
 
@@ -72,7 +70,7 @@ func InitializeAppEnvironment(ctx context.Context, appConfig *AppConfig, databas
 	}
 
 	// initialize encryption backend connection
-	encryptionRepo, err := initializeEncryptionBackend(ctx, appConfig.EncryptionConfig, appConfig.ClusterConfig, database, systemLogger)
+	encryptionRepo, err := initializeEncryptionBackend(ctx, appConfig.EncryptionConfig, database, systemLogger)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't initialize encryption subsystem: %w", err)
 	}
@@ -100,7 +98,7 @@ func InitializeAppEnvironment(ctx context.Context, appConfig *AppConfig, databas
 }
 
 // initializeEncryptionBackend reads the configuration of the backend and chooses the appropriate decryption method.
-func initializeEncryptionBackend(ctx context.Context, encryptionCfg *viper.Viper, clusterCfg ClusterConfig, database *db.DatabaseRepository, logger *zap.Logger) (*encryption.EncryptionRepository, error) {
+func initializeEncryptionBackend(ctx context.Context, encryptionCfg *viper.Viper, database *db.DatabaseRepository, logger *zap.Logger) (*encryption.EncryptionRepository, error) {
 	backendType := encryptionCfg.GetString("type")
 	encryptionRepo := &encryption.EncryptionRepository{}
 	switch backendType {
@@ -178,7 +176,7 @@ func initializeEncryptionBackend(ctx context.Context, encryptionCfg *viper.Viper
 	default:
 		return nil, errors.New("invalid encryption backend type; must be 'none', 'vault' or 'pkcs11'")
 	}
-	encryptionRepo.SealState = startUnsealing(ctx, database, clusterCfg, encryptionRepo.Service, logger, unsealRetryInterval)
+	encryptionRepo.SealState = startUnsealing(ctx, database, encryptionRepo.Service, logger, unsealRetryInterval)
 	return encryptionRepo, nil
 }
 
@@ -191,7 +189,6 @@ func initializeEncryptionBackend(ctx context.Context, encryptionCfg *viper.Viper
 func startUnsealing(
 	ctx context.Context,
 	database *db.DatabaseRepository,
-	clusterCfg ClusterConfig,
 	backend encryption.EncryptionService,
 	logger *zap.Logger,
 	retryInterval time.Duration,
@@ -205,68 +202,8 @@ func startUnsealing(
 		if err := authentication.SetUpJWTSecret(database); err != nil {
 			return fmt.Errorf("failed to set up JWT secret: %w", err)
 		}
-		// So is the cluster CA key, and for the same reason it belongs here: a
-		// node that bootstrapped while its backend was unreachable would
-		// otherwise never store it, and every join would fail until a restart.
-		if clusterCfg.Enabled {
-			if err := ensureClusterCAKey(database, clusterCfg.StateDir); err != nil {
-				return fmt.Errorf("failed to store the cluster CA key: %w", err)
-			}
-		}
 		return nil
 	})
-}
-
-// ensureClusterCAKey makes the replicated database the only place the cluster CA
-// key is kept.
-//
-// The bootstrapping node writes it to disk before any database exists, so it is
-// moved across on the first start that gets far enough to encrypt it, and the
-// plaintext copy is removed once the replicated write reads back. Every other
-// member has no disk copy and gets the key through replication, so this is a
-// no-op for them, and it is safe to run on every unseal attempt.
-func ensureClusterCAKey(database *db.DatabaseRepository, stateDir string) error {
-	diskKey, diskErr := cluster.LoadCAKey(stateDir)
-	// Absent is the ordinary case for a member that joined. Anything else — bad
-	// permissions, a truncated file — must not be mistaken for it, or the node
-	// would come up reporting itself healthy while no key ever reaches the
-	// cluster and every join fails.
-	if diskErr != nil && !errors.Is(diskErr, os.ErrNotExist) {
-		return diskErr
-	}
-
-	stored, storedErr := database.GetClusterCAKey()
-	switch {
-	case storedErr == nil:
-		// Already replicated. Sweep up a plaintext copy left by this node's own
-		// bootstrap, or by a version that kept one; anything that does not match
-		// is not ours to delete.
-		if diskErr == nil && bytes.Equal(stored, diskKey) {
-			return cluster.RemoveCAKey(stateDir)
-		}
-		return nil
-	case !errors.Is(storedErr, db.ErrNotFound):
-		return storedErr
-	case diskErr != nil:
-		// Nothing stored and nothing on disk: a joined member, still waiting for
-		// the row to replicate.
-		return nil
-	}
-
-	if err := database.CreateClusterCAKey(diskKey); err != nil {
-		return err
-	}
-
-	// Confirmed before the only other copy is destroyed.
-	readBack, err := database.GetClusterCAKey()
-	if err != nil {
-		return fmt.Errorf("failed to read back the stored cluster CA key: %w", err)
-	}
-	if !bytes.Equal(readBack, diskKey) {
-		return errors.New("the stored cluster CA key does not match the one on disk")
-	}
-
-	return cluster.RemoveCAKey(stateDir)
 }
 
 // initializeLogger creates and configures a logger based on the provided configuration.

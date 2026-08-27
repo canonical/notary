@@ -11,7 +11,7 @@ import (
 
 // joinTokenBytes is the size of the random material in a join token. 256 bits
 // puts the token far beyond brute force, which matters because a valid token is
-// on its own sufficient to obtain a cluster certificate.
+// sufficient to complete join preflight and learn peer addresses.
 const joinTokenBytes = 32
 
 // GenerateJoinToken returns a new join token and the hash to store alongside it.

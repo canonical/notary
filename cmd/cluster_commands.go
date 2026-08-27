@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -19,12 +18,13 @@ import (
 )
 
 var (
-	clusterAPIToken    string
-	clusterTokenTTL    time.Duration
-	clusterTokenQuiet  bool
-	clusterJoinAddress string
-	clusterJoinName    string
-	clusterJoinCACert  string
+	clusterAPIToken      string
+	clusterTokenTTL      time.Duration
+	clusterTokenQuiet    bool
+	clusterTokenIdentity string
+	clusterJoinAddress   string
+	clusterJoinName      string
+	clusterJoinCACert    string
 )
 
 // clusterTokenCmd groups the join-token commands.
@@ -36,9 +36,10 @@ var clusterTokenCmd = &cobra.Command{
 var clusterTokenCreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a single-use token that lets one node join the cluster",
-	Long: `Creates a single-use, time-limited token authorizing one node to join the
-cluster. The token is printed once and cannot be retrieved again: only its hash
-is stored. Transfer it to the new node out of band.`,
+	Long: `Creates a single-use, time-limited token bound to one joining node's
+advertise address. The token is printed once and cannot be retrieved again: only
+its hash is stored. Transfer it to the new node out of band. It authorizes
+preflight and peer discovery; it does not issue cluster certificates.`,
 
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := localClusterAPIClient(cmd)
@@ -48,6 +49,7 @@ is stored. Transfer it to the new node out of band.`,
 
 		var created server.CreateJoinTokenResponse
 		err = client.do("POST", "/cluster/members/tokens", server.CreateJoinTokenParams{
+			Identity:   clusterTokenIdentity,
 			TTLSeconds: int64(clusterTokenTTL.Seconds()),
 		}, &created)
 		if err != nil {
@@ -114,35 +116,31 @@ var clusterStatusCmd = &cobra.Command{
 	},
 }
 
-var clusterPromoteCmd = &cobra.Command{
-	Use:   "promote <member>",
-	Short: "Promote a member to voter",
-	Long: `Promotes a member to voter immediately.
+var clusterACMEIssuerCmd = &cobra.Command{
+	Use:   "acme-issuer set <node-id>",
+	Short: "Set the designated ACME issuer",
+	Long: `Sets which cluster member may run ACME issuance.
 
-Role convergence is otherwise automatic: dqlite promotes a stand-by on its own
-when a voter is permanently removed. This command exists to force that ahead of
-the automatic adjustment interval.
-
-<member> is the name recorded when the member joined, or its dqlite node ID.`,
-	Args: cobra.ExactArgs(1),
+Stop or prove the previous issuer dead before running this. Automatic failover
+is not supported.`,
+	Args: cobra.ExactArgs(2),
 
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if args[0] != "set" {
+			return fmt.Errorf("unknown acme-issuer command %q, want set", args[0])
+		}
+
 		client, err := localClusterAPIClient(cmd)
 		if err != nil {
 			return err
 		}
 
-		member, err := resolveClusterMember(client, args[0])
-		if err != nil {
+		var updated server.ACMEIssuerResponse
+		if err := client.do("PUT", "/cluster/acme-issuer", server.SetACMEIssuerParams{NodeID: args[1]}, &updated); err != nil {
 			return err
 		}
 
-		if err := client.do("POST", "/cluster/members/"+escapePathSegment(member.ID)+"/promote", nil, nil); err != nil {
-			return err
-		}
-
-		cmd.Printf("promoted %s to voter\n", args[0])
-
+		cmd.Printf("ACME issuer set to node %s\n", updated.NodeID)
 		return nil
 	},
 }
@@ -152,9 +150,9 @@ var clusterJoinCmd = &cobra.Command{
 	Short: "Join this node to an existing cluster",
 	Long: `Joins this node to an existing cluster.
 
-This node generates its own key pair and certificate signing request, presents
-them with the join token to an existing member, and starts replicating once that
-member signs the request. The private key never leaves this node.
+This node must already hold operator-provisioned cluster PKI. The join token
+runs schema preflight and returns peer addresses; go-dqlite then joins over
+mTLS. The private key never leaves this node.
 
 Run this once, on the new node, before starting the Notary server on it.`,
 	Args: cobra.ExactArgs(1),
@@ -174,9 +172,8 @@ Run this once, on the new node, before starting the Notary server on it.`,
 			return fmt.Errorf("existing member --address: %w", err)
 		}
 
-		// Checked before anything is written. PrepareJoin replaces this node's
-		// private key, so reaching cluster.Start's own guard would already have
-		// destroyed a working member's identity, and spent a join token doing it.
+		// Checked before anything is written so joining cannot occupy a
+		// working member's state directory.
 		occupied, err := cluster.HasState(clusterConfig.StateDir)
 		if err != nil {
 			return err
@@ -184,8 +181,7 @@ Run this once, on the new node, before starting the Notary server on it.`,
 		if occupied {
 			return cluster.ErrAlreadyInitialized
 		}
-		csrPEM, err := cluster.PrepareJoin(clusterConfig.StateDir, clusterConfig.Address)
-		if err != nil {
+		if _, err := cluster.RequireProvisionedPKI(clusterConfig.StateDir, clusterConfig.Address); err != nil {
 			return err
 		}
 
@@ -199,22 +195,17 @@ Run this once, on the new node, before starting the Notary server on it.`,
 			return err
 		}
 
-		var signed server.JoinClusterResponse
+		var joined server.JoinClusterResponse
 		err = client.do("POST", "/cluster/members/join", server.JoinClusterParams{
 			Token:         args[0],
 			Address:       clusterConfig.Address,
-			CSR:           string(csrPEM),
 			SchemaVersion: schemaVersion,
-		}, &signed)
+		}, &joined)
 		if err != nil {
 			return err
 		}
 
-		if err := cluster.CompleteJoin(clusterConfig.StateDir, []byte(signed.Certificate), []byte(signed.CACertificate)); err != nil {
-			return err
-		}
-
-		peers := excludeAddress(signed.MemberAddress, clusterConfig.Address)
+		peers := excludeAddress(joined.MemberAddress, clusterConfig.Address)
 		if len(peers) == 0 {
 			return errors.New("the existing member reported no cluster addresses to join")
 		}
@@ -234,7 +225,7 @@ Run this once, on the new node, before starting the Notary server on it.`,
 
 		// Migrations are never applied here: the cluster this node is joining
 		// already has the schema, and it arrives through replication.
-		database, err := openClusteredDatabase(ctx, node, false)
+		database, err := openClusteredDatabase(ctx, node)
 		if err != nil {
 			return err
 		}
@@ -285,32 +276,6 @@ func localClusterAPIClient(cmd *cobra.Command) (*apiClient, error) {
 // is a uint64, so it never goes through an int64.
 func formatNodeID(id uint64) string {
 	return strconv.FormatUint(id, 10)
-}
-
-// resolveClusterMember accepts either the name recorded for a member or its raw
-// dqlite node ID, so operators are never forced to handle node IDs.
-func resolveClusterMember(client *apiClient, identifier string) (*server.ClusterMemberResponse, error) {
-	var members []server.ClusterMemberResponse
-	if err := client.do("GET", "/cluster/members", nil, &members); err != nil {
-		return nil, err
-	}
-
-	for i := range members {
-		if members[i].ID == identifier || members[i].Name == identifier {
-			return &members[i], nil
-		}
-	}
-
-	known := make([]string, 0, len(members))
-	for _, member := range members {
-		if member.Name != "" {
-			known = append(known, member.Name)
-			continue
-		}
-		known = append(known, member.ID)
-	}
-
-	return nil, fmt.Errorf("no cluster member named %q; known members: %s", identifier, strings.Join(known, ", "))
 }
 
 // clusterMemberRoles renders a member's Raft role the way `lxc cluster list`

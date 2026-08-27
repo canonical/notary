@@ -98,8 +98,8 @@ func NewRouter(config *HandlerDependencies) http.Handler {
 	apiV1Router.HandleFunc("POST /cluster/members/tokens", requirePermission(adminOnly, config, CreateClusterJoinToken(config)))
 	apiV1Router.HandleFunc("POST /cluster/members/join", JoinCluster(config))
 	apiV1Router.HandleFunc("DELETE /cluster/members/{id}", requirePermission(adminOnly, config, DeleteClusterMember(config)))
-	apiV1Router.HandleFunc("POST /cluster/members/{id}/promote", requirePermission(adminOnly, config, PromoteClusterMember(config)))
 	apiV1Router.HandleFunc("GET /cluster/status", requirePermission(adminOnly, config, GetClusterStatus(config)))
+	apiV1Router.HandleFunc("PUT /cluster/acme-issuer", requirePermission(adminOnly, config, SetACMEIssuer(config)))
 
 	m := metrics.NewMetricsSubsystem(config.Database, config.SystemLogger)
 	frontendHandler, err := newFrontendFileServer()

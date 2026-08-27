@@ -39,11 +39,12 @@ var clusterCmd = &cobra.Command{
 var clusterBootstrapCmd = &cobra.Command{
 	Use:   "bootstrap",
 	Short: "Initialize a new cluster with this node as its only member",
-	Long: `Initializes a new Notary cluster: generates the cluster-internal PKI, starts
-this node as the sole dqlite voter, and applies the database migrations.
+	Long: `Initializes a new Notary cluster: loads the operator-provisioned cluster PKI,
+starts this node as the sole dqlite voter, and applies the database migrations.
 
 Run this once, on the first node only. Every other node joins an existing
-cluster instead. Requires a configuration file with clustering enabled.`,
+cluster instead. Requires a configuration file with clustering enabled and
+provisioned files in cluster.state_dir/pki/.`,
 
 	RunE: func(cmd *cobra.Command, args []string) error {
 		appConfig, err := config.ParseConfig(cmd.Flags(), clusterConfigFilePath)
@@ -54,7 +55,7 @@ cluster instead. Requires a configuration file with clustering enabled.`,
 			return errors.New("clustering is not enabled: set `cluster.enabled` to true in the config file")
 		}
 
-		node, err := startClusterNode(appConfig.ClusterConfig, true, nil)
+		node, err := startClusterNode(appConfig.ClusterConfig, true)
 		if err != nil {
 			return err
 		}
@@ -63,7 +64,7 @@ cluster instead. Requires a configuration file with clustering enabled.`,
 		ctx, cancel := context.WithTimeout(cmd.Context(), clusterReadyTimeout)
 		defer cancel()
 
-		database, err := openClusteredDatabase(ctx, node, true)
+		database, err := openClusteredDatabase(ctx, node)
 		if err != nil {
 			return err
 		}
@@ -82,6 +83,11 @@ cluster instead. Requires a configuration file with clustering enabled.`,
 				node.Address(), nodeID, name, err)
 			return nil
 		}
+		if err := database.SetACMEIssuerNodeID(nodeID); err != nil {
+			cmd.Printf("cluster bootstrapped at %s as %s (node %s), but couldn't record the ACME issuer: %s\n",
+				node.Address(), name, nodeID, err)
+			return nil
+		}
 
 		cmd.Printf("cluster bootstrapped at %s as %s (node %s)\n", node.Address(), name, nodeID)
 
@@ -94,16 +100,11 @@ cluster instead. Requires a configuration file with clustering enabled.`,
 // bootstrap forms a new cluster and is set only by `notary cluster bootstrap`;
 // every other caller requires a state directory that bootstrap or join already
 // initialized.
-//
-// onRolesAdjustment, if non-nil, is called with the current leader's ID each
-// time dqlite re-evaluates cluster roles. Only the server passes one; the
-// short-lived CLI commands have no use for leadership notifications.
-func startClusterNode(clusterConfig config.ClusterConfig, bootstrap bool, onRolesAdjustment func(leaderID uint64) error) (cluster.Node, error) {
+func startClusterNode(clusterConfig config.ClusterConfig, bootstrap bool) (cluster.Node, error) {
 	node, err := cluster.Start(cluster.Options{
-		StateDir:          clusterConfig.StateDir,
-		Address:           clusterConfig.Address,
-		Bootstrap:         bootstrap,
-		OnRolesAdjustment: onRolesAdjustment,
+		StateDir:  clusterConfig.StateDir,
+		Address:   clusterConfig.Address,
+		Bootstrap: bootstrap,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("couldn't start cluster node: %w", err)
@@ -166,8 +167,8 @@ func init() {
 	clusterCmd.AddCommand(clusterTokenCmd)
 	clusterTokenCmd.AddCommand(clusterTokenCreateCmd)
 	clusterCmd.AddCommand(clusterJoinCmd)
-	clusterCmd.AddCommand(clusterPromoteCmd)
 	clusterCmd.AddCommand(clusterStatusCmd)
+	clusterCmd.AddCommand(clusterACMEIssuerCmd)
 	clusterCmd.AddCommand(clusterRestoreCmd)
 
 	clusterBootstrapCmd.Flags().StringVarP(&clusterConfigFilePath, "config", "c", "", "path to the configuration file")
@@ -188,7 +189,7 @@ func init() {
 
 	// The commands below drive a node that is already running, so they go
 	// through its admin API rather than opening dqlite themselves.
-	for _, cmd := range []*cobra.Command{clusterTokenCreateCmd, clusterPromoteCmd, clusterStatusCmd} {
+	for _, cmd := range []*cobra.Command{clusterTokenCreateCmd, clusterStatusCmd, clusterACMEIssuerCmd} {
 		cmd.Flags().StringVarP(&clusterConfigFilePath, "config", "c", "", "path to the configuration file")
 		cmd.Flags().StringVar(&clusterAPIToken, "token", "", "admin API token (defaults to the "+apiTokenEnvVar+" environment variable)")
 		if err := cmd.MarkFlagRequired("config"); err != nil {
@@ -198,6 +199,10 @@ func init() {
 
 	clusterTokenCreateCmd.Flags().DurationVar(&clusterTokenTTL, "ttl", time.Hour, "how long the token stays valid")
 	clusterTokenCreateCmd.Flags().BoolVarP(&clusterTokenQuiet, "quiet", "q", false, "print only the token, for scripting")
+	clusterTokenCreateCmd.Flags().StringVar(&clusterTokenIdentity, "identity", "", "advertise address of the joining node (host:port)")
+	if err := clusterTokenCreateCmd.MarkFlagRequired("identity"); err != nil {
+		log.Fatalf("couldn't mark flag required: %s", err)
+	}
 
 	clusterJoinCmd.Flags().StringVarP(&clusterConfigFilePath, "config", "c", "", "path to the configuration file")
 	clusterJoinCmd.Flags().StringVar(&clusterJoinAddress, "address", "", "admin API address (host:port) of an existing cluster member")

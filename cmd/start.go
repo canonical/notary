@@ -43,11 +43,10 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 		if err != nil {
 			return fmt.Errorf("couldn't parse and validate config: %w", err)
 		}
-		// The reconciler is built before the database because a cluster node needs
-		// its leadership hook at construction time, and the replicated database can
-		// only be opened through that node. openDatabase arms it.
+		// The reconciler is armed after the database is open. Clustered ACME
+		// runs on the designated issuer, not on Raft leadership change.
 		acmeReconciler := acme.NewReconciler()
-		database, clusterNode, closeCluster, err := openDatabase(cmd.Context(), appConfig, acmeReconciler)
+		database, clusterNode, closeCluster, err := openDatabase(cmd.Context(), appConfig)
 		if err != nil {
 			return fmt.Errorf("couldn't initialize database: %w", err)
 		}
@@ -63,11 +62,7 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 		l := appEnv.SystemLogger
 		acmeReconciler.Attach(database, l, clusterNodeID(clusterNode))
 		startHeartbeat(cmd.Context(), database, clusterNodeID(clusterNode), appConfig.ClusterConfig.Address, appEnv, l)
-		if clusterNode == nil {
-			// Unclustered, so this process is the only one that has ever run an
-			// attempt. Anything still recorded was interrupted by a previous crash.
-			// Clustered deployments reconcile on leadership change instead, because
-			// a live peer may legitimately own an attempt.
+		if shouldReconcileACME(database, clusterNode) {
 			if err := acmeReconciler.Reconcile(); err != nil {
 				l.Error("couldn't reconcile interrupted ACME issuance attempts", zap.Error(err))
 			}
@@ -129,7 +124,7 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 // Notary has always used. It also returns the cluster node backing that
 // database, which is nil when clustering is disabled. The returned function
 // releases the cluster node and is a no-op in the unclustered case.
-func openDatabase(ctx context.Context, appConfig *config.AppConfig, acmeReconciler *acme.Reconciler) (*db.DatabaseRepository, cluster.Node, func(), error) {
+func openDatabase(ctx context.Context, appConfig *config.AppConfig) (*db.DatabaseRepository, cluster.Node, func(), error) {
 	if !appConfig.ClusterConfig.Enabled {
 		database, err := db.NewDatabase(&db.DatabaseOpts{
 			DatabasePath: appConfig.DBPath,
@@ -141,7 +136,7 @@ func openDatabase(ctx context.Context, appConfig *config.AppConfig, acmeReconcil
 		return database, nil, func() {}, nil
 	}
 
-	node, err := startClusterNode(appConfig.ClusterConfig, false, acmeReconciler.OnRolesAdjustment)
+	node, err := startClusterNode(appConfig.ClusterConfig, false)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -165,6 +160,19 @@ func clusterNodeID(node cluster.Node) string {
 		return ""
 	}
 	return formatNodeID(node.ID())
+}
+
+// shouldReconcileACME reports whether this process should fail leftover ACME
+// attempts at startup: unclustered nodes, or the designated clustered issuer.
+func shouldReconcileACME(database *db.DatabaseRepository, node cluster.Node) bool {
+	if node == nil {
+		return true
+	}
+	issuer, err := database.GetACMEIssuerNodeID()
+	if err != nil {
+		return false
+	}
+	return issuer == formatNodeID(node.ID())
 }
 
 // heartbeatInterval is how often a member reports itself alive. It is half of

@@ -150,14 +150,16 @@ type ACMEServer struct {
 }
 
 // ClusterJoinToken is a single-use, time-limited credential that authorizes one
-// node to join the cluster.
+// node's join preflight. It is bound to that node's identity and is not the
+// dqlite admission boundary.
 //
 // Only the token's SHA-256 hash is stored, never the token itself: possessing a
-// database dump must not be enough to join the cluster.
+// database dump must not be enough to complete the join workflow.
 type ClusterJoinToken struct {
 	ID int64 `db:"id"`
 
 	TokenHash string `db:"token_hash"`
+	Identity  string `db:"identity"`
 	CreatedAt int64  `db:"created_at"`
 	ExpiresAt int64  `db:"expires_at"`
 	// UsedAt is nil until the token is redeemed. A token is valid exactly once.

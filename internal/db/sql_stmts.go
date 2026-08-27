@@ -325,9 +325,8 @@ WITH RECURSIVE cas_with_chain AS (
 	getJWTSecretStmt    = "SELECT &JWTSecret.* FROM jwt_secret WHERE id=$JWTSecret.id"
 	deleteJWTSecretStmt = "DELETE FROM jwt_secret WHERE id=$JWTSecret.id"
 
-	createClusterCAKeyStmt = "INSERT INTO cluster_ca_key (id, encrypted_key) VALUES ($ClusterCAKey.id, $ClusterCAKey.encrypted_key)"
-	getClusterCAKeyStmt    = "SELECT &ClusterCAKey.* FROM cluster_ca_key WHERE id=$ClusterCAKey.id"
-	deleteClusterCAKeyStmt = "DELETE FROM cluster_ca_key WHERE id=$ClusterCAKey.id"
+	createClusterSettingsStmt = "SELECT &ClusterSettings.* FROM cluster_settings WHERE id=$ClusterSettings.id"
+	deleteClusterSettingsStmt = "DELETE FROM cluster_settings WHERE id=$ClusterSettings.id"
 
 	// ACME Account statements
 	insertACMEAccountStmt           = "INSERT INTO acme_accounts (email, directory_url, private_key, registration_uri, registration_body) VALUES ($ACMEAccount.email, $ACMEAccount.directory_url, $ACMEAccount.private_key, $ACMEAccount.registration_uri, $ACMEAccount.registration_body)"
@@ -346,7 +345,7 @@ WITH RECURSIVE cas_with_chain AS (
 	linkACMEAccountToServerStmt = "UPDATE acme_servers SET acme_account_id=$ACMEServer.acme_account_id WHERE id==$ACMEServer.id"
 
 	// Cluster join token statements
-	createClusterJoinTokenStmt  = "INSERT INTO cluster_join_tokens (token_hash, created_at, expires_at) VALUES ($ClusterJoinToken.token_hash, $ClusterJoinToken.created_at, $ClusterJoinToken.expires_at)"
+	createClusterJoinTokenStmt  = "INSERT INTO cluster_join_tokens (token_hash, identity, created_at, expires_at) VALUES ($ClusterJoinToken.token_hash, $ClusterJoinToken.identity, $ClusterJoinToken.created_at, $ClusterJoinToken.expires_at)"
 	deleteExpiredJoinTokensStmt = "DELETE FROM cluster_join_tokens WHERE expires_at < $ClusterJoinToken.expires_at"
 
 	// Cluster member statements
@@ -418,9 +417,8 @@ type Statements struct {
 	GetJWTSecret    *sqlair.Statement
 	DeleteJWTSecret *sqlair.Statement
 
-	CreateClusterCAKey *sqlair.Statement
-	GetClusterCAKey    *sqlair.Statement
-	DeleteClusterCAKey *sqlair.Statement
+	GetClusterSettings    *sqlair.Statement
+	DeleteClusterSettings *sqlair.Statement
 
 	// ACME Account statements
 	InsertACMEAccount           *sqlair.Statement
@@ -515,9 +513,8 @@ func PrepareStatements() *Statements {
 	stmts.GetJWTSecret = sqlair.MustPrepare(getJWTSecretStmt, JWTSecret{})
 	stmts.DeleteJWTSecret = sqlair.MustPrepare(deleteJWTSecretStmt, JWTSecret{})
 
-	stmts.CreateClusterCAKey = sqlair.MustPrepare(createClusterCAKeyStmt, ClusterCAKey{})
-	stmts.GetClusterCAKey = sqlair.MustPrepare(getClusterCAKeyStmt, ClusterCAKey{})
-	stmts.DeleteClusterCAKey = sqlair.MustPrepare(deleteClusterCAKeyStmt, ClusterCAKey{})
+	stmts.GetClusterSettings = sqlair.MustPrepare(createClusterSettingsStmt, ClusterSettings{})
+	stmts.DeleteClusterSettings = sqlair.MustPrepare(deleteClusterSettingsStmt, ClusterSettings{})
 
 	// ACME Account statements
 	stmts.InsertACMEAccount = sqlair.MustPrepare(insertACMEAccountStmt, ACMEAccount{})

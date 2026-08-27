@@ -3,7 +3,6 @@ package acme
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"sync"
 	"time"
 
@@ -24,44 +23,20 @@ var ErrAttemptInProgress = errors.New("an ACME issuance attempt is already in pr
 
 // Reconciler owns the lifecycle of ACME issuance attempts.
 //
-// ACME issuance is a long-running, in-memory operation: notary hands a CSR to
-// lego, which polls a DNS-01 challenge for as long as DNS propagation takes. If
-// the node running it dies, the request is left sitting at 'Outstanding' with
-// no indication that anything went wrong, and nothing will ever pick it up
-// again. There is no safe way to resume — the challenge state lives in the dead
-// process — so the outcome has to be reported rather than retried.
-//
-// The reconciler makes that possible by recording each attempt in the database
-// before it starts and clearing it when it finishes. An attempt that outlives
-// its process is an orphan, and the request behind it is failed.
+// ACME issuance is a long-running, in-memory operation. If the process running
+// it dies, the request is left sitting at 'Outstanding' with no indication that
+// anything went wrong. There is no safe way to resume, so leftover attempts are
+// failed on the designated issuer's restart (or at startup of an unclustered
+// process). Heartbeats and Raft leadership are not consulted.
 type Reconciler struct {
-	mu sync.Mutex
-	// database is nil until Attach is called. The cluster node has to exist
-	// before its leadership hook can be registered, but the replicated database
-	// can only be opened through that node, so the reconciler is necessarily
-	// built before it has anything to reconcile against.
+	mu       sync.Mutex
 	database *db.DatabaseRepository
-	// nodeID is this node's dqlite node ID in decimal, or empty when clustering
-	// is disabled.
-	nodeID string
-	// live holds the CSR IDs this process is currently polling. It is what
-	// separates an orphan from an attempt that is still running here: an attempt
-	// row alone cannot say, because a node keeps its dqlite ID across a restart.
-	live map[int64]struct{}
-	// wasLeader records whether this node held leadership at the previous
-	// observation, so that reconciliation runs on the transition rather than on
-	// every tick of the roles adjustment loop.
-	wasLeader bool
-
-	logger *zap.Logger
+	nodeID   string
+	live     map[int64]struct{}
+	logger   *zap.Logger
 }
 
 // NewReconciler builds a reconciler that does nothing until Attach is called.
-//
-// A reconciler has to exist before the cluster node it belongs to, because the
-// node needs its leadership hook at construction time — but the replicated
-// database and the system logger only exist once that node is running. Attach
-// closes that gap.
 func NewReconciler() *Reconciler {
 	return &Reconciler{
 		live:   make(map[int64]struct{}),
@@ -105,13 +80,7 @@ func (r *Reconciler) BeginAttempt(csrID int64) error {
 }
 
 // EndAttempt clears the record for a finished attempt, whether it succeeded or
-// failed. Either way the attempt is no longer in flight, and leaving the row
-// behind would make a later reconciliation fail a request that already has its
-// answer.
-//
-// It returns nothing so callers can defer it: by the time it runs the outcome
-// of the attempt is already settled, and a failure to clean up is a logged
-// problem rather than one the caller can act on.
+// failed.
 func (r *Reconciler) EndAttempt(csrID int64) {
 	r.mu.Lock()
 	delete(r.live, csrID)
@@ -127,40 +96,10 @@ func (r *Reconciler) EndAttempt(csrID int64) {
 	}
 }
 
-// OnRolesAdjustment is the hook go-dqlite runs on every node each time cluster
-// roles are re-evaluated. It reconciles only when this node has just become the
-// leader: ACME issuance runs on the leader alone, so a new leader inherits
-// whatever the previous one left behind.
-func (r *Reconciler) OnRolesAdjustment(leaderID uint64) error {
-	r.mu.Lock()
-	if r.database == nil {
-		// Not armed yet. Leadership is deliberately not recorded, so the first
-		// observation after Attach still counts as a transition.
-		r.mu.Unlock()
-		return nil
-	}
-	isLeader := strconv.FormatUint(leaderID, 10) == r.nodeID
-	wasLeader := r.wasLeader
-	r.wasLeader = isLeader
-	logger := r.logger
-	r.mu.Unlock()
-
-	if !isLeader || wasLeader {
-		return nil
-	}
-
-	logger.Info("became cluster leader, reconciling ACME issuance attempts")
-
-	return r.Reconcile()
-}
-
 // Reconcile fails every certificate request whose ACME issuance attempt is not
-// running in this process.
-//
-// Callers must only invoke this where every attempt recorded elsewhere is known
-// to be dead: on becoming the leader of a cluster where issuance is
-// leader-only, or at startup of an unclustered deployment, where this process
-// is the only one there has ever been.
+// running in this process. Callers must only invoke this on the designated
+// issuer (or an unclustered process), where every leftover attempt is known to
+// be dead.
 func (r *Reconciler) Reconcile() error {
 	r.mu.Lock()
 	database := r.database
@@ -179,29 +118,11 @@ func (r *Reconciler) Reconcile() error {
 	for _, attempt := range attempts {
 		r.mu.Lock()
 		_, running := r.live[attempt.CSRID]
-		nodeID := r.nodeID
 		r.mu.Unlock()
 		if running {
 			continue
 		}
 
-		// An attempt belonging to another member is only an orphan if that
-		// member is gone. Leadership moving is not the same as the node that was
-		// issuing dying, and failing a live attempt would abandon issuance that
-		// is still in progress, or lose the certificate it is about to store.
-		if attempt.NodeID != "" && attempt.NodeID != nodeID {
-			owner, err := database.GetClusterMember(attempt.NodeID)
-			if err != nil && !errors.Is(err, db.ErrNotFound) {
-				return fmt.Errorf("failed to look up the member owning ACME issuance attempt %d: %w", attempt.CSRID, err)
-			}
-			if err == nil && owner.Online(time.Now().UTC()) {
-				continue
-			}
-		}
-
-		// The request is failed before the attempt is cleared. If this node dies
-		// in between, the attempt is still recorded and the next reconciliation
-		// repeats the work; clearing first would lose the request instead.
 		if err := database.FailCertificateRequest(attempt.CSRID); err != nil && !errors.Is(err, db.ErrNotFound) {
 			return fmt.Errorf("failed to fail interrupted certificate request %d: %w", attempt.CSRID, err)
 		}

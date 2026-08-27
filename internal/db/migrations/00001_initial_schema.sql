@@ -93,6 +93,7 @@ CREATE TABLE cluster_join_tokens
 (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     token_hash TEXT NOT NULL UNIQUE,
+    identity   TEXT NOT NULL,
     created_at INTEGER NOT NULL,
     expires_at INTEGER NOT NULL,
     used_at    INTEGER
@@ -116,16 +117,16 @@ CREATE TABLE acme_issuance_attempts
     started_at INTEGER NOT NULL
 );
 
-CREATE TABLE cluster_ca_key
+CREATE TABLE cluster_settings
 (
-    id            INTEGER PRIMARY KEY CHECK (id = 1),
-    encrypted_key TEXT NOT NULL
+    id                  INTEGER PRIMARY KEY CHECK (id = 1),
+    acme_issuer_node_id TEXT NOT NULL
 );
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-DROP TABLE cluster_ca_key;
+DROP TABLE cluster_settings;
 DROP TABLE acme_issuance_attempts;
 DROP TABLE cluster_members;
 DROP TABLE cluster_join_tokens;

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -191,10 +190,4 @@ func (c *apiClient) do(method, path string, body any, out any) error {
 	}
 
 	return nil
-}
-
-// escapePathSegment keeps an operator-supplied identifier from altering the URL
-// path it is interpolated into.
-func escapePathSegment(segment string) string {
-	return url.PathEscape(segment)
 }

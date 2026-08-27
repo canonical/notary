@@ -65,12 +65,6 @@ func Start(opts Options) (Node, error) {
 	if len(opts.Join) > 0 {
 		options = append(options, app.WithCluster(opts.Join))
 	}
-	if opts.OnRolesAdjustment != nil {
-		hook := opts.OnRolesAdjustment
-		options = append(options, app.WithRolesAdjustmentHook(func(leader client.NodeInfo, _ []client.NodeInfo) error {
-			return hook(leader.ID)
-		}))
-	}
 
 	dqliteApp, err := app.New(dataDir, options...)
 	if err != nil {
@@ -80,20 +74,20 @@ func Start(opts Options) (Node, error) {
 	return &dqliteNode{app: dqliteApp}, nil
 }
 
-// nodePKI generates the cluster PKI when bootstrapping and otherwise insists it
-// already exists. The distinction is what stops a node whose state directory was
-// wiped from minting a new CA and bootstrapping a cluster of one.
+// nodePKI loads operator-provisioned cluster credentials. Missing files are
+// treated as an uninitialized node: Notary never mints a cluster CA.
 func nodePKI(opts Options) (*PKI, error) {
-	if opts.Bootstrap {
-		return EnsurePKI(opts.StateDir, opts.Address)
-	}
-
 	pki, err := LoadPKI(opts.StateDir)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, ErrNotInitialized
 	}
-
-	return pki, err
+	if err != nil {
+		return nil, err
+	}
+	if err := pki.MatchesIdentity(opts.Address); err != nil {
+		return nil, err
+	}
+	return pki, nil
 }
 
 // checkState decides whether the state directory is in the shape this start
@@ -198,15 +192,6 @@ func (n *dqliteNode) Leader(ctx context.Context) (*MemberInfo, error) {
 		return nil
 	})
 	return leader, err
-}
-
-func (n *dqliteNode) Promote(ctx context.Context, id uint64) error {
-	return n.withLeader(ctx, func(cli *client.Client) error {
-		if err := cli.Assign(ctx, id, client.Voter); err != nil {
-			return fmt.Errorf("failed to promote cluster member %d: %w", id, err)
-		}
-		return nil
-	})
 }
 
 // roleFromNodeRole maps dqlite's role enum onto Notary's own, so nothing outside

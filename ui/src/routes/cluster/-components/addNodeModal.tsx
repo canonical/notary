@@ -2,6 +2,7 @@ import {
 	ActionButton,
 	Button,
 	CodeSnippet,
+	Input,
 	Modal,
 	Notification,
 	Select,
@@ -30,6 +31,7 @@ const ttlOptions = [
 
 export function AddNodeModal({ close, apiAddress }: AddNodeModalProps) {
 	const [ttlSeconds, setTTLSeconds] = useState<string>("3600");
+	const [identity, setIdentity] = useState<string>("");
 	const [token, setToken] = useState<ClusterJoinTokenEntry | null>(null);
 
 	const mutation = useMutation({
@@ -49,9 +51,9 @@ export function AddNodeModal({ close, apiAddress }: AddNodeModalProps) {
 				}
 			>
 				<Notification severity="caution" title="Shown once">
-					This token is not stored and cannot be shown again. Copy it now. It
-					grants membership of the cluster, so treat it as a credential and let
-					it expire unused if you do not need it.
+					This token is not stored and cannot be shown again. Copy it now. It is
+					bound to {token.identity} and is only for join preflight, not cluster
+					mTLS. Provision that node's cluster certificates before running join.
 				</Notification>
 				<p>Run this on the new node, before starting Notary on it:</p>
 				<CodeSnippet
@@ -64,8 +66,9 @@ export function AddNodeModal({ close, apiAddress }: AddNodeModalProps) {
 				/>
 				<p className="u-text--muted">
 					Replace the paths with the new node's configuration file, and with a
-					copy of this node's API certificate. <code>--ca-cert</code> pins that
-					certificate so the join cannot be redirected.
+					copy of this node's API certificate. <code>cluster.address</code> in
+					that configuration must be {token.identity}. <code>--ca-cert</code>{" "}
+					pins this node's API certificate so the join cannot be redirected.
 				</p>
 				<p className="u-text--muted">
 					Expires {new Date(token.expires_at * 1000).toLocaleString()}. The new
@@ -85,8 +88,10 @@ export function AddNodeModal({ close, apiAddress }: AddNodeModalProps) {
 					<ActionButton
 						appearance="positive"
 						loading={mutation.isPending}
+						disabled={identity.trim() === ""}
 						onClick={() =>
 							mutation.mutate({
+								identity: identity.trim(),
 								ttl_seconds: Number(ttlSeconds),
 							})
 						}
@@ -96,6 +101,14 @@ export function AddNodeModal({ close, apiAddress }: AddNodeModalProps) {
 				</>
 			}
 		>
+			<Input
+				type="text"
+				label="Joining node advertise address"
+				placeholder="10.0.0.4:9000"
+				value={identity}
+				onChange={(event) => setIdentity(event.target.value)}
+				help="Must match cluster.address on the new node. The token will only admit that identity."
+			/>
 			<Select
 				label="Valid for"
 				value={ttlSeconds}

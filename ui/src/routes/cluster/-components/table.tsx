@@ -1,15 +1,4 @@
-import {
-	Button,
-	ContextualMenu,
-	MainTable,
-	Panel,
-} from "@canonical/react-components";
-import { useState } from "react";
-import {
-	NotaryConfirmationModal,
-	type NotaryConfirmationModalData,
-} from "@/components/NotaryConfirmationModal";
-import { promoteClusterMember } from "@/utils/queries";
+import { Button, MainTable, Panel } from "@canonical/react-components";
 import type { ClusterMemberEntry, ClusterStatusEntry } from "@/utils/types";
 
 type ClusterTableProps = {
@@ -51,26 +40,8 @@ export function ClusterTable({
 	localNodeID,
 	onAddNode,
 }: ClusterTableProps) {
-	const [confirmationModalData, setConfirmationModalData] =
-		// biome-ignore lint/suspicious/noExplicitAny: generic modal accepts any data type
-		useState<NotaryConfirmationModalData<any> | null>(null);
-
 	const memberLabel = (member: ClusterMemberEntry) =>
 		member.name !== "" ? member.name : member.address;
-
-	const handlePromote = (member: ClusterMemberEntry) => {
-		setConfirmationModalData({
-			queryFn: promoteClusterMember,
-			queryParams: { id: member.id },
-			queryKey: "cluster_status",
-			closeFn: () => setConfirmationModalData(null),
-			buttonConfirmText: "Promote",
-			warningText: `"${memberLabel(member)}" will become a voter and start taking part in Raft quorum decisions.`,
-			successTitle: "Member promoted",
-			successMessage: `"${memberLabel(member)}" is now a voter.`,
-			failureMessage: "Failed to promote the cluster member.",
-		});
-	};
 
 	const rows = status.members.map((member) => ({
 		sortData: {
@@ -95,23 +66,6 @@ export function ClusterTable({
 			{ content: memberRoles(member) },
 			{ content: memberStateLabel(member) },
 			{ content: member.message },
-			{
-				content: (
-					<ContextualMenu hasToggleIcon position="right">
-						<span className="p-contextual-menu__group">
-							<Button
-								className="p-contextual-menu__link"
-								disabled={member.role === "voter"}
-								onClick={() => handlePromote(member)}
-							>
-								Promote to Voter
-							</Button>
-						</span>
-					</ContextualMenu>
-				),
-				className: "u-align--right",
-				hasOverflow: true,
-			},
 		],
 	}));
 
@@ -141,16 +95,9 @@ export function ClusterTable({
 					{ content: "Roles" },
 					{ content: "State" },
 					{ content: "Message" },
-					{
-						content: "Actions",
-						className: "u-align--right has-overflow",
-					},
 				]}
 				rows={rows}
 			/>
-			{confirmationModalData && (
-				<NotaryConfirmationModal {...confirmationModalData} />
-			)}
 		</Panel>
 	);
 }

@@ -145,6 +145,8 @@ export type ClusterStatusEntry = {
 export type ClusterJoinTokenEntry = {
 	/** Returned exactly once, when the token is created. Only its hash is stored. */
 	token: string;
+	/** Advertise address the token is bound to. */
+	identity: string;
 	/** Unix seconds. */
 	expires_at: number;
 };

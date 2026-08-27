@@ -440,6 +440,7 @@ export async function getClusterStatus(): Promise<ClusterStatusEntry> {
 }
 
 export async function createClusterJoinToken(params: {
+	identity: string;
 	ttl_seconds?: number;
 }): Promise<ClusterJoinTokenEntry> {
 	return (await fetchAPI<ClusterJoinTokenEntry>(
@@ -450,24 +451,4 @@ export async function createClusterJoinToken(params: {
 			body: JSON.stringify(params),
 		},
 	)) as ClusterJoinTokenEntry;
-}
-
-export async function promoteClusterMember(params: {
-	id: string;
-}): Promise<void> {
-	await fetchAPI(`/api/v1/cluster/members/${params.id}/promote`, {
-		method: "post",
-	});
-}
-
-// force skips the Raft handover the server would otherwise perform first. It
-// exists for a member that is already gone and cannot hand anything over.
-export async function deleteClusterMember(params: {
-	id: string;
-	force?: boolean;
-}): Promise<void> {
-	const query = params.force ? "?force=true" : "";
-	await fetchAPI(`/api/v1/cluster/members/${params.id}${query}`, {
-		method: "delete",
-	});
 }

@@ -1,5 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, test } from "vitest";
 import type { ClusterStatusEntry } from "@/utils/types";
 import { ClusterTable } from "./table";
@@ -42,13 +41,11 @@ const status: ClusterStatusEntry = {
 
 function renderTable(overrides: Partial<ClusterStatusEntry> = {}) {
 	render(
-		<QueryClientProvider client={new QueryClient()}>
-			<ClusterTable
-				status={{ ...status, ...overrides }}
-				localNodeID="1"
-				onAddNode={() => {}}
-			/>
-		</QueryClientProvider>,
+		<ClusterTable
+			status={{ ...status, ...overrides }}
+			localNodeID="1"
+			onAddNode={() => {}}
+		/>,
 	);
 }
 
@@ -109,36 +106,10 @@ test("shows the node ID of a member that has no name", () => {
 	expect(screen.getByText("15559759156573841049")).toBeDefined();
 });
 
-// The row actions live behind a contextual menu, so it has to be opened before
-// its buttons exist in the DOM. Each case renders a single member, which keeps
-// the assertions independent of how the table happens to sort its rows.
-function openMenuFor(member: ClusterStatusEntry["members"][number]) {
-	cleanup();
-	renderTable({ members: [member] });
-	fireEvent.click(screen.getByLabelText("Toggle menu"));
-}
-
-// Asserting on the confirmation prompt rather than the disabled attribute: what
-// matters is that a blocked action cannot be started, not how it is styled.
-function clickAction(name: string) {
-	fireEvent.click(screen.getByRole("button", { name }));
-}
-
-const local = status.members[0];
-const remote = status.members[1];
-
-test("does not offer removal while cluster credentials cannot be revoked", () => {
-	openMenuFor(remote);
+test("does not offer membership actions", () => {
+	renderTable();
+	expect(screen.queryByLabelText("Toggle menu")).toBeNull();
+	expect(screen.queryByRole("button", { name: "Promote to Voter" })).toBeNull();
 	expect(screen.queryByRole("button", { name: "Remove" })).toBeNull();
 	expect(screen.queryByRole("button", { name: "Force Remove" })).toBeNull();
-});
-
-test("does not offer to promote a member that is already a voter", () => {
-	openMenuFor(local);
-	clickAction("Promote to Voter");
-	expect(screen.queryByText(/will become a voter/)).toBeNull();
-
-	openMenuFor(remote);
-	clickAction("Promote to Voter");
-	expect(screen.getByText(/will become a voter/)).toBeDefined();
 });

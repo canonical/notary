@@ -26,12 +26,21 @@ func CreateBackup(dataDir, backupDir string) (string, error) {
 		return "", fmt.Errorf("database path is not a directory: %s", dataDir)
 	}
 
-	timestamp := time.Now().UTC().Format("20060102_150405")
-	archivePath := filepath.Join(backupDir, fmt.Sprintf("backup_%s.tar.gz", timestamp))
-
-	archiveFile, err := os.Create(archivePath)
+	dataAbs, err := resolveExistingDir(dataDir)
 	if err != nil {
-		return "", fmt.Errorf("failed to create archive: %w", err)
+		return "", fmt.Errorf("failed to resolve database directory: %w", err)
+	}
+	backupAbs, err := resolveExistingDir(backupDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve backup directory: %w", err)
+	}
+	if err := rejectBackupInsideDataDir(dataAbs, backupAbs); err != nil {
+		return "", err
+	}
+
+	archiveFile, archivePath, err := createUniqueBackupFile(backupAbs)
+	if err != nil {
+		return "", err
 	}
 	succeeded := false
 	defer func() {
@@ -40,18 +49,25 @@ func CreateBackup(dataDir, backupDir string) (string, error) {
 			_ = os.Remove(archivePath)
 		}
 	}()
+	archiveInfo, err := archiveFile.Stat()
+	if err != nil {
+		return "", fmt.Errorf("failed to stat backup archive: %w", err)
+	}
 
 	gzWriter := gzip.NewWriter(archiveFile)
 	tarWriter := tar.NewWriter(gzWriter)
 
-	err = filepath.Walk(dataDir, func(path string, fi os.FileInfo, walkErr error) error {
+	err = filepath.Walk(dataAbs, func(path string, fi os.FileInfo, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
 		if fi.Mode()&os.ModeSymlink != 0 {
 			return nil
 		}
-		rel, err := filepath.Rel(dataDir, path)
+		if os.SameFile(archiveInfo, fi) {
+			return nil
+		}
+		rel, err := filepath.Rel(dataAbs, path)
 		if err != nil {
 			return err
 		}
@@ -91,6 +107,45 @@ func CreateBackup(dataDir, backupDir string) (string, error) {
 	}
 	succeeded = true
 	return archivePath, nil
+}
+
+func resolveExistingDir(path string) (string, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	resolved, err := filepath.EvalSymlinks(abs)
+	if err != nil {
+		return "", err
+	}
+	return resolved, nil
+}
+
+func rejectBackupInsideDataDir(dataAbs, backupAbs string) error {
+	rel, err := filepath.Rel(dataAbs, backupAbs)
+	if err != nil {
+		return fmt.Errorf("failed to compare backup and database paths: %w", err)
+	}
+	if rel == "." || filepath.IsLocal(rel) {
+		return fmt.Errorf("backup directory %q is inside the database directory %q", backupAbs, dataAbs)
+	}
+	return nil
+}
+
+func createUniqueBackupFile(backupDir string) (*os.File, string, error) {
+	const attempts = 100
+	for range attempts {
+		name := fmt.Sprintf("backup_%s.tar.gz", time.Now().UTC().Format("20060102_150405.000000000"))
+		archivePath := filepath.Join(backupDir, name)
+		f, err := os.OpenFile(archivePath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+		if err == nil {
+			return f, archivePath, nil
+		}
+		if !os.IsExist(err) {
+			return nil, "", fmt.Errorf("failed to create archive: %w", err)
+		}
+	}
+	return nil, "", errors.New("failed to allocate a unique backup filename")
 }
 
 // RestoreBackup replaces the data directory with the contents of a backup

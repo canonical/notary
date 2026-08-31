@@ -46,7 +46,11 @@ func UserID(email string) string {
 // the dqlite data directory. Notary application data stays on dqlite.
 func InitializeLocalOpenFGA(database *db.DatabaseRepository, logger *zap.Logger) (*AuthzRepository, error) {
 	ofgaPath := filepath.Join(database.Path, "openfga.sqlite")
-	sqlConnection, err := sql.Open("sqlite", ofgaPath)
+	dsn, err := ofgaSqlite.PrepareDSN(ofgaPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare OpenFGA sqlite DSN: %w", err)
+	}
+	sqlConnection, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open OpenFGA sqlite database: %w", err)
 	}

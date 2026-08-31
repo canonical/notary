@@ -50,6 +50,64 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 	}
 }
 
+func TestCreateBackupRejectsDestinationInsideDataDir(t *testing.T) {
+	dataDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dataDir, "info.yaml"), []byte("id: 1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	nested := filepath.Join(dataDir, "backups")
+	if err := os.Mkdir(nested, 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := db.CreateBackup(dataDir, nested); err == nil {
+		t.Fatal("expected error when backup dir is inside data dir")
+	}
+	if _, err := db.CreateBackup(dataDir, dataDir); err == nil {
+		t.Fatal("expected error when backup dir is the data dir")
+	}
+}
+
+func TestCreateBackupRejectsSymlinkAliasInsideDataDir(t *testing.T) {
+	dataDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dataDir, "info.yaml"), []byte("id: 1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(dataDir, "backups"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(t.TempDir(), "data-alias")
+	if err := os.Symlink(dataDir, alias); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := db.CreateBackup(dataDir, filepath.Join(alias, "backups")); err == nil {
+		t.Fatal("expected error when backup dir is a symlink into the data dir")
+	}
+	if _, err := db.CreateBackup(alias, filepath.Join(alias, "backups")); err == nil {
+		t.Fatal("expected error when both paths are symlink aliases of the data dir")
+	}
+}
+
+func TestCreateBackupUsesUniqueFilenames(t *testing.T) {
+	dataDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dataDir, "info.yaml"), []byte("id: 1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	backupDir := t.TempDir()
+	first, err := db.CreateBackup(dataDir, backupDir)
+	if err != nil {
+		t.Fatalf("first CreateBackup: %s", err)
+	}
+	second, err := db.CreateBackup(dataDir, backupDir)
+	if err != nil {
+		t.Fatalf("second CreateBackup: %s", err)
+	}
+	if first == second {
+		t.Fatal("expected unique backup filenames")
+	}
+}
+
 func TestBackupRestoreDqliteData(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	srcDir := t.TempDir()

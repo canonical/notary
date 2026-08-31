@@ -35,7 +35,7 @@ Stop the `notary start` process (for example with Ctrl+C, or stop the systemd un
 
 ## 2. Create a backup
 
-The `-d` / `--db-path` flag is the data directory (`db_path`). The `-f` / `--file` flag must include a directory path; Notary writes a timestamped archive into that directory (for example `backup_20260831_120000.tar.gz`).
+The `-d` / `--db-path` flag is the data directory (`db_path`). The `-f` / `--file` flag must include a directory path; Notary writes a timestamped archive into that directory (for example `backup_20260831_120000.123456789.tar.gz`). That directory must be **outside** `db_path`, or the backup would include itself.
 
 `````{tab-set}
 

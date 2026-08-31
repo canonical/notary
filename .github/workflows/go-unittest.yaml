@@ -12,8 +12,7 @@ jobs:
         with:
           go-version-file: "go.mod"
 
-      - name: Install dqlite
-        run: sudo apt-get update && sudo apt-get install -y libdqlite-dev
+      - uses: ./.github/actions/install-dqlite
 
       - name: Unit tests
         run: go test -cover ./...

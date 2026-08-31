@@ -12,5 +12,7 @@ jobs:
         with:
           go-version-file: "go.mod"
 
+      - uses: ./.github/actions/install-dqlite
+
       - name: Go vet
         run: go vet ./...

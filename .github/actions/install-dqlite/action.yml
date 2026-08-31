@@ -1,0 +1,14 @@
+name: Install libdqlite
+description: Install a libdqlite new enough for go-dqlite v3 (Ubuntu archive 1.16 is too old).
+
+runs:
+  using: composite
+  steps:
+    - name: Install libdqlite from the dqlite PPA
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y software-properties-common
+        sudo add-apt-repository -y ppa:dqlite/dev
+        sudo apt-get update
+        sudo apt-get install -y libdqlite-dev

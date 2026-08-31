@@ -14,9 +14,9 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: "go.mod"
+      - uses: ./.github/actions/install-dqlite
       - name: generate coverage
         run: |
-          sudo apt-get update && sudo apt-get install -y libdqlite-dev
           go install github.com/t-yuki/gocover-cobertura@latest
           go install honnef.co/go/tools/cmd/staticcheck@v0.6.1
           go test -v ./... -coverprofile=coverage.out

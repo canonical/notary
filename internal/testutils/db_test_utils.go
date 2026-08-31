@@ -1,12 +1,12 @@
 package testutils
 
 import (
-	"path/filepath"
 	"testing"
 
 	"github.com/canonical/notary/internal/backends/authentication"
 	"github.com/canonical/notary/internal/backends/authorization"
 	"github.com/canonical/notary/internal/backends/encryption"
+	"github.com/canonical/notary/internal/cluster"
 	"github.com/canonical/notary/internal/config"
 	"github.com/canonical/notary/internal/db"
 	"github.com/spf13/viper"
@@ -16,11 +16,14 @@ import (
 func MustPrepareEmptyDB(t *testing.T) *db.DatabaseRepository {
 	t.Helper()
 
-	tempDir := t.TempDir()
+	addr, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatalf("Couldn't get free dqlite address: %s", err)
+	}
 	database, err := db.NewDatabase(&db.DatabaseOpts{
-		DatabasePath:    filepath.Join(tempDir, "db.sqlite"),
-		ApplyMigrations: true,
-		Logger:          logger,
+		DatabasePath: t.TempDir(),
+		Address:      addr,
+		Logger:       logger,
 	})
 	if err != nil {
 		t.Fatalf("Couldn't complete NewDatabase: %s", err)

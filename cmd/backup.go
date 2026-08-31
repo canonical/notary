@@ -60,9 +60,8 @@ The database configuration is read from the specified config file.`,
 		auditLogger := auditlog.NewAuditLogger(logger)
 
 		database, err := db.NewDatabase(&db.DatabaseOpts{
-			DatabasePath:    backupConfigPath,
-			ApplyMigrations: false,
-			Logger:          logger,
+			DatabasePath: backupConfigPath,
+			Logger:       logger,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to initialize database: %w", err)

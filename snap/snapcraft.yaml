@@ -38,8 +38,19 @@ parts:
     build-snaps:
       - go/1.26/stable
       - node/20/stable
+    build-packages:
+      - gcc
+      - pkg-config
+      - libdqlite-dev
+      - libsqlite3-dev
+      - libuv1-dev
+    stage-packages:
+      - libdqlite0
+      - libsqlite3-0
+      - libuv1
     build-environment:
       - GOTOOLCHAIN: local
+      - CGO_ENABLED: "1"
     override-build: |
       npm install --prefix ui
       npm run build --prefix ui

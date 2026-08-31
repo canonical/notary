@@ -10,7 +10,9 @@ Or If you are using the snap you can modify the config under `/var/snap/notary/c
 - `key_path` (string): Path to the private key for enabling HTTPS connections.
 - `cert_path` (string): Path to a PEM formatted certificate for enabling HTTPS connections.
 - `external_hostname` (string): The external hostname or IP address (with optional port) where Notary is accessible. Used for constructing OIDC redirect URLs and CRL distribution points. Example: `notary.example.com` or `localhost:2111`.
-- `db_path` (string): Path to where the sqlite database should be stored. If the file does not exist Notary will attempt to create it.
+- `db_path` (string): Path to the data directory. Notary stores dqlite files here (and a small OpenFGA SQLite file used for authorization). If the directory does not exist, Notary creates it and bootstraps a one-node cluster. Schema updates are applied automatically on `notary start`. `notary backup` and `notary restore` are not supported yet.
+- `cluster` (object): Configuration for the local dqlite node.
+  - `address` (string): Bind address for dqlite, as `host:port`. Defaults to `127.0.0.1:9000`.
 - `port` (integer): Port number on which Notary will listen for all incoming API and frontend connections.
 - `pebble_notifications` (boolean): Allow Notary to send pebble notices on certificate events (create, update, delete). Pebble needs to be running on the same system as Notary.
 - `logging` (object): Configuration for logging.
@@ -55,7 +57,9 @@ Or If you are using the snap you can modify the config under `/var/snap/notary/c
 ```yaml
 key_path: "/etc/notary/config/key.pem"
 cert_path: "/etc/notary/config/cert.pem"
-db_path: "/var/lib/notary/database/notary.db"
+db_path: "/var/lib/notary/database"
+cluster:
+  address: "127.0.0.1:9000"
 port: 3000
 pebble_notifications: true
 logging:
@@ -75,7 +79,9 @@ tracing:
 ```yaml
 key_path: "/etc/notary/config/key.pem"
 cert_path: "/etc/notary/config/cert.pem"
-db_path: "/var/lib/notary/database/notary.db"
+db_path: "/var/lib/notary/database"
+cluster:
+  address: "127.0.0.1:9000"
 port: 3000
 pebble_notifications: true
 logging:

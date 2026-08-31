@@ -2,7 +2,9 @@ package authorization
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"path/filepath"
 
 	"github.com/canonical/notary/internal/db"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
@@ -39,16 +41,28 @@ func UserID(email string) string {
 	return fmt.Sprintf("user:%s", email)
 }
 
-// InitializeLocalOpenFGA initializes a local OpenFGA server backed by its own
-// SQLite connection. dbPath is the filesystem path to the SQLite database.
+// InitializeLocalOpenFGA initializes a local OpenFGA server. OpenFGA's SQLite
+// driver is not compatible with dqlite, so authz uses a sidecar file next to
+// the dqlite data directory. Notary application data stays on dqlite.
 func InitializeLocalOpenFGA(database *db.DatabaseRepository, logger *zap.Logger) (*AuthzRepository, error) {
-	// Run OpenFGA's SQLite schema migrations on the shared DB connection.
+	ofgaPath := filepath.Join(database.Path, "openfga.sqlite")
+	sqlConnection, err := sql.Open("sqlite", ofgaPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open OpenFGA sqlite database: %w", err)
+	}
+	if _, err := sqlConnection.Exec("PRAGMA foreign_keys = ON"); err != nil {
+		_ = sqlConnection.Close()
+		return nil, fmt.Errorf("failed to enable foreign keys for OpenFGA: %w", err)
+	}
+
 	goose.SetLogger(goose.NopLogger())
 	goose.SetBaseFS(assets.EmbedMigrations)
 	if err := goose.SetDialect("sqlite"); err != nil {
+		_ = sqlConnection.Close()
 		return nil, fmt.Errorf("failed to set goose dialect: %w", err)
 	}
-	if err := goose.Up(database.Conn.PlainDB(), assets.SqliteMigrationDir, goose.WithNoColor(true)); err != nil {
+	if err := goose.Up(sqlConnection, assets.SqliteMigrationDir, goose.WithNoColor(true)); err != nil {
+		_ = sqlConnection.Close()
 		return nil, fmt.Errorf("failed to run OpenFGA migrations: %w", err)
 	}
 
@@ -57,13 +71,15 @@ func InitializeLocalOpenFGA(database *db.DatabaseRepository, logger *zap.Logger)
 	cfg := sqlcommon.NewConfig(
 		sqlcommon.WithLogger(ofgaLog),
 	)
-	ds, err := ofgaSqlite.NewWithDB(database.Conn.PlainDB(), cfg)
+	ds, err := ofgaSqlite.NewWithDB(sqlConnection, cfg)
 	if err != nil {
+		_ = sqlConnection.Close()
 		return nil, fmt.Errorf("failed to create OpenFGA SQLite datastore: %w", err)
 	}
 
 	fga, err := ofgaServer.NewServerWithOpts(ofgaServer.WithDatastore(ds))
 	if err != nil {
+		_ = sqlConnection.Close()
 		return nil, fmt.Errorf("failed to create OpenFGA server: %w", err)
 	}
 

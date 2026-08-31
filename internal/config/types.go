@@ -24,10 +24,13 @@ type AppConfig struct {
 	// It is also used in the OIDC configuration as the audience for the IDP to identify the Notary server with the correct API scopes
 	ExternalHostname string
 
-	// Path to store the sqlite database
+	// Path to the dqlite data directory (was a SQLite file path).
 	DBPath string
 	// Whether to apply database migrations automatically on startup if the database is outdated
 	ShouldApplyMigrations bool
+
+	// ClusterAddress is the dqlite bind address (host:port).
+	ClusterAddress string
 
 	// Send pebble notifications if enabled. Read more at github.com/canonical/pebble
 	ShouldEnablePebbleNotifications bool

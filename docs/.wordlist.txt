@@ -11,6 +11,8 @@ Kubernetes
 lifecycle
 PEM
 RESTful
+dqlite
+OpenFGA
 sqlite
 stdout
 TLS

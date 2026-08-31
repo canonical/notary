@@ -57,9 +57,8 @@ your current database before restoring.`,
 		auditLogger := auditlog.NewAuditLogger(logger)
 
 		database, err := db.NewDatabase(&db.DatabaseOpts{
-			DatabasePath:    restoreConfigPath,
-			ApplyMigrations: false,
-			Logger:          logger,
+			DatabasePath: restoreConfigPath,
+			Logger:       logger,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to initialize database: %w", err)

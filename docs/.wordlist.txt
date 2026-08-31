@@ -12,6 +12,8 @@ lifecycle
 PEM
 RESTful
 dqlite
+timestamped
+tar
 OpenFGA
 sqlite
 stdout

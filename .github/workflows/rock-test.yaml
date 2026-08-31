@@ -38,7 +38,7 @@ jobs:
           sudo rockcraft.skopeo --insecure-policy copy oci-archive:rock-path/$ROCK_FILE_NAME docker-daemon:notary:latest
       - name: Run the image
         run: |
-          docker run -d -p 3000:3000 -v ./config:/etc/notary/config -v ./data:/var/lib/notary/database --name notary notary:latest --args notary -m --config /etc/notary/config/config.yaml
+          docker run -d -p 3000:3000 -v ./config:/etc/notary/config -v ./data:/var/lib/notary/database --name notary notary:latest --args notary --config /etc/notary/config/config.yaml
       - name: Check if Notary frontend is loaded
         run: |
           sleep 30

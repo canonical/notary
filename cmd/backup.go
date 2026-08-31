@@ -21,10 +21,9 @@ var (
 var backupCmd = &cobra.Command{
 	Use:   "backup",
 	Short: "Create a physical backup of the database",
-	Long: `Create a physical backup of all the tables in the database.
+	Long: `Create a tar.gz archive of the Notary data directory (dqlite files and OpenFGA).
 
-The backup will be created as a tar.gz archive containing the database file.
-The database configuration is read from the specified config file.`,
+Stop Notary before taking a backup so the files on disk are consistent.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if backupFile == "" {
 			return fmt.Errorf("backup file path is required")
@@ -59,15 +58,7 @@ The database configuration is read from the specified config file.`,
 		defer func() { _ = logger.Sync() }()
 		auditLogger := auditlog.NewAuditLogger(logger)
 
-		database, err := db.NewDatabase(&db.DatabaseOpts{
-			DatabasePath: backupConfigPath,
-			Logger:       logger,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to initialize database: %w", err)
-		}
-
-		archivePath, err := db.CreateBackup(database, backupDir)
+		archivePath, err := db.CreateBackup(backupConfigPath, absDir)
 		if err != nil {
 			auditLogger.DatabaseBackupFailed(err.Error())
 			return fmt.Errorf("failed to create backup: %w", err)
@@ -83,7 +74,7 @@ func init() {
 	rootCmd.AddCommand(backupCmd)
 
 	backupCmd.Flags().StringVarP(&backupFile, "file", "f", "", "path where the backup archive will be created (directory path)")
-	backupCmd.Flags().StringVarP(&backupConfigPath, "db-path", "d", "", "path to the database file")
+	backupCmd.Flags().StringVarP(&backupConfigPath, "db-path", "d", "", "path to the data directory")
 
 	if err := backupCmd.MarkFlagRequired("file"); err != nil {
 		log.Fatalf("Error marking file flag as required: %v", err)

@@ -161,13 +161,3 @@ func DeleteEntity[T any](db *DatabaseRepository, stmt *sqlair.Statement, entity_
 	}
 	return nil
 }
-
-// CreateBackup is not supported on dqlite in this MVP.
-func CreateBackup(db *DatabaseRepository, backupDir string) (string, error) {
-	return "", errors.New("database backup is not supported with dqlite yet")
-}
-
-// RestoreBackup is not supported on dqlite in this MVP.
-func RestoreBackup(db *DatabaseRepository, archivePath string) error {
-	return errors.New("database restore is not supported with dqlite yet")
-}

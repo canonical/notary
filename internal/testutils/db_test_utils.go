@@ -68,7 +68,6 @@ func MustCreateTestAppConfig(t *testing.T) *config.AppConfig {
 		Port:                            8000,
 		ExternalHostname:                "example.com",
 		DBPath:                          ":memory:",
-		ShouldApplyMigrations:           false,
 		ShouldEnablePebbleNotifications: false,
 		TLSCertificate:                  []byte(TestServerCertificate),
 		TLSPrivateKey:                   []byte(TestServerKey),

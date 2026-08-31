@@ -73,7 +73,6 @@ func init() {
 	rootCmd.AddCommand(startCmd)
 
 	startCmd.Flags().StringVarP(&configFilePath, "config", "c", "", "path to the configuration file")
-	startCmd.Flags().BoolP("migrate-database", "m", false, "schema updates are applied automatically on start (flag kept for compatibility)")
 
 	err := startCmd.MarkFlagRequired("config")
 	if err != nil {

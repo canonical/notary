@@ -8,8 +8,7 @@ import (
 	"time"
 )
 
-// schemaUpdates replace goose. Each entry is applied once, in order, when the
-// dqlite database is opened.
+// schemaUpdates are applied once, in order, when the dqlite database is opened.
 var schemaUpdates = []string{
 	schemaInitial,
 	schemaACME,

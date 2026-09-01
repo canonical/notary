@@ -158,4 +158,11 @@ func TestBackupRestoreDqliteData(t *testing.T) {
 	if got.UserEmail != "user@example.com" {
 		t.Fatalf("user email: got %q", got.UserEmail)
 	}
+
+	if _, err := os.Stat(filepath.Join(srcDir, "openfga.sqlite")); !os.IsNotExist(err) {
+		t.Fatalf("source data dir should not contain openfga.sqlite: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dstDir, "openfga.sqlite")); !os.IsNotExist(err) {
+		t.Fatalf("restored data dir should not contain openfga.sqlite: %v", err)
+	}
 }

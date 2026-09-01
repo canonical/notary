@@ -1,6 +1,8 @@
 package authorization_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/canonical/notary/internal/backends/authorization"
@@ -144,5 +146,22 @@ func TestCheckFollowsRoleUpdate(t *testing.T) {
 	}
 	if !got {
 		t.Fatal("role update should be visible to Check")
+	}
+}
+
+func TestNewDoesNotCreateOpenFGASidecar(t *testing.T) {
+	database := tu.MustPrepareEmptyDB(t)
+	_ = authorization.New(database)
+	path := filepath.Join(database.Path, "openfga.sqlite")
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("authorization.New should not create %s: %v", path, err)
+	}
+}
+
+func TestCertificateRequestorOnlyRequiresRepository(t *testing.T) {
+	var authz *authorization.AuthzRepository
+	_, err := authz.CertificateRequestorOnly("user@example.com")
+	if err == nil {
+		t.Fatal("expected error when authz repository is nil")
 	}
 }

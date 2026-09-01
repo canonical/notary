@@ -3,11 +3,16 @@ package server_test
 import (
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
+	internalLog "github.com/canonical/notary/internal/backends/observability/log"
 	"github.com/canonical/notary/internal/server"
 	tu "github.com/canonical/notary/internal/testutils"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 func TestAuthorizationNoAuth(t *testing.T) {
@@ -750,5 +755,82 @@ func TestAuthorizationReadOnlyUnauthorized(t *testing.T) {
 				t.Errorf("expected status code %d, got %d", tC.status, res.StatusCode)
 			}
 		})
+	}
+}
+
+func TestAuthorizationFollowsRoleChangeWithoutRelogin(t *testing.T) {
+	ts, _ := tu.MustPrepareServer(t)
+	client := ts.Client()
+	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+	requestorToken := tu.MustPrepareAccount(t, ts, "requestor@canonical.com", tu.RoleCertificateRequestor, adminToken)
+
+	statusCode, _, err := tu.ListCertificateAuthorities(ts.URL, client, requestorToken)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if statusCode != http.StatusForbidden {
+		t.Fatalf("requestor listing CAs: got %d, want %d", statusCode, http.StatusForbidden)
+	}
+
+	statusCode, me, err := tu.GetMyAccount(ts.URL, client, requestorToken)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if statusCode != http.StatusOK {
+		t.Fatalf("get my account: got %d", statusCode)
+	}
+
+	statusCode, _, err = tu.UpdateAccountRole(ts.URL, client, adminToken, me.Data.ID, &tu.UpdateAccountRoleParams{RoleID: tu.RoleCertificateManager})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if statusCode != http.StatusCreated {
+		t.Fatalf("update role: got %d, want %d", statusCode, http.StatusCreated)
+	}
+
+	statusCode, _, err = tu.ListCertificateAuthorities(ts.URL, client, requestorToken)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if statusCode != http.StatusOK {
+		t.Fatalf("same JWT after role change: got %d, want %d", statusCode, http.StatusOK)
+	}
+}
+
+func TestAuthorizationMissingRepositoryReturns500(t *testing.T) {
+	database := tu.MustPrepareEmptyDB(t)
+	core, _ := observer.New(zapcore.InfoLevel)
+	appCfg := tu.MustCreateTestAppConfig(t)
+	appEnv := tu.MustCreateTestAppEnvironment(t, database)
+	appEnv.AuditLogger = internalLog.NewAuditLogger(zap.New(core))
+	appEnv.AuthzRepository = nil
+
+	srv, err := server.New(appCfg, appEnv)
+	if err != nil {
+		t.Fatalf("Couldn't get server: %s", err)
+	}
+	ts := httptest.NewTLSServer(srv.Handler)
+	t.Cleanup(ts.Close)
+
+	adminToken := tu.MustGetDefaultAdminToken(t, ts)
+	req, err := http.NewRequest("GET", ts.URL+"/api/v1/accounts/me", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    adminToken,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
+	res, err := ts.Client().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("missing authz repository: got %d, want %d", res.StatusCode, http.StatusInternalServerError)
 	}
 }

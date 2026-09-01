@@ -19,7 +19,7 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(dataDir, "nested"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dataDir, "nested", "openfga.sqlite"), []byte("sidecar"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(dataDir, "nested", "extra.dat"), []byte("extra"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -41,12 +41,12 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 	if string(got) != "id: 1\n" {
 		t.Fatalf("info.yaml: got %q", got)
 	}
-	got, err = os.ReadFile(filepath.Join(restored, "nested", "openfga.sqlite"))
+	got, err = os.ReadFile(filepath.Join(restored, "nested", "extra.dat"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(got) != "sidecar" {
-		t.Fatalf("openfga.sqlite: got %q", got)
+	if string(got) != "extra" {
+		t.Fatalf("extra.dat: got %q", got)
 	}
 }
 

@@ -21,7 +21,7 @@ var (
 var backupCmd = &cobra.Command{
 	Use:   "backup",
 	Short: "Create a physical backup of the database",
-	Long: `Create a tar.gz archive of the Notary data directory (dqlite files and OpenFGA).
+	Long: `Create a tar.gz archive of the Notary data directory (dqlite files).
 
 Stop Notary before taking a backup so the files on disk are consistent.`,
 	RunE: func(cmd *cobra.Command, args []string) error {

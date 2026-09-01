@@ -1,7 +1,4 @@
 // Package cluster owns the local dqlite node used as Notary's store.
-//
-// Stage 1 is a single node: an empty directory is bootstrapped, an existing
-// directory is resumed. sqlair and OpenFGA use the *sql.DB from Open.
 package cluster
 
 import (
@@ -71,7 +68,7 @@ func Start(opts Options) (*Node, error) {
 	return &Node{app: dqliteApp}, nil
 }
 
-// Open returns a *sql.DB for the Notary database (sqlair / OpenFGA).
+// Open returns a *sql.DB for the Notary database.
 func (n *Node) Open(ctx context.Context) (*sql.DB, error) {
 	db, err := n.app.Open(ctx, databaseName)
 	if err != nil {

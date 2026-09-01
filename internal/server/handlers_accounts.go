@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/canonical/notary/internal/backends/authorization"
 	"github.com/canonical/notary/internal/backends/observability/log"
 	"github.com/canonical/notary/internal/db"
 	"go.uber.org/zap"
@@ -239,14 +238,6 @@ func CreateAccount(env *HandlerDependencies) http.HandlerFunc {
 			return
 		}
 
-		if env.AuthzRepository != nil {
-			relation := RoleIDToRelation(db.RoleID(createAccountParams.RoleID))
-			userID := authorization.UserID(createAccountParams.Email)
-			if err := env.AuthzRepository.WriteTuple("system:notary", relation, userID); err != nil {
-				env.SystemLogger.Error("Failed to write role tuple to OpenFGA", zap.Error(err), zap.String("user", userID), zap.String("relation", relation))
-			}
-		}
-
 		var actor string
 		claims, claimsErr := getClaimsFromCookie(r, env.Database.JWTSecret, env.AuthnRepository)
 		if claimsErr == nil {
@@ -310,14 +301,6 @@ func DeleteAccount(env *HandlerDependencies) http.HandlerFunc {
 			env.SystemLogger.Error("failed to delete user", zap.Error(err))
 			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
-		}
-
-		if env.AuthzRepository != nil {
-			relation := RoleIDToRelation(account.RoleID)
-			userID := authorization.UserID(account.Email)
-			if err := env.AuthzRepository.DeleteTuple("system:notary", relation, userID); err != nil {
-				env.SystemLogger.Error("Failed to delete role tuple from OpenFGA", zap.Error(err), zap.String("user", userID), zap.String("relation", relation))
-			}
 		}
 
 		env.AuditLogger.UserDeleted(account.Email,

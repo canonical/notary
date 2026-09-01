@@ -226,9 +226,9 @@ func extractResourceType(path string) string {
 	return ""
 }
 
-// requirePermission authorizes a request by verifying the caller's JWT then performing an
-// OpenFGA Check against "system:notary" for each of the allowedRoles. The first matching
-// role grants access; if none match, 403 Forbidden is returned.
+// requirePermission authorizes a request by verifying the caller's JWT then checking
+// the caller's role against "system:notary" for each of the allowedRoles. The first
+// matching role grants access; if none match, 403 Forbidden is returned.
 func requirePermission(
 	allowedRoles []string,
 	env *HandlerDependencies,
@@ -247,16 +247,16 @@ func requirePermission(
 		}
 
 		userID := authorization.UserID(claims.Email)
-		const systemObject = "system:notary"
 
 		if env.AuthzRepository == nil {
-			handler(w, r)
+			env.SystemLogger.Error("authorization repository is not configured")
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 
 		allowed := false
 		for _, role := range allowedRoles {
-			ok, checkErr := env.AuthzRepository.Check(systemObject, role, userID)
+			ok, checkErr := env.AuthzRepository.Check(authorization.SystemObject, role, userID)
 			if checkErr != nil {
 				env.SystemLogger.Error("authorization check failed", zap.Error(checkErr))
 				writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)

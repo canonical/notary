@@ -1,6 +1,8 @@
 key_path:  "/var/snap/notary/common/key.pem"
 cert_path: "/var/snap/notary/common/cert.pem"
-db_path: "/var/snap/notary/common/notary.db"
+db_path: "/var/snap/notary/common/database"
+cluster:
+  address: "127.0.0.1:9000"
 port: 3000
 pebble_notifications: false
 logging:

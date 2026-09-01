@@ -107,7 +107,7 @@ clean-vm:
 $(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE):
 	@echo 'key_path: "artifacts/key.pem"'      >> $@;\
      echo 'cert_path: "artifacts/cert.pem"'    >> $@;\
-     echo 'db_path: "artifacts/notary.db"'     >> $@;\
+     echo 'db_path: "artifacts/database"'      >> $@;\
      echo 'cluster:'                           >> $@;\
      echo '  address: "127.0.0.1:9000"'        >> $@;\
      echo 'port: 2111'                         >> $@;\
@@ -118,7 +118,7 @@ $(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE):
 $(ARTIFACT_FOLDER)/$(NOTARY_DOCKER_CONFIG_FILE):
 	@echo 'key_path: "/config/key.pem"'        >> $@;\
      echo 'cert_path: "/config/cert.pem"'      >> $@;\
-     echo 'db_path: "/config/notary.db"'       >> $@;\
+     echo 'db_path: "/config/database"'        >> $@;\
      echo 'cluster:'                           >> $@;\
      echo '  address: "127.0.0.1:9000"'        >> $@;\
      echo 'port: 2111'                         >> $@;\

@@ -84,7 +84,13 @@ func ListCertificateRequests(env *HandlerDependencies) http.HandlerFunc {
 		var err error
 
 		filter := &db.CSRFilter{}
-		if RoleID(claims.RoleID) == RoleCertificateRequestor {
+		ownOnly, err := env.AuthzRepository.CertificateRequestorOnly(claims.Email)
+		if err != nil {
+			env.SystemLogger.Error("authorization check failed", zap.Error(err))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
+			return
+		}
+		if ownOnly {
 			filter.UserEmail = &claims.Email
 		}
 
@@ -197,8 +203,13 @@ func GetCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 			return
 		}
 
-		// Restrict access to certificate requestors' own requests
-		if RoleID(claims.RoleID) == RoleCertificateRequestor && claims.Email != csr.UserEmail {
+		ownOnly, authzErr := env.AuthzRepository.CertificateRequestorOnly(claims.Email)
+		if authzErr != nil {
+			env.SystemLogger.Error("authorization check failed", zap.Error(authzErr))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
+			return
+		}
+		if ownOnly && claims.Email != csr.UserEmail {
 			env.SystemLogger.Warn("certificate request access denied", zap.String("requester_email", claims.Email), zap.String("owner_email", csr.UserEmail), zap.Int64("csr_id", idNum))
 			writeResponse(w, http.StatusForbidden, "access denied", nil, env.SystemLogger)
 			return

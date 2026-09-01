@@ -23,7 +23,7 @@ func TestValidConfig(t *testing.T) {
 		{"minimal config", validMinimalConfig, &config.AppConfig{
 			Port:                            8000,
 			ExternalHostname:                "localhost",
-			DBPath:                          "./notary.db",
+			DBPath:                          "./database",
 			ShouldEnablePebbleNotifications: false,
 			ClusterAddress:                  "127.0.0.1:9000",
 			TLSCertificate:                  []byte(validCert),
@@ -32,7 +32,7 @@ func TestValidConfig(t *testing.T) {
 		{"full config", validFullConfig, &config.AppConfig{
 			Port:                            8000,
 			ExternalHostname:                "example.com",
-			DBPath:                          "./notary.db",
+			DBPath:                          "./database",
 			ShouldEnablePebbleNotifications: false,
 			ClusterAddress:                  "127.0.0.1:9000",
 			TLSCertificate:                  []byte(validCert),
@@ -109,7 +109,7 @@ const (
 	validMinimalConfig = `
 key_path:  "./key_test.pem"
 cert_path: "./cert_test.pem"
-db_path: "./notary.db"
+db_path: "./database"
 port: 8000
 encryption_backend:
   type: "none"
@@ -118,7 +118,7 @@ encryption_backend:
 key_path:  "./key_test.pem"
 cert_path: "./cert_test.pem"
 external_hostname: "example.com"
-db_path: "./notary.db"
+db_path: "./database"
 pebble_notifications: false
 port: 8000
 logging:
@@ -134,7 +134,7 @@ const (
 	noCertPathConfig = `
 key_path:  "./key_test.pem"
 external_hostname: "example.com"
-db_path: "./notary.db"
+db_path: "./database"
 port: 8000
 logging:
   system:
@@ -146,7 +146,7 @@ encryption_backend:
 	noKeyPathConfig = `
 cert_path: "./cert_test.pem"
 external_hostname: "example.com"
-db_path: "./notary.db"
+db_path: "./database"
 port: 8000
 logging:
   system:
@@ -158,7 +158,7 @@ encryption_backend:
 	noExternalHostnameConfig = `
 key_path:  "./key_test.pem"
 cert_path: "./cert_test.pem"
-db_path: "./notary.db"
+db_path: "./database"
 port: 8000
 logging:
   system:
@@ -183,7 +183,7 @@ encryption_backend:
 key_path:  "./key_test.pem"
 cert_path: "./cert_test_wrong.pem"
 external_hostname: "example.com"
-db_path: "./notary.db"
+db_path: "./database"
 port: 8000
 logging:
   system:
@@ -196,7 +196,7 @@ encryption_backend:
 key_path:  "./key_test_wrong.pem"
 cert_path: "./cert_test.pem"
 external_hostname: "example.com"
-db_path: "./notary.db"
+db_path: "./database"
 port: 8000
 logging:
   system:
@@ -209,7 +209,7 @@ encryption_backend:
 key_path:  "./key_test.pem"
 cert_path: "./cert_test.pem"
 external_hostname: "example.com"
-db_path: "./notary.db"
+db_path: "./database"
 port: 8000
 logging:
   system:
@@ -225,7 +225,7 @@ encryption_backend:
 key_path:  "./key_test.pem"
 cert_path: "./cert_test.pem"
 external_hostname: "example.com"
-db_path: "./notary.db"
+db_path: "./database"
 port: 8000
 logging:
   system:
@@ -236,7 +236,7 @@ logging:
 key_path:  "./key_test.pem"
 cert_path: "./cert_test.pem"
 external_hostname: "example.com"
-db_path: "./notary.db"
+db_path: "./database"
 port: 8000
 logging:
   system:

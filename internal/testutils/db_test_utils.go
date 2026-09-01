@@ -89,10 +89,7 @@ func MustCreateTestAppEnvironment(t *testing.T, database *db.DatabaseRepository)
 		t.Fatalf("failed to set up encryption key: %s", err)
 	}
 
-	authzRepo, err := authorization.InitializeLocalOpenFGA(database, logger)
-	if err != nil {
-		t.Fatalf("failed to initialize OpenFGA: %s", err)
-	}
+	authzRepo := authorization.New(database)
 
 	return &config.AppEnvironment{
 		Database:             database,

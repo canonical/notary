@@ -66,7 +66,7 @@ The command prints the path of the archive it created.
 
 ## 3. Restore a backup
 
-Restore deletes the current data directory and replaces it with the archive. After restore, `cluster.address` in the configuration file must still match the node that was backed up.
+Restore deletes the current data directory and replaces it with the archive. After restore, `cluster.address` and `cluster.name` in the configuration file must still match the node that was backed up.
 
 Cluster TLS files (`cluster.tls.cert_path` and `cluster.tls.key_path`) live next to the configuration file, not inside `db_path`. Keep the same `cluster.crt` and `cluster.key` the node used before the backup. Backup does not archive those files unless you stored them in the data directory yourself.
 

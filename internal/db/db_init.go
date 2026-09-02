@@ -55,8 +55,13 @@ func NewDatabase(dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
 		return nil, fmt.Errorf("create database directory: %w", err)
 	}
 	node, err = cluster.Start(cluster.Options{
-		Dir:     dbOpts.DatabasePath,
-		Address: dbOpts.Address,
+		Dir:       dbOpts.DatabasePath,
+		Address:   dbOpts.Address,
+		Name:      dbOpts.Name,
+		Join:      dbOpts.Join,
+		JoinToken: dbOpts.JoinToken,
+		TLSCert:   dbOpts.TLSCert,
+		TLSKey:    dbOpts.TLSKey,
 	})
 	if err != nil {
 		return nil, err
@@ -88,7 +93,52 @@ func NewDatabase(dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
 	repo.Conn = sqlair.NewDB(sqlConnection)
 	repo.Path = dbOpts.DatabasePath
 	repo.Node = node
+
+	name := dbOpts.Name
+	if name == "" {
+		name = cluster.DefaultMemberName()
+	}
+	if dbOpts.JoinToken != "" {
+		token, err := cluster.DecodeJoinToken(dbOpts.JoinToken)
+		if err != nil {
+			_ = repo.Close()
+			return nil, err
+		}
+		if err := cluster.ConsumeJoinToken(ctx, sqlConnection, token); err != nil {
+			_ = repo.Close()
+			return nil, err
+		}
+		name = token.ServerName
+	}
+	if err := cluster.RegisterMember(ctx, sqlConnection, name, node.Address()); err != nil {
+		_ = repo.Close()
+		return nil, err
+	}
 	return repo, nil
+}
+
+// ListClusterMembers returns dqlite membership from the running node.
+func (db *DatabaseRepository) ListClusterMembers(ctx context.Context) ([]cluster.Member, error) {
+	if db == nil || db.Node == nil {
+		return nil, fmt.Errorf("database is not open")
+	}
+	return db.Node.MembersWithNames(ctx, db.Conn.PlainDB())
+}
+
+// IssueJoinToken creates a one-time token for `notary cluster add <name>`.
+func (db *DatabaseRepository) IssueJoinToken(ctx context.Context, name string) (string, error) {
+	if db == nil || db.Node == nil {
+		return "", fmt.Errorf("database is not open")
+	}
+	return cluster.IssueJoinTokenOnNode(ctx, db.Node, db.Conn.PlainDB(), name)
+}
+
+// RemoveClusterMember evicts a named member.
+func (db *DatabaseRepository) RemoveClusterMember(ctx context.Context, name string) error {
+	if db == nil || db.Node == nil {
+		return fmt.Errorf("database is not open")
+	}
+	return cluster.RemoveMemberOnNode(ctx, db.Node, db.Conn.PlainDB(), name)
 }
 
 // ListEntities retrieves all entities of a given type from the database.

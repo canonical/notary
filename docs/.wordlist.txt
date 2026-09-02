@@ -18,6 +18,9 @@ tar
 goose
 sqlite
 SQLite
+SAN
+addext
+subjectAltName
 stdout
 systemd
 TLS
@@ -52,3 +55,6 @@ Requestor
 Grafana
 OpenTelemetry
 url
+join_token
+LXD
+lxc

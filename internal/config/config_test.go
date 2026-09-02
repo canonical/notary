@@ -74,6 +74,7 @@ func TestInvalidConfig(t *testing.T) {
 		{"no encryption backend", noEncryptionBackendConfig, "`encryption_backend` is empty"},
 		{"invalid pkcs11 encryption backend config", invalidEncryptionBackendConfigType, "invalid encryption backend type; must be 'none', 'vault' or 'pkcs11'"},
 		{"incomplete pkcs11 encryption backend config", incompleteEncryptionBackendConfig, "pin is missing"},
+		{"join without cluster tls", joinWithoutTLSConfig, "joining a cluster requires cluster.tls.cert_path and cluster.tls.key_path"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -246,6 +247,18 @@ encryption_backend:
   type: "pkcs11"
   lib_path: "/usr/local/lib/pkcs11/yubihsm_pkcs11.so"
   aes_encryption_key_id: 0x1234
+`
+	joinWithoutTLSConfig = `
+key_path:  "./key_test.pem"
+cert_path: "./cert_test.pem"
+db_path: "./database"
+port: 8000
+cluster:
+  address: "10.0.0.2:9000"
+  join:
+    - "10.0.0.1:9000"
+encryption_backend:
+  type: "none"
 `
 	invalidYAMLConfig = `just_an=invalid
 yaml.here`

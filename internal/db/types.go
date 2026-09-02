@@ -9,6 +9,11 @@ import (
 type DatabaseOpts struct {
 	DatabasePath string
 	Address      string
+	Join         []string
+	JoinToken    string
+	Name         string
+	TLSCert      []byte
+	TLSKey       []byte
 	Logger       *zap.Logger
 }
 

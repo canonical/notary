@@ -36,3 +36,5 @@ juju deploy notary-k8s --channel 0/stable
 ````
 
 `````
+
+To run several Notary processes as one dqlite cluster, see [Run a Notary cluster](cluster.md).

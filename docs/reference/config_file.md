@@ -12,7 +12,21 @@ Or If you are using the snap you can modify the config under `/var/snap/notary/c
 - `external_hostname` (string): The external hostname or IP address (with optional port) where Notary is accessible. Used for constructing OIDC redirect URLs and CRL distribution points. Example: `notary.example.com` or `localhost:2111`.
 - `db_path` (string): Path to the data directory (not a SQLite file). Notary stores dqlite files here. If the directory does not exist, Notary creates it and bootstraps a one-node cluster. Goose schema migrations run automatically on `notary start` against the dqlite database. To back up or restore this directory, see [Back up and restore Notary](../how-to/backup_restore.md).
 - `cluster` (object): Configuration for the local dqlite node.
+  - `name` (string): Cluster member name (LXD-style). Defaults to the machine hostname.
   - `address` (string): Bind address for dqlite, as `host:port`. Defaults to `127.0.0.1:9000`.
+  - `join_token` (string): One-time token from `notary cluster add <name>`. Used only the first time this node starts (empty data directory). Prefer `notary start --join`. Joining requires cluster TLS.
+  - `join` (list of strings): Existing dqlite addresses. Alternative to a join token for first start only. Do not set both `join` and `join_token`.
+  - `tls` (object): Shared certificate for dqlite replication. Same `cert` and `key` on every node. This is not the HTTPS API certificate (`cert_path` / `key_path`).
+    - `cert_path` (string): Path to the cluster certificate PEM. Must include a DNS SAN.
+    - `key_path` (string): Path to the cluster private key PEM.
+
+Cluster operations while the daemon is running (same shape as LXD):
+
+* `notary cluster add <name> --config /path/to/config.yaml` — print a join token
+* `notary cluster list --config /path/to/config.yaml`
+* `notary cluster remove <name> --config /path/to/config.yaml`
+
+Admin HTTP: `GET /api/v1/cluster`, `POST /api/v1/cluster/members`, `DELETE /api/v1/cluster/members/{name}`. Stopping the daemon hands cluster roles to another node when one is available. For start order, see [Run a Notary cluster](../how-to/cluster.md).
 - `port` (integer): Port number on which Notary will listen for all incoming API and frontend connections.
 - `pebble_notifications` (boolean): Allow Notary to send pebble notices on certificate events (create, update, delete). Pebble needs to be running on the same system as Notary.
 - `logging` (object): Configuration for logging.
@@ -73,6 +87,33 @@ tracing:
   endpoint: "127.0.0.1:4317"
   sampling_rate: "100%"
 ```
+
+A second node is added with `notary cluster add node2` on an existing member, then started with `--join` and the same cluster TLS files:
+
+```yaml
+key_path: "/etc/notary/config/key.pem"
+cert_path: "/etc/notary/config/cert.pem"
+db_path: "/var/lib/notary/database"
+cluster:
+  name: "node2"
+  address: "10.0.0.2:9000"
+  tls:
+    cert_path: "/etc/notary/config/cluster.crt"
+    key_path: "/etc/notary/config/cluster.key"
+port: 3000
+encryption_backend:
+  type: "none"
+```
+
+The cluster certificate must include a DNS SAN. One way to create a shared self-signed pair:
+
+```shell
+openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 \
+  -nodes -keyout cluster.key -out cluster.crt -subj "/CN=notary-cluster" \
+  -addext "subjectAltName=DNS:localhost,DNS:notary-cluster,IP:127.0.0.1"
+```
+
+Copy `cluster.crt` and `cluster.key` to every node. Generate a cluster certificate that names each node's `cluster.address` (DNS or IP) as appropriate.
 
 ### With HSM as an Encryption Backend
 

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/canonical/notary/internal/cluster"
+	"github.com/canonical/notary/internal/db/migrations"
 	"github.com/canonical/sqlair"
 )
 
@@ -74,7 +75,7 @@ func NewDatabase(dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
 		return nil, err
 	}
 
-	if err := applySchema(ctx, sqlConnection); err != nil {
+	if err := migrations.Apply(ctx, sqlConnection); err != nil {
 		if node != nil {
 			_ = sqlConnection.Close()
 			_ = node.Close()

@@ -16,6 +16,7 @@ dqlite
 timestamped
 tar
 OpenFGA
+goose
 sqlite
 stdout
 systemd

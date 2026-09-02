@@ -28,6 +28,32 @@ func TestConnect(t *testing.T) {
 	}
 }
 
+func TestMigrationsApplied(t *testing.T) {
+	logger, _ := zap.NewDevelopment()
+	addr, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatalf("Couldn't get free address: %s", err)
+	}
+	database, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addr,
+		Logger:       logger,
+	})
+	if err != nil {
+		t.Fatalf("Can't connect to dqlite: %s", err)
+	}
+	defer database.Close() //nolint:errcheck
+
+	var version int
+	err = database.Conn.PlainDB().QueryRow(`SELECT MAX(version_id) FROM goose_db_version`).Scan(&version)
+	if err != nil {
+		t.Fatalf("read goose version: %s", err)
+	}
+	if version != 2 {
+		t.Fatalf("got goose version %d, want 2", version)
+	}
+}
+
 func Example() {
 	logger, _ := zap.NewDevelopment()
 	database, err := db.NewDatabase(&db.DatabaseOpts{

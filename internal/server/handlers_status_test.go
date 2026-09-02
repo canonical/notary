@@ -3,6 +3,7 @@ package server_test
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	tu "github.com/canonical/notary/internal/testutils"
@@ -32,6 +33,9 @@ func TestStatus(t *testing.T) {
 
 		if statusResponse.Data.Version == "" {
 			t.Fatalf("expected version to be set")
+		}
+		if strings.ContainsAny(statusResponse.Data.Version, "\r\n") {
+			t.Fatalf("version contains a newline: %q", statusResponse.Data.Version)
 		}
 	})
 

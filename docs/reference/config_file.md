@@ -29,7 +29,7 @@ Cluster operations while the daemon is running (same shape as LXD):
 Admin HTTP: `GET /api/v1/cluster`, `POST /api/v1/cluster/members`, `DELETE /api/v1/cluster/members/{name}`. Stopping the daemon hands cluster roles to another node when one is available. For start order, see [Run a Notary cluster](../how-to/cluster.md).
 - `port` (integer): Port number on which Notary will listen for all incoming API and frontend connections.
 - `pebble_notifications` (boolean): Allow Notary to send pebble notices on certificate events (create, update, delete). Pebble needs to be running on the same system as Notary.
-- `logging` (object): Configuration for logging.
+- `logging` (object): Optional. Configuration for logging. If omitted, system logs go to stdout at `debug` and audit logs go to stdout.
   - `system` (object): Configuration for system logging.
     - `level` (string): The level of logging. Options are `debug`, `info`, `warn`, `error`, and `fatal`.
     - `output` (string): The output destination for logs. Options are `stdout`, `stderr`, or a file path.

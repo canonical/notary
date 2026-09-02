@@ -3,6 +3,7 @@ package cluster
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/canonical/go-dqlite/v3/app"
@@ -19,6 +21,10 @@ const (
 	databaseName = "notary"
 	infoFile     = "info.yaml"
 )
+
+// serializes SNAP_INSTANCE_NAME around app.New so concurrent tests do not
+// clobber the env var go-dqlite uses to name its TLS abstract socket.
+var dqliteStartMu sync.Mutex
 
 // Options configure a dqlite node.
 type Options struct {
@@ -97,7 +103,12 @@ func Start(opts Options) (*Node, error) {
 		appOpts = append(appOpts, tlsOpt)
 	}
 
-	dqliteApp, err := app.New(opts.Dir, appOpts...)
+	var dqliteApp *app.App
+	err := withNamespacedDqliteSocket(opts.Dir, func() error {
+		var startErr error
+		dqliteApp, startErr = app.New(opts.Dir, appOpts...)
+		return startErr
+	})
 	if err != nil {
 		return nil, wrapJoinError(join, fmt.Errorf("start dqlite: %w", err))
 	}
@@ -155,6 +166,30 @@ func wrapJoinError(join []string, err error) error {
 		return err
 	}
 	return fmt.Errorf("join cluster at %s: %w", strings.Join(join, ", "), err)
+}
+
+// withNamespacedDqliteSocket sets SNAP_INSTANCE_NAME for go-dqlite TLS binds.
+// go-dqlite otherwise uses @dqlite-<node-id>; the bootstrap id is constant, so
+// two one-node clusters on one host (or leftover test processes) collide.
+// A real snap already sets SNAP_INSTANCE_NAME; leave it alone.
+func withNamespacedDqliteSocket(dir string, fn func() error) error {
+	if os.Getenv("SNAP_INSTANCE_NAME") != "" {
+		return fn()
+	}
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		abs = dir
+	}
+	sum := sha256.Sum256([]byte(abs))
+	name := fmt.Sprintf("notary-%x", sum[:8])
+
+	dqliteStartMu.Lock()
+	defer dqliteStartMu.Unlock()
+	if err := os.Setenv("SNAP_INSTANCE_NAME", name); err != nil {
+		return err
+	}
+	defer os.Unsetenv("SNAP_INSTANCE_NAME") //nolint:errcheck
+	return fn()
 }
 
 // FreeAddress returns a 127.0.0.1:port suitable for tests.

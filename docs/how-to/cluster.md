@@ -86,6 +86,8 @@ notary cluster list --config /etc/notary/config/config.yaml
 
 Or, as an admin, `GET /api/v1/cluster` or `GET /api/v1/cluster/members`. You should see both names and one leader.
 
+A two-node cluster typically shows the joiner as a **spare**, not a second voter. dqlite needs three voters for availability if one node fails. Add a third member the same way (`cluster add` / `--join`) when you want that quorum.
+
 ## 4. Remove a member
 
 Like `lxc cluster remove`:

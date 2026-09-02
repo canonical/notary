@@ -28,13 +28,13 @@ func InitializeAppEnvironment(appConfig *AppConfig, database *db.DatabaseReposit
 	appEnv.Database = database
 
 	// initialize system logger
-	systemLogger, err := initializeLogger(appConfig.LoggingConfig.Sub("system"))
+	systemLogger, err := initializeLogger(loggingSection(appConfig.LoggingConfig, "system"))
 	if err != nil {
 		return nil, fmt.Errorf("couldn't initialize system logging subsystem: %w", err)
 	}
 
 	// initialize audit logger
-	auditLogger, err := initializeAuditLogger(appConfig.LoggingConfig.Sub("audit"))
+	auditLogger, err := initializeAuditLogger(loggingSection(appConfig.LoggingConfig, "audit"))
 	if err != nil {
 		return nil, fmt.Errorf("couldn't initialize audit logging subsystem: %w", err)
 	}

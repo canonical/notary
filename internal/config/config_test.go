@@ -66,6 +66,9 @@ func TestValidConfig(t *testing.T) {
 			if !cmp.Equal(gotCfg, tc.wantCfg, cmpopts.IgnoreFields(config.AppConfig{}, "LoggingConfig", "TracingConfig", "OIDCConfig", "EncryptionConfig")) {
 				t.Errorf("ParseConfig returned unexpected diff (-want+got):\n%v", cmp.Diff(tc.wantCfg, gotCfg))
 			}
+			if gotCfg.LoggingConfig == nil {
+				t.Errorf("ParseConfig(%q) left LoggingConfig nil", tc.desc)
+			}
 		})
 	}
 }

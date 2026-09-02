@@ -5,7 +5,7 @@ Notary stores its data in the directory set by `db_path` in the [configuration f
 `notary backup` and `notary restore` are separate commands from the running server (`notary start`). Stop the Notary daemon first so the files on disk are consistent, then run backup or restore, then start the daemon again.
 
 ```{warning}
-Do not run backup or restore while the Notary daemon is running. Copying the data directory while dqlite is writing can produce a corrupt archive or a corrupt restore.
+`notary backup` and `notary restore` refuse to run while a Notary daemon still holds the data directory lock. Stop the daemon first so the files on disk are consistent. Copying a live dqlite directory can produce a corrupt archive or a corrupt restore.
 ```
 
 ## Prerequisites

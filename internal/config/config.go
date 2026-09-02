@@ -62,7 +62,7 @@ func ParseConfig(cmdFlags *pflag.FlagSet, configFilePath string) (*AppConfig, er
 
 	appConfig.ShouldEnablePebbleNotifications = cfg.GetBool("pebble_notifications")
 
-	appConfig.LoggingConfig = cfg.Sub("logging")
+	appConfig.LoggingConfig = loggingConfigFrom(cfg)
 	appConfig.TracingConfig = cfg.Sub("tracing")
 	appConfig.OIDCConfig = cfg.Sub("authentication.oidc")
 	appConfig.EncryptionConfig = cfg.Sub("encryption_backend")

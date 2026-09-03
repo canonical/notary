@@ -14,6 +14,11 @@ confinement: strict
 issues: https://github.com/canonical/notary/issues
 source-code: https://github.com/canonical/notary
 
+package-repositories:
+  - type: apt
+    ppa: dqlite/dev
+    priority: always
+
 apps:
   notary:
     command: bin/notary
@@ -38,8 +43,21 @@ parts:
     build-snaps:
       - go/1.26/stable
       - node/20/stable
+    build-packages:
+      - gcc
+      - pkg-config
+      - libdqlite1.18-dev
+      - libsqlite3-dev
+      - libuv1-dev
+      - liblz4-dev
+    stage-packages:
+      - libdqlite1.18
+      - libsqlite3-0
+      - libuv1t64
+      - liblz4-1
     build-environment:
       - GOTOOLCHAIN: local
+      - CGO_ENABLED: "1"
     override-build: |
       npm install --prefix ui
       npm run build --prefix ui

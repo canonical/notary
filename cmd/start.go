@@ -29,13 +29,15 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 			log.Fatalf("couldn't parse and validate config: %s", err)
 		}
 		database, err := db.NewDatabase(&db.DatabaseOpts{
-			DatabasePath:    appConfig.DBPath,
-			Logger:          zap.L(),
-			ApplyMigrations: appConfig.ShouldApplyMigrations,
+			DatabasePath: appConfig.DBPath,
+			Address:      appConfig.ClusterAddress,
+			Logger:       zap.L(),
 		})
 		if err != nil {
 			log.Fatalf("couldn't initialize database: %s", err)
 		}
+		defer database.Close() //nolint:errcheck
+
 		appEnv, err := config.InitializeAppEnvironment(appConfig, database)
 		if err != nil {
 			log.Fatalf("couldn't initialize app environment: %s", err)
@@ -53,7 +55,6 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 		appEnv.AuditLogger.SystemShutdown("server stopped")
 		l.Info("Shutting down server")
 
-		// Listen for SIGINT to begin graceful shutdown
 		mainThread := make(chan struct{})
 		go func() {
 			sigint := make(chan os.Signal, 1)
@@ -63,7 +64,6 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 			close(mainThread)
 		}()
 
-		// Await sigint listener to release main thread
 		<-mainThread
 		l.Info("server shutdown completed.")
 	},
@@ -73,7 +73,6 @@ func init() {
 	rootCmd.AddCommand(startCmd)
 
 	startCmd.Flags().StringVarP(&configFilePath, "config", "c", "", "path to the configuration file")
-	startCmd.Flags().BoolP("migrate-database", "m", false, "automatically apply database migrations if needed (use with caution)")
 
 	err := startCmd.MarkFlagRequired("config")
 	if err != nil {

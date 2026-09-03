@@ -1,20 +1,22 @@
 package db
 
 import (
+	"github.com/canonical/notary/internal/cluster"
 	"github.com/canonical/sqlair"
 	"go.uber.org/zap"
 )
 
 type DatabaseOpts struct {
-	DatabasePath    string
-	ApplyMigrations bool
-	Logger          *zap.Logger
+	DatabasePath string
+	Address      string
+	Logger       *zap.Logger
 }
 
 // DatabaseRepository is the object used to communicate with the established repository.
 type DatabaseRepository struct {
 	Conn  *sqlair.DB
 	stmts *Statements
+	Node  *cluster.Node
 
 	Path          string
 	EncryptionKey []byte

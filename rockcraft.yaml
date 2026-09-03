@@ -10,6 +10,11 @@ platforms:
   amd64:
   arm64:
 
+package-repositories:
+  - type: apt
+    ppa: dqlite/dev
+    priority: always
+
 services:
   notary:
     command: notary start [ --config /etc/notary/config/config.yaml ]
@@ -24,8 +29,16 @@ parts:
     build-snaps:
       - go/1.26/stable
       - node/20/stable
+    build-packages:
+      - gcc
+      - pkg-config
+      - libdqlite1.18-dev
+      - libsqlite3-dev
+      - libuv1-dev
+      - liblz4-dev
     build-environment:
       - GOTOOLCHAIN: local
+      - CGO_ENABLED: "1"
     override-build: |
       npm install --prefix ui
       npm run build --prefix ui
@@ -34,6 +47,14 @@ parts:
       - ca-certificates_data
       - libc6_libs
       - base-files_lib
+      - libsqlite3-0_libs
+      - libuv1t64_libs
+
+  # libdqlite has no Chisel slice; a separate part can stage the full PPA package.
+  dqlite-runtime:
+    plugin: nil
+    stage-packages:
+      - libdqlite1.18
 
   notary-release-data:
     plugin: nil

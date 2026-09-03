@@ -40,7 +40,7 @@ func ParseConfig(cmdFlags *pflag.FlagSet, configFilePath string) (*AppConfig, er
 	appConfig.ExternalHostname = cfg.GetString("external_hostname")
 
 	appConfig.DBPath = cfg.GetString("db_path")
-	appConfig.ShouldApplyMigrations = cfg.GetBool("migrate-database")
+	appConfig.ClusterAddress = cfg.GetString("cluster.address")
 
 	appConfig.ShouldEnablePebbleNotifications = cfg.GetBool("pebble_notifications")
 
@@ -70,6 +70,7 @@ func initializeServerConfig(cmdFlags *pflag.FlagSet, configFilePath string) (*vi
 	v.SetDefault("logging.system.level", "debug")
 	v.SetDefault("logging.system.output", "stdout")
 	v.SetDefault("logging.audit.output", "stdout")
+	v.SetDefault("cluster.address", "127.0.0.1:9000")
 
 	if configFilePath == "" {
 		return nil, errors.New("config file path not provided")

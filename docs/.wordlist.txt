@@ -2,6 +2,7 @@ APIs
 bool
 CAs
 CSR
+Ctrl
 DNS
 frontend
 HTTPS
@@ -11,8 +12,14 @@ Kubernetes
 lifecycle
 PEM
 RESTful
+dqlite
+timestamped
+tar
+OpenFGA
+goose
 sqlite
 stdout
+systemd
 TLS
 UI
 yaml

@@ -12,6 +12,8 @@ jobs:
         with:
           go-version-file: "go.mod"
 
+      - uses: ./.github/actions/install-dqlite
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9.3.0
         with:

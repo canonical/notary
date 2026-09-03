@@ -14,5 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: ./.github/actions/install-dqlite
+
       - name: Run Gosec Security Scanner
         uses: securego/gosec@9e75c0576c9878035d4221392108d458abe10fc3 # v2.28.0

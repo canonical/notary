@@ -24,8 +24,8 @@ func TestValidConfig(t *testing.T) {
 			Port:                            8000,
 			ExternalHostname:                "localhost",
 			DBPath:                          "./notary.db",
-			ShouldApplyMigrations:           false,
 			ShouldEnablePebbleNotifications: false,
+			ClusterAddress:                  "127.0.0.1:9000",
 			TLSCertificate:                  []byte(validCert),
 			TLSPrivateKey:                   []byte(validPK),
 		}}, // This case tests the expected default values for missing fields are filled correctly
@@ -33,8 +33,8 @@ func TestValidConfig(t *testing.T) {
 			Port:                            8000,
 			ExternalHostname:                "example.com",
 			DBPath:                          "./notary.db",
-			ShouldApplyMigrations:           false,
 			ShouldEnablePebbleNotifications: false,
+			ClusterAddress:                  "127.0.0.1:9000",
 			TLSCertificate:                  []byte(validCert),
 			TLSPrivateKey:                   []byte(validPK),
 		}}, // This case tests that the variables from the yaml are correctly copied to the final config

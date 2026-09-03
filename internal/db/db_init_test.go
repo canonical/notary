@@ -1,54 +1,65 @@
 package db_test
 
 import (
-	"database/sql"
 	"log"
-	"path/filepath"
 	"testing"
 
+	"github.com/canonical/notary/internal/cluster"
 	"github.com/canonical/notary/internal/db"
-	"github.com/canonical/notary/internal/db/migrations"
-	"github.com/pressly/goose/v3"
 	"go.uber.org/zap"
 )
 
 func TestConnect(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
-	tempDir := t.TempDir()
-
-	sqlConnection, err := sql.Open("sqlite", filepath.Join(tempDir, "db.sqlite"))
+	addr, err := cluster.FreeAddress()
 	if err != nil {
-		t.Fatalf("Couldn't create temporary database: %s", err)
+		t.Fatalf("Couldn't get free address: %s", err)
 	}
-	goose.SetBaseFS(migrations.EmbedMigrations)
-	err = goose.SetDialect("sqlite")
-	if err != nil {
-		t.Fatalf("Couldn't set goose dialect: %s", err)
-	}
-	err = goose.Up(sqlConnection, ".", goose.WithNoColor(true))
-	if err != nil {
-		t.Fatalf("Couldn't apply database migrations: %s", err)
-	}
-	db, err := db.NewDatabase(&db.DatabaseOpts{
-		DatabasePath:    filepath.Join(tempDir, "db.sqlite"),
-		ApplyMigrations: false,
-		Logger:          logger,
+	database, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addr,
+		Logger:       logger,
 	})
 	if err != nil {
-		t.Fatalf("Can't connect to SQLite: %s", err)
+		t.Fatalf("Can't connect to dqlite: %s", err)
 	}
-	err = db.Close()
-	if err != nil {
+	if err := database.Close(); err != nil {
 		t.Fatalf("Can't close database: %s", err)
+	}
+}
+
+func TestMigrationsApplied(t *testing.T) {
+	logger, _ := zap.NewDevelopment()
+	addr, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatalf("Couldn't get free address: %s", err)
+	}
+	database, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addr,
+		Logger:       logger,
+	})
+	if err != nil {
+		t.Fatalf("Can't connect to dqlite: %s", err)
+	}
+	defer database.Close() //nolint:errcheck
+
+	var version int
+	err = database.Conn.PlainDB().QueryRow(`SELECT MAX(version_id) FROM goose_db_version`).Scan(&version)
+	if err != nil {
+		t.Fatalf("read goose version: %s", err)
+	}
+	if version != 2 {
+		t.Fatalf("got goose version %d, want 2", version)
 	}
 }
 
 func Example() {
 	logger, _ := zap.NewDevelopment()
 	database, err := db.NewDatabase(&db.DatabaseOpts{
-		DatabasePath:    "./notary.db",
-		ApplyMigrations: false,
-		Logger:          logger,
+		DatabasePath: "./notary.dqlite",
+		Address:      "127.0.0.1:9000",
+		Logger:       logger,
 	})
 	if err != nil {
 		log.Fatalln(err)

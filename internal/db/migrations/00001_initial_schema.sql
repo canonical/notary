@@ -1,5 +1,4 @@
 -- +goose Up
--- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS certificate_requests
 (
     csr_id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -7,7 +6,6 @@ CREATE TABLE IF NOT EXISTS certificate_requests
 	status          TEXT DEFAULT 'Outstanding',
 	certificate_id  INTEGER,
 	user_email      TEXT,
-
 	CHECK (status IN ('Outstanding', 'Rejected', 'Revoked', 'Active')),
 	CHECK (NOT (certificate_id == NULL AND status == 'Active' )),
 	CHECK (NOT (certificate_id != NULL AND status == 'Outstanding')),
@@ -37,24 +35,19 @@ CREATE TABLE IF NOT EXISTS private_keys
 CREATE TABLE IF NOT EXISTS users
 (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
-	oidc_subject    TEXT,  -- OIDC provider's subject identifier (sub claim)
-	email           TEXT,  -- Nullable to support OIDC-only users without email
-	hashed_password TEXT,  -- Nullable to support OIDC-only users
+	oidc_subject    TEXT,
+	email           TEXT,
+	hashed_password TEXT,
 	role_id         INTEGER NOT NULL,
-
 	CHECK (role_id IN (0, 1, 2, 3)),
 	CHECK (
-		-- Either email or oidc_subject must be present
 		(email IS NOT NULL AND trim(email) != '') OR
 		(oidc_subject IS NOT NULL AND trim(oidc_subject) != '')
 	)
 );
--- Create unique index on email for non-NULL values
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email
 ON users(email)
 WHERE email IS NOT NULL;
--- Create unique index on oidc_subject to prevent duplicate OIDC identities
--- Partial index only indexes non-NULL values
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_oidc_subject
 ON users(oidc_subject)
 WHERE oidc_subject IS NOT NULL;
@@ -68,16 +61,14 @@ CREATE TABLE IF NOT EXISTS jwt_secret
 	id               INTEGER PRIMARY KEY CHECK (id = 1),
 	encrypted_secret TEXT NOT NULL
 );
--- +goose StatementEnd
-
 
 -- +goose Down
--- +goose StatementBegin
-DROP TABLE IF EXISTS "certificate_requests";
-DROP TABLE IF EXISTS "certificate_authorities";
-DROP TABLE IF EXISTS "certificates";
-DROP TABLE IF EXISTS "private_keys";
-DROP TABLE IF EXISTS "users";
-DROP TABLE IF EXISTS "encryption_keys";
-DROP TABLE IF EXISTS "jwt_secret";
--- +goose StatementEnd
+DROP TABLE IF EXISTS jwt_secret;
+DROP TABLE IF EXISTS encryption_keys;
+DROP INDEX IF EXISTS idx_users_oidc_subject;
+DROP INDEX IF EXISTS idx_users_email;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS private_keys;
+DROP TABLE IF EXISTS certificate_authorities;
+DROP TABLE IF EXISTS certificates;
+DROP TABLE IF EXISTS certificate_requests;

@@ -14,6 +14,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: "go.mod"
+      - uses: ./.github/actions/install-dqlite
       - name: generate coverage
         run: |
           go install github.com/t-yuki/gocover-cobertura@latest

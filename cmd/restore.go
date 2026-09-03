@@ -21,12 +21,9 @@ var (
 var restoreCmd = &cobra.Command{
 	Use:   "restore",
 	Short: "Restore a database backup",
-	Long: `Restore the backup replacing the current database which will be deleted.
+	Long: `Restore a tar.gz archive created by the backup command, replacing the data directory.
 
-The backup archive must be a tar.gz file created by the backup command.
-
-WARNING: This operation will replace the current database. Make sure to back up
-your current database before restoring.`,
+Stop Notary before restoring. This deletes the current data directory.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if restoreFile == "" {
 			return fmt.Errorf("restore file path is required")
@@ -56,16 +53,7 @@ your current database before restoring.`,
 		defer func() { _ = logger.Sync() }()
 		auditLogger := auditlog.NewAuditLogger(logger)
 
-		database, err := db.NewDatabase(&db.DatabaseOpts{
-			DatabasePath:    restoreConfigPath,
-			ApplyMigrations: false,
-			Logger:          logger,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to initialize database: %w", err)
-		}
-
-		if err := db.RestoreBackup(database, absPath); err != nil {
+		if err := db.RestoreBackup(restoreConfigPath, absPath); err != nil {
 			auditLogger.DatabaseRestoreFailed(absPath, err.Error())
 			return fmt.Errorf("failed to restore backup: %w", err)
 		}
@@ -80,7 +68,7 @@ func init() {
 	rootCmd.AddCommand(restoreCmd)
 
 	restoreCmd.Flags().StringVarP(&restoreFile, "file", "f", "", "path to the backup archive file to restore")
-	restoreCmd.Flags().StringVarP(&restoreConfigPath, "db-path", "d", "", "path to the database file")
+	restoreCmd.Flags().StringVarP(&restoreConfigPath, "db-path", "d", "", "path to the data directory")
 
 	if err := restoreCmd.MarkFlagRequired("file"); err != nil {
 		log.Fatalf("Error marking file flag as required: %v", err)

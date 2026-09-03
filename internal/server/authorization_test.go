@@ -834,7 +834,7 @@ func TestAuthorizationMissingRepositoryReturns500(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode != http.StatusInternalServerError {
 		t.Fatalf("missing authz repository: got %d, want %d", res.StatusCode, http.StatusInternalServerError)
 	}

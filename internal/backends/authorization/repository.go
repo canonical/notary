@@ -3,12 +3,15 @@ package authorization
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/canonical/notary/internal/db"
 )
 
 const SystemObject = "system:notary"
+
+const userPrincipalPrefix = "user:"
 
 // Role names used in Check against SystemObject. Inheritance matches the
 // previous authorization model: admin implies certificate_manager; manager
@@ -32,63 +35,89 @@ func New(database *db.DatabaseRepository) *AuthzRepository {
 	return &AuthzRepository{database: database}
 }
 
-// UserID formats a user ID (e.g. "user:admin@notary.local").
-// Returns "" if email is empty, so callers that check authorization with an
-// empty userID fail the check (resulting in a 403).
-func UserID(email string) string {
-	if email == "" {
+// UserID formats a principal from the users table primary key (e.g. "user:12").
+// Returns "" if id is not a valid user id, so callers that check with an empty
+// principal fail closed.
+func UserID(id int64) string {
+	if id <= 0 {
 		return ""
 	}
-	return fmt.Sprintf("user:%s", email)
+	return fmt.Sprintf("%s%d", userPrincipalPrefix, id)
 }
 
 // Check returns whether user has relation on object.
 // Only SystemObject is authorized today; other objects are denied.
 func (r *AuthzRepository) Check(object, relation, user string) (bool, error) {
-	if r == nil || r.database == nil || object != SystemObject || user == "" {
+	return r.CheckAny(object, user, relation)
+}
+
+// CheckAny returns whether user has any of the given relations on object.
+// The account is loaded once. A missing repository is treated as deny for
+// Check compatibility; CertificateRequestorOnly still requires a repository.
+func (r *AuthzRepository) CheckAny(object, user string, relations ...string) (bool, error) {
+	if r == nil || r.database == nil || object != SystemObject || user == "" || len(relations) == 0 {
 		return false, nil
 	}
-	email, ok := emailFromUserID(user)
-	if !ok {
-		return false, nil
-	}
-	account, err := r.database.GetUser(db.ByEmail(email))
+	account, err := r.userByPrincipal(user)
 	if err != nil {
-		if errors.Is(err, db.ErrNotFound) {
-			return false, nil
-		}
 		return false, err
 	}
-	return roleHasRelation(account.RoleID, relation), nil
+	if account == nil {
+		return false, nil
+	}
+	for _, relation := range relations {
+		if roleHasRelation(account.RoleID, relation) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // CertificateRequestorOnly is true when the user may create CSRs but not manage
 // others': they have certificate_requestor and not certificate_manager.
-func (r *AuthzRepository) CertificateRequestorOnly(email string) (bool, error) {
+// user is a principal from UserID.
+func (r *AuthzRepository) CertificateRequestorOnly(user string) (bool, error) {
 	if r == nil || r.database == nil {
 		return false, errors.New("authorization repository is not configured")
 	}
-	userID := UserID(email)
-	manager, err := r.Check(SystemObject, RelationCertificateManager, userID)
+	account, err := r.userByPrincipal(user)
 	if err != nil {
 		return false, err
 	}
-	if manager {
+	if account == nil {
 		return false, nil
 	}
-	return r.Check(SystemObject, RelationCertificateRequestor, userID)
+	if roleHasRelation(account.RoleID, RelationCertificateManager) {
+		return false, nil
+	}
+	return roleHasRelation(account.RoleID, RelationCertificateRequestor), nil
 }
 
-func emailFromUserID(user string) (string, bool) {
-	const prefix = "user:"
-	if !strings.HasPrefix(user, prefix) {
-		return "", false
+func (r *AuthzRepository) userByPrincipal(user string) (*db.User, error) {
+	id, ok := idFromUserPrincipal(user)
+	if !ok {
+		return nil, nil
 	}
-	email := strings.TrimPrefix(user, prefix)
-	if email == "" {
-		return "", false
+	account, err := r.database.GetUser(db.ByUserID(id))
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, err
 	}
-	return email, true
+	return account, nil
+}
+
+func idFromUserPrincipal(user string) (int64, bool) {
+	if !strings.HasPrefix(user, userPrincipalPrefix) {
+		return 0, false
+	}
+	raw := strings.TrimPrefix(user, userPrincipalPrefix)
+	id, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || id <= 0 {
+		return 0, false
+	}
+	return id, true
 }
 
 func roleHasRelation(roleID db.RoleID, relation string) bool {

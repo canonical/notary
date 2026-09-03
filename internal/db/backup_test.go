@@ -123,7 +123,11 @@ func TestBackupRestoreDqliteData(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDatabase: %s", err)
 	}
-	csrID, err := database.CreateCertificateRequest(tu.AppleCSR, "user@example.com")
+	userID, err := database.CreateUser("user@example.com", "password", 0)
+	if err != nil {
+		t.Fatalf("CreateUser: %s", err)
+	}
+	csrID, err := database.CreateCertificateRequest(tu.AppleCSR, userID)
 	if err != nil {
 		t.Fatalf("CreateCertificateRequest: %s", err)
 	}
@@ -155,8 +159,8 @@ func TestBackupRestoreDqliteData(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetCertificateRequest: %s", err)
 	}
-	if got.UserEmail != "user@example.com" {
-		t.Fatalf("user email: got %q", got.UserEmail)
+	if got.UserID == nil || *got.UserID != userID {
+		t.Fatalf("user id: got %v, want %d", got.UserID, userID)
 	}
 
 	if _, err := os.Stat(filepath.Join(srcDir, "openfga.sqlite")); !os.IsNotExist(err) {

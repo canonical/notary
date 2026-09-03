@@ -23,10 +23,13 @@ func TestCheckRoleInheritance(t *testing.T) {
 		{"requestor@example.com", db.RoleCertificateRequestor},
 		{"reader@example.com", db.RoleReadOnly},
 	}
+	ids := map[string]int64{}
 	for _, u := range users {
-		if _, err := database.CreateUser(u.email, "Password123!", u.roleID); err != nil {
+		id, err := database.CreateUser(u.email, "Password123!", u.roleID)
+		if err != nil {
 			t.Fatalf("create %s: %s", u.email, err)
 		}
+		ids[u.email] = id
 	}
 
 	cases := []struct {
@@ -52,7 +55,7 @@ func TestCheckRoleInheritance(t *testing.T) {
 		{"reader@example.com", authorization.RelationReader, true},
 	}
 	for _, tc := range cases {
-		got, err := authz.Check(authorization.SystemObject, tc.relation, authorization.UserID(tc.email))
+		got, err := authz.Check(authorization.SystemObject, tc.relation, authorization.UserID(ids[tc.email]))
 		if err != nil {
 			t.Fatalf("Check(%s, %s): %s", tc.email, tc.relation, err)
 		}
@@ -65,11 +68,12 @@ func TestCheckRoleInheritance(t *testing.T) {
 func TestCheckDeniesUnknownUserAndObject(t *testing.T) {
 	database := tu.MustPrepareEmptyDB(t)
 	authz := authorization.New(database)
-	if _, err := database.CreateUser("admin@example.com", "Password123!", db.RoleAdmin); err != nil {
+	id, err := database.CreateUser("admin@example.com", "Password123!", db.RoleAdmin)
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := authz.Check(authorization.SystemObject, authorization.RelationAdmin, authorization.UserID("missing@example.com"))
+	got, err := authz.Check(authorization.SystemObject, authorization.RelationAdmin, authorization.UserID(id+999))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +81,7 @@ func TestCheckDeniesUnknownUserAndObject(t *testing.T) {
 		t.Fatal("missing user should be denied")
 	}
 
-	got, err = authz.Check("certificate_authority:1", authorization.RelationAdmin, authorization.UserID("admin@example.com"))
+	got, err = authz.Check("certificate_authority:1", authorization.RelationAdmin, authorization.UserID(id))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,6 +95,14 @@ func TestCheckDeniesUnknownUserAndObject(t *testing.T) {
 	}
 	if got {
 		t.Fatal("empty user should be denied")
+	}
+
+	got, err = authz.Check(authorization.SystemObject, authorization.RelationAdmin, "user:admin@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got {
+		t.Fatal("email principal should be denied")
 	}
 }
 
@@ -108,10 +120,11 @@ func TestCertificateRequestorOnly(t *testing.T) {
 		{"reader@example.com", db.RoleReadOnly, false},
 	}
 	for _, u := range users {
-		if _, err := database.CreateUser(u.email, "Password123!", u.roleID); err != nil {
+		id, err := database.CreateUser(u.email, "Password123!", u.roleID)
+		if err != nil {
 			t.Fatalf("create %s: %s", u.email, err)
 		}
-		got, err := authz.CertificateRequestorOnly(u.email)
+		got, err := authz.CertificateRequestorOnly(authorization.UserID(id))
 		if err != nil {
 			t.Fatalf("%s: %s", u.email, err)
 		}
@@ -129,7 +142,7 @@ func TestCheckFollowsRoleUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := authz.Check(authorization.SystemObject, authorization.RelationCertificateManager, authorization.UserID("user@example.com"))
+	got, err := authz.Check(authorization.SystemObject, authorization.RelationCertificateManager, authorization.UserID(id))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,12 +153,60 @@ func TestCheckFollowsRoleUpdate(t *testing.T) {
 	if err := database.UpdateUserRole(db.ByUserID(id), db.RoleCertificateManager); err != nil {
 		t.Fatal(err)
 	}
-	got, err = authz.Check(authorization.SystemObject, authorization.RelationCertificateManager, authorization.UserID("user@example.com"))
+	got, err = authz.Check(authorization.SystemObject, authorization.RelationCertificateManager, authorization.UserID(id))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !got {
 		t.Fatal("role update should be visible to Check")
+	}
+}
+
+func TestCheckOIDCUserWithoutEmail(t *testing.T) {
+	database := tu.MustPrepareEmptyDB(t)
+	authz := authorization.New(database)
+	user, err := database.CreateOIDCUser("", "idp|no-email", db.RoleAdmin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := authz.Check(authorization.SystemObject, authorization.RelationAdmin, authorization.UserID(user.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got {
+		t.Fatal("OIDC admin without email should authorize via user id")
+	}
+}
+
+func TestCheckAnyMatchesFirstRelation(t *testing.T) {
+	database := tu.MustPrepareEmptyDB(t)
+	authz := authorization.New(database)
+	id, err := database.CreateUser("reader@example.com", "Password123!", db.RoleReadOnly)
+	if err != nil {
+		t.Fatal(err)
+	}
+	principal := authorization.UserID(id)
+	got, err := authz.CheckAny(authorization.SystemObject, principal,
+		authorization.RelationAdmin,
+		authorization.RelationCertificateManager,
+		authorization.RelationCertificateRequestor,
+		authorization.RelationReader,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got {
+		t.Fatal("reader should match CheckAny when reader is among allowed relations")
+	}
+	got, err = authz.CheckAny(authorization.SystemObject, principal,
+		authorization.RelationAdmin,
+		authorization.RelationCertificateManager,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got {
+		t.Fatal("reader should not match admin or manager")
 	}
 }
 
@@ -160,7 +221,7 @@ func TestNewDoesNotCreateOpenFGASidecar(t *testing.T) {
 
 func TestCertificateRequestorOnlyRequiresRepository(t *testing.T) {
 	var authz *authorization.AuthzRepository
-	_, err := authz.CertificateRequestorOnly("user@example.com")
+	_, err := authz.CertificateRequestorOnly(authorization.UserID(1))
 	if err == nil {
 		t.Fatal("expected error when authz repository is nil")
 	}

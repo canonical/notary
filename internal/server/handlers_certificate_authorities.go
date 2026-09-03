@@ -283,11 +283,16 @@ func CreateCertificateAuthority(env *HandlerDependencies) http.HandlerFunc {
 			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
+		requesterID, ok := userIDFromClaims(claims)
+		if !ok {
+			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
+			return
+		}
 		var newCAID int64
 		if certPEM != "" {
-			newCAID, err = env.Database.CreateCertificateAuthority(strings.TrimSpace(csrPEM), strings.TrimSpace(privPEM), strings.TrimSpace(crlPEM), strings.TrimSpace(certPEM+certPEM), claims.ID)
+			newCAID, err = env.Database.CreateCertificateAuthority(strings.TrimSpace(csrPEM), strings.TrimSpace(privPEM), strings.TrimSpace(crlPEM), strings.TrimSpace(certPEM+certPEM), requesterID)
 		} else {
-			newCAID, err = env.Database.CreateCertificateAuthority(strings.TrimSpace(csrPEM), strings.TrimSpace(privPEM), "", "", claims.ID)
+			newCAID, err = env.Database.CreateCertificateAuthority(strings.TrimSpace(csrPEM), strings.TrimSpace(privPEM), "", "", requesterID)
 		}
 		if err != nil {
 			env.SystemLogger.Error("failed to persist certificate authority", zap.Error(err))

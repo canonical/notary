@@ -84,14 +84,19 @@ func ListCertificateRequests(env *HandlerDependencies) http.HandlerFunc {
 		var err error
 
 		filter := &db.CSRFilter{}
-		ownOnly, err := env.AuthzRepository.CertificateRequestorOnly(claims.Email)
+		ownOnly, err := env.AuthzRepository.CertificateRequestorOnly(principalFromClaims(claims))
 		if err != nil {
 			env.SystemLogger.Error("authorization check failed", zap.Error(err))
 			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
 		if ownOnly {
-			filter.UserEmail = &claims.Email
+			requesterID, ok := userIDFromClaims(claims)
+			if !ok {
+				writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
+				return
+			}
+			filter.OwnerUserID = &requesterID
 		}
 
 		csrs, err = env.Database.ListCertificateRequestWithCertificatesWithoutCAS(filter)
@@ -103,20 +108,10 @@ func ListCertificateRequests(env *HandlerDependencies) http.HandlerFunc {
 
 		certificateRequestsResponse := make([]CertificateRequest, len(csrs))
 		for i, csr := range csrs {
-			var email string
-			user, err := env.Database.GetUser(db.ByEmail(csr.UserEmail))
-			if err != nil {
-				if errors.Is(err, db.ErrNotFound) {
-					env.SystemLogger.Warn("user not found for certificate request", zap.String("user_email", csr.UserEmail))
-					// Here, we're purposefully hiding the email of an account that's deleted even though we have the information
-					email = "unknown"
-				} else {
-					env.SystemLogger.Error("failed to get user for certificate request", zap.Error(err), zap.String("user_email", csr.UserEmail))
-					writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
-					return
-				}
-			} else {
-				email = user.Email
+			email, lookupErr := certificateRequestOwnerEmail(env, csr.UserID)
+			if lookupErr != nil {
+				writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
+				return
 			}
 			certificateRequestsResponse[i] = CertificateRequest{
 				ID:               csr.CSR_ID,
@@ -150,7 +145,13 @@ func CreateCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 			return
 		}
 
-		newCSRID, err := env.Database.CreateCertificateRequest(createCertificateRequestParams.CSR, claims.Email)
+		requesterID, ok := userIDFromClaims(claims)
+		if !ok {
+			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
+			return
+		}
+
+		newCSRID, err := env.Database.CreateCertificateRequest(createCertificateRequestParams.CSR, requesterID)
 		if err != nil {
 			if errors.Is(err, db.ErrAlreadyExists) {
 				writeResponse(w, http.StatusBadRequest, "given csr already recorded", nil, env.SystemLogger)
@@ -203,16 +204,23 @@ func GetCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 			return
 		}
 
-		ownOnly, authzErr := env.AuthzRepository.CertificateRequestorOnly(claims.Email)
+		ownOnly, authzErr := env.AuthzRepository.CertificateRequestorOnly(principalFromClaims(claims))
 		if authzErr != nil {
 			env.SystemLogger.Error("authorization check failed", zap.Error(authzErr))
 			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
 		}
-		if ownOnly && claims.Email != csr.UserEmail {
-			env.SystemLogger.Warn("certificate request access denied", zap.String("requester_email", claims.Email), zap.String("owner_email", csr.UserEmail), zap.Int64("csr_id", idNum))
-			writeResponse(w, http.StatusForbidden, "access denied", nil, env.SystemLogger)
-			return
+		if ownOnly {
+			requesterID, ok := userIDFromClaims(claims)
+			if !ok {
+				writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
+				return
+			}
+			if csr.UserID == nil || *csr.UserID != requesterID {
+				env.SystemLogger.Warn("certificate request access denied", zap.Int64("requester_id", requesterID), zap.Int64("csr_id", idNum))
+				writeResponse(w, http.StatusForbidden, "access denied", nil, env.SystemLogger)
+				return
+			}
 		}
 
 		_, err = env.Database.GetCertificateAuthority(db.ByCertificateAuthorityCSRID(csr.CSR_ID))
@@ -226,20 +234,10 @@ func GetCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 			return
 		}
 
-		var email string
-		user, err := env.Database.GetUser(db.ByEmail(csr.UserEmail))
-		if err != nil {
-			if errors.Is(err, db.ErrNotFound) {
-				env.SystemLogger.Warn("user not found for certificate request", zap.String("user_email", csr.UserEmail))
-				// Here, we're purposefully hiding the email of an account that's deleted even though we have the information
-				email = "unknown"
-			} else {
-				env.SystemLogger.Error("failed to get user for certificate request", zap.Error(err), zap.String("user_email", csr.UserEmail))
-				writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
-				return
-			}
-		} else {
-			email = user.Email
+		email, lookupErr := certificateRequestOwnerEmail(env, csr.UserID)
+		if lookupErr != nil {
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
+			return
 		}
 
 		certificateRequestResponse := CertificateRequest{
@@ -657,6 +655,22 @@ func SignCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 		}
 		writeResponse(w, http.StatusAccepted, "", nil, env.SystemLogger)
 	}
+}
+
+func certificateRequestOwnerEmail(env *HandlerDependencies, userID *int64) (string, error) {
+	if userID == nil || *userID <= 0 {
+		return "unknown", nil
+	}
+	user, err := env.Database.GetUser(db.ByUserID(*userID))
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			env.SystemLogger.Warn("user not found for certificate request", zap.Int64("user_id", *userID))
+			return "unknown", nil
+		}
+		env.SystemLogger.Error("failed to get user for certificate request", zap.Error(err), zap.Int64("user_id", *userID))
+		return "", err
+	}
+	return user.Email, nil
 }
 
 func realError(err error) bool {

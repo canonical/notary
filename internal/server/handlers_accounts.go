@@ -150,9 +150,12 @@ func GetAccount(env *HandlerDependencies) http.HandlerFunc {
 				writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 				return
 			}
-			account = &db.User{
-				Email: claims.Email,
+			userID, ok := userIDFromClaims(claims)
+			if !ok {
+				writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
+				return
 			}
+			account, err = env.Database.GetUser(db.ByUserID(userID))
 		} else {
 			var idNum int64
 			idNum, err = strconv.ParseInt(id, 10, 64)
@@ -187,7 +190,12 @@ func GetMyAccount(env *HandlerDependencies) http.HandlerFunc {
 			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 			return
 		}
-		account, err := env.Database.GetUser(db.ByEmail(claims.Email))
+		userID, ok := userIDFromClaims(claims)
+		if !ok {
+			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
+			return
+		}
+		account, err := env.Database.GetUser(db.ByUserID(userID))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
@@ -399,7 +407,12 @@ func ChangeMyPassword(env *HandlerDependencies) http.HandlerFunc {
 			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 			return
 		}
-		account, err := env.Database.GetUser(db.ByEmail(claims.Email))
+		userID, ok := userIDFromClaims(claims)
+		if !ok {
+			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
+			return
+		}
+		account, err := env.Database.GetUser(db.ByUserID(userID))
 		if err != nil {
 			env.SystemLogger.Error("failed to get current user for password change", zap.Error(err))
 			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)

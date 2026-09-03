@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/canonical/notary/internal/backends/authentication"
@@ -29,11 +30,15 @@ type LoginResponse struct {
 
 // Helper function to generate a JWT
 func generateJWT(id int64, email string, jwtSecret []byte, roleID RoleID) (string, error) {
+	if id <= 0 {
+		return "", errors.New("user id is required")
+	}
 	expiresAt := jwt.NewNumericDate(expireAfter())
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, authentication.NotaryJWTClaims{
 		Email:  email,
 		RoleID: int(roleID),
 		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   strconv.FormatInt(id, 10),
 			ExpiresAt: expiresAt,
 		},
 	})

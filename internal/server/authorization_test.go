@@ -4,12 +4,17 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/canonical/notary/internal/backends/authentication"
 	internalLog "github.com/canonical/notary/internal/backends/observability/log"
+	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/server"
 	tu "github.com/canonical/notary/internal/testutils"
+	"github.com/golang-jwt/jwt/v5"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
@@ -833,4 +838,173 @@ func TestAuthorizationMissingRepositoryReturns500(t *testing.T) {
 	if res.StatusCode != http.StatusInternalServerError {
 		t.Fatalf("missing authz repository: got %d, want %d", res.StatusCode, http.StatusInternalServerError)
 	}
+}
+
+func TestOIDCUserWithoutEmailCanAccessProtectedEndpoints(t *testing.T) {
+	database := tu.MustPrepareEmptyDB(t)
+	user, err := database.CreateOIDCUser("", "idp|subject-only", db.RoleAdmin)
+	if err != nil {
+		t.Fatalf("CreateOIDCUser: %s", err)
+	}
+
+	core, _ := observer.New(zapcore.InfoLevel)
+	appCfg := tu.MustCreateTestAppConfig(t)
+	appEnv := tu.MustCreateTestAppEnvironment(t, database)
+	appEnv.AuditLogger = internalLog.NewAuditLogger(zap.New(core))
+	srv, err := server.New(appCfg, appEnv)
+	if err != nil {
+		t.Fatalf("Couldn't get server: %s", err)
+	}
+	ts := httptest.NewTLSServer(srv.Handler)
+	t.Cleanup(ts.Close)
+
+	token := mustMintLocalJWT(t, database.JWTSecret, user.ID, user.Email, int(user.RoleID))
+	for _, path := range []string{"/api/v1/accounts", "/api/v1/accounts/me", "/api/v1/config"} {
+		req, err := http.NewRequest("GET", ts.URL+path, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.AddCookie(&http.Cookie{
+			Name:     server.CookieSessionTokenKey,
+			Value:    token,
+			HttpOnly: true,
+			Secure:   true,
+			Path:     "/",
+		})
+		res, err := ts.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = res.Body.Close()
+		if res.StatusCode != http.StatusOK {
+			t.Errorf("%s: got %d, want %d", path, res.StatusCode, http.StatusOK)
+		}
+	}
+
+	noSubject := mustMintLocalJWT(t, database.JWTSecret, 0, "", int(db.RoleAdmin))
+	req, err := http.NewRequest("GET", ts.URL+"/api/v1/accounts", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.AddCookie(&http.Cookie{
+		Name:     server.CookieSessionTokenKey,
+		Value:    noSubject,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+	})
+	res, err := ts.Client().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = res.Body.Close()
+	if res.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("JWT without user id: got %d, want %d", res.StatusCode, http.StatusUnauthorized)
+	}
+}
+
+func TestEmailLessRequestorsSeeOnlyOwnCSRs(t *testing.T) {
+	database := tu.MustPrepareEmptyDB(t)
+	alice, err := database.CreateOIDCUser("", "idp|alice", db.RoleCertificateRequestor)
+	if err != nil {
+		t.Fatalf("CreateOIDCUser alice: %s", err)
+	}
+	bob, err := database.CreateOIDCUser("", "idp|bob", db.RoleCertificateRequestor)
+	if err != nil {
+		t.Fatalf("CreateOIDCUser bob: %s", err)
+	}
+
+	core, _ := observer.New(zapcore.InfoLevel)
+	appCfg := tu.MustCreateTestAppConfig(t)
+	appEnv := tu.MustCreateTestAppEnvironment(t, database)
+	appEnv.AuditLogger = internalLog.NewAuditLogger(zap.New(core))
+	srv, err := server.New(appCfg, appEnv)
+	if err != nil {
+		t.Fatalf("Couldn't get server: %s", err)
+	}
+	ts := httptest.NewTLSServer(srv.Handler)
+	t.Cleanup(ts.Close)
+	client := ts.Client()
+
+	aliceToken := mustMintLocalJWT(t, database.JWTSecret, alice.ID, alice.Email, int(alice.RoleID))
+	bobToken := mustMintLocalJWT(t, database.JWTSecret, bob.ID, bob.Email, int(bob.RoleID))
+
+	statusCode, aliceCreate, err := tu.CreateCertificateRequest(ts.URL, client, aliceToken, tu.CreateCertificateRequestParams{CSR: tu.AppleCSR})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if statusCode != http.StatusCreated {
+		t.Fatalf("alice create: got %d, want %d", statusCode, http.StatusCreated)
+	}
+	statusCode, bobCreate, err := tu.CreateCertificateRequest(ts.URL, client, bobToken, tu.CreateCertificateRequestParams{CSR: tu.StrawberryCSR})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if statusCode != http.StatusCreated {
+		t.Fatalf("bob create: got %d, want %d", statusCode, http.StatusCreated)
+	}
+
+	statusCode, aliceList, err := tu.ListCertificateRequests(ts.URL, client, aliceToken)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if statusCode != http.StatusOK {
+		t.Fatalf("alice list: got %d, want %d", statusCode, http.StatusOK)
+	}
+	if len(aliceList.Data) != 1 || aliceList.Data[0].ID != int64(aliceCreate.Data.ID) {
+		t.Fatalf("alice should see only her CSR, got %+v", aliceList.Data)
+	}
+
+	statusCode, bobList, err := tu.ListCertificateRequests(ts.URL, client, bobToken)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if statusCode != http.StatusOK {
+		t.Fatalf("bob list: got %d, want %d", statusCode, http.StatusOK)
+	}
+	if len(bobList.Data) != 1 || bobList.Data[0].ID != int64(bobCreate.Data.ID) {
+		t.Fatalf("bob should see only his CSR, got %+v", bobList.Data)
+	}
+
+	statusCode, _, err = tu.GetCertificateRequest(ts.URL, client, aliceToken, int(aliceCreate.Data.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if statusCode != http.StatusOK {
+		t.Fatalf("alice get own CSR: got %d, want %d", statusCode, http.StatusOK)
+	}
+	statusCode, _, err = tu.GetCertificateRequest(ts.URL, client, aliceToken, int(bobCreate.Data.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if statusCode != http.StatusForbidden {
+		t.Fatalf("alice get bob CSR: got %d, want %d", statusCode, http.StatusForbidden)
+	}
+	statusCode, _, err = tu.GetCertificateRequest(ts.URL, client, bobToken, int(aliceCreate.Data.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if statusCode != http.StatusForbidden {
+		t.Fatalf("bob get alice CSR: got %d, want %d", statusCode, http.StatusForbidden)
+	}
+}
+
+func mustMintLocalJWT(t *testing.T, secret []byte, id int64, email string, roleID int) string {
+	t.Helper()
+	claims := authentication.NotaryJWTClaims{
+		Email:  email,
+		RoleID: roleID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+		},
+	}
+	if id > 0 {
+		claims.Subject = strconv.FormatInt(id, 10)
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signed, err := token.SignedString(secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return signed
 }

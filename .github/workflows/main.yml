@@ -35,6 +35,9 @@ jobs:
   rock-publish:
     if: github.ref_name == 'main'
     needs: [rock-build]
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/rock-publish.yaml
   snap-build:
     needs: [go-build, go-unit-test, go-vet, go-lint]

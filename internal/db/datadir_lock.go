@@ -14,6 +14,10 @@ var errDataDirInUse = errors.New("database directory is in use; stop the Notary 
 
 // rejectIfDataDirInUse fails when a dqlite node still holds the data directory
 // lock, which means notary start is running against this path.
+//
+// go-dqlite's C library creates a file named dqlite-lock in the data directory
+// (not part of the Go API). If that name ever changes, os.IsNotExist below
+// returns nil and this guard will not detect a live node.
 func rejectIfDataDirInUse(dataDir string) error {
 	if dataDir == "" {
 		return nil

@@ -151,7 +151,7 @@ func validateClusterConfig(cfg *viper.Viper) error {
 	if name := cfg.GetString("cluster.name"); name != "" && !cluster.ValidMemberName(name) {
 		return fmt.Errorf("invalid cluster.name %q", name)
 	}
-	joining := len(join) > 0 || joinToken != ""
+	joining := len(join) > 0
 	if joining && (certPath == "" || keyPath == "") {
 		return errors.New("joining a cluster requires cluster.tls.cert_path and cluster.tls.key_path")
 	}

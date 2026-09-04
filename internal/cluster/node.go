@@ -39,7 +39,9 @@ type Options struct {
 	// JoinToken is a token from `notary cluster add`. Used only on first start.
 	JoinToken string
 	// TLSCert and TLSKey are the shared cluster certificate (PEM). Required
-	// when joining. Same pair on every node; not the HTTPS API cert.
+	// when joining with cluster.join addresses. Same pair on every node; not
+	// the HTTPS API cert. On first start of a new cluster they are generated
+	// if empty. A join token fetches them over pinned HTTPS.
 	TLSCert []byte
 	TLSKey  []byte
 }
@@ -65,6 +67,9 @@ func Start(opts Options) (*Node, error) {
 		return nil, fmt.Errorf("create database directory: %w", err)
 	}
 	join := append([]string(nil), opts.Join...)
+	if (len(opts.TLSCert) == 0) != (len(opts.TLSKey) == 0) {
+		return nil, errors.New("cluster TLS certificate and key must both be set")
+	}
 	if opts.JoinToken != "" {
 		if HasState(opts.Dir) {
 			return nil, errors.New("join token is only used the first time this node starts")
@@ -79,13 +84,47 @@ func Start(opts Options) (*Node, error) {
 		if len(join) > 0 {
 			return nil, errors.New("set either a join token or cluster.join addresses, not both")
 		}
-		join = token.Addresses
+		// Redeem consumes the one-time secret before app.New, so a rejected
+		// token never reaches WithCluster.
+		exchangeCtx, exchangeCancel := context.WithTimeout(context.Background(), 15*time.Second)
+		material, err := ExchangeJoinToken(exchangeCtx, opts.JoinToken)
+		exchangeCancel()
+		if err != nil {
+			return nil, err
+		}
+		if material.ServerName != "" && material.ServerName != token.ServerName {
+			return nil, fmt.Errorf("join credentials name %q does not match token name %q", material.ServerName, token.ServerName)
+		}
+		join = material.Join
+		if len(opts.TLSCert) > 0 {
+			want, err := CertFingerprintPEM(material.TLSCert)
+			if err != nil {
+				return nil, err
+			}
+			got, err := CertFingerprintPEM(opts.TLSCert)
+			if err != nil {
+				return nil, err
+			}
+			if !strings.EqualFold(got, want) {
+				return nil, fmt.Errorf("cluster TLS certificate does not match the certificate from the join server")
+			}
+		}
+		opts.TLSCert, opts.TLSKey = material.TLSCert, material.TLSKey
+	} else if len(opts.TLSCert) == 0 {
+		if HasState(opts.Dir) {
+			if certPEM, keyPEM, err := LoadClusterTLS(opts.Dir); err == nil {
+				opts.TLSCert, opts.TLSKey = certPEM, keyPEM
+			}
+		} else if len(join) == 0 {
+			certPEM, keyPEM, err := generateClusterTLS()
+			if err != nil {
+				return nil, err
+			}
+			opts.TLSCert, opts.TLSKey = certPEM, keyPEM
+		}
 	}
 	if len(join) > 0 && (len(opts.TLSCert) == 0 || len(opts.TLSKey) == 0) {
 		return nil, errors.New("joining a cluster requires cluster TLS (cluster.tls.cert_path and key_path)")
-	}
-	if (len(opts.TLSCert) == 0) != (len(opts.TLSKey) == 0) {
-		return nil, errors.New("cluster TLS certificate and key must both be set")
 	}
 
 	var appOpts []app.Option
@@ -116,8 +155,13 @@ func Start(opts Options) (*Node, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	if err := dqliteApp.Ready(ctx); err != nil {
+		addr := dqliteApp.Address()
 		_ = dqliteApp.Close()
-		return nil, wrapJoinError(join, fmt.Errorf("dqlite not ready: %w", err))
+		return nil, wrapJoinError(join, fmt.Errorf("dqlite not ready at %s: %w", addr, err))
+	}
+	if err := PersistClusterTLS(opts.Dir, opts.TLSCert, opts.TLSKey); err != nil {
+		_ = dqliteApp.Close()
+		return nil, err
 	}
 
 	return &Node{app: dqliteApp}, nil

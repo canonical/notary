@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"math/big"
 	"net"
 	"strings"
@@ -194,8 +195,78 @@ func TestTwoNodesShareData(t *testing.T) {
 	}
 }
 
-func TestJoinTokenAndRemove(t *testing.T) {
+func stubJoinExchange(t *testing.T, database *db.DatabaseRepository, dqliteAddr string) {
+	t.Helper()
+	orig := cluster.ExchangeJoinToken
+	t.Cleanup(func() { cluster.ExchangeJoinToken = orig })
+	cluster.ExchangeJoinToken = func(ctx context.Context, raw string) (cluster.JoinMaterial, error) {
+		tok, err := cluster.DecodeJoinToken(raw)
+		if err != nil {
+			return cluster.JoinMaterial{}, err
+		}
+		material, err := cluster.RedeemJoinToken(ctx, database.Conn.PlainDB(), tok, database.TLSCert, database.TLSKey)
+		if err != nil {
+			return cluster.JoinMaterial{}, err
+		}
+		material.Join = []string{dqliteAddr}
+		return material, nil
+	}
+}
+
+func TestJoinTokenYAMLCertMismatch(t *testing.T) {
 	certPEM, keyPEM := mustClusterCert(t)
+	httpsCert, _ := mustClusterCert(t)
+	otherCert, otherKey := mustClusterCert(t)
+	addr1, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir1 := t.TempDir()
+	db1, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: dir1,
+		Address:      addr1,
+		Name:         "node1",
+		TLSCert:      certPEM,
+		TLSKey:       keyPEM,
+		HTTPSCert:    httpsCert,
+		APIAddress:   "127.0.0.1:8443",
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("start node1: %v", err)
+	}
+	defer db1.Close() //nolint:errcheck
+	stubJoinExchange(t, db1, addr1)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	token, err := db1.IssueJoinToken(ctx, "node2")
+	if err != nil {
+		t.Fatalf("add token: %v", err)
+	}
+
+	addr2, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = cluster.Start(cluster.Options{
+		Dir:       t.TempDir(),
+		Address:   addr2,
+		Name:      "node2",
+		JoinToken: token,
+		TLSCert:   otherCert,
+		TLSKey:    otherKey,
+	})
+	if err == nil {
+		t.Fatal("expected error when YAML cert does not match joined cluster TLS")
+	}
+	if !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestJoinTokenAndRemove(t *testing.T) {
+	httpsCert, _ := mustClusterCert(t)
 	addr1, err := cluster.FreeAddress()
 	if err != nil {
 		t.Fatal(err)
@@ -209,14 +280,15 @@ func TestJoinTokenAndRemove(t *testing.T) {
 		DatabasePath: dir1,
 		Address:      addr1,
 		Name:         "node1",
-		TLSCert:      certPEM,
-		TLSKey:       keyPEM,
+		HTTPSCert:    httpsCert,
+		APIAddress:   "127.0.0.1:8443",
 		Logger:       zap.NewNop(),
 	})
 	if err != nil {
 		t.Fatalf("start node1: %v", err)
 	}
 	defer db1.Close() //nolint:errcheck
+	stubJoinExchange(t, db1, addr1)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
@@ -230,8 +302,6 @@ func TestJoinTokenAndRemove(t *testing.T) {
 		Address:      addr2,
 		Name:         "node2",
 		JoinToken:    token,
-		TLSCert:      certPEM,
-		TLSKey:       keyPEM,
 		Logger:       zap.NewNop(),
 	})
 	if err != nil {
@@ -267,6 +337,194 @@ func TestJoinTokenAndRemove(t *testing.T) {
 	if members[0].Name != "node1" {
 		t.Fatalf("remaining member %q", members[0].Name)
 	}
+}
+
+func TestRedeemJoinTokenOnce(t *testing.T) {
+	httpsCert, _ := mustClusterCert(t)
+	addr, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	database, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addr,
+		Name:         "node1",
+		HTTPSCert:    httpsCert,
+		APIAddress:   "127.0.0.1:8443",
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	defer database.Close() //nolint:errcheck
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	raw, err := database.IssueJoinToken(ctx, "node2")
+	if err != nil {
+		t.Fatalf("token: %v", err)
+	}
+	if strings.Contains(raw, "PRIVATE KEY") {
+		t.Fatal("token must not contain a private key")
+	}
+	token, err := cluster.DecodeJoinToken(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	material, err := cluster.RedeemJoinToken(ctx, database.Conn.PlainDB(), token, database.TLSCert, database.TLSKey)
+	if err != nil {
+		t.Fatalf("redeem: %v", err)
+	}
+	if len(material.TLSKey) == 0 || material.ServerName != "node2" {
+		t.Fatalf("%+v", material)
+	}
+	if _, err := cluster.RedeemJoinToken(ctx, database.Conn.PlainDB(), token, database.TLSCert, database.TLSKey); err == nil {
+		t.Fatal("expected second redeem to fail")
+	} else if !errors.Is(err, cluster.ErrJoinTokenNotFound) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestJoinTokenReuseDoesNotJoin(t *testing.T) {
+	httpsCert, _ := mustClusterCert(t)
+	addr1, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr2, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	db1, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addr1,
+		Name:         "node1",
+		HTTPSCert:    httpsCert,
+		APIAddress:   "127.0.0.1:8443",
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("start node1: %v", err)
+	}
+	defer db1.Close() //nolint:errcheck
+	stubJoinExchange(t, db1, addr1)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	token, err := db1.IssueJoinToken(ctx, "node2")
+	if err != nil {
+		t.Fatalf("token: %v", err)
+	}
+	db2, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addr2,
+		Name:         "node2",
+		JoinToken:    token,
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("join node2: %v", err)
+	}
+	defer db2.Close() //nolint:errcheck
+
+	_, err = db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      mustFreeAddress(t),
+		Name:         "node2",
+		JoinToken:    token,
+		Logger:       zap.NewNop(),
+	})
+	if err == nil {
+		t.Fatal("expected reused token to fail")
+	}
+	if !errors.Is(err, cluster.ErrJoinTokenNotFound) {
+		t.Fatalf("got %v", err)
+	}
+	members, err := db1.ListClusterMembers(ctx)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(members) != 2 {
+		t.Fatalf("got %d members, want 2", len(members))
+	}
+}
+
+func TestJoinTokenExpiredDoesNotJoin(t *testing.T) {
+	httpsCert, _ := mustClusterCert(t)
+	addr1, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	db1, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addr1,
+		Name:         "node1",
+		HTTPSCert:    httpsCert,
+		APIAddress:   "127.0.0.1:8443",
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("start node1: %v", err)
+	}
+	defer db1.Close() //nolint:errcheck
+	stubJoinExchange(t, db1, addr1)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	token, err := db1.IssueJoinToken(ctx, "node2")
+	if err != nil {
+		t.Fatalf("token: %v", err)
+	}
+	past := time.Now().Add(-time.Hour).UTC().Format(time.RFC3339)
+	if _, err := db1.Conn.PlainDB().ExecContext(ctx, `UPDATE cluster_join_tokens SET expires_at = ? WHERE name = ?`, past, "node2"); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      mustFreeAddress(t),
+		Name:         "node2",
+		JoinToken:    token,
+		Logger:       zap.NewNop(),
+	})
+	if err == nil {
+		t.Fatal("expected expired token to fail")
+	}
+	if !errors.Is(err, cluster.ErrJoinTokenExpired) {
+		t.Fatalf("got %v", err)
+	}
+	members, err := db1.ListClusterMembers(ctx)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(members) != 1 {
+		t.Fatalf("got %d members, want 1", len(members))
+	}
+}
+
+func TestJoinTokenYAMLCertWithoutKey(t *testing.T) {
+	cert, _ := mustClusterCert(t)
+	_, err := cluster.Start(cluster.Options{
+		Dir:       t.TempDir(),
+		Address:   "127.0.0.1:1",
+		JoinToken: "x",
+		TLSCert:   cert,
+	})
+	if err == nil {
+		t.Fatal("expected error when cluster TLS cert is set without key")
+	}
+	if !strings.Contains(err.Error(), "must both be set") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func mustFreeAddress(t *testing.T) string {
+	t.Helper()
+	addr, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return addr
 }
 
 func TestThreeNodesShareData(t *testing.T) {

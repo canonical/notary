@@ -118,12 +118,13 @@ func TestClusterAddCommand(t *testing.T) {
 	}
 	defer database.Close() //nolint:errcheck
 
+	httpsPEM, httpsKeyPEM := mustClusterCert(t)
 	httpsCert := filepath.Join(dir, "https.crt")
 	httpsKey := filepath.Join(dir, "https.key")
-	if err := os.WriteFile(httpsCert, []byte("-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n"), 0o600); err != nil {
+	if err := os.WriteFile(httpsCert, httpsPEM, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(httpsKey, []byte("-----BEGIN PRIVATE KEY-----\nMIIB\n-----END PRIVATE KEY-----\n"), 0o600); err != nil {
+	if err := os.WriteFile(httpsKey, httpsKeyPEM, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	cfgPath := filepath.Join(dir, "config.yaml")
@@ -171,6 +172,15 @@ encryption_backend:
 	if decoded.ServerName != "node2" {
 		t.Fatalf("token name %q", decoded.ServerName)
 	}
+	if decoded.Fingerprint == "" {
+		t.Fatal("token fingerprint is empty")
+	}
+	if len(decoded.Addresses) == 0 {
+		t.Fatal("token addresses are empty")
+	}
+	if strings.Contains(token, "PRIVATE KEY") {
+		t.Fatal("token must not contain a private key")
+	}
 }
 
 func TestClusterRemoveCommand(t *testing.T) {
@@ -184,17 +194,35 @@ func TestClusterRemoveCommand(t *testing.T) {
 		t.Fatal(err)
 	}
 	dir1 := t.TempDir()
+	httpsCertPEM, _ := mustClusterCert(t)
 	db1, err := db.NewDatabase(&db.DatabaseOpts{
 		DatabasePath: dir1,
 		Address:      addr1,
 		Name:         "node1",
 		TLSCert:      certPEM,
 		TLSKey:       keyPEM,
+		HTTPSCert:    httpsCertPEM,
+		APIAddress:   "127.0.0.1:8443",
 	})
 	if err != nil {
 		t.Fatalf("start node1: %v", err)
 	}
 	defer db1.Close() //nolint:errcheck
+
+	orig := cluster.ExchangeJoinToken
+	t.Cleanup(func() { cluster.ExchangeJoinToken = orig })
+	cluster.ExchangeJoinToken = func(ctx context.Context, raw string) (cluster.JoinMaterial, error) {
+		tok, err := cluster.DecodeJoinToken(raw)
+		if err != nil {
+			return cluster.JoinMaterial{}, err
+		}
+		return cluster.JoinMaterial{
+			TLSCert:    certPEM,
+			TLSKey:     keyPEM,
+			Join:       []string{addr1},
+			ServerName: tok.ServerName,
+		}, nil
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
@@ -207,8 +235,6 @@ func TestClusterRemoveCommand(t *testing.T) {
 		Address:      addr2,
 		Name:         "node2",
 		JoinToken:    token,
-		TLSCert:      certPEM,
-		TLSKey:       keyPEM,
 	})
 	if err != nil {
 		t.Fatalf("join node2: %v", err)

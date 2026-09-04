@@ -51,6 +51,17 @@ func TestValidConfig(t *testing.T) {
 			ClusterTLSCertificate:           []byte(validCert),
 			ClusterTLSPrivateKey:            []byte(validPK),
 		}},
+		{"join token without cluster tls", joinTokenWithoutTLSConfig, &config.AppConfig{
+			Port:                            8000,
+			ExternalHostname:                "localhost",
+			DBPath:                          "./database",
+			ShouldEnablePebbleNotifications: false,
+			ClusterAddress:                  "10.0.0.2:9000",
+			ClusterName:                     "node2",
+			ClusterJoinToken:                "example-token",
+			TLSCertificate:                  []byte(validCert),
+			TLSPrivateKey:                   []byte(validPK),
+		}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -91,7 +102,6 @@ func TestInvalidConfig(t *testing.T) {
 		{"invalid pkcs11 encryption backend config", invalidEncryptionBackendConfigType, "invalid encryption backend type; must be 'none', 'vault' or 'pkcs11'"},
 		{"incomplete pkcs11 encryption backend config", incompleteEncryptionBackendConfig, "pin is missing"},
 		{"join without cluster tls", joinWithoutTLSConfig, "joining a cluster requires cluster.tls.cert_path and cluster.tls.key_path"},
-		{"join token without cluster tls", joinTokenWithoutTLSConfig, "joining a cluster requires cluster.tls.cert_path and cluster.tls.key_path"},
 		{"join and join token both set", joinAndJoinTokenConfig, "set either cluster.join_token or cluster.join, not both"},
 		{"invalid cluster name", invalidClusterNameConfig, "invalid cluster.name"},
 	}

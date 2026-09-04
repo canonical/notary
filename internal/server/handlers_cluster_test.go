@@ -120,6 +120,9 @@ func TestAddClusterMemberToken(t *testing.T) {
 	if body.Data.ServerName != "node2" || body.Data.JoinToken == "" {
 		t.Fatalf("unexpected data %+v", body.Data)
 	}
+	if strings.Contains(body.Data.JoinToken, "PRIVATE KEY") {
+		t.Fatal("token must not contain a private key")
+	}
 
 	del, err := http.NewRequest("DELETE", ts.URL+"/api/v1/cluster/members/"+body.Data.ServerName, nil)
 	if err != nil {

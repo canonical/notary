@@ -68,7 +68,7 @@ The command prints the path of the archive it created.
 
 Restore deletes the current data directory and replaces it with the archive. After restore, `cluster.address` and `cluster.name` in the configuration file must still match the node that was backed up.
 
-Cluster TLS files (`cluster.tls.cert_path` and `cluster.tls.key_path`) live next to the configuration file, not inside `db_path`. Keep the same `cluster.crt` and `cluster.key` the node used before the backup. Backup does not archive those files unless you stored them in the data directory yourself.
+Notary writes `cluster.crt` and `cluster.key` into `db_path` after start, so a backup of that directory includes cluster TLS. If you also keep copies at `cluster.tls.cert_path` / `key_path` outside `db_path`, restore those files as well.
 
 `````{tab-set}
 

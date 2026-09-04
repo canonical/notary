@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"context"
-	"crypto/subtle"
 	"database/sql"
 	"fmt"
 	"time"
@@ -45,7 +44,7 @@ func addressForName(ctx context.Context, sqldb *sql.DB, name string) (string, er
 	var address string
 	err := sqldb.QueryRowContext(ctx, `SELECT address FROM cluster_members WHERE name = ?`, name).Scan(&address)
 	if err == sql.ErrNoRows {
-		return "", fmt.Errorf("cluster member %q not found", name)
+		return "", fmt.Errorf("%w %q", ErrMemberNotFound, name)
 	}
 	if err != nil {
 		return "", err
@@ -71,26 +70,35 @@ func putJoinToken(ctx context.Context, sqldb *sql.DB, name, secret string, expir
 }
 
 func consumeJoinToken(ctx context.Context, sqldb *sql.DB, name, secret string) error {
-	var stored, expires string
-	err := sqldb.QueryRowContext(ctx, `SELECT secret, expires_at FROM cluster_join_tokens WHERE name = ?`, name).Scan(&stored, &expires)
+	now := time.Now().UTC().Format(time.RFC3339)
+	res, err := sqldb.ExecContext(ctx, `
+		DELETE FROM cluster_join_tokens
+		WHERE name = ? AND secret = ? AND expires_at > ?
+	`, name, secret, now)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 1 {
+		return nil
+	}
+	var storedExpires string
+	err = sqldb.QueryRowContext(ctx, `SELECT expires_at FROM cluster_join_tokens WHERE name = ?`, name).Scan(&storedExpires)
 	if err == sql.ErrNoRows {
-		return fmt.Errorf("join token for %q not found or already used", name)
+		return fmt.Errorf("%w: join token for %q not found or already used", ErrJoinTokenNotFound, name)
 	}
 	if err != nil {
 		return err
 	}
-	exp, err := time.Parse(time.RFC3339, expires)
+	exp, err := time.Parse(time.RFC3339, storedExpires)
 	if err != nil {
 		return fmt.Errorf("join token expiry: %w", err)
 	}
-	if time.Now().After(exp) {
-		return fmt.Errorf("join token for %q has expired", name)
+	if !time.Now().After(exp) {
+		return fmt.Errorf("%w: join token for %q is invalid", ErrJoinTokenInvalid, name)
 	}
-	if subtle.ConstantTimeCompare([]byte(stored), []byte(secret)) != 1 {
-		return fmt.Errorf("join token for %q is invalid", name)
-	}
-	if _, err := sqldb.ExecContext(ctx, `DELETE FROM cluster_join_tokens WHERE name = ?`, name); err != nil {
-		return err
-	}
-	return nil
+	return fmt.Errorf("%w: join token for %q has expired", ErrJoinTokenExpired, name)
 }

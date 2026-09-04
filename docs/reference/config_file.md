@@ -14,11 +14,13 @@ Or If you are using the snap you can modify the config under `/var/snap/notary/c
 - `cluster` (object): Configuration for the local dqlite node.
   - `name` (string): Cluster member name (LXD-style). Defaults to the machine hostname.
   - `address` (string): Bind address for dqlite, as `host:port`. Defaults to `127.0.0.1:9000`.
-  - `join_token` (string): One-time token from `notary cluster add <name>`. Used only the first time this node starts (empty data directory). Prefer `notary start --join`. Joining requires cluster TLS.
-  - `join` (list of strings): Existing dqlite addresses. Alternative to a join token for first start only. Do not set both `join` and `join_token`.
-  - `tls` (object): Shared certificate for dqlite replication. Same `cert` and `key` on every node. This is not the HTTPS API certificate (`cert_path` / `key_path`).
+  - `join_token` (string): One-time token from `notary cluster add <name>`. Used only the first time this node starts (empty data directory). Prefer `notary start --join`. The token is a join ticket (name, HTTPS addresses, secret, expiry, TLS fingerprint). It does not contain the cluster private key. The joiner redeems it over HTTPS, pinned by the fingerprint, then joins dqlite.
+  - `join` (list of strings): Existing dqlite addresses. Alternative to a join token for first start only. Do not set both `join` and `join_token`. This path requires `cluster.tls`.
+  - `tls` (object): Optional shared certificate for dqlite. This is not the HTTPS API certificate (`cert_path` / `key_path`). On first start of a new cluster, omit this and Notary generates a pair into `db_path`. On a joiner using `--join`, omit it; if you set it, it must match the cluster certificate received when the token is redeemed.
     - `cert_path` (string): Path to the cluster certificate PEM. Must include a DNS SAN.
     - `key_path` (string): Path to the cluster private key PEM.
+
+A data directory created without cluster TLS (typical of a one-node store from before this feature) keeps running plaintext on resume. `notary cluster add` then fails until you set `cluster.tls` and restart, which writes `cluster.crt` and `cluster.key` into `db_path`.
 
 Cluster operations while the daemon is running (same shape as LXD):
 
@@ -88,7 +90,7 @@ tracing:
   sampling_rate: "100%"
 ```
 
-A second node is added with `notary cluster add node2` on an existing member, then started with `--join` and the same cluster TLS files:
+A second node is added with `notary cluster add node2` on an existing member, then started with `--join` (no cluster TLS files):
 
 ```yaml
 key_path: "/etc/notary/config/key.pem"
@@ -97,23 +99,18 @@ db_path: "/var/lib/notary/database"
 cluster:
   name: "node2"
   address: "10.0.0.2:9000"
-  tls:
-    cert_path: "/etc/notary/config/cluster.crt"
-    key_path: "/etc/notary/config/cluster.key"
 port: 3000
 encryption_backend:
   type: "none"
 ```
 
-The cluster certificate must include a DNS SAN. One way to create a shared self-signed pair:
+If you supply `cluster.tls` yourself, the certificate must include a DNS SAN:
 
 ```shell
 openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 \
   -nodes -keyout cluster.key -out cluster.crt -subj "/CN=notary-cluster" \
   -addext "subjectAltName=DNS:localhost,DNS:notary-cluster,IP:127.0.0.1"
 ```
-
-Copy `cluster.crt` and `cluster.key` to every node. Generate a cluster certificate that names each node's `cluster.address` (DNS or IP) as appropriate.
 
 ### With HSM as an Encryption Backend
 

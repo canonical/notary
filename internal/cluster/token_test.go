@@ -14,10 +14,11 @@ func TestDecodeJoinToken(t *testing.T) {
 		t.Fatal("expected error")
 	}
 	payload, err := json.Marshal(cluster.JoinToken{
-		ServerName: "node2",
-		Addresses:  []string{"10.0.0.1:9000"},
-		Secret:     "abc",
-		ExpiresAt:  time.Now().Add(time.Hour).UTC(),
+		ServerName:  "node2",
+		Fingerprint: "abc",
+		Addresses:   []string{"10.0.0.1:8000"},
+		Secret:      "abc",
+		ExpiresAt:   time.Now().Add(time.Hour).UTC(),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -26,7 +27,7 @@ func TestDecodeJoinToken(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.ServerName != "node2" || len(got.Addresses) != 1 || got.Secret != "abc" {
+	if got.ServerName != "node2" || len(got.Addresses) != 1 || got.Secret != "abc" || got.Fingerprint != "abc" {
 		t.Fatalf("%+v", got)
 	}
 }

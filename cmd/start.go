@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/canonical/notary/internal/cluster"
 	"github.com/canonical/notary/internal/config"
 	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/server"
@@ -35,6 +36,7 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 		if startJoinToken != "" {
 			joinToken = startJoinToken
 		}
+		apiAddr, _ := cluster.JoinAPIAddress(appConfig.ClusterAddress, appConfig.Port, appConfig.ExternalHostname)
 		database, err := db.NewDatabase(&db.DatabaseOpts{
 			DatabasePath: appConfig.DBPath,
 			Address:      appConfig.ClusterAddress,
@@ -43,6 +45,8 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 			JoinToken:    joinToken,
 			TLSCert:      appConfig.ClusterTLSCertificate,
 			TLSKey:       appConfig.ClusterTLSPrivateKey,
+			HTTPSCert:    appConfig.TLSCertificate,
+			APIAddress:   apiAddr,
 			Logger:       zap.L(),
 		})
 		if err != nil {

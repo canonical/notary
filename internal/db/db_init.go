@@ -93,6 +93,13 @@ func NewDatabase(dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
 	repo.Conn = sqlair.NewDB(sqlConnection)
 	repo.Path = dbOpts.DatabasePath
 	repo.Node = node
+	repo.TLSCert = dbOpts.TLSCert
+	repo.TLSKey = dbOpts.TLSKey
+	repo.HTTPSCert = dbOpts.HTTPSCert
+	repo.APIAddress = dbOpts.APIAddress
+	if cert, key, err := cluster.LoadClusterTLS(dbOpts.DatabasePath); err == nil {
+		repo.TLSCert, repo.TLSKey = cert, key
+	}
 
 	name := dbOpts.Name
 	if name == "" {
@@ -104,13 +111,12 @@ func NewDatabase(dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
 			_ = repo.Close()
 			return nil, err
 		}
-		if err := cluster.ConsumeJoinToken(ctx, sqlConnection, token); err != nil {
-			_ = repo.Close()
-			return nil, err
-		}
 		name = token.ServerName
 	}
 	if err := cluster.RegisterMember(ctx, sqlConnection, name, node.Address()); err != nil {
+		if dbOpts.JoinToken != "" || len(dbOpts.Join) > 0 {
+			_ = cluster.RemoveMemberOnNode(ctx, node, sqlConnection, node.Address())
+		}
 		_ = repo.Close()
 		return nil, err
 	}
@@ -130,7 +136,7 @@ func (db *DatabaseRepository) IssueJoinToken(ctx context.Context, name string) (
 	if db == nil || db.Node == nil {
 		return "", fmt.Errorf("database is not open")
 	}
-	return cluster.IssueJoinTokenOnNode(ctx, db.Node, db.Conn.PlainDB(), name)
+	return cluster.IssueJoinTokenOnNode(ctx, db.Node, db.Conn.PlainDB(), name, db.TLSCert, db.TLSKey, db.HTTPSCert, []string{db.APIAddress})
 }
 
 // RemoveClusterMember evicts a named member.

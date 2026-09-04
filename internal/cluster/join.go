@@ -1,0 +1,187 @@
+package cluster
+
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
+	"database/sql"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+)
+
+const joinRedeemPath = "/api/v1/cluster/join"
+
+// JoinMaterial is cluster TLS and dqlite addresses returned after a token is redeemed.
+type JoinMaterial struct {
+	TLSCert    []byte
+	TLSKey     []byte
+	Join       []string
+	ServerName string
+}
+
+type joinRedeemRequest struct {
+	JoinToken string `json:"join_token"`
+}
+
+type joinRedeemData struct {
+	ClusterCertificate string   `json:"cluster_certificate"`
+	ClusterPrivateKey  string   `json:"cluster_private_key"`
+	Addresses          []string `json:"addresses"`
+	ServerName         string   `json:"server_name"`
+}
+
+type joinRedeemResponse struct {
+	Message string         `json:"message"`
+	Data    joinRedeemData `json:"data"`
+}
+
+// ExchangeJoinToken redeems a join ticket over HTTPS, pinning the server with
+// the token fingerprint. Tests may replace this.
+var ExchangeJoinToken = ExchangeJoinTokenHTTPS
+
+// JoinAPIAddress is the HTTPS host:port joiners use to redeem a token.
+func JoinAPIAddress(clusterAddress string, port int, externalHostname string) (string, error) {
+	if port <= 0 {
+		port = 8000
+	}
+	if h := strings.TrimSpace(externalHostname); h != "" {
+		if _, _, err := net.SplitHostPort(h); err == nil {
+			return requireReachableJoinAddress(h)
+		}
+		return requireReachableJoinAddress(net.JoinHostPort(h, strconv.Itoa(port)))
+	}
+	host := "127.0.0.1"
+	if clusterAddress != "" {
+		if h, _, err := net.SplitHostPort(clusterAddress); err == nil && h != "" {
+			host = h
+		}
+	}
+	return requireReachableJoinAddress(net.JoinHostPort(host, strconv.Itoa(port)))
+}
+
+func requireReachableJoinAddress(addr string) (string, error) {
+	if joinHostUnspecified(addr) {
+		return "", fmt.Errorf("%w (got %q)", ErrUnreachableJoinAddress, addr)
+	}
+	return addr, nil
+}
+
+func joinHostUnspecified(addr string) bool {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		host = strings.Trim(addr, "[]")
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsUnspecified()
+}
+
+func requireReachableJoinAddresses(addresses []string) error {
+	for _, a := range addresses {
+		if _, err := requireReachableJoinAddress(a); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// RedeemJoinToken consumes a one-time ticket and returns cluster TLS.
+func RedeemJoinToken(ctx context.Context, sqldb *sql.DB, token JoinToken, clusterCert, clusterKey []byte) (JoinMaterial, error) {
+	if len(clusterCert) == 0 || len(clusterKey) == 0 {
+		return JoinMaterial{}, fmt.Errorf("cluster TLS is required to join")
+	}
+	if err := consumeJoinToken(ctx, sqldb, token.ServerName, token.Secret); err != nil {
+		return JoinMaterial{}, err
+	}
+	return JoinMaterial{
+		TLSCert:    clusterCert,
+		TLSKey:     clusterKey,
+		ServerName: token.ServerName,
+	}, nil
+}
+
+// ExchangeJoinTokenHTTPS redeems the token at the issuing member's HTTPS address.
+func ExchangeJoinTokenHTTPS(ctx context.Context, rawToken string) (JoinMaterial, error) {
+	token, err := DecodeJoinToken(rawToken)
+	if err != nil {
+		return JoinMaterial{}, err
+	}
+	if len(token.Addresses) == 0 {
+		return JoinMaterial{}, fmt.Errorf("join token has no addresses")
+	}
+	return redeemAt(ctx, rawToken, token.Fingerprint, token.Addresses[0])
+}
+
+func redeemAt(ctx context.Context, rawToken, fingerprint, addr string) (JoinMaterial, error) {
+	body, err := json.Marshal(joinRedeemRequest{JoinToken: rawToken})
+	if err != nil {
+		return JoinMaterial{}, err
+	}
+	url := "https://" + addr + joinRedeemPath
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return JoinMaterial{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	res, err := pinnedHTTPClient(fingerprint).Do(req)
+	if err != nil {
+		return JoinMaterial{}, fmt.Errorf("redeem join token at %s: %w", addr, err)
+	}
+	defer res.Body.Close() //nolint:errcheck
+	payload, err := io.ReadAll(io.LimitReader(res.Body, 1<<20))
+	if err != nil {
+		return JoinMaterial{}, err
+	}
+	if res.StatusCode != http.StatusOK {
+		var parsed joinRedeemResponse
+		_ = json.Unmarshal(payload, &parsed)
+		if parsed.Message != "" {
+			return JoinMaterial{}, fmt.Errorf("redeem join token: %s", parsed.Message)
+		}
+		return JoinMaterial{}, fmt.Errorf("redeem join token at %s: HTTP %d", addr, res.StatusCode)
+	}
+	var parsed joinRedeemResponse
+	if err := json.Unmarshal(payload, &parsed); err != nil {
+		return JoinMaterial{}, fmt.Errorf("parse join credentials: %w", err)
+	}
+	if parsed.Data.ClusterCertificate == "" || parsed.Data.ClusterPrivateKey == "" || len(parsed.Data.Addresses) == 0 {
+		return JoinMaterial{}, fmt.Errorf("join credentials are incomplete")
+	}
+	return JoinMaterial{
+		TLSCert:    []byte(parsed.Data.ClusterCertificate),
+		TLSKey:     []byte(parsed.Data.ClusterPrivateKey),
+		Join:       parsed.Data.Addresses,
+		ServerName: parsed.Data.ServerName,
+	}, nil
+}
+
+func pinnedHTTPClient(fingerprint string) *http.Client {
+	return &http.Client{
+		Timeout: 15 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				MinVersion:         tls.VersionTLS12,
+				InsecureSkipVerify: true, //nolint:gosec // peer cert is pinned to token fingerprint
+				VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
+					if len(rawCerts) == 0 {
+						return fmt.Errorf("server presented no certificate")
+					}
+					sum := sha256.Sum256(rawCerts[0])
+					got := hex.EncodeToString(sum[:])
+					if !strings.EqualFold(got, fingerprint) {
+						return fmt.Errorf("server certificate does not match join token fingerprint")
+					}
+					return nil
+				},
+			},
+		},
+	}
+}

@@ -47,7 +47,7 @@ func ValidMemberName(name string) bool {
 
 func requireMemberName(name string) error {
 	if !ValidMemberName(name) {
-		return fmt.Errorf("invalid cluster member name %q", name)
+		return fmt.Errorf("%w %q", ErrInvalidMemberName, name)
 	}
 	return nil
 }
@@ -89,36 +89,45 @@ func QueryMembers(ctx context.Context, dir string, certPEM, keyPEM []byte) ([]Me
 	}
 	sqldb, err := OpenClientDB(ctx, dir, certPEM, keyPEM)
 	if err != nil {
-		return members, nil
+		return nil, err
 	}
 	defer sqldb.Close()
 	return attachNames(ctx, sqldb, members)
 }
 
 // IssueJoinToken creates an LXD-style join token for a not-yet-joined member.
-func IssueJoinToken(ctx context.Context, dir string, certPEM, keyPEM []byte, name string) (string, error) {
+func IssueJoinToken(ctx context.Context, dir string, certPEM, keyPEM []byte, name string, apiCert []byte, apiAddresses []string) (string, error) {
 	sqldb, err := OpenClientDB(ctx, dir, certPEM, keyPEM)
 	if err != nil {
 		return "", err
 	}
 	defer sqldb.Close()
-	members, err := QueryMembers(ctx, dir, certPEM, keyPEM)
+	cli, err := connectLeader(ctx, dir, certPEM, keyPEM)
 	if err != nil {
 		return "", err
 	}
-	return issueJoinToken(ctx, sqldb, members, name)
+	defer cli.Close()
+	members, err := membersFromClient(ctx, cli)
+	if err != nil {
+		return "", err
+	}
+	members, err = attachNames(ctx, sqldb, members)
+	if err != nil {
+		return "", err
+	}
+	return issueJoinToken(ctx, sqldb, members, name, certPEM, keyPEM, apiCert, apiAddresses)
 }
 
 // IssueJoinTokenOnNode issues a token using a running node and its SQL connection.
-func IssueJoinTokenOnNode(ctx context.Context, n *Node, sqldb *sql.DB, name string) (string, error) {
+func IssueJoinTokenOnNode(ctx context.Context, n *Node, sqldb *sql.DB, name string, certPEM, keyPEM, apiCert []byte, apiAddresses []string) (string, error) {
 	members, err := n.MembersWithNames(ctx, sqldb)
 	if err != nil {
 		return "", err
 	}
-	return issueJoinToken(ctx, sqldb, members, name)
+	return issueJoinToken(ctx, sqldb, members, name, certPEM, keyPEM, apiCert, apiAddresses)
 }
 
-func issueJoinToken(ctx context.Context, sqldb *sql.DB, members []Member, name string) (string, error) {
+func issueJoinToken(ctx context.Context, sqldb *sql.DB, members []Member, name string, certPEM, keyPEM, apiCert []byte, apiAddresses []string) (string, error) {
 	if err := requireMemberName(name); err != nil {
 		return "", err
 	}
@@ -127,21 +136,34 @@ func issueJoinToken(ctx context.Context, sqldb *sql.DB, members []Member, name s
 		return "", err
 	}
 	if exists {
-		return "", fmt.Errorf("cluster member %q already exists", name)
+		return "", fmt.Errorf("%w %q", ErrMemberExists, name)
 	}
 	for _, m := range members {
 		if m.Name == name {
-			return "", fmt.Errorf("cluster member %q already exists", name)
+			return "", fmt.Errorf("%w %q", ErrMemberExists, name)
 		}
 	}
-	addresses := make([]string, 0, len(members))
-	for _, m := range members {
-		if m.Address != "" {
-			addresses = append(addresses, m.Address)
+	if len(certPEM) == 0 || len(keyPEM) == 0 {
+		return "", fmt.Errorf("cluster TLS is required to create a join token")
+	}
+	if len(apiCert) == 0 {
+		return "", fmt.Errorf("HTTPS certificate is required to create a join token")
+	}
+	var addresses []string
+	for _, a := range apiAddresses {
+		if a != "" {
+			addresses = append(addresses, a)
 		}
 	}
 	if len(addresses) == 0 {
-		return "", fmt.Errorf("cluster has no member addresses")
+		return "", fmt.Errorf("HTTPS address is required to create a join token")
+	}
+	if err := requireReachableJoinAddresses(addresses); err != nil {
+		return "", err
+	}
+	fingerprint, err := CertFingerprintPEM(apiCert)
+	if err != nil {
+		return "", err
 	}
 	secret, err := newJoinSecret()
 	if err != nil {
@@ -152,10 +174,11 @@ func issueJoinToken(ctx context.Context, sqldb *sql.DB, members []Member, name s
 		return "", err
 	}
 	return encodeJoinToken(JoinToken{
-		ServerName: name,
-		Addresses:  addresses,
-		Secret:     secret,
-		ExpiresAt:  expires,
+		ServerName:  name,
+		Fingerprint: fingerprint,
+		Addresses:   addresses,
+		Secret:      secret,
+		ExpiresAt:   expires,
 	})
 }
 
@@ -204,7 +227,7 @@ func removeByName(ctx context.Context, cli *client.Client, sqldb *sql.DB, member
 		return err
 	}
 	if len(members) <= 1 {
-		return fmt.Errorf("cannot remove the last cluster member")
+		return ErrLastMember
 	}
 	var target *Member
 	for i := range members {
@@ -225,16 +248,20 @@ func removeByName(ctx context.Context, cli *client.Client, sqldb *sql.DB, member
 		}
 	}
 	if target == nil {
-		return fmt.Errorf("cluster member %q not found", name)
+		return fmt.Errorf("%w %q", ErrMemberNotFound, name)
 	}
 	if err := cli.Remove(ctx, target.ID); err != nil {
 		return fmt.Errorf("remove cluster member %q: %w", name, err)
 	}
 	if target.Name != "" {
-		_ = deleteMemberName(ctx, sqldb, target.Name)
+		if err := deleteMemberName(ctx, sqldb, target.Name); err != nil {
+			return fmt.Errorf("removed %q from raft but not from cluster_members: %w", target.Name, err)
+		}
 	}
 	if name != target.Name {
-		_ = deleteMemberName(ctx, sqldb, name)
+		if err := deleteMemberName(ctx, sqldb, name); err != nil {
+			return fmt.Errorf("removed %q from raft but not from cluster_members: %w", name, err)
+		}
 	}
 	return nil
 }
@@ -270,7 +297,10 @@ func attachNames(ctx context.Context, sqldb *sql.DB, members []Member) ([]Member
 	}
 	names, err := namesByAddress(ctx, sqldb)
 	if err != nil {
-		return members, nil
+		if strings.Contains(err.Error(), "no such table: cluster_members") {
+			return members, nil
+		}
+		return nil, fmt.Errorf("load cluster member names: %w", err)
 	}
 	for i := range members {
 		if n, ok := names[members[i].Address]; ok {

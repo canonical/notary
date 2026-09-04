@@ -11,12 +11,16 @@ import (
 
 const joinTokenTTL = 3 * time.Hour
 
-// JoinToken is the payload inside a `notary cluster add` token (LXD-shaped).
+// JoinToken is the payload inside a `notary cluster add` token.
+// It is a one-time join ticket (name, addresses, secret, expiry) plus a TLS
+// fingerprint used to pin the HTTPS server that will hand over cluster TLS.
+// It does not contain the cluster private key.
 type JoinToken struct {
-	ServerName string    `json:"server_name"`
-	Addresses  []string  `json:"addresses"`
-	Secret     string    `json:"secret"`
-	ExpiresAt  time.Time `json:"expires_at"`
+	ServerName  string    `json:"server_name"`
+	Fingerprint string    `json:"fingerprint"`
+	Addresses   []string  `json:"addresses"`
+	Secret      string    `json:"secret"`
+	ExpiresAt   time.Time `json:"expires_at"`
 }
 
 func newJoinSecret() (string, error) {
@@ -48,7 +52,7 @@ func DecodeJoinToken(s string) (JoinToken, error) {
 	if err := json.Unmarshal(body, &t); err != nil {
 		return t, fmt.Errorf("parse join token: %w", err)
 	}
-	if t.ServerName == "" || len(t.Addresses) == 0 || t.Secret == "" {
+	if t.ServerName == "" || len(t.Addresses) == 0 || t.Secret == "" || t.Fingerprint == "" {
 		return t, fmt.Errorf("join token is missing fields")
 	}
 	return t, nil

@@ -50,8 +50,7 @@ On an existing node (daemon running):
 
   notary cluster add node2 --config /path/to/config.yaml
 
-On the new machine, copy the cluster TLS files, set cluster.name and cluster.address,
-then start with the token:
+On the new machine, set cluster.name and cluster.address, then start with the token:
 
   notary start --config /path/to/config.yaml --join <token>
 `,
@@ -63,7 +62,11 @@ then start with the token:
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
-		token, err := cluster.IssueJoinToken(ctx, appConfig.DBPath, appConfig.ClusterTLSCertificate, appConfig.ClusterTLSPrivateKey, args[0])
+		apiAddr, err := cluster.JoinAPIAddress(appConfig.ClusterAddress, appConfig.Port, appConfig.ExternalHostname)
+		if err != nil {
+			return err
+		}
+		token, err := cluster.IssueJoinToken(ctx, appConfig.DBPath, appConfig.ClusterTLSCertificate, appConfig.ClusterTLSPrivateKey, args[0], appConfig.TLSCertificate, []string{apiAddr})
 		if err != nil {
 			return err
 		}
@@ -73,12 +76,13 @@ then start with the token:
 }
 
 var clusterRemoveCmd = &cobra.Command{
-	Use:   "remove <name>",
+	Use:   "remove <name|address>",
 	Short: "Remove a cluster member",
 	Long: `Remove a named member from the cluster, like lxc cluster remove.
 
 The daemon must be running. This evicts the node from dqlite; stop that
-machine's Notary process afterwards.`,
+machine's Notary process afterwards. If a join failed after dqlite added
+the node, the member may have no name; pass its address instead.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		appConfig, err := parseClusterConfig()
@@ -99,6 +103,13 @@ func parseClusterConfig() (*config.AppConfig, error) {
 	appConfig, err := config.ParseConfig(clusterCmd.PersistentFlags(), clusterConfigPath)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't parse config: %w", err)
+	}
+	if len(appConfig.ClusterTLSCertificate) == 0 {
+		cert, key, err := cluster.LoadClusterTLS(appConfig.DBPath)
+		if err == nil {
+			appConfig.ClusterTLSCertificate = cert
+			appConfig.ClusterTLSPrivateKey = key
+		}
 	}
 	return appConfig, nil
 }

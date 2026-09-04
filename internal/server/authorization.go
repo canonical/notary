@@ -1,13 +1,15 @@
 package server
 
-import "github.com/canonical/notary/internal/db"
+import (
+	"github.com/canonical/notary/internal/backends/authorization"
+)
 
-// Role name constants used in OpenFGA tuples and checks against "system:notary".
+// Role name constants used in permission checks against system:notary.
 const (
-	RoleNameAdmin                = "admin"
-	RoleNameCertificateManager   = "certificate_manager"
-	RoleNameCertificateRequestor = "certificate_requestor"
-	RoleNameReader               = "reader"
+	RoleNameAdmin                = authorization.RelationAdmin
+	RoleNameCertificateManager   = authorization.RelationCertificateManager
+	RoleNameCertificateRequestor = authorization.RelationCertificateRequestor
+	RoleNameReader               = authorization.RelationReader
 )
 
 // RoleID mirrors db.RoleID for use within the server package.
@@ -26,19 +28,5 @@ func (r RoleID) IsValid() bool {
 		return true
 	default:
 		return false
-	}
-}
-
-// RoleIDToRelation maps a db.RoleID to the corresponding OpenFGA relation name on "system:notary".
-func RoleIDToRelation(roleID db.RoleID) string {
-	switch roleID {
-	case db.RoleAdmin:
-		return RoleNameAdmin
-	case db.RoleCertificateManager:
-		return RoleNameCertificateManager
-	case db.RoleCertificateRequestor:
-		return RoleNameCertificateRequestor
-	default:
-		return RoleNameReader
 	}
 }

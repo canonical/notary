@@ -19,7 +19,7 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(dataDir, "nested"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dataDir, "nested", "openfga.sqlite"), []byte("sidecar"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(dataDir, "nested", "extra.dat"), []byte("extra"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -41,12 +41,12 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 	if string(got) != "id: 1\n" {
 		t.Fatalf("info.yaml: got %q", got)
 	}
-	got, err = os.ReadFile(filepath.Join(restored, "nested", "openfga.sqlite"))
+	got, err = os.ReadFile(filepath.Join(restored, "nested", "extra.dat"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(got) != "sidecar" {
-		t.Fatalf("openfga.sqlite: got %q", got)
+	if string(got) != "extra" {
+		t.Fatalf("extra.dat: got %q", got)
 	}
 }
 
@@ -123,7 +123,11 @@ func TestBackupRestoreDqliteData(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDatabase: %s", err)
 	}
-	csrID, err := database.CreateCertificateRequest(tu.AppleCSR, "user@example.com")
+	userID, err := database.CreateUser("user@example.com", "password", 0)
+	if err != nil {
+		t.Fatalf("CreateUser: %s", err)
+	}
+	csrID, err := database.CreateCertificateRequest(tu.AppleCSR, userID)
 	if err != nil {
 		t.Fatalf("CreateCertificateRequest: %s", err)
 	}
@@ -155,7 +159,14 @@ func TestBackupRestoreDqliteData(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetCertificateRequest: %s", err)
 	}
-	if got.UserEmail != "user@example.com" {
-		t.Fatalf("user email: got %q", got.UserEmail)
+	if got.UserID == nil || *got.UserID != userID {
+		t.Fatalf("user id: got %v, want %d", got.UserID, userID)
+	}
+
+	if _, err := os.Stat(filepath.Join(srcDir, "openfga.sqlite")); !os.IsNotExist(err) {
+		t.Fatalf("source data dir should not contain openfga.sqlite: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dstDir, "openfga.sqlite")); !os.IsNotExist(err) {
+		t.Fatalf("restored data dir should not contain openfga.sqlite: %v", err)
 	}
 }

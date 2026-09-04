@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/canonical/notary/internal/backends/authorization"
 	"github.com/canonical/notary/internal/backends/observability/log"
 	"github.com/canonical/notary/internal/db"
 	"go.uber.org/zap"
@@ -151,9 +150,12 @@ func GetAccount(env *HandlerDependencies) http.HandlerFunc {
 				writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 				return
 			}
-			account = &db.User{
-				Email: claims.Email,
+			userID, ok := userIDFromClaims(claims)
+			if !ok {
+				writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
+				return
 			}
+			account, err = env.Database.GetUser(db.ByUserID(userID))
 		} else {
 			var idNum int64
 			idNum, err = strconv.ParseInt(id, 10, 64)
@@ -188,7 +190,12 @@ func GetMyAccount(env *HandlerDependencies) http.HandlerFunc {
 			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 			return
 		}
-		account, err := env.Database.GetUser(db.ByEmail(claims.Email))
+		userID, ok := userIDFromClaims(claims)
+		if !ok {
+			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
+			return
+		}
+		account, err := env.Database.GetUser(db.ByUserID(userID))
 		if err != nil {
 			if errors.Is(err, db.ErrNotFound) {
 				writeResponse(w, http.StatusNotFound, "not found", nil, env.SystemLogger)
@@ -237,14 +244,6 @@ func CreateAccount(env *HandlerDependencies) http.HandlerFunc {
 			env.SystemLogger.Error("failed to create user", zap.Error(err))
 			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
-		}
-
-		if env.AuthzRepository != nil {
-			relation := RoleIDToRelation(db.RoleID(createAccountParams.RoleID))
-			userID := authorization.UserID(createAccountParams.Email)
-			if err := env.AuthzRepository.WriteTuple("system:notary", relation, userID); err != nil {
-				env.SystemLogger.Error("Failed to write role tuple to OpenFGA", zap.Error(err), zap.String("user", userID), zap.String("relation", relation))
-			}
 		}
 
 		var actor string
@@ -310,14 +309,6 @@ func DeleteAccount(env *HandlerDependencies) http.HandlerFunc {
 			env.SystemLogger.Error("failed to delete user", zap.Error(err))
 			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
 			return
-		}
-
-		if env.AuthzRepository != nil {
-			relation := RoleIDToRelation(account.RoleID)
-			userID := authorization.UserID(account.Email)
-			if err := env.AuthzRepository.DeleteTuple("system:notary", relation, userID); err != nil {
-				env.SystemLogger.Error("Failed to delete role tuple from OpenFGA", zap.Error(err), zap.String("user", userID), zap.String("relation", relation))
-			}
 		}
 
 		env.AuditLogger.UserDeleted(account.Email,
@@ -416,7 +407,12 @@ func ChangeMyPassword(env *HandlerDependencies) http.HandlerFunc {
 			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 			return
 		}
-		account, err := env.Database.GetUser(db.ByEmail(claims.Email))
+		userID, ok := userIDFromClaims(claims)
+		if !ok {
+			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
+			return
+		}
+		account, err := env.Database.GetUser(db.ByUserID(userID))
 		if err != nil {
 			env.SystemLogger.Error("failed to get current user for password change", zap.Error(err))
 			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)

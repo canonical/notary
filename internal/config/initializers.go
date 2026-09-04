@@ -57,11 +57,7 @@ func InitializeAppEnvironment(appConfig *AppConfig, database *db.DatabaseReposit
 		return nil, fmt.Errorf("couldn't initialize OIDC subsystem: %w", err)
 	}
 
-	// initialize openfga server routine
-	authzRepo, err := InitializeAuthorizationConfig(database, systemLogger)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't initialize authorization subsystem: %w", err)
-	}
+	authzRepo := InitializeAuthorizationConfig(database)
 
 	appEnv.SystemLogger = systemLogger
 	appEnv.AuditLogger = auditLogger
@@ -212,14 +208,8 @@ func initializeAuditLogger(cfg *viper.Viper) (*log.AuditLogger, error) {
 	return auditLogger, nil
 }
 
-// InitializeAuthorizationConfig initializes the authorization config after database creation
-// This needs to be called from cmd/start.go after the database is created
-func InitializeAuthorizationConfig(database *db.DatabaseRepository, logger *zap.Logger) (*authz.AuthzRepository, error) {
-	ofgaConfig, err := authz.InitializeLocalOpenFGA(database, logger)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize OpenFGA: %w", err)
-	}
-	return ofgaConfig, nil
+func InitializeAuthorizationConfig(database *db.DatabaseRepository) *authz.AuthzRepository {
+	return authz.New(database)
 }
 
 func initializeOIDC(cfg *viper.Viper, database *db.DatabaseRepository, externalHostname string) (*authentication.OIDCRepository, error) {

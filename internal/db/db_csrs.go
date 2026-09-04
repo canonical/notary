@@ -17,11 +17,11 @@ func (db *DatabaseRepository) ListCertificateRequestWithCertificates() ([]Certif
 
 // ListCertificateRequestWithCertificatesWithoutCAS gets every CertificateRequest entry in the table.
 func (db *DatabaseRepository) ListCertificateRequestWithCertificatesWithoutCAS(filter *CSRFilter) ([]CertificateRequestWithChain, error) {
-	if filter == nil || filter.UserEmail == nil {
+	if filter == nil || filter.OwnerUserID == nil {
 		return ListEntities[CertificateRequestWithChain](db, db.stmts.ListCertificateRequestsWithoutChain)
 	}
 	csrRow := filter.AsCertificateRequestWithChain()
-	return ListEntities[CertificateRequestWithChain](db, db.stmts.ListCertificateRequestsWithoutChainByUserEmail, *csrRow)
+	return ListEntities[CertificateRequestWithChain](db, db.stmts.ListCertificateRequestsWithoutChainByUserID, *csrRow)
 }
 
 // GetCertificateRequestByID gets a CSR row from the repository from a given ID.
@@ -37,13 +37,13 @@ func (db *DatabaseRepository) GetCertificateRequestAndChain(filter CSRFilter) (*
 }
 
 // CreateCertificateRequest creates a new CSR entry in the repository. The string must be a valid CSR and unique.
-func (db *DatabaseRepository) CreateCertificateRequest(csr string, userEmail string) (int64, error) {
+func (db *DatabaseRepository) CreateCertificateRequest(csr string, userID int64) (int64, error) {
 	if err := ValidateCertificateRequest(csr); err != nil {
 		return 0, err
 	}
-	row := CertificateRequest{
-		CSR:       csr,
-		UserEmail: userEmail,
+	row := CertificateRequest{CSR: csr}
+	if userID > 0 {
+		row.UserID = &userID
 	}
 	return CreateEntity(db, db.stmts.CreateCertificateRequest, row)
 }

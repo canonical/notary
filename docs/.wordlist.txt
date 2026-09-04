@@ -15,9 +15,9 @@ RESTful
 dqlite
 timestamped
 tar
-OpenFGA
 goose
 sqlite
+SQLite
 stdout
 systemd
 TLS

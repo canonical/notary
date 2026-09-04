@@ -49,8 +49,8 @@ func TestMigrationsApplied(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read goose version: %s", err)
 	}
-	if version != 2 {
-		t.Fatalf("got goose version %d, want 2", version)
+	if version != 3 {
+		t.Fatalf("got goose version %d, want 3", version)
 	}
 }
 
@@ -64,7 +64,7 @@ func Example() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	csrID, err := database.CreateCertificateRequest("----- CERTIFICATE REQUEST -----...", "user@example.com")
+	csrID, err := database.CreateCertificateRequest("----- CERTIFICATE REQUEST -----...", 0)
 	if err != nil {
 		log.Fatalln(err)
 	}

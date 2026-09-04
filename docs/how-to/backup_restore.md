@@ -44,7 +44,7 @@ The `-d` / `--db-path` flag is the data directory (`db_path`). The `-f` / `--fil
 ```shell
 sudo mkdir -p /var/snap/notary/common/backups
 sudo notary backup \
-  --db-path /var/snap/notary/common/notary.db \
+  --db-path /var/snap/notary/common/database \
   --file /var/snap/notary/common/backups/notary.tar.gz
 ```
 
@@ -74,7 +74,7 @@ Restore deletes the current data directory and replaces it with the archive. Aft
 
 ```shell
 sudo notary restore \
-  --db-path /var/snap/notary/common/notary.db \
+  --db-path /var/snap/notary/common/database \
   --file /var/snap/notary/common/backups/backup_20260831_120000.tar.gz
 ```
 

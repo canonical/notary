@@ -226,9 +226,9 @@ func extractResourceType(path string) string {
 	return ""
 }
 
-// requirePermission authorizes a request by verifying the caller's JWT then performing an
-// OpenFGA Check against "system:notary" for each of the allowedRoles. The first matching
-// role grants access; if none match, 403 Forbidden is returned.
+// requirePermission authorizes a request by verifying the caller's JWT then checking
+// the caller's role against "system:notary" for each of the allowedRoles. The first
+// matching role grants access; if none match, 403 Forbidden is returned.
 func requirePermission(
 	allowedRoles []string,
 	env *HandlerDependencies,
@@ -246,26 +246,28 @@ func requirePermission(
 			return
 		}
 
-		userID := authorization.UserID(claims.Email)
-		const systemObject = "system:notary"
-
-		if env.AuthzRepository == nil {
-			handler(w, r)
+		userID := principalFromClaims(claims)
+		if userID == "" {
+			env.AuditLogger.UnauthorizedAccess(
+				log.WithRequest(r),
+				log.WithReason("JWT is missing a user id"),
+			)
+			env.SystemLogger.Warn("JWT is missing a user id")
+			writeResponse(w, http.StatusUnauthorized, "unauthorized", nil, env.SystemLogger)
 			return
 		}
 
-		allowed := false
-		for _, role := range allowedRoles {
-			ok, checkErr := env.AuthzRepository.Check(systemObject, role, userID)
-			if checkErr != nil {
-				env.SystemLogger.Error("authorization check failed", zap.Error(checkErr))
-				writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
-				return
-			}
-			if ok {
-				allowed = true
-				break
-			}
+		if env.AuthzRepository == nil {
+			env.SystemLogger.Error("authorization repository is not configured")
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
+			return
+		}
+
+		allowed, checkErr := env.AuthzRepository.CheckAny(authorization.SystemObject, userID, allowedRoles...)
+		if checkErr != nil {
+			env.SystemLogger.Error("authorization check failed", zap.Error(checkErr))
+			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
+			return
 		}
 
 		if !allowed {
@@ -338,4 +340,23 @@ func getClaimsFromJWT(rawToken string, jwtSecret []byte, oidcConfig *authenticat
 		return nil, err
 	}
 	return claims, nil
+}
+
+func principalFromClaims(claims *authentication.NotaryJWTClaims) string {
+	id, ok := userIDFromClaims(claims)
+	if !ok {
+		return ""
+	}
+	return authorization.UserID(id)
+}
+
+func userIDFromClaims(claims *authentication.NotaryJWTClaims) (int64, bool) {
+	if claims == nil || claims.Subject == "" {
+		return 0, false
+	}
+	id, err := strconv.ParseInt(claims.Subject, 10, 64)
+	if err != nil || id <= 0 {
+		return 0, false
+	}
+	return id, true
 }

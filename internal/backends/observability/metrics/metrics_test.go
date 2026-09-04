@@ -262,13 +262,13 @@ func generateCertPair(daysRemaining int) (string, string, string) {
 
 func initializeTestDBWithCerts(t *testing.T, database *db.DatabaseRepository) {
 	userEmail := "testuser@example.com"
-	_, err := database.CreateUser(userEmail, "whateverPassword", 0)
+	userID, err := database.CreateUser(userEmail, "whateverPassword", 0)
 	if err != nil {
 		t.Fatalf("couldn't create test user: %s", err)
 	}
 	for _, v := range []int{5, 10, 32} {
 		csr, cert, ca := generateCertPair(v)
-		csrID, err := database.CreateCertificateRequest(csr, userEmail)
+		csrID, err := database.CreateCertificateRequest(csr, userID)
 		if err != nil {
 			t.Fatalf("couldn't create test csr: %s", err)
 		}
@@ -282,17 +282,17 @@ func initializeTestDBWithCerts(t *testing.T, database *db.DatabaseRepository) {
 func initializeTestDBWithCaCerts(t *testing.T, database *db.DatabaseRepository) {
 	// Create user
 	userEmail := "testuser@example.com"
-	_, err := database.CreateUser(userEmail, "whateverPassword", 0)
+	userID, err := database.CreateUser(userEmail, "whateverPassword", 0)
 	if err != nil {
 		t.Fatalf("couldn't create test user: %s", err)
 	}
 	// create an enabled ca
-	_, err = database.CreateCertificateAuthority(tu.RootCACSR, tu.RootCAPrivateKey, tu.RootCACRL, tu.RootCACertificate+"\n"+tu.RootCACertificate, userEmail)
+	_, err = database.CreateCertificateAuthority(tu.RootCACSR, tu.RootCAPrivateKey, tu.RootCACRL, tu.RootCACertificate+"\n"+tu.RootCACertificate, userID)
 	if err != nil {
 		t.Fatalf("couldn't create self signed ca: %s", err)
 	}
 	// create a pending ca
-	_, err = database.CreateCertificateAuthority(tu.IntermediateCACSR, tu.IntermediateCAPrivateKey, "", "", userEmail)
+	_, err = database.CreateCertificateAuthority(tu.IntermediateCACSR, tu.IntermediateCAPrivateKey, "", "", userID)
 	if err != nil {
 		t.Fatalf("couldn't create pending ca: %s", err)
 	}

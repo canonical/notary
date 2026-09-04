@@ -70,7 +70,7 @@ On the new machine, set cluster.name and cluster.address, then start with the to
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "Member %s join token:\n%s\n", args[0], token)
+		fmt.Fprintf(cmd.OutOrStdout(), "Member %s join token:\n%s\n", args[0], token) //nolint:errcheck
 		return nil
 	},
 }
@@ -94,7 +94,7 @@ the node, the member may have no name; pass its address instead.`,
 		if err := cluster.RemoveMember(ctx, appConfig.DBPath, appConfig.ClusterTLSCertificate, appConfig.ClusterTLSPrivateKey, args[0]); err != nil {
 			return err
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "Member %s removed\n", args[0])
+		fmt.Fprintf(cmd.OutOrStdout(), "Member %s removed\n", args[0]) //nolint:errcheck
 		return nil
 	},
 }
@@ -127,7 +127,7 @@ func init() {
 
 func writeMemberTable(w io.Writer, members []cluster.Member) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "NAME\tADDRESS\tROLE\tLEADER")
+	fmt.Fprintln(tw, "NAME\tADDRESS\tROLE\tLEADER") //nolint:errcheck
 	for _, m := range members {
 		name := m.Name
 		if name == "" {
@@ -137,7 +137,7 @@ func writeMemberTable(w io.Writer, members []cluster.Member) error {
 		if m.Leader {
 			leader = "yes"
 		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", name, m.Address, m.Role, leader)
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", name, m.Address, m.Role, leader) //nolint:errcheck
 	}
 	return tw.Flush()
 }

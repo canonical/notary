@@ -57,11 +57,11 @@ func PersistClusterTLS(dir string, certPEM, keyPEM []byte) error {
 
 // LoadClusterTLS reads cluster.crt and cluster.key from dir.
 func LoadClusterTLS(dir string) (certPEM, keyPEM []byte, err error) {
-	certPEM, err = os.ReadFile(filepath.Join(dir, clusterCertFile))
+	certPEM, err = os.ReadFile(filepath.Join(dir, clusterCertFile)) // #nosec G304 -- dir is db_path from config
 	if err != nil {
 		return nil, nil, err
 	}
-	keyPEM, err = os.ReadFile(filepath.Join(dir, clusterKeyFile))
+	keyPEM, err = os.ReadFile(filepath.Join(dir, clusterKeyFile)) // #nosec G304 -- dir is db_path from config
 	if err != nil {
 		return nil, nil, err
 	}

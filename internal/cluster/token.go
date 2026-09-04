@@ -32,7 +32,7 @@ func newJoinSecret() (string, error) {
 }
 
 func encodeJoinToken(t JoinToken) (string, error) {
-	body, err := json.Marshal(t)
+	body, err := json.Marshal(t) // #nosec G117 -- the secret is the point of the ticket
 	if err != nil {
 		return "", err
 	}

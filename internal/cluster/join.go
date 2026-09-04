@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/tls"
-	"crypto/x509"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
@@ -168,15 +167,18 @@ func pinnedHTTPClient(fingerprint string) *http.Client {
 		Timeout: 15 * time.Second,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				MinVersion:         tls.VersionTLS12,
-				InsecureSkipVerify: true, //nolint:gosec // peer cert is pinned to token fingerprint
-				VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
-					if len(rawCerts) == 0 {
+				MinVersion: tls.VersionTLS12,
+				// The joiner has no CA for this cluster yet, so the peer is pinned by
+				// fingerprint instead. VerifyConnection rather than VerifyPeerCertificate
+				// because the latter is skipped on a resumed session.
+				InsecureSkipVerify:     true, // #nosec G402 -- peer is pinned in VerifyConnection
+				SessionTicketsDisabled: true,
+				VerifyConnection: func(cs tls.ConnectionState) error {
+					if len(cs.PeerCertificates) == 0 {
 						return fmt.Errorf("server presented no certificate")
 					}
-					sum := sha256.Sum256(rawCerts[0])
-					got := hex.EncodeToString(sum[:])
-					if !strings.EqualFold(got, fingerprint) {
+					sum := sha256.Sum256(cs.PeerCertificates[0].Raw)
+					if !strings.EqualFold(hex.EncodeToString(sum[:]), fingerprint) {
 						return fmt.Errorf("server certificate does not match join token fingerprint")
 					}
 					return nil

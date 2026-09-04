@@ -55,10 +55,14 @@ func AddClusterMember(env *HandlerDependencies) http.HandlerFunc {
 			}
 			return
 		}
-		writeResponse(w, http.StatusCreated, "", map[string]string{
+		// Written directly rather than via writeResponse, which logs the response
+		// body: the token is a bearer credential for the cluster private key.
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(APIResponse{Data: map[string]string{
 			"server_name": name,
 			"join_token":  token,
-		}, env.SystemLogger)
+		}})
 	}
 }
 
@@ -88,6 +92,10 @@ type joinClusterParams struct {
 	JoinToken string `json:"join_token"`
 }
 
+// tokenSpentMessage tells the joiner the one-time token is already gone, so
+// retrying with it cannot work.
+const tokenSpentMessage = "join token was consumed but the join could not be completed; request a new token"
+
 func JoinCluster(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var params joinClusterParams
@@ -116,7 +124,7 @@ func JoinCluster(env *HandlerDependencies) http.HandlerFunc {
 		members, err := env.Database.ListClusterMembers(ctx)
 		if err != nil {
 			env.SystemLogger.Error("failed to list cluster members for join", zap.Error(err))
-			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
+			writeResponse(w, http.StatusInternalServerError, tokenSpentMessage, nil, env.SystemLogger)
 			return
 		}
 		addresses := make([]string, 0, len(members))
@@ -127,10 +135,12 @@ func JoinCluster(env *HandlerDependencies) http.HandlerFunc {
 		}
 		if len(addresses) == 0 {
 			env.SystemLogger.Error("cluster has no member addresses after redeeming join token")
-			writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
+			writeResponse(w, http.StatusInternalServerError, tokenSpentMessage, nil, env.SystemLogger)
 			return
 		}
 		env.SystemLogger.Info("redeemed cluster join token", zap.String("server_name", material.ServerName))
+		// Written directly rather than via writeResponse, which logs the response
+		// body: this one carries the cluster private key.
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(APIResponse{Data: map[string]any{

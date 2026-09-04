@@ -28,7 +28,7 @@ func namesByAddress(ctx context.Context, sqldb *sql.DB) (map[string]string, erro
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 	out := map[string]string{}
 	for rows.Next() {
 		var name, address string
@@ -70,6 +70,10 @@ func putJoinToken(ctx context.Context, sqldb *sql.DB, name, secret string, expir
 }
 
 func consumeJoinToken(ctx context.Context, sqldb *sql.DB, name, secret string) error {
+	// Single statement so the one-time guarantee holds under concurrent redeems.
+	// expires_at compares lexicographically, which is only correct because both
+	// sides are RFC3339 in UTC. The secret match is not constant-time; it is 32
+	// random bytes, so a timing oracle is not a practical path to guessing it.
 	now := time.Now().UTC().Format(time.RFC3339)
 	res, err := sqldb.ExecContext(ctx, `
 		DELETE FROM cluster_join_tokens

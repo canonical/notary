@@ -45,7 +45,7 @@ func TestListClusterMembers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 	if res.StatusCode != http.StatusOK {
 		t.Fatalf("got %d, want %d", res.StatusCode, http.StatusOK)
 	}
@@ -104,7 +104,7 @@ func TestAddClusterMemberToken(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 	if res.StatusCode != http.StatusCreated {
 		t.Fatalf("got %d, want %d", res.StatusCode, http.StatusCreated)
 	}
@@ -139,7 +139,7 @@ func TestAddClusterMemberToken(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer delRes.Body.Close()
+	defer delRes.Body.Close() //nolint:errcheck
 	if delRes.StatusCode != http.StatusNotFound && delRes.StatusCode != http.StatusBadRequest {
 		t.Fatalf("remove pending name: got %d", delRes.StatusCode)
 	}

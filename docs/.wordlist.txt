@@ -57,4 +57,8 @@ OpenTelemetry
 url
 join_token
 LXD
+LXD's
 lxc
+balancer
+plaintext
+SHA

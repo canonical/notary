@@ -61,7 +61,7 @@ func (n *Node) Members(ctx context.Context) ([]Member, error) {
 	if err != nil {
 		return nil, fmt.Errorf("find cluster leader: %w", err)
 	}
-	defer cli.Close()
+	defer cli.Close() //nolint:errcheck
 	return membersFromClient(ctx, cli)
 }
 
@@ -82,7 +82,7 @@ func QueryMembers(ctx context.Context, dir string, certPEM, keyPEM []byte) ([]Me
 	if err != nil {
 		return nil, err
 	}
-	defer cli.Close()
+	defer cli.Close() //nolint:errcheck
 	members, err := membersFromClient(ctx, cli)
 	if err != nil {
 		return nil, err
@@ -91,7 +91,7 @@ func QueryMembers(ctx context.Context, dir string, certPEM, keyPEM []byte) ([]Me
 	if err != nil {
 		return nil, err
 	}
-	defer sqldb.Close()
+	defer sqldb.Close() //nolint:errcheck
 	return attachNames(ctx, sqldb, members)
 }
 
@@ -101,12 +101,12 @@ func IssueJoinToken(ctx context.Context, dir string, certPEM, keyPEM []byte, nam
 	if err != nil {
 		return "", err
 	}
-	defer sqldb.Close()
+	defer sqldb.Close() //nolint:errcheck
 	cli, err := connectLeader(ctx, dir, certPEM, keyPEM)
 	if err != nil {
 		return "", err
 	}
-	defer cli.Close()
+	defer cli.Close() //nolint:errcheck
 	members, err := membersFromClient(ctx, cli)
 	if err != nil {
 		return "", err
@@ -188,12 +188,12 @@ func RemoveMember(ctx context.Context, dir string, certPEM, keyPEM []byte, name 
 	if err != nil {
 		return err
 	}
-	defer cli.Close()
+	defer cli.Close() //nolint:errcheck
 	sqldb, err := OpenClientDB(ctx, dir, certPEM, keyPEM)
 	if err != nil {
 		return err
 	}
-	defer sqldb.Close()
+	defer sqldb.Close() //nolint:errcheck
 	members, err := membersFromClient(ctx, cli)
 	if err != nil {
 		return err
@@ -214,7 +214,7 @@ func RemoveMemberOnNode(ctx context.Context, n *Node, sqldb *sql.DB, name string
 	if err != nil {
 		return fmt.Errorf("find cluster leader: %w", err)
 	}
-	defer cli.Close()
+	defer cli.Close() //nolint:errcheck
 	members, err := n.MembersWithNames(ctx, sqldb)
 	if err != nil {
 		return err

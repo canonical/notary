@@ -36,7 +36,10 @@ https://canonical-notary.readthedocs-hosted.com/en/latest/reference/config_file/
 		if startJoinToken != "" {
 			joinToken = startJoinToken
 		}
-		apiAddr, _ := cluster.JoinAPIAddress(appConfig.ClusterAddress, appConfig.Port, appConfig.ExternalHostname)
+		apiAddr, err := cluster.JoinAPIAddress(appConfig.ClusterAddress, appConfig.Port, appConfig.ExternalHostname)
+		if err != nil {
+			log.Printf("cluster join tokens are unavailable until this is fixed: %s", err)
+		}
 		database, err := db.NewDatabase(&db.DatabaseOpts{
 			DatabasePath: appConfig.DBPath,
 			Address:      appConfig.ClusterAddress,

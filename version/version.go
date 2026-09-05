@@ -2,11 +2,12 @@ package version
 
 import (
 	_ "embed"
+	"strings"
 )
 
 //go:embed VERSION
 var version string
 
 func GetVersion() string {
-	return version
+	return strings.TrimSpace(version)
 }

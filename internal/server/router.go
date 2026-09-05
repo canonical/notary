@@ -90,6 +90,12 @@ func NewRouter(config *HandlerDependencies) http.Handler {
 	}
 
 	apiV1Router.HandleFunc("GET /config", requirePermission(allRoles, config, GetConfigContent(config)))
+	// GET /cluster and GET /cluster/members are the same list handler (LXD-shaped aliases).
+	apiV1Router.HandleFunc("GET /cluster", requirePermission(adminOnly, config, ListClusterMembers(config)))
+	apiV1Router.HandleFunc("GET /cluster/members", requirePermission(adminOnly, config, ListClusterMembers(config)))
+	apiV1Router.HandleFunc("POST /cluster/members", requirePermission(adminOnly, config, AddClusterMember(config)))
+	apiV1Router.HandleFunc("POST /cluster/join", JoinCluster(config))
+	apiV1Router.HandleFunc("DELETE /cluster/members/{name}", requirePermission(adminOnly, config, RemoveClusterMember(config)))
 
 	m := metrics.NewMetricsSubsystem(config.Database, config.SystemLogger)
 	frontendHandler, err := newFrontendFileServer()

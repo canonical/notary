@@ -49,8 +49,8 @@ func TestMigrationsApplied(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read goose version: %s", err)
 	}
-	if version != 3 {
-		t.Fatalf("got goose version %d, want 3", version)
+	if version != 4 {
+		t.Fatalf("got goose version %d, want 4", version)
 	}
 }
 

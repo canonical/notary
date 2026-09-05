@@ -25,6 +25,9 @@ func CreateBackup(dataDir, backupDir string) (string, error) {
 	if !info.IsDir() {
 		return "", fmt.Errorf("database path is not a directory: %s", dataDir)
 	}
+	if err := rejectIfDataDirInUse(dataDir); err != nil {
+		return "", err
+	}
 
 	dataAbs, err := resolveExistingDir(dataDir)
 	if err != nil {
@@ -163,6 +166,9 @@ func RestoreBackup(dataDir, archivePath string) error {
 			return fmt.Errorf("backup archive not found at %q", absArchive)
 		}
 		return fmt.Errorf("cannot access backup archive at %q: %w", absArchive, err)
+	}
+	if err := rejectIfDataDirInUse(dataDir); err != nil {
+		return err
 	}
 
 	parent := filepath.Dir(dataDir)

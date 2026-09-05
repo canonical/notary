@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/canonical/notary/internal/cluster"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
@@ -41,10 +42,27 @@ func ParseConfig(cmdFlags *pflag.FlagSet, configFilePath string) (*AppConfig, er
 
 	appConfig.DBPath = cfg.GetString("db_path")
 	appConfig.ClusterAddress = cfg.GetString("cluster.address")
+	appConfig.ClusterName = cfg.GetString("cluster.name")
+	appConfig.ClusterJoin = cfg.GetStringSlice("cluster.join")
+	appConfig.ClusterJoinToken = cfg.GetString("cluster.join_token")
+	if cfg.GetString("cluster.tls.cert_path") != "" {
+		clusterCert, err := os.ReadFile(cfg.GetString("cluster.tls.cert_path"))
+		if err != nil {
+			return nil, err
+		}
+		appConfig.ClusterTLSCertificate = clusterCert
+	}
+	if cfg.GetString("cluster.tls.key_path") != "" {
+		clusterKey, err := os.ReadFile(cfg.GetString("cluster.tls.key_path"))
+		if err != nil {
+			return nil, err
+		}
+		appConfig.ClusterTLSPrivateKey = clusterKey
+	}
 
 	appConfig.ShouldEnablePebbleNotifications = cfg.GetBool("pebble_notifications")
 
-	appConfig.LoggingConfig = cfg.Sub("logging")
+	appConfig.LoggingConfig = loggingConfigFrom(cfg)
 	appConfig.TracingConfig = cfg.Sub("tracing")
 	appConfig.OIDCConfig = cfg.Sub("authentication.oidc")
 	appConfig.EncryptionConfig = cfg.Sub("encryption_backend")
@@ -113,8 +131,32 @@ func validateServerConfig(cfg *viper.Viper) error {
 	if cfg.IsSet("logging.system.level") && !slices.Contains(validLogLevels, cfg.GetString("logging.system.level")) {
 		return fmt.Errorf("invalid log level: %s", cfg.GetString("logging.system.level"))
 	}
+	if err := validateClusterConfig(cfg); err != nil {
+		return err
+	}
 	if err := validateEncryptionBackendConfig(cfg.Sub("encryption_backend")); err != nil {
 		return err
+	}
+	return nil
+}
+
+func validateClusterConfig(cfg *viper.Viper) error {
+	join := cfg.GetStringSlice("cluster.join")
+	joinToken := cfg.GetString("cluster.join_token")
+	certPath := cfg.GetString("cluster.tls.cert_path")
+	keyPath := cfg.GetString("cluster.tls.key_path")
+	if joinToken != "" && len(join) > 0 {
+		return errors.New("set either cluster.join_token or cluster.join, not both")
+	}
+	if name := cfg.GetString("cluster.name"); name != "" && !cluster.ValidMemberName(name) {
+		return fmt.Errorf("invalid cluster.name %q", name)
+	}
+	joining := len(join) > 0
+	if joining && (certPath == "" || keyPath == "") {
+		return errors.New("joining a cluster requires cluster.tls.cert_path and cluster.tls.key_path")
+	}
+	if (certPath == "") != (keyPath == "") {
+		return errors.New("cluster.tls.cert_path and cluster.tls.key_path must both be set")
 	}
 	return nil
 }

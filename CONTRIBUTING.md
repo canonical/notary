@@ -16,11 +16,16 @@ Install Go:
 sudo snap install go --classic
 ```
 
-Enable CGo:
+Enable CGo and install libdqlite (needed to build Notary):
 
 ```bash
 go env -w CGO_ENABLED=1
+# Example when dqlite is installed under $HOME/.local/dqlite:
+export PKG_CONFIG_PATH="${HOME}/.local/dqlite/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+export LD_LIBRARY_PATH="${HOME}/.local/dqlite/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 ```
+
+`make notary` enables CGO and, when `pkg-config --exists dqlite` succeeds, passes the matching compiler and linker flags. The binary still needs `LD_LIBRARY_PATH` (or an rpath) at runtime if libdqlite is not on the default library path.
 
 Install NodeJS:
 

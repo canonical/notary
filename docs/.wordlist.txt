@@ -61,4 +61,6 @@ LXD's
 lxc
 balancer
 plaintext
+loopback
+wildcard
 SHA

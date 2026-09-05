@@ -74,7 +74,7 @@ You can also set `cluster.join_token` in the YAML instead of `--join`. The token
 
 If you set `cluster.tls` on the joiner, it must match the cluster certificate returned after redeeming the token. Joining with `cluster.join` addresses and no token still requires `cluster.tls` files.
 
-Set `external_hostname` (host or `host:port`) when joiners should redeem against a public API address. Required when `cluster.address` is a wildcard bind (`0.0.0.0` or `::`); otherwise the join token would tell the joiner to dial an address that is not reachable.
+Set `external_hostname` (host or `host:port`) when joiners should redeem against a public API address. Required when `cluster.address` is a wildcard bind (`0.0.0.0` or `::`). The default `localhost` is not enough: join tokens must not tell another machine to dial loopback.
 
 ## 3. List members
 

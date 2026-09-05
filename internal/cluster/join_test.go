@@ -62,6 +62,12 @@ func TestJoinAPIAddressRejectsUnspecified(t *testing.T) {
 	if _, err := cluster.JoinAPIAddress("[::]:9000", 8000, ""); err == nil {
 		t.Fatal("expected error for ::")
 	}
+	if _, err := cluster.JoinAPIAddress("0.0.0.0:9000", 8000, "localhost"); err == nil {
+		t.Fatal("expected error for wildcard bind with localhost")
+	}
+	if _, err := cluster.JoinAPIAddress("0.0.0.0:9000", 8000, "127.0.0.1"); err == nil {
+		t.Fatal("expected error for wildcard bind with loopback")
+	}
 	got, err := cluster.JoinAPIAddress("0.0.0.0:9000", 8000, "notary.example.com")
 	if err != nil {
 		t.Fatal(err)
@@ -74,6 +80,20 @@ func TestJoinAPIAddressRejectsUnspecified(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got != "10.0.0.1:3000" {
+		t.Fatalf("got %q", got)
+	}
+	got, err = cluster.JoinAPIAddress("10.0.0.1:9000", 3000, "localhost")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "10.0.0.1:3000" {
+		t.Fatalf("default localhost must not override a routable bind, got %q", got)
+	}
+	got, err = cluster.JoinAPIAddress("127.0.0.1:9000", 8000, "localhost")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "localhost:8000" {
 		t.Fatalf("got %q", got)
 	}
 }

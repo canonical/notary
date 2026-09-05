@@ -48,45 +48,79 @@ type joinRedeemResponse struct {
 var ExchangeJoinToken = ExchangeJoinTokenHTTPS
 
 // JoinAPIAddress is the HTTPS host:port joiners use to redeem a token.
+// The config default external_hostname is localhost (CRL/OIDC). That is not a
+// join URL when this node binds a wildcard or a routable cluster address.
 func JoinAPIAddress(clusterAddress string, port int, externalHostname string) (string, error) {
 	if port <= 0 {
 		port = 8000
 	}
-	if h := strings.TrimSpace(externalHostname); h != "" {
-		if _, _, err := net.SplitHostPort(h); err == nil {
-			return requireReachableJoinAddress(h)
-		}
-		return requireReachableJoinAddress(net.JoinHostPort(h, strconv.Itoa(port)))
-	}
-	host := "127.0.0.1"
+	clusterHost := "127.0.0.1"
 	if clusterAddress != "" {
 		if h, _, err := net.SplitHostPort(clusterAddress); err == nil && h != "" {
-			host = h
+			clusterHost = h
 		}
 	}
-	return requireReachableJoinAddress(net.JoinHostPort(host, strconv.Itoa(port)))
+	if h := strings.TrimSpace(externalHostname); h != "" {
+		addr := joinAddressWithPort(h, port)
+		if err := joinAddressReachable(addr, clusterHost); err == nil {
+			return addr, nil
+		}
+	}
+	return requireReachableJoinAddress(net.JoinHostPort(clusterHost, strconv.Itoa(port)), clusterHost)
 }
 
-func requireReachableJoinAddress(addr string) (string, error) {
-	if joinHostUnspecified(addr) {
-		return "", fmt.Errorf("%w (got %q)", ErrUnreachableJoinAddress, addr)
+func joinAddressWithPort(host string, port int) string {
+	if _, _, err := net.SplitHostPort(host); err == nil {
+		return host
+	}
+	return net.JoinHostPort(host, strconv.Itoa(port))
+}
+
+func requireReachableJoinAddress(addr, clusterHost string) (string, error) {
+	if err := joinAddressReachable(addr, clusterHost); err != nil {
+		return "", err
 	}
 	return addr, nil
 }
 
-func joinHostUnspecified(addr string) bool {
+func joinAddressReachable(addr, clusterHost string) error {
+	if joinHostUnspecified(addr) {
+		return fmt.Errorf("%w (got %q)", ErrUnreachableJoinAddress, addr)
+	}
+	// Loopback is only reachable for joiners on this machine. Allow it when
+	// dqlite also binds loopback; reject it for wildcard or routable binds.
+	if joinHostLoopback(addr) && !joinHostLoopback(clusterHost) {
+		return fmt.Errorf("%w (got %q)", ErrUnreachableJoinAddress, addr)
+	}
+	return nil
+}
+
+func joinHostPart(addr string) string {
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
-		host = strings.Trim(addr, "[]")
+		return strings.Trim(addr, "[]")
+	}
+	return host
+}
+
+func joinHostUnspecified(addr string) bool {
+	ip := net.ParseIP(joinHostPart(addr))
+	return ip != nil && ip.IsUnspecified()
+}
+
+func joinHostLoopback(addr string) bool {
+	host := joinHostPart(addr)
+	if strings.EqualFold(host, "localhost") {
+		return true
 	}
 	ip := net.ParseIP(host)
-	return ip != nil && ip.IsUnspecified()
+	return ip != nil && ip.IsLoopback()
 }
 
 func requireReachableJoinAddresses(addresses []string) error {
 	for _, a := range addresses {
-		if _, err := requireReachableJoinAddress(a); err != nil {
-			return err
+		if joinHostUnspecified(a) {
+			return fmt.Errorf("%w (got %q)", ErrUnreachableJoinAddress, a)
 		}
 	}
 	return nil

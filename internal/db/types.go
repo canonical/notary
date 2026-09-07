@@ -9,6 +9,13 @@ import (
 type DatabaseOpts struct {
 	DatabasePath string
 	Address      string
+	Join         []string
+	JoinToken    string
+	Name         string
+	TLSCert      []byte
+	TLSKey       []byte
+	HTTPSCert    []byte
+	APIAddress   string
 	Logger       *zap.Logger
 }
 
@@ -19,6 +26,10 @@ type DatabaseRepository struct {
 	Node  *cluster.Node
 
 	Path          string
+	TLSCert       []byte
+	TLSKey        []byte
+	HTTPSCert     []byte
+	APIAddress    string
 	EncryptionKey []byte
 	JWTSecret     []byte
 }

@@ -3,6 +3,7 @@ package db_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/canonical/notary/internal/cluster"
@@ -131,6 +132,13 @@ func TestBackupRestoreDqliteData(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateCertificateRequest: %s", err)
 	}
+
+	if _, err := db.CreateBackup(srcDir, t.TempDir()); err == nil {
+		t.Fatal("expected CreateBackup to fail while the daemon holds the data directory")
+	} else if !strings.Contains(err.Error(), "in use") {
+		t.Fatalf("CreateBackup in-use: %s", err)
+	}
+
 	if err := database.Close(); err != nil {
 		t.Fatalf("Close: %s", err)
 	}
@@ -161,6 +169,12 @@ func TestBackupRestoreDqliteData(t *testing.T) {
 	}
 	if got.UserID == nil || *got.UserID != userID {
 		t.Fatalf("user id: got %v, want %d", got.UserID, userID)
+	}
+
+	if err := db.RestoreBackup(dstDir, archive); err == nil {
+		t.Fatal("expected RestoreBackup to fail while the daemon holds the data directory")
+	} else if !strings.Contains(err.Error(), "in use") {
+		t.Fatalf("RestoreBackup in-use: %s", err)
 	}
 
 	if _, err := os.Stat(filepath.Join(srcDir, "openfga.sqlite")); !os.IsNotExist(err) {

@@ -30,6 +30,21 @@ type AppConfig struct {
 	// ClusterAddress is the dqlite bind address (host:port).
 	ClusterAddress string
 
+	// ClusterName is this node's LXD-style member name.
+	ClusterName string
+
+	// ClusterJoin is existing dqlite addresses. Used only the first time this
+	// node starts with an empty data directory.
+	ClusterJoin []string
+
+	// ClusterJoinToken is a token from `notary cluster add`. Used only on first start.
+	ClusterJoinToken string
+
+	// ClusterTLSCertificate and ClusterTLSPrivateKey are the shared dqlite
+	// cluster certificate (PEM). Required when ClusterJoin is set.
+	ClusterTLSCertificate []byte
+	ClusterTLSPrivateKey  []byte
+
 	// Send pebble notifications if enabled. Read more at github.com/canonical/pebble
 	ShouldEnablePebbleNotifications bool
 

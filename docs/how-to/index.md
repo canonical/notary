@@ -7,6 +7,7 @@ These how-to guides cover key operations and processes in Notary.
 
 deploy
 backup_restore
+cluster
 hsm
 vault
 ```

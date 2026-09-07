@@ -75,6 +75,18 @@ func TestAuthorizationAdminAuthorized(t *testing.T) {
 			path:   "/api/v1/accounts",
 			status: http.StatusOK,
 		},
+		{
+			desc:   "admin can list cluster members",
+			method: "GET",
+			path:   "/api/v1/cluster",
+			status: http.StatusOK,
+		},
+		{
+			desc:   "admin can list cluster members at /members",
+			method: "GET",
+			path:   "/api/v1/cluster/members",
+			status: http.StatusOK,
+		},
 
 		{
 			desc:   "admin can delete nonuser",
@@ -259,6 +271,20 @@ func TestAuthorizationCertificateManagerUnauthorized(t *testing.T) {
 			desc:   "nonadmin can't see accounts",
 			method: "GET",
 			path:   "/api/v1/accounts",
+			data:   "",
+			status: http.StatusForbidden,
+		},
+		{
+			desc:   "nonadmin can't add cluster members",
+			method: "POST",
+			path:   "/api/v1/cluster/members",
+			data:   `{"server_name":"node2"}`,
+			status: http.StatusForbidden,
+		},
+		{
+			desc:   "nonadmin can't remove cluster members",
+			method: "DELETE",
+			path:   "/api/v1/cluster/members/node2",
 			data:   "",
 			status: http.StatusForbidden,
 		},
@@ -455,6 +481,19 @@ func TestAuthorizationCertificateRequestorUnauthorized(t *testing.T) {
 			desc:   "certificate requestor can't see accounts",
 			method: "GET",
 			path:   "/api/v1/accounts",
+			status: http.StatusForbidden,
+		},
+		{
+			desc:   "certificate requestor can't list cluster members",
+			method: "GET",
+			path:   "/api/v1/cluster",
+			status: http.StatusForbidden,
+		},
+		{
+			desc:   "certificate requestor can't add cluster members",
+			method: "POST",
+			path:   "/api/v1/cluster/members",
+			data:   `{"server_name":"node2"}`,
 			status: http.StatusForbidden,
 		},
 		{

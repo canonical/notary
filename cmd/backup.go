@@ -23,7 +23,7 @@ var backupCmd = &cobra.Command{
 	Short: "Create a physical backup of the database",
 	Long: `Create a tar.gz archive of the Notary data directory (dqlite files).
 
-Stop Notary before taking a backup so the files on disk are consistent.`,
+Stop Notary before taking a backup so the files on disk are consistent. The command fails if the daemon is still running.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if backupFile == "" {
 			return fmt.Errorf("backup file path is required")

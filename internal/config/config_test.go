@@ -38,6 +38,30 @@ func TestValidConfig(t *testing.T) {
 			TLSCertificate:                  []byte(validCert),
 			TLSPrivateKey:                   []byte(validPK),
 		}}, // This case tests that the variables from the yaml are correctly copied to the final config
+		{"join token config", joinTokenConfig, &config.AppConfig{
+			Port:                            8000,
+			ExternalHostname:                "localhost",
+			DBPath:                          "./database",
+			ShouldEnablePebbleNotifications: false,
+			ClusterAddress:                  "10.0.0.2:9000",
+			ClusterName:                     "node2",
+			ClusterJoinToken:                "example-token",
+			TLSCertificate:                  []byte(validCert),
+			TLSPrivateKey:                   []byte(validPK),
+			ClusterTLSCertificate:           []byte(validCert),
+			ClusterTLSPrivateKey:            []byte(validPK),
+		}},
+		{"join token without cluster tls", joinTokenWithoutTLSConfig, &config.AppConfig{
+			Port:                            8000,
+			ExternalHostname:                "localhost",
+			DBPath:                          "./database",
+			ShouldEnablePebbleNotifications: false,
+			ClusterAddress:                  "10.0.0.2:9000",
+			ClusterName:                     "node2",
+			ClusterJoinToken:                "example-token",
+			TLSCertificate:                  []byte(validCert),
+			TLSPrivateKey:                   []byte(validPK),
+		}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -52,6 +76,9 @@ func TestValidConfig(t *testing.T) {
 			}
 			if !cmp.Equal(gotCfg, tc.wantCfg, cmpopts.IgnoreFields(config.AppConfig{}, "LoggingConfig", "TracingConfig", "OIDCConfig", "EncryptionConfig")) {
 				t.Errorf("ParseConfig returned unexpected diff (-want+got):\n%v", cmp.Diff(tc.wantCfg, gotCfg))
+			}
+			if gotCfg.LoggingConfig == nil {
+				t.Errorf("ParseConfig(%q) left LoggingConfig nil", tc.desc)
 			}
 		})
 	}
@@ -74,6 +101,9 @@ func TestInvalidConfig(t *testing.T) {
 		{"no encryption backend", noEncryptionBackendConfig, "`encryption_backend` is empty"},
 		{"invalid pkcs11 encryption backend config", invalidEncryptionBackendConfigType, "invalid encryption backend type; must be 'none', 'vault' or 'pkcs11'"},
 		{"incomplete pkcs11 encryption backend config", incompleteEncryptionBackendConfig, "pin is missing"},
+		{"join without cluster tls", joinWithoutTLSConfig, "joining a cluster requires cluster.tls.cert_path and cluster.tls.key_path"},
+		{"join and join token both set", joinAndJoinTokenConfig, "set either cluster.join_token or cluster.join, not both"},
+		{"invalid cluster name", invalidClusterNameConfig, "invalid cluster.name"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -246,6 +276,72 @@ encryption_backend:
   type: "pkcs11"
   lib_path: "/usr/local/lib/pkcs11/yubihsm_pkcs11.so"
   aes_encryption_key_id: 0x1234
+`
+	joinWithoutTLSConfig = `
+key_path:  "./key_test.pem"
+cert_path: "./cert_test.pem"
+db_path: "./database"
+port: 8000
+cluster:
+  address: "10.0.0.2:9000"
+  join:
+    - "10.0.0.1:9000"
+encryption_backend:
+  type: "none"
+`
+	joinTokenConfig = `
+key_path:  "./key_test.pem"
+cert_path: "./cert_test.pem"
+db_path: "./database"
+port: 8000
+cluster:
+  name: "node2"
+  address: "10.0.0.2:9000"
+  join_token: "example-token"
+  tls:
+    cert_path: "./cert_test.pem"
+    key_path: "./key_test.pem"
+encryption_backend:
+  type: "none"
+`
+	joinTokenWithoutTLSConfig = `
+key_path:  "./key_test.pem"
+cert_path: "./cert_test.pem"
+db_path: "./database"
+port: 8000
+cluster:
+  name: "node2"
+  address: "10.0.0.2:9000"
+  join_token: "example-token"
+encryption_backend:
+  type: "none"
+`
+	joinAndJoinTokenConfig = `
+key_path:  "./key_test.pem"
+cert_path: "./cert_test.pem"
+db_path: "./database"
+port: 8000
+cluster:
+  name: "node2"
+  address: "10.0.0.2:9000"
+  join_token: "example-token"
+  join:
+    - "10.0.0.1:9000"
+  tls:
+    cert_path: "./cert_test.pem"
+    key_path: "./key_test.pem"
+encryption_backend:
+  type: "none"
+`
+	invalidClusterNameConfig = `
+key_path:  "./key_test.pem"
+cert_path: "./cert_test.pem"
+db_path: "./database"
+port: 8000
+cluster:
+  name: "bad name"
+encryption_backend:
+  type: "none"
 `
 	invalidYAMLConfig = `just_an=invalid
 yaml.here`

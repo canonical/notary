@@ -10,6 +10,15 @@ NOTARY_TLS_CERT := cert.pem
 NOTARY_TLS_KEY := key.pem
 ROCK_ARTIFACT_NAME := notary.rock
 
+CGO_ENABLED ?= 1
+export CGO_ENABLED
+ifneq ($(shell pkg-config --exists dqlite 2>/dev/null && echo yes),)
+  CGO_CFLAGS ?= $(shell pkg-config --cflags dqlite)
+  CGO_LDFLAGS ?= $(shell pkg-config --libs dqlite)
+  export CGO_CFLAGS
+  export CGO_LDFLAGS
+endif
+
 $(shell mkdir -p $(ARTIFACT_FOLDER))
 
 .PHONY: notary
@@ -17,8 +26,9 @@ notary: $(ARTIFACT_FOLDER)/$(NOTARY_ARTIFACT_NAME) $(ARTIFACT_FOLDER)/$(NOTARY_C
 	@echo "Built notary"
 
 .PHONY: notary-dev
+notary-dev: notary
 	@echo "Running notary in dev mode"
-	cd artifacts && ./$(NOTARY_ARTIFACT_NAME) start -m --config $(NOTARY_CONFIG_FILE) & cd ui && API_PREFIX="localhost:2111" VERSION="dev" bun run dev
+	cd artifacts && ./$(NOTARY_ARTIFACT_NAME) start --config $(NOTARY_CONFIG_FILE) & cd ui && API_PREFIX="localhost:2111" VERSION="dev" bun run dev
 
 .PHONY: config-files
 config-files: $(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE) $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY)
@@ -89,7 +99,7 @@ deploy: $(ARTIFACT_FOLDER)/$(ROCK_ARTIFACT_NAME) $(ARTIFACT_FOLDER)/$(NOTARY_DOC
 		-v /root:/config \
 		--network host \
 		-p 2111:2111 \
-		notary:latest --args notary start -m --config /config/$(NOTARY_DOCKER_CONFIG_FILE);
+		notary:latest --args notary start --config /config/$(NOTARY_DOCKER_CONFIG_FILE);
 	@echo "You can access notary at $$(lxc info notary | grep enp5s0 -A 15 | grep inet: | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'):2111"
 
 logs:
@@ -109,23 +119,33 @@ $(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE):
      echo 'cert_path: "artifacts/cert.pem"'    >> $@;\
      echo 'db_path: "artifacts/database"'      >> $@;\
      echo 'cluster:'                           >> $@;\
-     echo '  address: "127.0.0.1:9000"'        >> $@;\
-     echo 'port: 2111'                         >> $@;\
-	 echo 'pebble_notifications: false'        >> $@;\
-	 echo 'encryption_backend:'                >> $@;\
-	 echo '  type: "none"'                     >> $@;\
-
-$(ARTIFACT_FOLDER)/$(NOTARY_DOCKER_CONFIG_FILE):
-	@echo 'key_path: "/config/key.pem"'        >> $@;\
-     echo 'cert_path: "/config/cert.pem"'      >> $@;\
-     echo 'db_path: "/config/database"'        >> $@;\
-     echo 'cluster:'                           >> $@;\
+     echo '  name: "notary"'                   >> $@;\
      echo '  address: "127.0.0.1:9000"'        >> $@;\
      echo 'port: 2111'                         >> $@;\
 	 echo 'pebble_notifications: false'        >> $@;\
 	 echo 'logging:'                           >> $@;\
 	 echo '  system:'                          >> $@;\
 	 echo '    level: "debug"'                 >> $@;\
+	 echo '    output: "stdout"'               >> $@;\
+	 echo '  audit:'                           >> $@;\
+	 echo '    output: "stdout"'               >> $@;\
+	 echo 'encryption_backend:'                >> $@;\
+	 echo '  type: "none"'                     >> $@;
+
+$(ARTIFACT_FOLDER)/$(NOTARY_DOCKER_CONFIG_FILE):
+	@echo 'key_path: "/config/key.pem"'        >> $@;\
+     echo 'cert_path: "/config/cert.pem"'      >> $@;\
+     echo 'db_path: "/config/database"'        >> $@;\
+     echo 'cluster:'                           >> $@;\
+     echo '  name: "notary"'                   >> $@;\
+     echo '  address: "127.0.0.1:9000"'        >> $@;\
+     echo 'port: 2111'                         >> $@;\
+	 echo 'pebble_notifications: false'        >> $@;\
+	 echo 'logging:'                           >> $@;\
+	 echo '  system:'                          >> $@;\
+	 echo '    level: "debug"'                 >> $@;\
+	 echo '    output: "/config/notary.log"'   >> $@;\
+	 echo '  audit:'                           >> $@;\
 	 echo '    output: "/config/notary.log"'   >> $@;\
 	 echo 'encryption_backend:'                >> $@;\
 	 echo '  type: "none"'                     >> $@;\
@@ -136,8 +156,6 @@ $(ARTIFACT_FOLDER)/$(NOTARY_DOCKER_CONFIG_FILE):
 
 $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY):
 	openssl req -newkey rsa:2048 -nodes -keyout $(ARTIFACT_FOLDER)/$(NOTARY_TLS_KEY) -x509 -days 1 -out $(ARTIFACT_FOLDER)/$(NOTARY_TLS_CERT) -subj "/CN=example.com"
-
-$(ARTIFACT_FOLDER)/$(NOTARY_CONFIG_FILE):
 
 ui/dist: $(NOTARY_UI_FILES)
 	@cd ui && bun install && bun run build

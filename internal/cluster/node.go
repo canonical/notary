@@ -3,12 +3,15 @@ package cluster
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/canonical/go-dqlite/v3/app"
@@ -19,12 +22,28 @@ const (
 	infoFile     = "info.yaml"
 )
 
+// serializes SNAP_INSTANCE_NAME around app.New so concurrent tests do not
+// clobber the env var go-dqlite uses to name its TLS abstract socket.
+var dqliteStartMu sync.Mutex
+
 // Options configure a dqlite node.
 type Options struct {
 	// Dir is the dqlite data directory (db_path in config).
 	Dir string
 	// Address is the dqlite bind address (host:port).
 	Address string
+	// Name is the LXD-style cluster member name (cluster.name).
+	Name string
+	// Join is existing node addresses, used only on first start of an empty dir.
+	Join []string
+	// JoinToken is a token from `notary cluster add`. Used only on first start.
+	JoinToken string
+	// TLSCert and TLSKey are the shared cluster certificate (PEM). Required
+	// when joining with cluster.join addresses. Same pair on every node; not
+	// the HTTPS API cert. On first start of a new cluster they are generated
+	// if empty. A join token fetches them over pinned HTTPS.
+	TLSCert []byte
+	TLSKey  []byte
 }
 
 // Node is a running dqlite application node.
@@ -47,22 +66,102 @@ func Start(opts Options) (*Node, error) {
 	if err := os.MkdirAll(opts.Dir, 0o700); err != nil {
 		return nil, fmt.Errorf("create database directory: %w", err)
 	}
+	join := append([]string(nil), opts.Join...)
+	if (len(opts.TLSCert) == 0) != (len(opts.TLSKey) == 0) {
+		return nil, errors.New("cluster TLS certificate and key must both be set")
+	}
+	if opts.JoinToken != "" {
+		if HasState(opts.Dir) {
+			return nil, errors.New("join token is only used the first time this node starts")
+		}
+		token, err := DecodeJoinToken(opts.JoinToken)
+		if err != nil {
+			return nil, err
+		}
+		if opts.Name != "" && opts.Name != token.ServerName {
+			return nil, fmt.Errorf("cluster.name %q does not match join token name %q", opts.Name, token.ServerName)
+		}
+		if len(join) > 0 {
+			return nil, errors.New("set either a join token or cluster.join addresses, not both")
+		}
+		// Redeem consumes the one-time secret before app.New, so a rejected
+		// token never reaches WithCluster.
+		exchangeCtx, exchangeCancel := context.WithTimeout(context.Background(), 15*time.Second)
+		material, err := ExchangeJoinToken(exchangeCtx, opts.JoinToken)
+		exchangeCancel()
+		if err != nil {
+			return nil, err
+		}
+		if material.ServerName != "" && material.ServerName != token.ServerName {
+			return nil, fmt.Errorf("join credentials name %q does not match token name %q", material.ServerName, token.ServerName)
+		}
+		join = material.Join
+		if len(opts.TLSCert) > 0 {
+			want, err := CertFingerprintPEM(material.TLSCert)
+			if err != nil {
+				return nil, err
+			}
+			got, err := CertFingerprintPEM(opts.TLSCert)
+			if err != nil {
+				return nil, err
+			}
+			if !strings.EqualFold(got, want) {
+				return nil, fmt.Errorf("cluster TLS certificate does not match the certificate from the join server")
+			}
+		}
+		opts.TLSCert, opts.TLSKey = material.TLSCert, material.TLSKey
+	} else if len(opts.TLSCert) == 0 {
+		if HasState(opts.Dir) {
+			if certPEM, keyPEM, err := LoadClusterTLS(opts.Dir); err == nil {
+				opts.TLSCert, opts.TLSKey = certPEM, keyPEM
+			}
+		} else if len(join) == 0 {
+			certPEM, keyPEM, err := generateClusterTLS()
+			if err != nil {
+				return nil, err
+			}
+			opts.TLSCert, opts.TLSKey = certPEM, keyPEM
+		}
+	}
+	if len(join) > 0 && (len(opts.TLSCert) == 0 || len(opts.TLSKey) == 0) {
+		return nil, errors.New("joining a cluster requires cluster TLS (cluster.tls.cert_path and key_path)")
+	}
 
 	var appOpts []app.Option
 	if opts.Address != "" {
 		appOpts = append(appOpts, app.WithAddress(opts.Address))
 	}
+	if len(join) > 0 && !HasState(opts.Dir) {
+		appOpts = append(appOpts, app.WithCluster(join))
+	}
+	if len(opts.TLSCert) > 0 {
+		tlsOpt, err := withClusterTLS(opts.TLSCert, opts.TLSKey)
+		if err != nil {
+			return nil, wrapJoinError(join, err)
+		}
+		appOpts = append(appOpts, tlsOpt)
+	}
 
-	dqliteApp, err := app.New(opts.Dir, appOpts...)
+	var dqliteApp *app.App
+	err := withNamespacedDqliteSocket(opts.Dir, func() error {
+		var startErr error
+		dqliteApp, startErr = app.New(opts.Dir, appOpts...)
+		return startErr
+	})
 	if err != nil {
-		return nil, fmt.Errorf("start dqlite: %w", err)
+		return nil, wrapJoinError(join, fmt.Errorf("start dqlite: %w", err))
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	if err := dqliteApp.Ready(ctx); err != nil {
+		addr := dqliteApp.Address()
 		_ = dqliteApp.Close()
-		return nil, fmt.Errorf("dqlite not ready: %w", err)
+		return nil, wrapJoinError(join, fmt.Errorf("dqlite not ready at %s: %w", addr, err))
+	}
+	if err := PersistClusterTLS(opts.Dir, opts.TLSCert, opts.TLSKey); err != nil {
+		_ = dqliteApp.Close()
+		return nil, err
 	}
 
 	return &Node{app: dqliteApp}, nil
@@ -82,12 +181,59 @@ func (n *Node) Address() string {
 	return n.app.Address()
 }
 
-// Close shuts down the dqlite node.
+// Handover transfers leadership and voting rights to another node when possible.
+func (n *Node) Handover(ctx context.Context) error {
+	if n == nil || n.app == nil {
+		return nil
+	}
+	return n.app.Handover(ctx)
+}
+
+// Close hands over cluster roles when possible, then shuts down the node.
 func (n *Node) Close() error {
 	if n == nil || n.app == nil {
 		return nil
 	}
-	return n.app.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	handoverErr := n.Handover(ctx)
+	closeErr := n.app.Close()
+	n.app = nil
+	if closeErr != nil {
+		return closeErr
+	}
+	return handoverErr
+}
+
+func wrapJoinError(join []string, err error) error {
+	if len(join) == 0 {
+		return err
+	}
+	return fmt.Errorf("join cluster at %s: %w", strings.Join(join, ", "), err)
+}
+
+// withNamespacedDqliteSocket sets SNAP_INSTANCE_NAME for go-dqlite TLS binds.
+// go-dqlite otherwise uses @dqlite-<node-id>; the bootstrap id is constant, so
+// two one-node clusters on one host (or leftover test processes) collide.
+// A real snap already sets SNAP_INSTANCE_NAME; leave it alone.
+func withNamespacedDqliteSocket(dir string, fn func() error) error {
+	if os.Getenv("SNAP_INSTANCE_NAME") != "" {
+		return fn()
+	}
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		abs = dir
+	}
+	sum := sha256.Sum256([]byte(abs))
+	name := fmt.Sprintf("notary-%x", sum[:8])
+
+	dqliteStartMu.Lock()
+	defer dqliteStartMu.Unlock()
+	if err := os.Setenv("SNAP_INSTANCE_NAME", name); err != nil {
+		return err
+	}
+	defer os.Unsetenv("SNAP_INSTANCE_NAME") //nolint:errcheck
+	return fn()
 }
 
 // FreeAddress returns a 127.0.0.1:port suitable for tests.

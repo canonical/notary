@@ -23,7 +23,7 @@ var restoreCmd = &cobra.Command{
 	Short: "Restore a database backup",
 	Long: `Restore a tar.gz archive created by the backup command, replacing the data directory.
 
-Stop Notary before restoring. This deletes the current data directory.`,
+Stop Notary before restoring. This deletes the current data directory. The command fails if the daemon is still running.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if restoreFile == "" {
 			return fmt.Errorf("restore file path is required")

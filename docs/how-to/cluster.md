@@ -86,7 +86,9 @@ notary cluster list --config /etc/notary/config/config.yaml
 
 Or, as an admin, `GET /api/v1/cluster` or `GET /api/v1/cluster/members`. You should see both names and one leader.
 
-A two-node cluster typically shows the joiner as a **spare**, not a second voter. dqlite needs three voters for availability if one node fails. Add a third member the same way (`cluster add` / `--join`) when you want that quorum.
+A two-node cluster typically shows the joiner as a **spare**, not a second voter. dqlite promotes voters automatically (up to three). Add a third member the same way (`cluster add` / `--join`) when you want that quorum.
+
+ACME signing (`signing_method=acme`) runs only on the dqlite leader so nodes do not race the same public CA order. A follower returns HTTP 409 and the leader's dqlite address. Certificate Authority signing can use any member.
 
 ## 4. Remove a member
 

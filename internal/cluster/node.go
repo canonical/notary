@@ -181,6 +181,28 @@ func (n *Node) Address() string {
 	return n.app.Address()
 }
 
+// IsLeader reports whether this node currently holds the dqlite leadership.
+// leaderAddr is the leader's dqlite address even when this node is not leader,
+// so callers can tell an operator which member to retry on.
+func (n *Node) IsLeader(ctx context.Context) (ok bool, leaderAddr string, err error) {
+	if n == nil || n.app == nil {
+		return false, "", fmt.Errorf("dqlite node is not running")
+	}
+	cli, err := n.app.FindLeader(ctx)
+	if err != nil {
+		return false, "", fmt.Errorf("find cluster leader: %w", err)
+	}
+	defer cli.Close() //nolint:errcheck
+	info, err := cli.Leader(ctx)
+	if err != nil {
+		return false, "", fmt.Errorf("find cluster leader: %w", err)
+	}
+	if info == nil {
+		return false, "", fmt.Errorf("cluster has no leader")
+	}
+	return info.ID == n.app.ID(), info.Address, nil
+}
+
 // Handover transfers leadership and voting rights to another node when possible.
 func (n *Node) Handover(ctx context.Context) error {
 	if n == nil || n.app == nil {

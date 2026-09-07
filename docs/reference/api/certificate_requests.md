@@ -173,7 +173,7 @@ None
 
 ## Sign a Certificate Request with a Certificate Authority
 
-This path signs any certificate request with an active root or intermediate certificate authority.
+This path signs any certificate request with an active root or intermediate certificate authority, or with ACME when `signing_method` is `acme`. ACME signing is accepted only on the dqlite leader; other members return HTTP 409 and the leader's address.
 
 | Method | Path                                     |
 | :----- | :--------------------------------------- |
@@ -181,7 +181,8 @@ This path signs any certificate request with an active root or intermediate cert
 
 ### Parameters
 
-- `certificate_authority_id` (string): The ID of the Certificate Authority that will sign this certificate request.
+- `certificate_authority_id` (string): The ID of the Certificate Authority that will sign this certificate request. Required when `signing_method` is `ca` (the default).
+- `signing_method` (string): `ca` or `acme`.
 
 ### Sample Response
 

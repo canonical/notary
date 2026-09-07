@@ -195,6 +195,92 @@ func TestTwoNodesShareData(t *testing.T) {
 	}
 }
 
+func TestIsLeaderSingleNode(t *testing.T) {
+	addr, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	node, err := cluster.Start(cluster.Options{Dir: t.TempDir(), Address: addr})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer node.Close() //nolint:errcheck
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	ok, leaderAddr, err := node.IsLeader(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("expected single node to be leader")
+	}
+	if leaderAddr != addr {
+		t.Fatalf("leader address %q, want %q", leaderAddr, addr)
+	}
+}
+
+func TestIsLeaderJoinerIsNotLeader(t *testing.T) {
+	httpsCert, _ := mustClusterCert(t)
+	addr1, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr2, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	db1, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addr1,
+		Name:         "node1",
+		HTTPSCert:    httpsCert,
+		APIAddress:   "127.0.0.1:8443",
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("start node1: %v", err)
+	}
+	defer db1.Close() //nolint:errcheck
+	stubJoinExchange(t, db1, addr1)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	token, err := db1.IssueJoinToken(ctx, "node2")
+	if err != nil {
+		t.Fatalf("add token: %v", err)
+	}
+	db2, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addr2,
+		Name:         "node2",
+		JoinToken:    token,
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("join node2: %v", err)
+	}
+	defer db2.Close() //nolint:errcheck
+
+	ok1, leader1, err := db1.Node.IsLeader(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ok2, leader2, err := db2.Node.IsLeader(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok1 {
+		t.Fatal("expected bootstrap node to be leader")
+	}
+	if ok2 {
+		t.Fatal("expected joiner not to be leader")
+	}
+	if leader1 != addr1 || leader2 != addr1 {
+		t.Fatalf("leader addresses bootstrap=%q joiner=%q want %q", leader1, leader2, addr1)
+	}
+}
+
 func stubJoinExchange(t *testing.T, database *db.DatabaseRepository, dqliteAddr string) {
 	t.Helper()
 	orig := cluster.ExchangeJoinToken

@@ -51,6 +51,10 @@ func InitializeAppEnvironment(appConfig *AppConfig, database *db.DatabaseReposit
 		return nil, fmt.Errorf("couldn't initialize encryption subsystem: %w", err)
 	}
 
+	if err := authentication.SetUpJWTSecret(database); err != nil {
+		return nil, fmt.Errorf("couldn't initialize JWT secret: %w", err)
+	}
+
 	// initialize OIDC config
 	authnRepo, err := initializeOIDC(appConfig.OIDCConfig, database, appConfig.ExternalHostname)
 	if err != nil {
@@ -215,11 +219,6 @@ func InitializeAuthorizationConfig(database *db.DatabaseRepository) *authz.Authz
 func initializeOIDC(cfg *viper.Viper, database *db.DatabaseRepository, externalHostname string) (*authentication.OIDCRepository, error) {
 	if cfg == nil {
 		return nil, nil
-	}
-
-	err := authentication.SetUpJWTSecret(database)
-	if err != nil {
-		return nil, fmt.Errorf("failed to set up JWT secret: %w", err)
 	}
 
 	oidcServer := fmt.Sprintf("https://%s/", cfg.GetString("domain"))

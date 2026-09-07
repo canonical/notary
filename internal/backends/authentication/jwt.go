@@ -6,30 +6,60 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/canonical/notary/internal/db"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// setUpJWTSecret checks if a JWT secret exists in the database, if not, it generates a new one and stores it.
+// SetUpJWTSecret loads the JWT secret into database.JWTSecret. If none exists it
+// generates one and stores it. On a fresh cluster several members can race to
+// create the first secret; the losers reload the winner's value.
 func SetUpJWTSecret(database *db.DatabaseRepository) error {
-	jwtSecret, err := database.GetJWTSecret()
-	if err != nil && errors.Is(err, db.ErrNotFound) {
-		// Generate new JWT secret if none exists
-		jwtSecret, err = generateJWTSecret()
-		if err != nil {
-			return err
+	const attempts = 8
+	var candidate []byte
+	var last error
+
+	for i := range attempts {
+		jwtSecret, err := database.GetJWTSecret()
+		switch {
+		case err == nil:
+			database.JWTSecret = jwtSecret
+			return nil
+		case errors.Is(err, db.ErrNotFound):
+		case errors.Is(err, db.ErrInternal):
+			// A contended read can surface this way, same as the create below.
+			last = err
+			time.Sleep(time.Duration(i+1) * 20 * time.Millisecond)
+			continue
+		default:
+			return fmt.Errorf("failed to get JWT secret: %w", err)
 		}
-		if err := database.CreateJWTSecret(jwtSecret); err != nil {
+
+		if candidate == nil {
+			candidate, err = generateJWTSecret()
+			if err != nil {
+				return err
+			}
+		}
+
+		switch err = database.CreateJWTSecret(candidate); {
+		case err == nil:
+			database.JWTSecret = candidate
+			return nil
+		case errors.Is(err, db.ErrAlreadyExists):
+			// Another member won, so its value is already stored. Reload at once.
+			last = err
+		case errors.Is(err, db.ErrInternal):
+			// CreateEntity collapses a contended unique violation into ErrInternal,
+			// so a lost race cannot be told apart from a real failure here.
+			last = err
+			time.Sleep(time.Duration(i+1) * 20 * time.Millisecond)
+		default:
 			return fmt.Errorf("failed to store JWT secret: %w", err)
 		}
-		return nil
 	}
-	if err != nil && !errors.Is(err, db.ErrNotFound) {
-		return fmt.Errorf("failed to get JWT secret: %w", err)
-	}
-	database.JWTSecret = jwtSecret
-	return nil
+	return fmt.Errorf("failed to set up JWT secret: %w", last)
 }
 
 // This secret should be generated once and stored in the database, encrypted.

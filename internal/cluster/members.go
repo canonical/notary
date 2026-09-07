@@ -18,11 +18,12 @@ var memberNameRe = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9.-]{0,62})$`)
 
 // Member is one dqlite node in the cluster.
 type Member struct {
-	Name    string `json:"name"`
-	ID      uint64 `json:"id"`
-	Address string `json:"address"`
-	Role    string `json:"role"`
-	Leader  bool   `json:"leader"`
+	Name       string `json:"name"`
+	ID         uint64 `json:"id"`
+	Address    string `json:"address"`
+	APIAddress string `json:"api_address,omitempty"`
+	Role       string `json:"role"`
+	Leader     bool   `json:"leader"`
 }
 
 // DefaultMemberName is cluster.name when unset (machine hostname).
@@ -173,13 +174,14 @@ func issueJoinToken(ctx context.Context, sqldb *sql.DB, members []Member, name s
 	if err := putJoinToken(ctx, sqldb, name, secret, expires); err != nil {
 		return "", err
 	}
-	return encodeJoinToken(JoinToken{
+	tok := JoinToken{
 		ServerName:  name,
 		Fingerprint: fingerprint,
 		Addresses:   addresses,
 		Secret:      secret,
 		ExpiresAt:   expires,
-	})
+	}
+	return encodeJoinToken(tok)
 }
 
 // RemoveMember evicts a named member from raft and from cluster_members.
@@ -295,7 +297,7 @@ func attachNames(ctx context.Context, sqldb *sql.DB, members []Member) ([]Member
 	if sqldb == nil {
 		return members, nil
 	}
-	names, err := namesByAddress(ctx, sqldb)
+	records, err := recordsByAddress(ctx, sqldb)
 	if err != nil {
 		if strings.Contains(err.Error(), "no such table: cluster_members") {
 			return members, nil
@@ -303,22 +305,44 @@ func attachNames(ctx context.Context, sqldb *sql.DB, members []Member) ([]Member
 		return nil, fmt.Errorf("load cluster member names: %w", err)
 	}
 	for i := range members {
-		if n, ok := names[members[i].Address]; ok {
-			members[i].Name = n
+		if rec, ok := records[members[i].Address]; ok {
+			members[i].Name = rec.name
+			members[i].APIAddress = rec.apiAddress
 		}
 	}
 	return members, nil
 }
 
-// RegisterMember records this node's name after start or join.
-func RegisterMember(ctx context.Context, sqldb *sql.DB, name, address string) error {
+// RegisterMember records this node's name and HTTPS API address after start or join.
+func RegisterMember(ctx context.Context, sqldb *sql.DB, name, address, apiAddress string) error {
 	if err := requireMemberName(name); err != nil {
 		return err
 	}
 	if address == "" {
 		return fmt.Errorf("cluster address is required")
 	}
-	return upsertMember(ctx, sqldb, name, address)
+	return upsertMember(ctx, sqldb, name, address, apiAddress)
+}
+
+// PruneMembers drops cluster_members rows for addresses raft no longer knows.
+// Raft only loses a member through an explicit remove or a recovery, so a row
+// without a matching raft entry is stale and would block reusing that name.
+func PruneMembers(ctx context.Context, n *Node, sqldb *sql.DB) error {
+	if n == nil || n.app == nil || sqldb == nil {
+		return nil
+	}
+	members, err := n.Members(ctx)
+	if err != nil {
+		return err
+	}
+	live := make(map[string]struct{}, len(members))
+	for _, m := range members {
+		live[m.Address] = struct{}{}
+	}
+	if len(live) == 0 {
+		return nil
+	}
+	return deleteMembersNotIn(ctx, sqldb, live)
 }
 
 // ConsumeJoinToken validates and deletes a one-time join token.

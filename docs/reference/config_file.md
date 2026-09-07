@@ -10,7 +10,7 @@ Or If you are using the snap you can modify the config under `/var/snap/notary/c
 - `key_path` (string): Path to the private key for enabling HTTPS connections.
 - `cert_path` (string): Path to a PEM formatted certificate for enabling HTTPS connections.
 - `external_hostname` (string): The external hostname or IP address (with optional port) where Notary is accessible. Used for OIDC redirect URLs, CRL distribution points, and the HTTPS address in cluster join tokens. Defaults to `localhost`. That default is ignored for join tokens when `cluster.address` is a wildcard or a non-loopback address; set a hostname joiners can reach, or bind dqlite to a specific address. Example: `notary.example.com` or `localhost:2111`.
-- `db_path` (string): Path to the data directory (not a SQLite file). Notary stores dqlite files here. If the directory does not exist, Notary creates it and bootstraps a one-node cluster. Goose schema migrations run automatically on `notary start` against the dqlite database. To back up or restore this directory, see [Back up and restore Notary](../how-to/backup_restore.md).
+- `db_path` (string): Path to the data directory (not a SQLite file). Notary stores dqlite files here. If the directory does not exist, Notary creates it and bootstraps a one-node cluster. Goose schema migrations run automatically on `notary start` against the dqlite database, serialized with a cluster-wide lock. Additive migrations (new tables, new columns with defaults) are safe while older members are still serving. To back up or restore this directory, see [Back up and restore Notary](../how-to/backup_restore.md).
 - `cluster` (object): Configuration for the local dqlite node.
   - `name` (string): Cluster member name (LXD-style). Defaults to the machine hostname.
   - `address` (string): Bind address for dqlite, as `host:port`. Defaults to `127.0.0.1:9000`.
@@ -35,7 +35,7 @@ Admin HTTP: `GET /api/v1/cluster`, `POST /api/v1/cluster/members`, `DELETE /api/
   - `system` (object): Configuration for system logging.
     - `level` (string): The level of logging. Options are `debug`, `info`, `warn`, `error`, and `fatal`.
     - `output` (string): The output destination for logs. Options are `stdout`, `stderr`, or a file path.
-- `encryption_backend` (object): Configuration for the encryption backend.
+- `encryption_backend` (object): Configuration for the encryption backend. **Every cluster member must use the same backend settings.** The data-encryption key lives in dqlite; a joiner that cannot decrypt it will not start.
   - `type` (string): Type of encryption backend. Options are `none`, `pkcs11`, or `vault`.
   - For `type: "pkcs11"`:
     - `lib_path` (string): Path to the PKCS#11 library needed to communicate with the backend.

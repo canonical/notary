@@ -132,6 +132,27 @@ export function SideBar({
 										<li className="p-side-navigation__item">
 											<Link
 												className="p-side-navigation__link"
+												to="/cluster"
+												aria-current={
+													location.pathname.startsWith("/cluster")
+														? "page"
+														: "false"
+												}
+												style={{ cursor: "pointer" }}
+											>
+												<i className="p-icon--units is-light p-side-navigation__icon"></i>
+												<span className="p-side-navigation__label">
+													<span className="p-side-navigation__label">
+														Cluster
+													</span>
+												</span>
+											</Link>
+										</li>
+									)}
+									{auth.user?.role_id === RoleID.Admin && (
+										<li className="p-side-navigation__item">
+											<Link
+												className="p-side-navigation__link"
 												to="/users"
 												aria-current={
 													location.pathname.startsWith("/users")

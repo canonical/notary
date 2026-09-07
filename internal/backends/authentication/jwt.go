@@ -51,8 +51,6 @@ func SetUpJWTSecret(database *db.DatabaseRepository) error {
 			// Another member won, so its value is already stored. Reload at once.
 			last = err
 		case errors.Is(err, db.ErrInternal):
-			// CreateEntity collapses a contended unique violation into ErrInternal,
-			// so a lost race cannot be told apart from a real failure here.
 			last = err
 			time.Sleep(time.Duration(i+1) * 20 * time.Millisecond)
 		default:

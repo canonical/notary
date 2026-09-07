@@ -21,11 +21,20 @@ type HandlerDependencies struct {
 	*config.AppConfig
 	*config.AppEnvironment
 
-	StateStore *StateStore
+	StateStore OAuthStateStore
 }
 
 type Server struct {
 	*http.Server
+}
+
+// OAuthStateStore holds OIDC login CSRF state. Production uses dqlite so a
+// callback can land on any cluster member.
+type OAuthStateStore interface {
+	Store(state string, userAgent string)
+	Validate(state string, userAgent string) bool
+	Cleanup()
+	Size() int
 }
 
 type middleware func(http.Handler) http.Handler

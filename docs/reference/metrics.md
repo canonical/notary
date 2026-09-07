@@ -20,3 +20,5 @@ These metrics are used to monitor the health of the system and the status of cer
 - `certificates_expiring_in_90_days`: Number of certificates that will expire in the next 90 days.
 - `http_requests_total`: Total number of HTTP requests.
 - `http_request_duration_seconds`: Duration of HTTP requests in seconds.
+
+In a cluster, scrape **one** member only. Custom gauges are filled from the replicated database on a ticker, so scraping every node counts the same certificates multiple times.

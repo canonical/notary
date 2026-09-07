@@ -113,12 +113,17 @@ func NewDatabase(dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
 		}
 		name = token.ServerName
 	}
-	if err := cluster.RegisterMember(ctx, sqlConnection, name, node.Address()); err != nil {
+	if err := cluster.RegisterMember(ctx, sqlConnection, name, node.Address(), dbOpts.APIAddress); err != nil {
 		if dbOpts.JoinToken != "" || len(dbOpts.Join) > 0 {
 			_ = cluster.RemoveMemberOnNode(ctx, node, sqlConnection, node.Address())
 		}
 		_ = repo.Close()
 		return nil, err
+	}
+	// Recovery rewrites raft membership without touching cluster_members, so drop
+	// names that raft no longer knows or they block rejoining under the same name.
+	if err := cluster.PruneMembers(ctx, node, sqlConnection); err != nil && dbOpts.Logger != nil {
+		dbOpts.Logger.Sugar().Warnf("could not reconcile cluster member names: %s", err)
 	}
 	return repo, nil
 }
@@ -175,16 +180,25 @@ func CreateEntity[T any](db *DatabaseRepository, stmt *sqlair.Statement, new_ent
 	var outcome sqlair.Outcome
 	err := db.Conn.Query(context.Background(), stmt, new_entity).Get(&outcome)
 	if err != nil {
-		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
-			return 0, fmt.Errorf("failed to create %s: %w", getTypeName[T](), ErrAlreadyExists)
+		if isUniqueConstraint(err) {
+			return 0, fmt.Errorf("failed to create %s: %w: %w", getTypeName[T](), ErrAlreadyExists, err)
 		}
-		return 0, fmt.Errorf("failed to create %s: %w", getTypeName[T](), ErrInternal)
+		return 0, fmt.Errorf("failed to create %s: %w: %w", getTypeName[T](), ErrInternal, err)
 	}
 	insertedRowID, err := outcome.Result().LastInsertId()
 	if err != nil {
-		return 0, fmt.Errorf("failed to create %s: %w", getTypeName[T](), ErrInternal)
+		return 0, fmt.Errorf("failed to create %s: %w: %w", getTypeName[T](), ErrInternal, err)
 	}
 	return insertedRowID, nil
+}
+
+func isUniqueConstraint(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "UNIQUE constraint failed") ||
+		strings.Contains(msg, "UNIQUE constraint")
 }
 
 func UpdateEntity[T any](db *DatabaseRepository, stmt *sqlair.Statement, updated_entity T) error {

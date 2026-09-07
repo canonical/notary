@@ -29,7 +29,12 @@ Stop Notary before taking a backup so the files on disk are consistent. The comm
 			return fmt.Errorf("backup file path is required")
 		}
 
-		backupDir := filepath.Dir(backupFile)
+		// Accept either the target directory or a path inside it; the archive name
+		// is always generated, so only the directory part is used.
+		backupDir := backupFile
+		if info, err := os.Stat(backupFile); err != nil || !info.IsDir() {
+			backupDir = filepath.Dir(backupFile)
+		}
 		if backupDir == "" || backupDir == "." {
 			return fmt.Errorf("backup file must include a directory path")
 		}
@@ -73,7 +78,7 @@ Stop Notary before taking a backup so the files on disk are consistent. The comm
 func init() {
 	rootCmd.AddCommand(backupCmd)
 
-	backupCmd.Flags().StringVarP(&backupFile, "file", "f", "", "path where the backup archive will be created (directory path)")
+	backupCmd.Flags().StringVarP(&backupFile, "file", "f", "", "directory to write the archive into; the archive name is generated")
 	backupCmd.Flags().StringVarP(&backupConfigPath, "db-path", "d", "", "path to the data directory")
 
 	if err := backupCmd.MarkFlagRequired("file"); err != nil {

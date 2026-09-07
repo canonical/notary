@@ -24,17 +24,17 @@ import (
 func TestWriteMemberTable(t *testing.T) {
 	var buf bytes.Buffer
 	err := writeMemberTable(&buf, []cluster.Member{
-		{Name: "node1", ID: 1, Address: "127.0.0.1:9000", Role: "voter", Leader: true},
+		{Name: "node1", ID: 1, Address: "127.0.0.1:9000", APIAddress: "10.0.0.1:8000", Role: "voter", Leader: true},
 		{Name: "node2", ID: 2, Address: "127.0.0.1:9001", Role: "voter", Leader: false},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	out := buf.String()
-	if !strings.Contains(out, "NAME") || !strings.Contains(out, "ADDRESS") {
+	if !strings.Contains(out, "NAME") || !strings.Contains(out, "ADDRESS") || !strings.Contains(out, "API_ADDRESS") {
 		t.Fatalf("missing header: %q", out)
 	}
-	if !strings.Contains(out, "node1") || !strings.Contains(out, "127.0.0.1:9000") || !strings.Contains(out, "yes") {
+	if !strings.Contains(out, "node1") || !strings.Contains(out, "127.0.0.1:9000") || !strings.Contains(out, "10.0.0.1:8000") || !strings.Contains(out, "yes") {
 		t.Fatalf("missing leader row: %q", out)
 	}
 	if !strings.Contains(out, "127.0.0.1:9001") {

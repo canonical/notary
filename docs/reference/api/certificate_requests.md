@@ -173,7 +173,9 @@ None
 
 ## Sign a Certificate Request with a Certificate Authority
 
-This path signs any certificate request with an active root or intermediate certificate authority, or with ACME when `signing_method` is `acme`. ACME signing is accepted only on the dqlite leader; other members return HTTP 409 and the leader's address.
+This path signs any certificate request with an active root or intermediate certificate authority, or with ACME when `signing_method` is `acme`. ACME signing is accepted only on the dqlite leader; other members return HTTP 409 and the leader's HTTPS API address when recorded.
+
+ACME signing is a **direct-to-node** operation. A load balancer in front of several members cannot choose the leader, and the address in the 409 may not be reachable from a client that only knows the virtual IP. Retry ACME sign against a specific member (the host in the 409). Certificate Authority signing (`signing_method=ca`) can use any member, including through a load balancer.
 
 | Method | Path                                     |
 | :----- | :--------------------------------------- |

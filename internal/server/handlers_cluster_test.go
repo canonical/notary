@@ -52,11 +52,12 @@ func TestListClusterMembers(t *testing.T) {
 
 	var body struct {
 		Data []struct {
-			Name    string `json:"name"`
-			ID      uint64 `json:"id"`
-			Address string `json:"address"`
-			Role    string `json:"role"`
-			Leader  bool   `json:"leader"`
+			Name       string `json:"name"`
+			ID         uint64 `json:"id"`
+			Address    string `json:"address"`
+			APIAddress string `json:"api_address"`
+			Role       string `json:"role"`
+			Leader     bool   `json:"leader"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
@@ -80,6 +81,49 @@ func TestListClusterMembers(t *testing.T) {
 	}
 	if !m.Leader {
 		t.Fatal("expected single-node member to be leader")
+	}
+	if m.APIAddress == "" {
+		t.Fatal("expected api_address")
+	}
+}
+
+func TestJoinTokenRejectedSameMessage(t *testing.T) {
+	ts, _ := tu.MustPrepareServer(t)
+	client := ts.Client()
+
+	post := func(raw string) (int, string) {
+		t.Helper()
+		payload, err := json.Marshal(map[string]string{"join_token": raw})
+		if err != nil {
+			t.Fatal(err)
+		}
+		req, err := http.NewRequest("POST", ts.URL+"/api/v1/cluster/join", strings.NewReader(string(payload)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		res, err := client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close() //nolint:errcheck
+		var body struct {
+			Message string `json:"message"`
+		}
+		if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		return res.StatusCode, body.Message
+	}
+
+	for _, raw := range []string{"", "not-valid-base64!!!", "dG90YWxseS1ub3QtYS10b2tlbg=="} {
+		code, msg := post(raw)
+		if code != http.StatusBadRequest {
+			t.Fatalf("token %q: got %d, want %d", raw, code, http.StatusBadRequest)
+		}
+		if msg != cluster.JoinTokenRejectedMessage {
+			t.Fatalf("token %q: got %q, want %q", raw, msg, cluster.JoinTokenRejectedMessage)
+		}
 	}
 }
 

@@ -10,7 +10,7 @@ import (
 	"github.com/canonical/go-dqlite/v3/driver"
 )
 
-func clusterDial(certPEM, keyPEM []byte) (client.DialFunc, error) {
+func clusterDial(dir string, certPEM, keyPEM []byte) (client.DialFunc, error) {
 	if len(certPEM) == 0 && len(keyPEM) == 0 {
 		return client.DefaultDialFunc, nil
 	}
@@ -26,7 +26,7 @@ func connectLeader(ctx context.Context, dir string, certPEM, keyPEM []byte) (*cl
 	if err != nil {
 		return nil, fmt.Errorf("read cluster membership: %w", err)
 	}
-	dial, err := clusterDial(certPEM, keyPEM)
+	dial, err := clusterDial(dir, certPEM, keyPEM)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func OpenClientDB(ctx context.Context, dir string, certPEM, keyPEM []byte) (*sql
 	if err != nil {
 		return nil, fmt.Errorf("read cluster membership: %w", err)
 	}
-	dial, err := clusterDial(certPEM, keyPEM)
+	dial, err := clusterDial(dir, certPEM, keyPEM)
 	if err != nil {
 		return nil, err
 	}

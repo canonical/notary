@@ -1,6 +1,8 @@
 APIs
+api_address
 bool
 CAs
+CLI
 CSR
 Ctrl
 DNS
@@ -15,6 +17,7 @@ RESTful
 dqlite
 timestamped
 tar
+tarball
 goose
 sqlite
 SQLite
@@ -65,3 +68,12 @@ loopback
 wildcard
 SHA
 ACME
+scrape
+joiner
+quorum
+follower
+voters
+Pebble
+Prometheus
+runbooks
+VIP

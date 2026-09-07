@@ -143,13 +143,17 @@ func Start(opts Options) (*Node, error) {
 	}
 
 	var dqliteApp *app.App
-	err := withNamespacedDqliteSocket(opts.Dir, func() error {
-		var startErr error
-		dqliteApp, startErr = app.New(opts.Dir, appOpts...)
-		return startErr
+	startErr := withNamespacedDqliteSocket(opts.Dir, func() error {
+		var err error
+		dqliteApp, err = app.New(opts.Dir, appOpts...)
+		return err
 	})
-	if err != nil {
-		return nil, wrapJoinError(join, fmt.Errorf("start dqlite: %w", err))
+	if startErr != nil {
+		startErr = wrapJoinError(join, fmt.Errorf("start dqlite: %w", startErr))
+		if opts.JoinToken != "" {
+			return nil, fmt.Errorf("%s: %w", JoinIncompleteMessage, startErr)
+		}
+		return nil, startErr
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -157,7 +161,11 @@ func Start(opts Options) (*Node, error) {
 	if err := dqliteApp.Ready(ctx); err != nil {
 		addr := dqliteApp.Address()
 		_ = dqliteApp.Close()
-		return nil, wrapJoinError(join, fmt.Errorf("dqlite not ready at %s: %w", addr, err))
+		err = wrapJoinError(join, fmt.Errorf("dqlite not ready at %s: %w", addr, err))
+		if opts.JoinToken != "" {
+			return nil, fmt.Errorf("%s: %w", JoinIncompleteMessage, err)
+		}
+		return nil, err
 	}
 	if err := PersistClusterTLS(opts.Dir, opts.TLSCert, opts.TLSKey); err != nil {
 		_ = dqliteApp.Close()

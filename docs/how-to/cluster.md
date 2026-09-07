@@ -7,7 +7,7 @@ HTTPS certificates (`cert_path` / `key_path`) stay per node or load balancer. Cl
 ## Prerequisites
 
 * Notary installed on each machine
-* Network connectivity on the dqlite port (`cluster.address`, default `9000`) **and** on the HTTPS API port (`port`)
+* Network connectivity on the dqlite address (`cluster.address`, default `9000`) **and** on the HTTPS API port (`port`). The dqlite port speaks the dqlite protocol with cluster TLS.
 * The joiner must be able to reach an existing member's HTTPS API. The token fingerprint is the SHA-256 of that member's **HTTPS** certificate (`cert_path`).
 
 The first node generates a cluster certificate on first start if you omit `cluster.tls`. You can instead supply your own pair (DNS SAN required):
@@ -72,6 +72,8 @@ notary start --config /etc/notary/config/config.yaml --join '<token>'
 
 You can also set `cluster.join_token` in the YAML instead of `--join`. The token is used only on first start. After `info.yaml` exists in `db_path`, the node resumes without it.
 
+If redeem succeeds but `notary start --join` then fails to reach dqlite, the token is spent. Run `cluster add` again for a new token. If redeem itself cannot list members (leadership moving at that instant), Notary restores the token and you can retry the same one.
+
 If you set `cluster.tls` on the joiner, it must match the cluster certificate returned after redeeming the token. Joining with `cluster.join` addresses and no token still requires `cluster.tls` files.
 
 Set `external_hostname` (host or `host:port`) when joiners should redeem against a public API address. Required when `cluster.address` is a wildcard bind (`0.0.0.0` or `::`). The default `localhost` is not enough: join tokens must not tell another machine to dial loopback.
@@ -84,11 +86,9 @@ With the daemon running:
 notary cluster list --config /etc/notary/config/config.yaml
 ```
 
-Or, as an admin, `GET /api/v1/cluster` or `GET /api/v1/cluster/members`. You should see both names and one leader.
+Or, as an admin, open **Cluster** in the web UI (same columns as this table), or `GET /api/v1/cluster`. You should see both names, each member's dqlite `address` and HTTPS `api_address`, and one leader. The UI can also mint a join token and remove a member.
 
 A two-node cluster typically shows the joiner as a **spare**, not a second voter. dqlite promotes voters automatically (up to three). Add a third member the same way (`cluster add` / `--join`) when you want that quorum.
-
-ACME signing (`signing_method=acme`) runs only on the dqlite leader so nodes do not race the same public CA order. A follower returns HTTP 409 and the leader's dqlite address. Certificate Authority signing can use any member.
 
 ## 4. Remove a member
 
@@ -99,6 +99,8 @@ notary cluster remove node2 --config /etc/notary/config/config.yaml
 ```
 
 Then stop Notary on the machine you removed. You cannot remove the last remaining member.
+
+Stopping it is not tidiness. Removal evicts the node from raft, but its API keeps working: it still holds cluster TLS and the addresses of the other members, so it goes on serving reads and writes against the cluster as a client. Until you stop the process, that machine is a live entry point into a cluster it is no longer a member of.
 
 If a join dies after dqlite has already added the node (for example `notary start --join` times out waiting for the cluster), `cluster list` may show a member with no name. Remove it by address:
 
@@ -111,3 +113,76 @@ notary cluster remove 10.0.0.2:9000 --config /etc/notary/config/config.yaml
 Stop the process (Ctrl+C, or your systemd/snap stop). Notary hands cluster roles to another node when one is available, then closes dqlite.
 
 After a clean stop, start again with the same `db_path`, `cluster.name`, and `cluster.address`. You do not need `--join` again.
+
+## 6. Add a third member (quorum)
+
+Two nodes are not highly available: the joiner is usually a spare. Add a third member the same way (`cluster add` / `--join`) and wait until `cluster list` shows three **voter** roles. go-dqlite promotes voters on its own; do not start three empty data directories at once (each would bootstrap a separate cluster).
+
+```shell
+notary cluster add node3 --config /etc/notary/config/config.yaml
+# on the third machine, empty db_path:
+notary start --config /etc/notary/config/config.yaml --join '<token>'
+```
+
+## ACME signing
+
+ACME signing (`signing_method=acme`) runs only on the dqlite leader so nodes do not race the same public CA order. A follower returns HTTP 409 and the leader's HTTPS API address when that address is known (otherwise the leader's dqlite address). Certificate Authority signing can use any member.
+
+Do not put ACME `POST /api/v1/certificate_requests/{id}/sign` behind a load balancer that hides which member you reached. The 409 names a host:port the **cluster** recorded; that address may not be reachable from a client that only knows the VIP. Call ACME signing **directly on a member** (retry on the address in the 409). Internal CA signing can use the VIP.
+
+## Operator runbooks
+
+### Replace a dead node
+
+1. `notary cluster remove <name-or-dqlite-address>` on a surviving member (daemon running).
+2. On the replacement machine, use an **empty** `db_path` and the **same** `cluster.name`.
+3. `notary cluster add <name>` then `notary start --join '<token>'`.
+
+### Back up a cluster
+
+Stop **one follower** (not the only remaining voter), take a cold `notary backup` of that member's `db_path`, then start it again. Do not copy a live directory, and do not take this backup while another voter is already down. See [Back up and restore Notary](backup_restore.md). To put a replacement machine in the cluster, `cluster remove` then join with a fresh token and empty `db_path`; do not restore a follower archive onto a new identity.
+
+### Recover from quorum loss
+
+When too many members are gone to elect a leader, the survivors are read-only. Force one of them back into a writable single-member cluster.
+
+1. Stop Notary on **every** remaining machine. `notary cluster recover` refuses to run against a data directory that a daemon still holds.
+2. On each survivor, read its raft position:
+
+   ```shell
+   notary cluster recover --config /etc/notary/config/config.yaml
+   ```
+
+   Without `--force` this only reports `term` and `index`.
+3. Pick the member with the highest term, then the highest index. Run it there with `--force`:
+
+   ```shell
+   notary cluster recover --config /etc/notary/config/config.yaml --force
+   ```
+
+4. Start Notary on that machine. It is now the only member and accepts writes.
+5. Rejoin the other machines with an **empty** `db_path` and a fresh `notary cluster add` token.
+
+This is destructive. Writes the lost majority had committed but never replicated to the recovered member are discarded, so always recover from the member that is furthest ahead.
+
+### Metrics
+
+Gauges are computed from the replicated database. Scrape **one** member only. Three Prometheus targets triple-count the same certificates. Pebble notices stay local to the process that emitted them.
+
+### Audit logs
+
+Audit logs are per node. Ship and aggregate them externally if you need a single compliance trail.
+
+### Encryption backend
+
+Every member must use the **same** `encryption_backend` configuration. The data-encryption key is stored in dqlite; a joiner that cannot decrypt it will not start. This is a hard precondition, not a suggestion.
+
+### Schema upgrades
+
+Goose migrations take a cluster-wide lock. Rolling upgrades are safe only for additive schema (new tables, `ADD COLUMN` with a default). Older binaries keep serving while a newer member applies that kind of migration. Do not drop or rename columns while mixed versions are running.
+
+## Not in this release
+
+* Live online `Dump()` of a running voter — stop a follower and take a cold backup instead.
+* An extra ACME lock row — signing is a leader gate; retry on the member named in the 409.
+

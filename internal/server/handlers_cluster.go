@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -92,10 +93,6 @@ type joinClusterParams struct {
 	JoinToken string `json:"join_token"`
 }
 
-// tokenSpentMessage tells the joiner the one-time token is already gone, so
-// retrying with it cannot work.
-const tokenSpentMessage = "join token was consumed but the join could not be completed; request a new token"
-
 func JoinCluster(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var params joinClusterParams
@@ -105,7 +102,7 @@ func JoinCluster(env *HandlerDependencies) http.HandlerFunc {
 		}
 		token, err := cluster.DecodeJoinToken(params.JoinToken)
 		if err != nil {
-			writeResponse(w, http.StatusBadRequest, err.Error(), nil, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, cluster.JoinTokenRejectedMessage, nil, env.SystemLogger)
 			return
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
@@ -123,8 +120,8 @@ func JoinCluster(env *HandlerDependencies) http.HandlerFunc {
 		}
 		members, err := env.Database.ListClusterMembers(ctx)
 		if err != nil {
-			env.SystemLogger.Error("failed to list cluster members for join", zap.Error(err))
-			writeResponse(w, http.StatusInternalServerError, tokenSpentMessage, nil, env.SystemLogger)
+			restoreJoinAfterRedeem(env, ctx, token, err)
+			writeResponse(w, http.StatusServiceUnavailable, "cluster membership could not be listed; retry with the same token", nil, env.SystemLogger)
 			return
 		}
 		addresses := make([]string, 0, len(members))
@@ -134,8 +131,8 @@ func JoinCluster(env *HandlerDependencies) http.HandlerFunc {
 			}
 		}
 		if len(addresses) == 0 {
-			env.SystemLogger.Error("cluster has no member addresses after redeeming join token")
-			writeResponse(w, http.StatusInternalServerError, tokenSpentMessage, nil, env.SystemLogger)
+			restoreJoinAfterRedeem(env, ctx, token, fmt.Errorf("cluster has no member addresses"))
+			writeResponse(w, http.StatusServiceUnavailable, "cluster membership could not be listed; retry with the same token", nil, env.SystemLogger)
 			return
 		}
 		env.SystemLogger.Info("redeemed cluster join token", zap.String("server_name", material.ServerName))
@@ -149,5 +146,12 @@ func JoinCluster(env *HandlerDependencies) http.HandlerFunc {
 			"cluster_private_key": string(material.TLSKey),
 			"addresses":           addresses,
 		}})
+	}
+}
+
+func restoreJoinAfterRedeem(env *HandlerDependencies, ctx context.Context, token cluster.JoinToken, listErr error) {
+	env.SystemLogger.Error("failed to list cluster members after redeeming join token", zap.Error(listErr))
+	if restoreErr := cluster.RestoreJoinToken(ctx, env.Database.Conn.PlainDB(), token); restoreErr != nil {
+		env.SystemLogger.Error("failed to restore join token after list failure", zap.Error(restoreErr))
 	}
 }

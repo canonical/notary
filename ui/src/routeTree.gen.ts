@@ -13,6 +13,7 @@ import { Route as UsersRouteRouteImport } from './routes/users/route'
 import { Route as LoginRouteRouteImport } from './routes/login/route'
 import { Route as InitializeRouteRouteImport } from './routes/initialize/route'
 import { Route as ConfigurationRouteRouteImport } from './routes/configuration/route'
+import { Route as ClusterRouteRouteImport } from './routes/cluster/route'
 import { Route as Certificate_requestsRouteRouteImport } from './routes/certificate_requests/route'
 import { Route as Certificate_authoritiesRouteRouteImport } from './routes/certificate_authorities/route'
 import { Route as Acme_serversRouteRouteImport } from './routes/acme_servers/route'
@@ -36,6 +37,11 @@ const InitializeRouteRoute = InitializeRouteRouteImport.update({
 const ConfigurationRouteRoute = ConfigurationRouteRouteImport.update({
   id: '/configuration',
   path: '/configuration',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClusterRouteRoute = ClusterRouteRouteImport.update({
+  id: '/cluster',
+  path: '/cluster',
   getParentRoute: () => rootRouteImport,
 } as any)
 const Certificate_requestsRouteRoute =
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/acme_servers': typeof Acme_serversRouteRoute
   '/certificate_authorities': typeof Certificate_authoritiesRouteRoute
   '/certificate_requests': typeof Certificate_requestsRouteRoute
+  '/cluster': typeof ClusterRouteRoute
   '/configuration': typeof ConfigurationRouteRoute
   '/initialize': typeof InitializeRouteRoute
   '/login': typeof LoginRouteRoute
@@ -76,6 +83,7 @@ export interface FileRoutesByTo {
   '/acme_servers': typeof Acme_serversRouteRoute
   '/certificate_authorities': typeof Certificate_authoritiesRouteRoute
   '/certificate_requests': typeof Certificate_requestsRouteRoute
+  '/cluster': typeof ClusterRouteRoute
   '/configuration': typeof ConfigurationRouteRoute
   '/initialize': typeof InitializeRouteRoute
   '/login': typeof LoginRouteRoute
@@ -87,6 +95,7 @@ export interface FileRoutesById {
   '/acme_servers': typeof Acme_serversRouteRoute
   '/certificate_authorities': typeof Certificate_authoritiesRouteRoute
   '/certificate_requests': typeof Certificate_requestsRouteRoute
+  '/cluster': typeof ClusterRouteRoute
   '/configuration': typeof ConfigurationRouteRoute
   '/initialize': typeof InitializeRouteRoute
   '/login': typeof LoginRouteRoute
@@ -99,6 +108,7 @@ export interface FileRouteTypes {
     | '/acme_servers'
     | '/certificate_authorities'
     | '/certificate_requests'
+    | '/cluster'
     | '/configuration'
     | '/initialize'
     | '/login'
@@ -109,6 +119,7 @@ export interface FileRouteTypes {
     | '/acme_servers'
     | '/certificate_authorities'
     | '/certificate_requests'
+    | '/cluster'
     | '/configuration'
     | '/initialize'
     | '/login'
@@ -119,6 +130,7 @@ export interface FileRouteTypes {
     | '/acme_servers'
     | '/certificate_authorities'
     | '/certificate_requests'
+    | '/cluster'
     | '/configuration'
     | '/initialize'
     | '/login'
@@ -130,6 +142,7 @@ export interface RootRouteChildren {
   Acme_serversRouteRoute: typeof Acme_serversRouteRoute
   Certificate_authoritiesRouteRoute: typeof Certificate_authoritiesRouteRoute
   Certificate_requestsRouteRoute: typeof Certificate_requestsRouteRoute
+  ClusterRouteRoute: typeof ClusterRouteRoute
   ConfigurationRouteRoute: typeof ConfigurationRouteRoute
   InitializeRouteRoute: typeof InitializeRouteRoute
   LoginRouteRoute: typeof LoginRouteRoute
@@ -164,6 +177,13 @@ declare module '@tanstack/react-router' {
       path: '/configuration'
       fullPath: '/configuration'
       preLoaderRoute: typeof ConfigurationRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cluster': {
+      id: '/cluster'
+      path: '/cluster'
+      fullPath: '/cluster'
+      preLoaderRoute: typeof ClusterRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/certificate_requests': {
@@ -202,6 +222,7 @@ const rootRouteChildren: RootRouteChildren = {
   Acme_serversRouteRoute: Acme_serversRouteRoute,
   Certificate_authoritiesRouteRoute: Certificate_authoritiesRouteRoute,
   Certificate_requestsRouteRoute: Certificate_requestsRouteRoute,
+  ClusterRouteRoute: ClusterRouteRoute,
   ConfigurationRouteRoute: ConfigurationRouteRoute,
   InitializeRouteRoute: InitializeRouteRoute,
   LoginRouteRoute: LoginRouteRoute,

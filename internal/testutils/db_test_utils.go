@@ -23,6 +23,7 @@ func MustPrepareEmptyDB(t *testing.T) *db.DatabaseRepository {
 	database, err := db.NewDatabase(&db.DatabaseOpts{
 		DatabasePath: t.TempDir(),
 		Address:      addr,
+		APIAddress:   "127.0.0.1:8000",
 		Logger:       logger,
 	})
 	if err != nil {

@@ -13,6 +13,7 @@ import (
 
 	notaryacme "github.com/canonical/notary/internal/acme"
 	"github.com/canonical/notary/internal/backends/observability/log"
+	"github.com/canonical/notary/internal/cluster"
 	"github.com/canonical/notary/internal/db"
 	"go.uber.org/zap"
 )
@@ -603,7 +604,18 @@ func SignCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 				return
 			}
 			if !isLeader {
-				writeResponse(w, http.StatusConflict, acmeNotLeaderMessage(leaderAddr), nil, env.SystemLogger)
+				retryAddr := leaderAddr
+				if env.Database.Conn != nil {
+					var fallback string
+					retryAddr, fallback = cluster.LookupAPIAddress(r.Context(), env.Database.Conn.PlainDB(), leaderAddr)
+					if fallback != "" {
+						env.SystemLogger.Warn("ACME 409 falling back to dqlite leader address",
+							zap.String("dqlite_address", leaderAddr),
+							zap.String("reason", fallback),
+						)
+					}
+				}
+				writeResponse(w, http.StatusConflict, acmeNotLeaderMessage(retryAddr), nil, env.SystemLogger)
 				return
 			}
 			// DNS propagation can take minutes; extend write deadline.

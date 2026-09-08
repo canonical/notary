@@ -7,10 +7,10 @@ HTTPS certificates (`cert_path` / `key_path`) stay per node or load balancer. Cl
 ## Prerequisites
 
 * Notary installed on each machine
-* Network connectivity on the dqlite address (`cluster.address`, default `9000`) **and** on the HTTPS API port (`port`). The dqlite port speaks the dqlite protocol with cluster TLS.
+* Network connectivity on the dqlite address (`cluster.address`, default `9000`) **and** on the HTTPS API port (`port`). The dqlite port is a member-only database/replication port: restrict it to cluster members. It speaks the dqlite protocol with cluster TLS. dqlite has no application-level authentication; TLS trust on this port **is** authorisation. A join token only constrains `notary start --join`.
 * The joiner must be able to reach an existing member's HTTPS API. The token fingerprint is the SHA-256 of that member's **HTTPS** certificate (`cert_path`).
 
-The first node generates a cluster certificate on first start if you omit `cluster.tls`. You can instead supply your own pair (DNS SAN required):
+The first node generates a shared cluster certificate on first start if you omit `cluster.tls`. You can instead supply your own shared pair (DNS SAN required), or use [CA mode](#ca-mode-dedicated-cluster-ca) with per-unit leaves:
 
 ```shell
 openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 \
@@ -50,7 +50,7 @@ On a machine that is already in the cluster (daemon running), create a join toke
 notary cluster add node2 --config /etc/notary/config/config.yaml
 ```
 
-The command prints a one-time token (valid for three hours). Until it is redeemed or expires, it is a bearer credential: anyone who presents it to an existing member's HTTPS API receives the cluster private key. After a successful join it is spent and cannot hand out the key again.
+The command prints a one-time token (valid for three hours). Until it is redeemed or expires, it is a bearer credential: anyone who presents it to an existing member's HTTPS API receives the **shared** cluster private key (default mode). In CA mode the response is dqlite addresses only; the joiner must already have `ca_path`, its unit leaf, and `peer_san`. After a successful join the token is spent.
 
 On the second machine, use a **new empty** data directory and the name from `cluster add`. Do not copy cluster TLS files. Point HTTPS certs at this node's files:
 
@@ -74,9 +74,28 @@ You can also set `cluster.join_token` in the YAML instead of `--join`. The token
 
 If redeem succeeds but `notary start --join` then fails to reach dqlite, the token is spent. Run `cluster add` again for a new token. If redeem itself cannot list members (leadership moving at that instant), Notary restores the token and you can retry the same one.
 
-If you set `cluster.tls` on the joiner, it must match the cluster certificate returned after redeeming the token. Joining with `cluster.join` addresses and no token still requires `cluster.tls` files.
+If you set shared `cluster.tls` on the joiner, it must match the cluster certificate returned after redeeming the token. Joining with `cluster.join` addresses and no token still requires `cluster.tls` files (shared pair or CA mode).
 
 Set `external_hostname` (host or `host:port`) when joiners should redeem against a public API address. Required when `cluster.address` is a wildcard bind (`0.0.0.0` or `::`). The default `localhost` is not enough: join tokens must not tell another machine to dial loopback.
+
+## CA mode (dedicated cluster CA)
+
+Notary can authenticate dqlite peers with per-unit certificates signed by an **external** cluster CA. Notary does not mint or revoke that CA. Do not reuse the HTTPS API CA.
+
+```yaml
+cluster:
+  name: "node2"
+  address: "10.0.0.2:9000"
+  tls:
+    ca_path: "/etc/notary/cluster-ca.crt"
+    cert_path: "/etc/notary/unit.crt"
+    key_path: "/etc/notary/unit.key"
+    peer_san: "notary-cluster"
+```
+
+All four fields are required; `peer_san` has no silent default. Every leaf must carry that group SAN (DNS or URI). Host and IP SANs must match how you write `cluster.address` (an IP bind needs an IP SAN). CA mode never stores the unit key as `db_path/cluster.key`. Mix a CA member with a shared-pair member: the handshake fails.
+
+A name-constrained intermediate (limited to `notary-cluster` or your cluster DNS) is recommended so this CA cannot issue names for the HTTPS API.
 
 ## 3. List members
 
@@ -101,6 +120,8 @@ notary cluster remove node2 --config /etc/notary/config/config.yaml
 Then stop Notary on the machine you removed. You cannot remove the last remaining member.
 
 Stopping it is not tidiness. Removal evicts the node from raft, but its API keeps working: it still holds cluster TLS and the addresses of the other members, so it goes on serving reads and writes against the cluster as a client. Until you stop the process, that machine is a live entry point into a cluster it is no longer a member of.
+
+In **CA mode**, stopping is not enough to revoke the unit. After `cluster remove`, stop the process **then revoke or expire that unit's cluster leaf** at your CA. Until you do, a process that still has the leaf can `Add` itself on the dqlite port: TLS trust is authorisation. Shared-pair mode has the same property for anyone who holds `cluster.key`.
 
 If a join dies after dqlite has already added the node (for example `notary start --join` times out waiting for the cluster), `cluster list` may show a member with no name. Remove it by address:
 

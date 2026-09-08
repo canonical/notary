@@ -77,3 +77,8 @@ Pebble
 Prometheus
 runbooks
 VIP
+peer_san
+ca_path
+mTLS
+PKI
+authorisation

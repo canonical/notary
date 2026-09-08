@@ -14,6 +14,7 @@ type DatabaseOpts struct {
 	Name         string
 	TLSCert      []byte
 	TLSKey       []byte
+	ClusterTLS   cluster.TransportTLS
 	HTTPSCert    []byte
 	APIAddress   string
 	Logger       *zap.Logger
@@ -28,6 +29,7 @@ type DatabaseRepository struct {
 	Path          string
 	TLSCert       []byte
 	TLSKey        []byte
+	ClusterTLS    cluster.TransportTLS
 	HTTPSCert     []byte
 	APIAddress    string
 	EncryptionKey []byte

@@ -128,7 +128,7 @@ func requireReachableJoinAddresses(addresses []string) error {
 
 // RedeemJoinToken consumes a one-time ticket and returns cluster TLS.
 func RedeemJoinToken(ctx context.Context, sqldb *sql.DB, token JoinToken, clusterCert, clusterKey []byte) (JoinMaterial, error) {
-	if len(clusterCert) == 0 || len(clusterKey) == 0 {
+	if (len(clusterCert) == 0) != (len(clusterKey) == 0) {
 		return JoinMaterial{}, fmt.Errorf("cluster TLS is required to join")
 	}
 	if err := consumeJoinToken(ctx, sqldb, token.ServerName, token.Secret); err != nil {
@@ -185,15 +185,24 @@ func redeemAt(ctx context.Context, rawToken, fingerprint, addr string) (JoinMate
 	if err := json.Unmarshal(payload, &parsed); err != nil {
 		return JoinMaterial{}, fmt.Errorf("parse join credentials: %w", err)
 	}
-	if parsed.Data.ClusterCertificate == "" || parsed.Data.ClusterPrivateKey == "" || len(parsed.Data.Addresses) == 0 {
+	if parsed.Data.ClusterPrivateKey != "" && (parsed.Data.ClusterCertificate == "" || len(parsed.Data.Addresses) == 0) {
 		return JoinMaterial{}, fmt.Errorf("join credentials are incomplete")
 	}
-	return JoinMaterial{
-		TLSCert:    []byte(parsed.Data.ClusterCertificate),
-		TLSKey:     []byte(parsed.Data.ClusterPrivateKey),
-		Join:       parsed.Data.Addresses,
-		ServerName: parsed.Data.ServerName,
-	}, nil
+	if parsed.Data.ClusterCertificate != "" && parsed.Data.ClusterPrivateKey != "" && len(parsed.Data.Addresses) > 0 {
+		return JoinMaterial{
+			TLSCert:    []byte(parsed.Data.ClusterCertificate),
+			TLSKey:     []byte(parsed.Data.ClusterPrivateKey),
+			Join:       parsed.Data.Addresses,
+			ServerName: parsed.Data.ServerName,
+		}, nil
+	}
+	if parsed.Data.ClusterCertificate == "" && parsed.Data.ClusterPrivateKey == "" && len(parsed.Data.Addresses) > 0 {
+		return JoinMaterial{
+			Join:       parsed.Data.Addresses,
+			ServerName: parsed.Data.ServerName,
+		}, nil
+	}
+	return JoinMaterial{}, fmt.Errorf("join credentials are incomplete")
 }
 
 func pinnedHTTPClient(fingerprint string) *http.Client {

@@ -38,10 +38,15 @@ type Options struct {
 	Join []string
 	// JoinToken is a token from `notary cluster add`. Used only on first start.
 	JoinToken string
+	// TLS is dqlite mTLS. SharedPair is the default (one cert for the cluster).
+	// CAPeer is per-unit leaves under a dedicated CA. Nil means generate or
+	// load the shared pair — never in CA mode.
+	TLS TransportTLS
 	// TLSCert and TLSKey are the shared cluster certificate (PEM). Required
 	// when joining with cluster.join addresses. Same pair on every node; not
 	// the HTTPS API cert. On first start of a new cluster they are generated
 	// if empty. A join token fetches them over pinned HTTPS.
+	// Deprecated: prefer TLS; still accepted and mapped to SharedPair.
 	TLSCert []byte
 	TLSKey  []byte
 }
@@ -49,6 +54,7 @@ type Options struct {
 // Node is a running dqlite application node.
 type Node struct {
 	app *app.App
+	TLS TransportTLS
 }
 
 // HasState reports whether dir already holds dqlite identity.
@@ -67,8 +73,22 @@ func Start(opts Options) (*Node, error) {
 		return nil, fmt.Errorf("create database directory: %w", err)
 	}
 	join := append([]string(nil), opts.Join...)
-	if (len(opts.TLSCert) == 0) != (len(opts.TLSKey) == 0) {
-		return nil, errors.New("cluster TLS certificate and key must both be set")
+	if opts.TLS == nil {
+		opts.TLS = tlsFromCertKey(opts.TLSCert, opts.TLSKey)
+	} else if len(opts.TLSCert) > 0 || len(opts.TLSKey) > 0 {
+		if _, ok := opts.TLS.(CAPeer); ok {
+			return nil, errors.New("cluster TLS cannot mix CA mode with a shared certificate")
+		}
+	}
+	if _, isCA := opts.TLS.(CAPeer); isCA {
+		if err := opts.TLS.(CAPeer).validate(); err != nil {
+			return nil, err
+		}
+	} else {
+		cert, key := presentCertKey(opts.TLS)
+		if (len(cert) == 0) != (len(key) == 0) {
+			return nil, errors.New("cluster TLS certificate and key must both be set")
+		}
 	}
 	if opts.JoinToken != "" {
 		if HasState(opts.Dir) {
@@ -96,34 +116,51 @@ func Start(opts Options) (*Node, error) {
 			return nil, fmt.Errorf("join credentials name %q does not match token name %q", material.ServerName, token.ServerName)
 		}
 		join = material.Join
-		if len(opts.TLSCert) > 0 {
-			want, err := CertFingerprintPEM(material.TLSCert)
-			if err != nil {
-				return nil, err
+		switch opts.TLS.(type) {
+		case CAPeer:
+			if len(material.TLSCert) != 0 || len(material.TLSKey) != 0 {
+				return nil, errors.New("join token returned cluster key material; this node is configured for CA mode")
 			}
-			got, err := CertFingerprintPEM(opts.TLSCert)
-			if err != nil {
-				return nil, err
+		case SharedPair:
+			if len(material.TLSCert) == 0 || len(material.TLSKey) == 0 {
+				return nil, errors.New("join credentials are incomplete")
 			}
-			if !strings.EqualFold(got, want) {
-				return nil, fmt.Errorf("cluster TLS certificate does not match the certificate from the join server")
+			if cert, _, ok := opts.TLS.redeemPair(); ok && len(cert) > 0 {
+				want, err := CertFingerprintPEM(material.TLSCert)
+				if err != nil {
+					return nil, err
+				}
+				got, err := CertFingerprintPEM(cert)
+				if err != nil {
+					return nil, err
+				}
+				if !strings.EqualFold(got, want) {
+					return nil, fmt.Errorf("cluster TLS certificate does not match the certificate from the join server")
+				}
 			}
+			opts.TLS = SharedPair{Cert: material.TLSCert, Key: material.TLSKey}
+		default:
+			if len(material.TLSKey) == 0 {
+				return nil, errors.New("CA-mode join requires cluster.tls.ca_path, cert_path, key_path, and peer_san")
+			}
+			opts.TLS = SharedPair{Cert: material.TLSCert, Key: material.TLSKey}
 		}
-		opts.TLSCert, opts.TLSKey = material.TLSCert, material.TLSKey
-	} else if len(opts.TLSCert) == 0 {
+	} else if _, isCA := opts.TLS.(CAPeer); isCA {
+		// CA mode never loads or generates a shared pair.
+	} else if opts.TLS == nil {
 		if HasState(opts.Dir) {
 			if certPEM, keyPEM, err := LoadClusterTLS(opts.Dir); err == nil {
-				opts.TLSCert, opts.TLSKey = certPEM, keyPEM
+				opts.TLS = SharedPair{Cert: certPEM, Key: keyPEM}
 			}
 		} else if len(join) == 0 {
 			certPEM, keyPEM, err := generateClusterTLS()
 			if err != nil {
 				return nil, err
 			}
-			opts.TLSCert, opts.TLSKey = certPEM, keyPEM
+			opts.TLS = SharedPair{Cert: certPEM, Key: keyPEM}
 		}
 	}
-	if len(join) > 0 && (len(opts.TLSCert) == 0 || len(opts.TLSKey) == 0) {
+	if len(join) > 0 && opts.TLS == nil {
 		return nil, errors.New("joining a cluster requires cluster TLS (cluster.tls.cert_path and key_path)")
 	}
 
@@ -134,8 +171,8 @@ func Start(opts Options) (*Node, error) {
 	if len(join) > 0 && !HasState(opts.Dir) {
 		appOpts = append(appOpts, app.WithCluster(join))
 	}
-	if len(opts.TLSCert) > 0 {
-		tlsOpt, err := withClusterTLS(opts.TLSCert, opts.TLSKey)
+	if opts.TLS != nil {
+		tlsOpt, err := withTransportTLS(opts.TLS)
 		if err != nil {
 			return nil, wrapJoinError(join, err)
 		}
@@ -167,12 +204,14 @@ func Start(opts Options) (*Node, error) {
 		}
 		return nil, err
 	}
-	if err := PersistClusterTLS(opts.Dir, opts.TLSCert, opts.TLSKey); err != nil {
-		_ = dqliteApp.Close()
-		return nil, err
+	if opts.TLS != nil {
+		if err := opts.TLS.persist(opts.Dir); err != nil {
+			_ = dqliteApp.Close()
+			return nil, err
+		}
 	}
 
-	return &Node{app: dqliteApp}, nil
+	return &Node{app: dqliteApp, TLS: opts.TLS}, nil
 }
 
 // Open returns a *sql.DB for the Notary database.

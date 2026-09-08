@@ -62,6 +62,19 @@ func TestValidConfig(t *testing.T) {
 			TLSCertificate:                  []byte(validCert),
 			TLSPrivateKey:                   []byte(validPK),
 		}},
+		{"ca mode cluster tls", caModeConfig, &config.AppConfig{
+			Port:                            8000,
+			ExternalHostname:                "localhost",
+			DBPath:                          "./database",
+			ShouldEnablePebbleNotifications: false,
+			ClusterAddress:                  "127.0.0.1:9000",
+			TLSCertificate:                  []byte(validCert),
+			TLSPrivateKey:                   []byte(validPK),
+			ClusterTLSCertificate:           []byte(validCert),
+			ClusterTLSPrivateKey:            []byte(validPK),
+			ClusterTLSCA:                    []byte(validCert),
+			ClusterTLSPeerSAN:               "notary-cluster",
+		}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -104,6 +117,8 @@ func TestInvalidConfig(t *testing.T) {
 		{"join without cluster tls", joinWithoutTLSConfig, "joining a cluster requires cluster.tls.cert_path and cluster.tls.key_path"},
 		{"join and join token both set", joinAndJoinTokenConfig, "set either cluster.join_token or cluster.join, not both"},
 		{"invalid cluster name", invalidClusterNameConfig, "invalid cluster.name"},
+		{"ca path without peer_san", caWithoutPeerSANConfig, "cluster.tls.ca_path requires cert_path, key_path, and peer_san"},
+		{"peer_san without ca", peerSANWithoutCAConfig, "cluster.tls.peer_san requires cluster.tls.ca_path"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -127,6 +142,10 @@ func mustPrepareCertificateFiles(t *testing.T) {
 		log.Fatalf("couldn't create temp testing file: %v", err)
 	}
 	err = os.WriteFile(testfolder+"/key_test.pem", []byte(validPK), 0o644)
+	if err != nil {
+		log.Fatalf("couldn't create temp testing file: %v", err)
+	}
+	err = os.WriteFile(testfolder+"/ca_test.pem", []byte(validCert), 0o644)
 	if err != nil {
 		log.Fatalf("couldn't create temp testing file: %v", err)
 	}
@@ -345,4 +364,44 @@ encryption_backend:
 `
 	invalidYAMLConfig = `just_an=invalid
 yaml.here`
+	caModeConfig = `
+key_path:  "./key_test.pem"
+cert_path: "./cert_test.pem"
+db_path: "./database"
+port: 8000
+cluster:
+  tls:
+    ca_path: "./ca_test.pem"
+    cert_path: "./cert_test.pem"
+    key_path: "./key_test.pem"
+    peer_san: "notary-cluster"
+encryption_backend:
+  type: "none"
+`
+	caWithoutPeerSANConfig = `
+key_path:  "./key_test.pem"
+cert_path: "./cert_test.pem"
+db_path: "./database"
+port: 8000
+cluster:
+  tls:
+    ca_path: "./ca_test.pem"
+    cert_path: "./cert_test.pem"
+    key_path: "./key_test.pem"
+encryption_backend:
+  type: "none"
+`
+	peerSANWithoutCAConfig = `
+key_path:  "./key_test.pem"
+cert_path: "./cert_test.pem"
+db_path: "./database"
+port: 8000
+cluster:
+  tls:
+    cert_path: "./cert_test.pem"
+    key_path: "./key_test.pem"
+    peer_san: "notary-cluster"
+encryption_backend:
+  type: "none"
+`
 )

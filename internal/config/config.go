@@ -59,6 +59,14 @@ func ParseConfig(cmdFlags *pflag.FlagSet, configFilePath string) (*AppConfig, er
 		}
 		appConfig.ClusterTLSPrivateKey = clusterKey
 	}
+	if cfg.GetString("cluster.tls.ca_path") != "" {
+		caPEM, err := os.ReadFile(cfg.GetString("cluster.tls.ca_path"))
+		if err != nil {
+			return nil, err
+		}
+		appConfig.ClusterTLSCA = caPEM
+	}
+	appConfig.ClusterTLSPeerSAN = cfg.GetString("cluster.tls.peer_san")
 
 	appConfig.ShouldEnablePebbleNotifications = cfg.GetBool("pebble_notifications")
 
@@ -145,11 +153,22 @@ func validateClusterConfig(cfg *viper.Viper) error {
 	joinToken := cfg.GetString("cluster.join_token")
 	certPath := cfg.GetString("cluster.tls.cert_path")
 	keyPath := cfg.GetString("cluster.tls.key_path")
+	caPath := cfg.GetString("cluster.tls.ca_path")
+	peerSAN := cfg.GetString("cluster.tls.peer_san")
 	if joinToken != "" && len(join) > 0 {
 		return errors.New("set either cluster.join_token or cluster.join, not both")
 	}
 	if name := cfg.GetString("cluster.name"); name != "" && !cluster.ValidMemberName(name) {
 		return fmt.Errorf("invalid cluster.name %q", name)
+	}
+	if caPath != "" {
+		if certPath == "" || keyPath == "" || peerSAN == "" {
+			return errors.New("cluster.tls.ca_path requires cert_path, key_path, and peer_san")
+		}
+		return nil
+	}
+	if peerSAN != "" {
+		return errors.New("cluster.tls.peer_san requires cluster.tls.ca_path")
 	}
 	joining := len(join) > 0
 	if joining && (certPath == "" || keyPath == "") {
@@ -157,6 +176,25 @@ func validateClusterConfig(cfg *viper.Viper) error {
 	}
 	if (certPath == "") != (keyPath == "") {
 		return errors.New("cluster.tls.cert_path and cluster.tls.key_path must both be set")
+	}
+	return nil
+}
+
+// ClusterTransportTLS is shared-pair or CA-mode dqlite TLS from config files.
+func (c *AppConfig) ClusterTransportTLS() cluster.TransportTLS {
+	if c == nil {
+		return nil
+	}
+	if len(c.ClusterTLSCA) > 0 {
+		return cluster.CAPeer{
+			CA:      c.ClusterTLSCA,
+			Cert:    c.ClusterTLSCertificate,
+			Key:     c.ClusterTLSPrivateKey,
+			PeerSAN: c.ClusterTLSPeerSAN,
+		}
+	}
+	if len(c.ClusterTLSCertificate) > 0 || len(c.ClusterTLSPrivateKey) > 0 {
+		return cluster.SharedPair{Cert: c.ClusterTLSCertificate, Key: c.ClusterTLSPrivateKey}
 	}
 	return nil
 }

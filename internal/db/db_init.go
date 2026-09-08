@@ -60,6 +60,7 @@ func NewDatabase(dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
 		Name:      dbOpts.Name,
 		Join:      dbOpts.Join,
 		JoinToken: dbOpts.JoinToken,
+		TLS:       dbOpts.clusterTLS(),
 		TLSCert:   dbOpts.TLSCert,
 		TLSKey:    dbOpts.TLSKey,
 	})
@@ -93,12 +94,17 @@ func NewDatabase(dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
 	repo.Conn = sqlair.NewDB(sqlConnection)
 	repo.Path = dbOpts.DatabasePath
 	repo.Node = node
+	repo.ClusterTLS = node.TLS
 	repo.TLSCert = dbOpts.TLSCert
 	repo.TLSKey = dbOpts.TLSKey
 	repo.HTTPSCert = dbOpts.HTTPSCert
 	repo.APIAddress = dbOpts.APIAddress
-	if cert, key, err := cluster.LoadClusterTLS(dbOpts.DatabasePath); err == nil {
-		repo.TLSCert, repo.TLSKey = cert, key
+	if _, isCA := node.TLS.(cluster.CAPeer); !isCA {
+		if s, ok := node.TLS.(cluster.SharedPair); ok {
+			repo.TLSCert, repo.TLSKey = s.Cert, s.Key
+		} else if cert, key, err := cluster.LoadClusterTLS(dbOpts.DatabasePath); err == nil {
+			repo.TLSCert, repo.TLSKey = cert, key
+		}
 	}
 
 	name := dbOpts.Name
@@ -128,6 +134,13 @@ func NewDatabase(dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
 	return repo, nil
 }
 
+func (o *DatabaseOpts) clusterTLS() cluster.TransportTLS {
+	if o == nil {
+		return nil
+	}
+	return o.ClusterTLS
+}
+
 // ListClusterMembers returns dqlite membership from the running node.
 func (db *DatabaseRepository) ListClusterMembers(ctx context.Context) ([]cluster.Member, error) {
 	if db == nil || db.Node == nil {
@@ -141,7 +154,11 @@ func (db *DatabaseRepository) IssueJoinToken(ctx context.Context, name string) (
 	if db == nil || db.Node == nil {
 		return "", fmt.Errorf("database is not open")
 	}
-	return cluster.IssueJoinTokenOnNode(ctx, db.Node, db.Conn.PlainDB(), name, db.TLSCert, db.TLSKey, db.HTTPSCert, []string{db.APIAddress})
+	cert, key := db.TLSCert, db.TLSKey
+	if db.ClusterTLS != nil {
+		cert, key = cluster.PresentCertKey(db.ClusterTLS)
+	}
+	return cluster.IssueJoinTokenOnNode(ctx, db.Node, db.Conn.PlainDB(), name, cert, key, db.HTTPSCert, []string{db.APIAddress})
 }
 
 // RemoveClusterMember evicts a named member.

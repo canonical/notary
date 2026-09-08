@@ -79,7 +79,12 @@ func (n *Node) MembersWithNames(ctx context.Context, sqldb *sql.DB) ([]Member, e
 // must be running. dir is db_path; certPEM/keyPEM are the shared cluster TLS
 // files (empty for a plaintext single-node).
 func QueryMembers(ctx context.Context, dir string, certPEM, keyPEM []byte) ([]Member, error) {
-	cli, err := connectLeader(ctx, dir, certPEM, keyPEM)
+	return QueryMembersTLS(ctx, dir, tlsFromCertKey(certPEM, keyPEM))
+}
+
+// QueryMembersTLS lists membership using shared or CA cluster TLS.
+func QueryMembersTLS(ctx context.Context, dir string, t TransportTLS) ([]Member, error) {
+	cli, err := connectLeader(ctx, dir, t)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +93,7 @@ func QueryMembers(ctx context.Context, dir string, certPEM, keyPEM []byte) ([]Me
 	if err != nil {
 		return nil, err
 	}
-	sqldb, err := OpenClientDB(ctx, dir, certPEM, keyPEM)
+	sqldb, err := OpenClientDBTLS(ctx, dir, t)
 	if err != nil {
 		return nil, err
 	}
@@ -98,12 +103,17 @@ func QueryMembers(ctx context.Context, dir string, certPEM, keyPEM []byte) ([]Me
 
 // IssueJoinToken creates an LXD-style join token for a not-yet-joined member.
 func IssueJoinToken(ctx context.Context, dir string, certPEM, keyPEM []byte, name string, apiCert []byte, apiAddresses []string) (string, error) {
-	sqldb, err := OpenClientDB(ctx, dir, certPEM, keyPEM)
+	return IssueJoinTokenTLS(ctx, dir, tlsFromCertKey(certPEM, keyPEM), name, apiCert, apiAddresses)
+}
+
+// IssueJoinTokenTLS creates a join token using shared or CA cluster TLS.
+func IssueJoinTokenTLS(ctx context.Context, dir string, t TransportTLS, name string, apiCert []byte, apiAddresses []string) (string, error) {
+	sqldb, err := OpenClientDBTLS(ctx, dir, t)
 	if err != nil {
 		return "", err
 	}
 	defer sqldb.Close() //nolint:errcheck
-	cli, err := connectLeader(ctx, dir, certPEM, keyPEM)
+	cli, err := connectLeader(ctx, dir, t)
 	if err != nil {
 		return "", err
 	}
@@ -116,7 +126,8 @@ func IssueJoinToken(ctx context.Context, dir string, certPEM, keyPEM []byte, nam
 	if err != nil {
 		return "", err
 	}
-	return issueJoinToken(ctx, sqldb, members, name, certPEM, keyPEM, apiCert, apiAddresses)
+	cert, key := presentCertKey(t)
+	return issueJoinToken(ctx, sqldb, members, name, cert, key, apiCert, apiAddresses)
 }
 
 // IssueJoinTokenOnNode issues a token using a running node and its SQL connection.
@@ -186,12 +197,17 @@ func issueJoinToken(ctx context.Context, sqldb *sql.DB, members []Member, name s
 
 // RemoveMember evicts a named member from raft and from cluster_members.
 func RemoveMember(ctx context.Context, dir string, certPEM, keyPEM []byte, name string) error {
-	cli, err := connectLeader(ctx, dir, certPEM, keyPEM)
+	return RemoveMemberTLS(ctx, dir, tlsFromCertKey(certPEM, keyPEM), name)
+}
+
+// RemoveMemberTLS evicts a member using shared or CA cluster TLS.
+func RemoveMemberTLS(ctx context.Context, dir string, t TransportTLS, name string) error {
+	cli, err := connectLeader(ctx, dir, t)
 	if err != nil {
 		return err
 	}
 	defer cli.Close() //nolint:errcheck
-	sqldb, err := OpenClientDB(ctx, dir, certPEM, keyPEM)
+	sqldb, err := OpenClientDBTLS(ctx, dir, t)
 	if err != nil {
 		return err
 	}

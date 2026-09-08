@@ -70,7 +70,7 @@ The command prints the path of the archive it created.
 
 Restore deletes the current data directory and replaces it with the archive.
 
-Treat every archive as a **cluster credential**. `cluster.key` lives in `db_path`, so the tarball can join the raft mesh and decrypt cluster TLS. Store and transport it like a private key, not like a convenience copy of the certificate files.
+Treat every archive as a **cluster credential**. In the default shared-pair mode, `cluster.key` lives in `db_path`, so the tarball can join the raft mesh. In CA mode the unit key is not in `db_path`; restore `cluster.tls.ca_path`, `cert_path`, and `key_path` from wherever you store them.
 
 The archive also contains `info.yaml` (this node's raft identity) and `cluster.yaml` (the peer list at backup time). After restore, `cluster.address` and `cluster.name` must still match the node that was backed up. If you also keep copies of cluster TLS at `cluster.tls.cert_path` / `key_path` outside `db_path`, restore those files as well.
 

@@ -33,7 +33,7 @@ and connects as a client; it does not start a second node.`,
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
-		members, err := cluster.QueryMembers(ctx, appConfig.DBPath, appConfig.ClusterTLSCertificate, appConfig.ClusterTLSPrivateKey)
+		members, err := cluster.QueryMembersTLS(ctx, appConfig.DBPath, clusterTLSFromConfig(appConfig))
 		if err != nil {
 			return err
 		}
@@ -66,7 +66,7 @@ On the new machine, set cluster.name and cluster.address, then start with the to
 		if err != nil {
 			return err
 		}
-		token, err := cluster.IssueJoinToken(ctx, appConfig.DBPath, appConfig.ClusterTLSCertificate, appConfig.ClusterTLSPrivateKey, args[0], appConfig.TLSCertificate, []string{apiAddr})
+		token, err := cluster.IssueJoinTokenTLS(ctx, appConfig.DBPath, clusterTLSFromConfig(appConfig), args[0], appConfig.TLSCertificate, []string{apiAddr})
 		if err != nil {
 			return err
 		}
@@ -91,7 +91,7 @@ the node, the member may have no name; pass its address instead.`,
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		if err := cluster.RemoveMember(ctx, appConfig.DBPath, appConfig.ClusterTLSCertificate, appConfig.ClusterTLSPrivateKey, args[0]); err != nil {
+		if err := cluster.RemoveMemberTLS(ctx, appConfig.DBPath, clusterTLSFromConfig(appConfig), args[0]); err != nil {
 			return err
 		}
 		fmt.Fprintf(cmd.OutOrStdout(), "Member %s removed\n", args[0]) //nolint:errcheck
@@ -141,6 +141,12 @@ func parseClusterConfig() (*config.AppConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("couldn't parse config: %w", err)
 	}
+	if t := appConfig.ClusterTransportTLS(); t != nil {
+		return appConfig, nil
+	}
+	if len(appConfig.ClusterTLSCA) > 0 {
+		return nil, fmt.Errorf("CA mode requires cluster.tls.ca_path, cert_path, key_path, and peer_san")
+	}
 	if len(appConfig.ClusterTLSCertificate) == 0 {
 		cert, key, err := cluster.LoadClusterTLS(appConfig.DBPath)
 		if err == nil {
@@ -149,6 +155,13 @@ func parseClusterConfig() (*config.AppConfig, error) {
 		}
 	}
 	return appConfig, nil
+}
+
+func clusterTLSFromConfig(appConfig *config.AppConfig) cluster.TransportTLS {
+	if t := appConfig.ClusterTransportTLS(); t != nil {
+		return t
+	}
+	return nil
 }
 
 func init() {

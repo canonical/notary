@@ -22,6 +22,7 @@ goose
 sqlite
 SQLite
 SAN
+SANs
 addext
 subjectAltName
 stdout
@@ -57,6 +58,7 @@ OpenID
 Requestor
 Grafana
 OpenTelemetry
+URI
 url
 join_token
 LXD
@@ -82,3 +84,5 @@ ca_path
 mTLS
 PKI
 authorisation
+file-managed
+snap-managed

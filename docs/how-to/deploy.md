@@ -41,7 +41,13 @@ To run several Notary processes as one dqlite cluster, see [Run a Notary cluster
 
 ## Three snaps (example)
 
-Configure each machine with `snap set` rather than editing files. The snap writes `/var/snap/notary/common/notary.yaml` from these options; until you set one, a hand-edited file is left alone.
+Snap configuration has two modes.
+
+**Snap-managed** (default install): `/var/snap/notary/common/notary.yaml` starts with `# notary-config-source: snap`. `snap set` rewrites that skeleton (cluster, port, log-level, `encryption-backend` type only). It does not express Vault/PKCS#11 parameters, OIDC, CA-mode cluster TLS, tracing, or audit logging.
+
+**File-managed:** if that marker line is missing, `snap set` refuses to overwrite the file. Hand-edit the YAML instead (Vault, OIDC, CA-mode TLS). Remove the marker to take ownership; put it back (or delete the file and `snap set`) to return to snap-managed config.
+
+Until you set a snap option, this hook does nothing to an already file-managed copy.
 
 | Option | Meaning |
 | :-- | :-- |

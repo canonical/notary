@@ -206,4 +206,3 @@ Goose migrations take a cluster-wide lock. Rolling upgrades are safe only for ad
 
 * Live online `Dump()` of a running voter — stop a follower and take a cold backup instead.
 * An extra ACME lock row — signing is a leader gate; retry on the member named in the 409.
-

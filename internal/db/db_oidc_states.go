@@ -2,6 +2,8 @@ package db
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"time"
 )
@@ -31,9 +33,22 @@ func (db *DatabaseRepository) ValidateOIDCState(state, userAgent string) bool {
 		return false
 	}
 	sqldb := db.Conn.PlainDB()
+	var nonce [8]byte
+	if _, err := rand.Read(nonce[:]); err != nil {
+		return false
+	}
+	claim := "claimed:" + hex.EncodeToString(nonce[:]) + ":" + state
+	res, err := sqldb.ExecContext(context.Background(), `UPDATE oidc_states SET state = ? WHERE state = ?`, claim, state)
+	if err != nil {
+		return false
+	}
+	n, err := res.RowsAffected()
+	if err != nil || n != 1 {
+		return false
+	}
 	var storedUA, createdAt string
-	err := sqldb.QueryRowContext(context.Background(), `SELECT user_agent, created_at FROM oidc_states WHERE state = ?`, state).Scan(&storedUA, &createdAt)
-	_, _ = sqldb.ExecContext(context.Background(), `DELETE FROM oidc_states WHERE state = ?`, state)
+	err = sqldb.QueryRowContext(context.Background(), `SELECT user_agent, created_at FROM oidc_states WHERE state = ?`, claim).Scan(&storedUA, &createdAt)
+	_, _ = sqldb.ExecContext(context.Background(), `DELETE FROM oidc_states WHERE state = ?`, claim)
 	if err != nil {
 		return false
 	}

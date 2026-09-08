@@ -3,7 +3,7 @@
 Notary is configured using a YAML file.
 
 Start Notary with the `start` command and `--config` flag to specify the path to the configuration file.
-Or If you are using the snap you can modify the config under `/var/snap/notary/common/notary.yaml`
+Or If you are using the snap you can modify the config under `/var/snap/notary/common/notary.yaml`. `snap set` only rewrites that file when it is snap-managed (see [Deploy](../how-to/deploy.md)).
 
 ## Parameters
 

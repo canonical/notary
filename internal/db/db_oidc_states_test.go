@@ -61,3 +61,26 @@ func TestOIDCStateCleanup(t *testing.T) {
 		t.Fatalf("got %d states after cleanup", database.CountOIDCStates())
 	}
 }
+
+func TestOIDCStateConcurrentConsumeOnce(t *testing.T) {
+	database := tu.MustPrepareEmptyDB(t)
+	if err := database.StoreOIDCState("s1", "Mozilla/5.0"); err != nil {
+		t.Fatal(err)
+	}
+	const n = 8
+	results := make(chan bool, n)
+	for range n {
+		go func() {
+			results <- database.ValidateOIDCState("s1", "Mozilla/5.0")
+		}()
+	}
+	var ok int
+	for range n {
+		if <-results {
+			ok++
+		}
+	}
+	if ok != 1 {
+		t.Fatalf("got %d successful consumes, want 1", ok)
+	}
+}

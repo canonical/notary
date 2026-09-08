@@ -3,10 +3,21 @@
 # Renders $SNAP_COMMON/notary.yaml from snap options so a machine charm (or an
 # operator) can configure a cluster member without editing files in place.
 #
-# Until an option is set this hook does nothing, so an existing hand-edited
-# config keeps working after a refresh.
+# Two modes:
+#   Snap-managed — the file begins with "# notary-config-source: snap".
+#     snap set rewrites only this skeleton (cluster, port, log-level,
+#     encryption-backend type). Vault/PKCS#11 parameters, OIDC, CA-mode TLS,
+#     tracing, and audit logging are not snap options.
+#   File-managed — any other existing file, including a hand-edited copy.
+#     snap set refuses to overwrite it. Remove the marker line to take
+#     ownership; add the marker (or delete the file and snap set) to give
+#     it back.
+#
+# Fresh installs copy a snap-managed default from the snap. Until an option
+# is set this hook does nothing.
 
 CONFIG="$SNAP_COMMON/notary.yaml"
+SNAP_MANAGED_MARKER='# notary-config-source: snap'
 
 get() {
 	snapctl get "$1" 2>/dev/null || true
@@ -22,6 +33,13 @@ encryption_backend="$(get encryption-backend)"
 
 if [ -z "$cluster_name$cluster_address$join_token$port$external_hostname$log_level$encryption_backend" ]; then
 	exit 0
+fi
+
+if [ -f "$CONFIG" ] && ! grep -qx "$SNAP_MANAGED_MARKER" "$CONFIG"; then
+	echo "refusing to overwrite file-managed $CONFIG" >&2
+	echo "snap options configure a skeleton only (cluster, port, log-level, encryption-backend type)." >&2
+	echo "Keep editing this file, or add '$SNAP_MANAGED_MARKER' as the first line to switch to snap-managed config." >&2
+	exit 1
 fi
 
 [ -n "$cluster_address" ] || cluster_address="127.0.0.1:9000"
@@ -47,6 +65,7 @@ esac
 
 tmp="$CONFIG.new"
 {
+	echo "$SNAP_MANAGED_MARKER"
 	echo "key_path: \"$SNAP_COMMON/key.pem\""
 	echo "cert_path: \"$SNAP_COMMON/cert.pem\""
 	echo "db_path: \"$SNAP_COMMON/database\""
@@ -74,7 +93,7 @@ chmod 0600 "$tmp"
 mv "$tmp" "$CONFIG"
 
 # The join token is only read on first start; drop it so it does not sit in the
-# snap configuration once it has been spent.
+# snap configuration once it has been written into the file.
 if [ -n "$join_token" ]; then
 	snapctl unset cluster.join-token 2>/dev/null || true
 fi

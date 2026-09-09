@@ -8,6 +8,7 @@
 @include vf-p-icon-security;
 @include vf-p-icon-copy-to-clipboard;
 @include vf-p-icon-settings;
+@include vf-p-icon-units;
 
 // Override visibility settings
 #csr-table {
@@ -16,6 +17,12 @@
 
 .p-panel__content {
   overflow: visible;
+}
+
+// Application asides: Vanilla .row uses negative margins, so a form without
+// col-* children sits flush to the panel edge. Restore the usual gutter.
+.notary-aside-body {
+  padding: 0 1.5rem 1.5rem;
 }
 
 // Add Extra logo CSS

@@ -39,8 +39,9 @@ export function ClusterTable({ members, setAsideOpen }: TableProps) {
 			}
 		>
 			<p>
-				Members share one dqlite database. Add a member to mint a join token,
-				then start the new node with an empty data directory and{" "}
+				All members share a single dqlite database. Click{" "}
+				<strong>Add member</strong> to generate a join token, then start your
+				new node with an empty data directory using{" "}
 				<code>notary start --join</code>.
 			</p>
 			<MainTable

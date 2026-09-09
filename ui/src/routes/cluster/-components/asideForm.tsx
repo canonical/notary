@@ -1,5 +1,6 @@
 import {
 	Button,
+	Col,
 	Form,
 	Input,
 	Notification,
@@ -77,68 +78,81 @@ export default function ClusterPageAsidePanel({ setAsideOpen }: AsideProps) {
 				</Button>
 			}
 		>
-			{token ? (
-				<>
-					<p>
-						Start the new node with an empty <code>db_path</code> and this
-						token. Until it is redeemed or expires, anyone who has it can
-						collect the cluster private key.
-					</p>
-					<Input
-						type="text"
-						id="join-token"
-						label="Join token"
-						readOnly
-						value={token.join_token}
-					/>
-					<p className="p-text--small">
-						<code>
-							notary start --config /etc/notary/config/config.yaml --join '
-							{token.join_token}'
-						</code>
-					</p>
-					<Button appearance="positive" onClick={() => void handleCopy()}>
-						Copy token
-					</Button>
-				</>
-			) : (
-				<Form
-					onSubmit={(e) => {
-						e.preventDefault();
-						if (!memberNamePattern.test(serverName)) {
-							setErrorText(
-								"Use a hostname-like name: letters, digits, dots, or hyphens.",
-							);
-							return;
-						}
-						mutation.mutate({ server_name: serverName });
-					}}
-				>
-					{errorText !== "" && (
-						<Notification severity="negative" title="Error">
-							{errorText}
-						</Notification>
-					)}
-					<Input
-						id="server-name"
-						type="text"
-						label="Member name"
-						help="Same name as cluster.name on the joiner."
-						value={serverName}
-						onChange={(e: ChangeEvent<HTMLInputElement>) =>
-							setServerName(e.target.value)
-						}
-						required
-					/>
-					<Button
-						appearance="positive"
-						type="submit"
-						disabled={mutation.isPending || serverName === ""}
+			<div className="notary-aside-body">
+				{token ? (
+					<Form stacked>
+						<div className="p-form__group row">
+							<Col size={12}>
+								<p>
+									Start the new node with an empty <code>db_path</code> and this
+									token. Until redeemed or expired, anyone with the token can
+									access the cluster private key.
+								</p>
+								<Input
+									type="text"
+									id="join-token"
+									label="Join token"
+									readOnly
+									stacked
+									value={token.join_token}
+								/>
+								<p className="p-text--small">
+									<code>
+										notary start --config /etc/notary/config/config.yaml --join
+										'{token.join_token}'
+									</code>
+								</p>
+								<Button appearance="positive" onClick={() => void handleCopy()}>
+									Copy token
+								</Button>
+							</Col>
+						</div>
+					</Form>
+				) : (
+					<Form
+						stacked
+						onSubmit={(e) => {
+							e.preventDefault();
+							if (!memberNamePattern.test(serverName)) {
+								setErrorText(
+									"Use a hostname-like name: letters, digits, dots, or hyphens.",
+								);
+								return;
+							}
+							mutation.mutate({ server_name: serverName });
+						}}
 					>
-						Create join token
-					</Button>
-				</Form>
-			)}
+						<div className="p-form__group row">
+							<Col size={12}>
+								{errorText !== "" && (
+									<Notification severity="negative" title="Error">
+										{errorText}
+									</Notification>
+								)}
+								<Input
+									id="server-name"
+									type="text"
+									label="Member name"
+									help="Same name as cluster.name on the joiner."
+									value={serverName}
+									onChange={(e: ChangeEvent<HTMLInputElement>) =>
+										setServerName(e.target.value)
+									}
+									stacked
+									required
+								/>
+								<Button
+									appearance="positive"
+									type="submit"
+									disabled={mutation.isPending || serverName === ""}
+								>
+									Create join token
+								</Button>
+							</Col>
+						</div>
+					</Form>
+				)}
+			</div>
 		</Panel>
 	);
 }

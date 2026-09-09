@@ -41,9 +41,11 @@ type AppConfig struct {
 	ClusterJoinToken string
 
 	// ClusterTLSCertificate and ClusterTLSPrivateKey are the shared dqlite
-	// cluster certificate (PEM). Required when ClusterJoin is set.
+	// cluster certificate (PEM), or this unit's leaf in CA mode.
 	ClusterTLSCertificate []byte
 	ClusterTLSPrivateKey  []byte
+	ClusterTLSCA          []byte
+	ClusterTLSPeerSAN     string
 
 	// Send pebble notifications if enabled. Read more at github.com/canonical/pebble
 	ShouldEnablePebbleNotifications bool

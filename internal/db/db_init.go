@@ -60,6 +60,7 @@ func NewDatabase(dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
 		Name:      dbOpts.Name,
 		Join:      dbOpts.Join,
 		JoinToken: dbOpts.JoinToken,
+		TLS:       dbOpts.clusterTLS(),
 		TLSCert:   dbOpts.TLSCert,
 		TLSKey:    dbOpts.TLSKey,
 	})
@@ -93,12 +94,17 @@ func NewDatabase(dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
 	repo.Conn = sqlair.NewDB(sqlConnection)
 	repo.Path = dbOpts.DatabasePath
 	repo.Node = node
+	repo.ClusterTLS = node.TLS
 	repo.TLSCert = dbOpts.TLSCert
 	repo.TLSKey = dbOpts.TLSKey
 	repo.HTTPSCert = dbOpts.HTTPSCert
 	repo.APIAddress = dbOpts.APIAddress
-	if cert, key, err := cluster.LoadClusterTLS(dbOpts.DatabasePath); err == nil {
-		repo.TLSCert, repo.TLSKey = cert, key
+	if _, isCA := node.TLS.(cluster.CAPeer); !isCA {
+		if s, ok := node.TLS.(cluster.SharedPair); ok {
+			repo.TLSCert, repo.TLSKey = s.Cert, s.Key
+		} else if cert, key, err := cluster.LoadClusterTLS(dbOpts.DatabasePath); err == nil {
+			repo.TLSCert, repo.TLSKey = cert, key
+		}
 	}
 
 	name := dbOpts.Name
@@ -113,14 +119,26 @@ func NewDatabase(dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
 		}
 		name = token.ServerName
 	}
-	if err := cluster.RegisterMember(ctx, sqlConnection, name, node.Address()); err != nil {
+	if err := cluster.RegisterMember(ctx, sqlConnection, name, node.Address(), dbOpts.APIAddress); err != nil {
 		if dbOpts.JoinToken != "" || len(dbOpts.Join) > 0 {
 			_ = cluster.RemoveMemberOnNode(ctx, node, sqlConnection, node.Address())
 		}
 		_ = repo.Close()
 		return nil, err
 	}
+	// Recovery rewrites raft membership without touching cluster_members, so drop
+	// names that raft no longer knows or they block rejoining under the same name.
+	if err := cluster.PruneMembers(ctx, node, sqlConnection); err != nil && dbOpts.Logger != nil {
+		dbOpts.Logger.Sugar().Warnf("could not reconcile cluster member names: %s", err)
+	}
 	return repo, nil
+}
+
+func (o *DatabaseOpts) clusterTLS() cluster.TransportTLS {
+	if o == nil {
+		return nil
+	}
+	return o.ClusterTLS
 }
 
 // ListClusterMembers returns dqlite membership from the running node.
@@ -136,7 +154,11 @@ func (db *DatabaseRepository) IssueJoinToken(ctx context.Context, name string) (
 	if db == nil || db.Node == nil {
 		return "", fmt.Errorf("database is not open")
 	}
-	return cluster.IssueJoinTokenOnNode(ctx, db.Node, db.Conn.PlainDB(), name, db.TLSCert, db.TLSKey, db.HTTPSCert, []string{db.APIAddress})
+	cert, key := db.TLSCert, db.TLSKey
+	if db.ClusterTLS != nil {
+		cert, key = cluster.PresentCertKey(db.ClusterTLS)
+	}
+	return cluster.IssueJoinTokenOnNode(ctx, db.Node, db.Conn.PlainDB(), name, cert, key, db.HTTPSCert, []string{db.APIAddress})
 }
 
 // RemoveClusterMember evicts a named member.
@@ -175,16 +197,25 @@ func CreateEntity[T any](db *DatabaseRepository, stmt *sqlair.Statement, new_ent
 	var outcome sqlair.Outcome
 	err := db.Conn.Query(context.Background(), stmt, new_entity).Get(&outcome)
 	if err != nil {
-		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
-			return 0, fmt.Errorf("failed to create %s: %w", getTypeName[T](), ErrAlreadyExists)
+		if isUniqueConstraint(err) {
+			return 0, fmt.Errorf("failed to create %s: %w: %w", getTypeName[T](), ErrAlreadyExists, err)
 		}
-		return 0, fmt.Errorf("failed to create %s: %w", getTypeName[T](), ErrInternal)
+		return 0, fmt.Errorf("failed to create %s: %w: %w", getTypeName[T](), ErrInternal, err)
 	}
 	insertedRowID, err := outcome.Result().LastInsertId()
 	if err != nil {
-		return 0, fmt.Errorf("failed to create %s: %w", getTypeName[T](), ErrInternal)
+		return 0, fmt.Errorf("failed to create %s: %w: %w", getTypeName[T](), ErrInternal, err)
 	}
 	return insertedRowID, nil
+}
+
+func isUniqueConstraint(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "UNIQUE constraint failed") ||
+		strings.Contains(msg, "UNIQUE constraint")
 }
 
 func UpdateEntity[T any](db *DatabaseRepository, stmt *sqlair.Statement, updated_entity T) error {

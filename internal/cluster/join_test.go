@@ -55,6 +55,39 @@ func TestExchangeJoinTokenPinsFingerprint(t *testing.T) {
 	}
 }
 
+func TestExchangeJoinTokenCAOmitsKey(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/v1/cluster/join", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": map[string]any{
+				"server_name": "node2",
+				"addresses":   []string{"127.0.0.1:9000"},
+			},
+		})
+	})
+	ts := httptest.NewTLSServer(mux)
+	t.Cleanup(ts.Close)
+
+	sum := sha256.Sum256(ts.Certificate().Raw)
+	fp := hex.EncodeToString(sum[:])
+	addr := strings.TrimPrefix(ts.URL, "https://")
+	raw, err := encodeTestToken("node2", fp, addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	material, err := cluster.ExchangeJoinTokenHTTPS(context.Background(), raw)
+	if err != nil {
+		t.Fatalf("exchange: %v", err)
+	}
+	if len(material.TLSKey) != 0 || len(material.TLSCert) != 0 {
+		t.Fatalf("CA redeem must not include a private key: %+v", material)
+	}
+	if material.ServerName != "node2" || len(material.Join) != 1 {
+		t.Fatalf("%+v", material)
+	}
+}
+
 func TestJoinAPIAddressRejectsUnspecified(t *testing.T) {
 	if _, err := cluster.JoinAPIAddress("0.0.0.0:9000", 8000, ""); err == nil {
 		t.Fatal("expected error for 0.0.0.0")

@@ -19,6 +19,11 @@ import (
 	"github.com/canonical/go-dqlite/v3/app"
 )
 
+// DefaultPeerSAN is the group DNS SAN on auto-generated shared cluster
+// certificates. CA mode requires this value (or another marker) explicitly as
+// cluster.tls.peer_san; it is not a default in that mode.
+const DefaultPeerSAN = "notary-cluster"
+
 const (
 	clusterCertFile = "cluster.crt"
 	clusterKeyFile  = "cluster.key"
@@ -107,7 +112,7 @@ func generateClusterTLS() (certPEM, keyPEM []byte, err error) {
 		NotAfter:     time.Now().Add(10 * 365 * 24 * time.Hour),
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
-		DNSNames:     []string{"localhost", "notary-cluster"},
+		DNSNames:     []string{"localhost", DefaultPeerSAN},
 		IPAddresses:  []net.IP{net.ParseIP("127.0.0.1")},
 	}
 	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
@@ -117,12 +122,4 @@ func generateClusterTLS() (certPEM, keyPEM []byte, err error) {
 	certPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
 	keyPEM = pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
 	return certPEM, keyPEM, nil
-}
-
-func withClusterTLS(certPEM, keyPEM []byte) (app.Option, error) {
-	listen, dial, err := clusterTLSConfigs(certPEM, keyPEM)
-	if err != nil {
-		return nil, err
-	}
-	return app.WithTLS(listen, dial), nil
 }

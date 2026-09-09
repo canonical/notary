@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -44,7 +45,11 @@ func AddClusterMember(env *HandlerDependencies) http.HandlerFunc {
 			writeResponse(w, http.StatusBadRequest, err.Error(), nil, env.SystemLogger)
 			return
 		}
-		token, err := cluster.IssueJoinTokenOnNode(ctx, env.Database.Node, env.Database.Conn.PlainDB(), name, env.Database.TLSCert, env.Database.TLSKey, env.TLSCertificate, []string{apiAddr})
+		cert, key := env.Database.TLSCert, env.Database.TLSKey
+		if env.Database.ClusterTLS != nil {
+			cert, key = cluster.PresentCertKey(env.Database.ClusterTLS)
+		}
+		token, err := cluster.IssueJoinTokenOnNode(ctx, env.Database.Node, env.Database.Conn.PlainDB(), name, cert, key, env.TLSCertificate, []string{apiAddr})
 		if err != nil {
 			switch {
 			case errors.Is(err, cluster.ErrMemberExists), errors.Is(err, cluster.ErrInvalidMemberName), errors.Is(err, cluster.ErrUnreachableJoinAddress):
@@ -92,10 +97,6 @@ type joinClusterParams struct {
 	JoinToken string `json:"join_token"`
 }
 
-// tokenSpentMessage tells the joiner the one-time token is already gone, so
-// retrying with it cannot work.
-const tokenSpentMessage = "join token was consumed but the join could not be completed; request a new token"
-
 func JoinCluster(env *HandlerDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var params joinClusterParams
@@ -105,12 +106,20 @@ func JoinCluster(env *HandlerDependencies) http.HandlerFunc {
 		}
 		token, err := cluster.DecodeJoinToken(params.JoinToken)
 		if err != nil {
-			writeResponse(w, http.StatusBadRequest, err.Error(), nil, env.SystemLogger)
+			writeResponse(w, http.StatusBadRequest, cluster.JoinTokenRejectedMessage, nil, env.SystemLogger)
 			return
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 		defer cancel()
-		material, err := cluster.RedeemJoinToken(ctx, env.Database.Conn.PlainDB(), token, env.Database.TLSCert, env.Database.TLSKey)
+		cert, key := env.Database.TLSCert, env.Database.TLSKey
+		if env.Database.ClusterTLS != nil {
+			if c, k, ok := cluster.RedeemPair(env.Database.ClusterTLS); ok {
+				cert, key = c, k
+			} else {
+				cert, key = nil, nil
+			}
+		}
+		material, err := cluster.RedeemJoinToken(ctx, env.Database.Conn.PlainDB(), token, cert, key)
 		if err != nil {
 			switch {
 			case cluster.JoinTokenRejected(err):
@@ -123,8 +132,8 @@ func JoinCluster(env *HandlerDependencies) http.HandlerFunc {
 		}
 		members, err := env.Database.ListClusterMembers(ctx)
 		if err != nil {
-			env.SystemLogger.Error("failed to list cluster members for join", zap.Error(err))
-			writeResponse(w, http.StatusInternalServerError, tokenSpentMessage, nil, env.SystemLogger)
+			restoreJoinAfterRedeem(env, ctx, token, err)
+			writeResponse(w, http.StatusServiceUnavailable, "cluster membership could not be listed; retry with the same token", nil, env.SystemLogger)
 			return
 		}
 		addresses := make([]string, 0, len(members))
@@ -134,20 +143,30 @@ func JoinCluster(env *HandlerDependencies) http.HandlerFunc {
 			}
 		}
 		if len(addresses) == 0 {
-			env.SystemLogger.Error("cluster has no member addresses after redeeming join token")
-			writeResponse(w, http.StatusInternalServerError, tokenSpentMessage, nil, env.SystemLogger)
+			restoreJoinAfterRedeem(env, ctx, token, fmt.Errorf("cluster has no member addresses"))
+			writeResponse(w, http.StatusServiceUnavailable, "cluster membership could not be listed; retry with the same token", nil, env.SystemLogger)
 			return
 		}
 		env.SystemLogger.Info("redeemed cluster join token", zap.String("server_name", material.ServerName))
 		// Written directly rather than via writeResponse, which logs the response
-		// body: this one carries the cluster private key.
+		// body: shared-pair redeem includes the cluster private key.
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(APIResponse{Data: map[string]any{
-			"server_name":         material.ServerName,
-			"cluster_certificate": string(material.TLSCert),
-			"cluster_private_key": string(material.TLSKey),
-			"addresses":           addresses,
-		}})
+		data := map[string]any{
+			"server_name": material.ServerName,
+			"addresses":   addresses,
+		}
+		if len(material.TLSCert) > 0 && len(material.TLSKey) > 0 {
+			data["cluster_certificate"] = string(material.TLSCert)
+			data["cluster_private_key"] = string(material.TLSKey)
+		}
+		_ = json.NewEncoder(w).Encode(APIResponse{Data: data})
+	}
+}
+
+func restoreJoinAfterRedeem(env *HandlerDependencies, ctx context.Context, token cluster.JoinToken, listErr error) {
+	env.SystemLogger.Error("failed to list cluster members after redeeming join token", zap.Error(listErr))
+	if restoreErr := cluster.RestoreJoinToken(ctx, env.Database.Conn.PlainDB(), token); restoreErr != nil {
+		env.SystemLogger.Error("failed to restore join token after list failure", zap.Error(restoreErr))
 	}
 }

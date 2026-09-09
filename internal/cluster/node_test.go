@@ -8,6 +8,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"math/big"
 	"net"
 	"strings"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/canonical/notary/internal/cluster"
 	"github.com/canonical/notary/internal/db"
+	tu "github.com/canonical/notary/internal/testutils"
 	"go.uber.org/zap"
 )
 
@@ -192,6 +194,248 @@ func TestTwoNodesShareData(t *testing.T) {
 	}
 	if n2 != "ok" {
 		t.Fatalf("got %q", n2)
+	}
+}
+
+func TestIsLeaderSingleNode(t *testing.T) {
+	addr, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	node, err := cluster.Start(cluster.Options{Dir: t.TempDir(), Address: addr})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer node.Close() //nolint:errcheck
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	ok, leaderAddr, err := node.IsLeader(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("expected single node to be leader")
+	}
+	if leaderAddr != addr {
+		t.Fatalf("leader address %q, want %q", leaderAddr, addr)
+	}
+}
+
+func TestIsLeaderJoinerIsNotLeader(t *testing.T) {
+	httpsCert, _ := mustClusterCert(t)
+	addr1, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr2, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	db1, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addr1,
+		Name:         "node1",
+		HTTPSCert:    httpsCert,
+		APIAddress:   "127.0.0.1:8443",
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("start node1: %v", err)
+	}
+	defer db1.Close() //nolint:errcheck
+	stubJoinExchange(t, db1, addr1)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	token, err := db1.IssueJoinToken(ctx, "node2")
+	if err != nil {
+		t.Fatalf("add token: %v", err)
+	}
+	db2, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addr2,
+		Name:         "node2",
+		JoinToken:    token,
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("join node2: %v", err)
+	}
+	defer db2.Close() //nolint:errcheck
+
+	ok1, leader1, err := db1.Node.IsLeader(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ok2, leader2, err := db2.Node.IsLeader(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok1 {
+		t.Fatal("expected bootstrap node to be leader")
+	}
+	if ok2 {
+		t.Fatal("expected joiner not to be leader")
+	}
+	if leader1 != addr1 || leader2 != addr1 {
+		t.Fatalf("leader addresses bootstrap=%q joiner=%q want %q", leader1, leader2, addr1)
+	}
+}
+
+func TestMemberAPIAddressAndLeaderLookup(t *testing.T) {
+	httpsCert, _ := mustClusterCert(t)
+	addr1, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr2, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	db1, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addr1,
+		Name:         "node1",
+		HTTPSCert:    httpsCert,
+		APIAddress:   "127.0.0.1:8443",
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("start node1: %v", err)
+	}
+	defer db1.Close() //nolint:errcheck
+	stubJoinExchange(t, db1, addr1)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	token, err := db1.IssueJoinToken(ctx, "node2")
+	if err != nil {
+		t.Fatalf("add token: %v", err)
+	}
+	db2, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addr2,
+		Name:         "node2",
+		JoinToken:    token,
+		APIAddress:   "127.0.0.1:8444",
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("join node2: %v", err)
+	}
+	defer db2.Close() //nolint:errcheck
+
+	members, err := db2.ListClusterMembers(ctx)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	byName := map[string]cluster.Member{}
+	for _, m := range members {
+		byName[m.Name] = m
+	}
+	if byName["node1"].APIAddress != "127.0.0.1:8443" {
+		t.Fatalf("node1 api_address %q", byName["node1"].APIAddress)
+	}
+	if byName["node2"].APIAddress != "127.0.0.1:8444" {
+		t.Fatalf("node2 api_address %q", byName["node2"].APIAddress)
+	}
+	if got := cluster.APIAddressFor(ctx, db2.Conn.PlainDB(), addr1); got != "127.0.0.1:8443" {
+		t.Fatalf("leader API address %q", got)
+	}
+	if got := cluster.APIAddressFor(ctx, db2.Conn.PlainDB(), "127.0.0.1:1"); got != "127.0.0.1:1" {
+		t.Fatalf("missing member should fall back, got %q", got)
+	}
+}
+
+func TestThreeNodeVoterPromotionAndFailover(t *testing.T) {
+	httpsCert, _ := mustClusterCert(t)
+	addr1, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr2, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr3, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	db1, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addr1,
+		Name:         "node1",
+		HTTPSCert:    httpsCert,
+		APIAddress:   "127.0.0.1:8443",
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("start node1: %v", err)
+	}
+	defer db1.Close() //nolint:errcheck
+	stubJoinExchange(t, db1, addr1)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	token2, err := db1.IssueJoinToken(ctx, "node2")
+	if err != nil {
+		t.Fatalf("token node2: %v", err)
+	}
+	db2, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addr2,
+		Name:         "node2",
+		JoinToken:    token2,
+		APIAddress:   "127.0.0.1:8444",
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("join node2: %v", err)
+	}
+	defer db2.Close() //nolint:errcheck
+
+	token3, err := db1.IssueJoinToken(ctx, "node3")
+	if err != nil {
+		t.Fatalf("token node3: %v", err)
+	}
+	db3, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addr3,
+		Name:         "node3",
+		JoinToken:    token3,
+		APIAddress:   "127.0.0.1:8445",
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("join node3: %v", err)
+	}
+	defer db3.Close() //nolint:errcheck
+
+	waitForVoters(t, ctx, db1, 3)
+
+	if err := db2.Close(); err != nil {
+		t.Fatalf("close node2: %v", err)
+	}
+	var writeErr error
+	for {
+		_, writeErr = db1.IssueJoinToken(ctx, "node4")
+		if writeErr == nil {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("write after losing one voter: %v", writeErr)
+		case <-time.After(200 * time.Millisecond):
+		}
+	}
+	members, err := db3.ListClusterMembers(ctx)
+	if err != nil {
+		t.Fatalf("list from remaining member: %v", err)
+	}
+	if len(members) != 3 {
+		t.Fatalf("got %d members, want 3 (dead member still in raft)", len(members))
 	}
 }
 
@@ -641,4 +885,311 @@ func mustClusterCert(t *testing.T) (certPEM, keyPEM []byte) {
 	certPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
 	keyPEM = pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
 	return certPEM, keyPEM
+}
+
+func TestRestoreJoinTokenAfterListWouldFail(t *testing.T) {
+	httpsCert, _ := mustClusterCert(t)
+	addr1, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	db1, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addr1,
+		Name:         "node1",
+		HTTPSCert:    httpsCert,
+		APIAddress:   "127.0.0.1:8443",
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db1.Close() //nolint:errcheck
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	raw, err := db1.IssueJoinToken(ctx, "node2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tok, err := cluster.DecodeJoinToken(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cluster.RedeemJoinToken(ctx, db1.Conn.PlainDB(), tok, db1.TLSCert, db1.TLSKey); err != nil {
+		t.Fatalf("redeem: %v", err)
+	}
+	if err := cluster.RestoreJoinToken(ctx, db1.Conn.PlainDB(), tok); err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	if _, err := cluster.RedeemJoinToken(ctx, db1.Conn.PlainDB(), tok, db1.TLSCert, db1.TLSKey); err != nil {
+		t.Fatalf("redeem after restore: %v", err)
+	}
+}
+
+func TestSpentJoinTokenAfterFailedDqliteJoin(t *testing.T) {
+	httpsCert, _ := mustClusterCert(t)
+	addr1, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	db1, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addr1,
+		Name:         "node1",
+		HTTPSCert:    httpsCert,
+		APIAddress:   "127.0.0.1:8443",
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db1.Close() //nolint:errcheck
+	stubJoinExchange(t, db1, "127.0.0.1:1")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	token, err := db1.IssueJoinToken(ctx, "node2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr2, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addr2,
+		Name:         "node2",
+		JoinToken:    token,
+		Logger:       zap.NewNop(),
+	})
+	if err == nil {
+		t.Fatal("expected dqlite join to fail")
+	}
+	if !strings.Contains(err.Error(), cluster.JoinIncompleteMessage) {
+		t.Fatalf("expected spent-token message, got %v", err)
+	}
+	_, err = db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addr2,
+		Name:         "node2",
+		JoinToken:    token,
+		Logger:       zap.NewNop(),
+	})
+	if err == nil {
+		t.Fatal("expected second join with spent token to fail")
+	}
+}
+
+func TestLeaderLossMidWrite(t *testing.T) {
+	httpsCert, _ := mustClusterCert(t)
+	nodes := startThreeNodeCluster(t, httpsCert)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+	waitForVoters(t, ctx, nodes[0], 3)
+
+	leader := waitForCurrentLeader(t, ctx, nodes)
+	survivor := nodes[0]
+	if survivor == leader {
+		survivor = nodes[1]
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				errCh <- fmt.Errorf("in-flight write panicked: %v", r)
+			}
+		}()
+		_, err := leader.CreateCertificateRequest(tu.AppleCSR, 0)
+		errCh <- err
+	}()
+	if err := leader.Close(); err != nil {
+		t.Logf("close leader: %v", err)
+	}
+	select {
+	case err := <-errCh:
+		if err == nil {
+			t.Log("in-flight write completed on the departing leader")
+		}
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for in-flight write")
+	}
+
+	var writeErr error
+	for {
+		_, writeErr = survivor.CreateCertificateRequest(tu.BananaCSR, 0)
+		if writeErr == nil {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("write after leader loss: %v", writeErr)
+		case <-time.After(200 * time.Millisecond):
+		}
+	}
+	csrs, err := survivor.ListCertificateRequests()
+	if err != nil {
+		t.Fatalf("list after failover: %v", err)
+	}
+	if len(csrs) == 0 {
+		t.Fatal("expected at least the post-failover CSR")
+	}
+}
+
+func TestACME409NamesNewLeaderAfterFailover(t *testing.T) {
+	httpsCert, _ := mustClusterCert(t)
+	nodes := startThreeNodeCluster(t, httpsCert)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+	waitForVoters(t, ctx, nodes[0], 3)
+
+	oldLeader := waitForCurrentLeader(t, ctx, nodes)
+	if err := oldLeader.Close(); err != nil {
+		t.Logf("close old leader: %v", err)
+	}
+	var remaining []*db.DatabaseRepository
+	for _, n := range nodes {
+		if n != oldLeader {
+			remaining = append(remaining, n)
+		}
+	}
+	newLeader := waitForCurrentLeader(t, ctx, remaining)
+	var follower *db.DatabaseRepository
+	for _, n := range remaining {
+		if n != newLeader {
+			follower = n
+			break
+		}
+	}
+	if follower == nil {
+		t.Fatal("expected a remaining follower")
+	}
+	ok, leaderAddr, err := follower.Node.IsLeader(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok {
+		t.Fatal("follower should not be leader")
+	}
+	retryAddr, fallback := cluster.LookupAPIAddress(ctx, follower.Conn.PlainDB(), leaderAddr)
+	if fallback != "" {
+		t.Fatalf("expected stored API address, fallback %q", fallback)
+	}
+	if retryAddr != newLeader.APIAddress {
+		t.Fatalf("409 would name %q, want new leader %q", retryAddr, newLeader.APIAddress)
+	}
+	if retryAddr == oldLeader.APIAddress {
+		t.Fatal("409 still names the old leader")
+	}
+}
+
+func waitForVoters(t *testing.T, ctx context.Context, database *db.DatabaseRepository, want int) {
+	t.Helper()
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		members, err := database.ListClusterMembers(ctx)
+		if err == nil {
+			voters := 0
+			for _, m := range members {
+				if m.Role == "voter" {
+					voters++
+				}
+			}
+			if voters >= want {
+				return
+			}
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("timed out waiting for %d voters: %v", want, err)
+		case <-ticker.C:
+		}
+	}
+}
+
+func startThreeNodeCluster(t *testing.T, httpsCert []byte) []*db.DatabaseRepository {
+	t.Helper()
+	addrs := make([]string, 3)
+	for i := range addrs {
+		addr, err := cluster.FreeAddress()
+		if err != nil {
+			t.Fatal(err)
+		}
+		addrs[i] = addr
+	}
+	db1, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addrs[0],
+		Name:         "node1",
+		HTTPSCert:    httpsCert,
+		APIAddress:   "127.0.0.1:8443",
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("start node1: %v", err)
+	}
+	t.Cleanup(func() { _ = db1.Close() })
+	stubJoinExchange(t, db1, addrs[0])
+
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	token2, err := db1.IssueJoinToken(ctx, "node2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db2, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addrs[1],
+		Name:         "node2",
+		JoinToken:    token2,
+		APIAddress:   "127.0.0.1:8444",
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("join node2: %v", err)
+	}
+	t.Cleanup(func() { _ = db2.Close() })
+
+	token3, err := db1.IssueJoinToken(ctx, "node3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db3, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addrs[2],
+		Name:         "node3",
+		JoinToken:    token3,
+		APIAddress:   "127.0.0.1:8445",
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("join node3: %v", err)
+	}
+	t.Cleanup(func() { _ = db3.Close() })
+	return []*db.DatabaseRepository{db1, db2, db3}
+}
+
+func waitForCurrentLeader(t *testing.T, ctx context.Context, nodes []*db.DatabaseRepository) *db.DatabaseRepository {
+	t.Helper()
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		for _, n := range nodes {
+			if n == nil || n.Node == nil {
+				continue
+			}
+			ok, _, err := n.Node.IsLeader(ctx)
+			if err == nil && ok {
+				return n
+			}
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatal("timed out waiting for a leader")
+		case <-ticker.C:
+		}
+	}
 }

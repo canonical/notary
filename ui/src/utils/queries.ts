@@ -5,6 +5,8 @@ import {
 	type APIErrorResponse,
 	type APIResponse,
 	type CertificateAuthorityEntry,
+	type ClusterJoinToken,
+	type ClusterMemberEntry,
 	type ConfigEntry,
 	type CSREntry,
 	type UserEntry,
@@ -394,4 +396,30 @@ export async function setActiveACMEServer(params: {
 		`/api/v1/acme_servers/${params.id}/active`,
 		{ method: "put" },
 	)) as ACMEServerEntry;
+}
+
+export async function getClusterMembers(): Promise<ClusterMemberEntry[]> {
+	return (
+		((await fetchAPI<ClusterMemberEntry[]>(
+			"/api/v1/cluster",
+		)) as ClusterMemberEntry[]) ?? []
+	);
+}
+
+export async function addClusterMember(params: {
+	server_name: string;
+}): Promise<ClusterJoinToken> {
+	return (await fetchAPI<ClusterJoinToken>("/api/v1/cluster/members", {
+		method: "post",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ server_name: params.server_name }),
+	})) as ClusterJoinToken;
+}
+
+export async function removeClusterMember(params: {
+	name: string;
+}): Promise<void> {
+	await fetchAPI(`/api/v1/cluster/members/${encodeURIComponent(params.name)}`, {
+		method: "delete",
+	});
 }

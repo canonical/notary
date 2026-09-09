@@ -13,6 +13,10 @@ var (
 	ErrUnreachableJoinAddress = errors.New("set external_hostname to a reachable HTTPS address for joiners")
 )
 
+// JoinIncompleteMessage is returned after a token was redeemed but dqlite join
+// failed. The secret is spent; the operator must cluster add again.
+const JoinIncompleteMessage = "join token was consumed but the join could not be completed; request a new token"
+
 // JoinTokenRejectedMessage is the HTTP body for every failed redeem. Missing,
 // expired, and wrong secrets must not be distinguishable on the unauthenticated
 // join endpoint.

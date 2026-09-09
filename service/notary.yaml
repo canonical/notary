@@ -1,3 +1,4 @@
+# notary-config-source: snap
 key_path:  "/var/snap/notary/common/key.pem"
 cert_path: "/var/snap/notary/common/cert.pem"
 db_path: "/var/snap/notary/common/database"

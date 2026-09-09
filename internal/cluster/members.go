@@ -18,11 +18,12 @@ var memberNameRe = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9.-]{0,62})$`)
 
 // Member is one dqlite node in the cluster.
 type Member struct {
-	Name    string `json:"name"`
-	ID      uint64 `json:"id"`
-	Address string `json:"address"`
-	Role    string `json:"role"`
-	Leader  bool   `json:"leader"`
+	Name       string `json:"name"`
+	ID         uint64 `json:"id"`
+	Address    string `json:"address"`
+	APIAddress string `json:"api_address,omitempty"`
+	Role       string `json:"role"`
+	Leader     bool   `json:"leader"`
 }
 
 // DefaultMemberName is cluster.name when unset (machine hostname).
@@ -78,7 +79,12 @@ func (n *Node) MembersWithNames(ctx context.Context, sqldb *sql.DB) ([]Member, e
 // must be running. dir is db_path; certPEM/keyPEM are the shared cluster TLS
 // files (empty for a plaintext single-node).
 func QueryMembers(ctx context.Context, dir string, certPEM, keyPEM []byte) ([]Member, error) {
-	cli, err := connectLeader(ctx, dir, certPEM, keyPEM)
+	return QueryMembersTLS(ctx, dir, tlsFromCertKey(certPEM, keyPEM))
+}
+
+// QueryMembersTLS lists membership using shared or CA cluster TLS.
+func QueryMembersTLS(ctx context.Context, dir string, t TransportTLS) ([]Member, error) {
+	cli, err := connectLeader(ctx, dir, t)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +93,7 @@ func QueryMembers(ctx context.Context, dir string, certPEM, keyPEM []byte) ([]Me
 	if err != nil {
 		return nil, err
 	}
-	sqldb, err := OpenClientDB(ctx, dir, certPEM, keyPEM)
+	sqldb, err := OpenClientDBTLS(ctx, dir, t)
 	if err != nil {
 		return nil, err
 	}
@@ -97,12 +103,17 @@ func QueryMembers(ctx context.Context, dir string, certPEM, keyPEM []byte) ([]Me
 
 // IssueJoinToken creates an LXD-style join token for a not-yet-joined member.
 func IssueJoinToken(ctx context.Context, dir string, certPEM, keyPEM []byte, name string, apiCert []byte, apiAddresses []string) (string, error) {
-	sqldb, err := OpenClientDB(ctx, dir, certPEM, keyPEM)
+	return IssueJoinTokenTLS(ctx, dir, tlsFromCertKey(certPEM, keyPEM), name, apiCert, apiAddresses)
+}
+
+// IssueJoinTokenTLS creates a join token using shared or CA cluster TLS.
+func IssueJoinTokenTLS(ctx context.Context, dir string, t TransportTLS, name string, apiCert []byte, apiAddresses []string) (string, error) {
+	sqldb, err := OpenClientDBTLS(ctx, dir, t)
 	if err != nil {
 		return "", err
 	}
 	defer sqldb.Close() //nolint:errcheck
-	cli, err := connectLeader(ctx, dir, certPEM, keyPEM)
+	cli, err := connectLeader(ctx, dir, t)
 	if err != nil {
 		return "", err
 	}
@@ -115,7 +126,8 @@ func IssueJoinToken(ctx context.Context, dir string, certPEM, keyPEM []byte, nam
 	if err != nil {
 		return "", err
 	}
-	return issueJoinToken(ctx, sqldb, members, name, certPEM, keyPEM, apiCert, apiAddresses)
+	cert, key := presentCertKey(t)
+	return issueJoinToken(ctx, sqldb, members, name, cert, key, apiCert, apiAddresses)
 }
 
 // IssueJoinTokenOnNode issues a token using a running node and its SQL connection.
@@ -173,23 +185,29 @@ func issueJoinToken(ctx context.Context, sqldb *sql.DB, members []Member, name s
 	if err := putJoinToken(ctx, sqldb, name, secret, expires); err != nil {
 		return "", err
 	}
-	return encodeJoinToken(JoinToken{
+	tok := JoinToken{
 		ServerName:  name,
 		Fingerprint: fingerprint,
 		Addresses:   addresses,
 		Secret:      secret,
 		ExpiresAt:   expires,
-	})
+	}
+	return encodeJoinToken(tok)
 }
 
 // RemoveMember evicts a named member from raft and from cluster_members.
 func RemoveMember(ctx context.Context, dir string, certPEM, keyPEM []byte, name string) error {
-	cli, err := connectLeader(ctx, dir, certPEM, keyPEM)
+	return RemoveMemberTLS(ctx, dir, tlsFromCertKey(certPEM, keyPEM), name)
+}
+
+// RemoveMemberTLS evicts a member using shared or CA cluster TLS.
+func RemoveMemberTLS(ctx context.Context, dir string, t TransportTLS, name string) error {
+	cli, err := connectLeader(ctx, dir, t)
 	if err != nil {
 		return err
 	}
 	defer cli.Close() //nolint:errcheck
-	sqldb, err := OpenClientDB(ctx, dir, certPEM, keyPEM)
+	sqldb, err := OpenClientDBTLS(ctx, dir, t)
 	if err != nil {
 		return err
 	}
@@ -295,7 +313,7 @@ func attachNames(ctx context.Context, sqldb *sql.DB, members []Member) ([]Member
 	if sqldb == nil {
 		return members, nil
 	}
-	names, err := namesByAddress(ctx, sqldb)
+	records, err := recordsByAddress(ctx, sqldb)
 	if err != nil {
 		if strings.Contains(err.Error(), "no such table: cluster_members") {
 			return members, nil
@@ -303,22 +321,44 @@ func attachNames(ctx context.Context, sqldb *sql.DB, members []Member) ([]Member
 		return nil, fmt.Errorf("load cluster member names: %w", err)
 	}
 	for i := range members {
-		if n, ok := names[members[i].Address]; ok {
-			members[i].Name = n
+		if rec, ok := records[members[i].Address]; ok {
+			members[i].Name = rec.name
+			members[i].APIAddress = rec.apiAddress
 		}
 	}
 	return members, nil
 }
 
-// RegisterMember records this node's name after start or join.
-func RegisterMember(ctx context.Context, sqldb *sql.DB, name, address string) error {
+// RegisterMember records this node's name and HTTPS API address after start or join.
+func RegisterMember(ctx context.Context, sqldb *sql.DB, name, address, apiAddress string) error {
 	if err := requireMemberName(name); err != nil {
 		return err
 	}
 	if address == "" {
 		return fmt.Errorf("cluster address is required")
 	}
-	return upsertMember(ctx, sqldb, name, address)
+	return upsertMember(ctx, sqldb, name, address, apiAddress)
+}
+
+// PruneMembers drops cluster_members rows for addresses raft no longer knows.
+// Raft only loses a member through an explicit remove or a recovery, so a row
+// without a matching raft entry is stale and would block reusing that name.
+func PruneMembers(ctx context.Context, n *Node, sqldb *sql.DB) error {
+	if n == nil || n.app == nil || sqldb == nil {
+		return nil
+	}
+	members, err := n.Members(ctx)
+	if err != nil {
+		return err
+	}
+	live := make(map[string]struct{}, len(members))
+	for _, m := range members {
+		live[m.Address] = struct{}{}
+	}
+	if len(live) == 0 {
+		return nil
+	}
+	return deleteMembersNotIn(ctx, sqldb, live)
 }
 
 // ConsumeJoinToken validates and deletes a one-time join token.

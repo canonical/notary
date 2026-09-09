@@ -31,7 +31,7 @@ func New(appCfg *config.AppConfig, appEnv *config.AppEnvironment) (*Server, erro
 	router := NewRouter(cfg)
 
 	if appEnv.AuthnRepository != nil {
-		cfg.StateStore = NewStateStore()
+		cfg.StateStore = NewDBStateStore(appEnv.Database, appEnv.SystemLogger)
 
 		go func() {
 			ticker := time.NewTicker(1 * time.Minute)

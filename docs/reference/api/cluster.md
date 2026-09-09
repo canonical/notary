@@ -1,6 +1,6 @@
 # Cluster
 
-Cluster operations follow the same shape as LXD: named members, a join token from `add`, and `remove`. Listing, adding, and removing members are admin only. Redeeming a join token (`POST /api/v1/cluster/join`) is how a new node collects cluster TLS; it does not use an admin session. The daemon must be running.
+Cluster operations follow the same shape as LXD: named members, a join token from `add`, and `remove`. Listing, adding, and removing members are admin only (CLI, HTTP API, or the **Cluster** page in the web UI). Redeeming a join token (`POST /api/v1/cluster/join`) is how a new node collects cluster TLS; it does not use an admin session. The daemon must be running.
 
 ## List members
 
@@ -18,6 +18,7 @@ Cluster operations follow the same shape as LXD: named members, a join token fro
             "name": "node1",
             "id": 1,
             "address": "10.0.0.1:9000",
+            "api_address": "10.0.0.1:8000",
             "role": "voter",
             "leader": true
         },
@@ -25,6 +26,7 @@ Cluster operations follow the same shape as LXD: named members, a join token fro
             "name": "node2",
             "id": 123456,
             "address": "10.0.0.2:9000",
+            "api_address": "10.0.0.2:8000",
             "role": "spare",
             "leader": false
         }
@@ -61,7 +63,7 @@ Creates a one-time join token for a new member, like `lxc cluster add`.
 }
 ```
 
-Start the new node with `notary start --config ... --join <token>`. The token is a one-time ticket. The joiner redeems it at `POST /api/v1/cluster/join` (no admin cookie) over HTTPS, pinning the server with the token fingerprint, and receives cluster TLS there.
+Start the new node with `notary start --config ... --join <token>`. The token is a one-time ticket. The joiner redeems it at `POST /api/v1/cluster/join` (no admin cookie) over HTTPS, pinning the server with the token fingerprint. Shared-pair clusters return cluster TLS there; CA-mode clusters return addresses only.
 
 ## Redeem a join token
 
@@ -69,7 +71,9 @@ Start the new node with `notary start --config ... --join <token>`. The token is
 | :----- | :---------------------- |
 | `POST` | `/api/v1/cluster/join`  |
 
-Unauthenticated. Body: `{"join_token": "<token>"}`. Consumes the token and returns `cluster_certificate`, `cluster_private_key`, and dqlite `addresses`. Used by `notary start --join`; you should not need to call this by hand. Until redeem or expiry, the token is a bearer credential for that response. Missing, expired, and incorrect tokens all return the same error.
+Unauthenticated. Body: `{"join_token": "<token>"}`. Consumes the token and returns dqlite `addresses` and `server_name`. In shared-pair mode the body also includes `cluster_certificate` and `cluster_private_key`. In CA mode those fields are omitted; the joiner must already have `cluster.tls.ca_path` and its own leaf. Used by `notary start --join`; you should not need to call this by hand. Until redeem or expiry, the token is a bearer credential for that response. Missing, expired, and incorrect tokens all return HTTP 400 with `join token is invalid`.
+
+If membership cannot be listed after consume (for example the leader moves), Notary restores the token and returns HTTP 503 so the same token can be retried. If redeem already returned credentials and dqlite join then fails, the token is spent; create a new one with `cluster add`.
 
 ## Remove a member
 

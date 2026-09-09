@@ -66,10 +66,12 @@ parts:
   notary-release-data:
     plugin: nil
     source: .
+    source-type: local
     override-build: |
       version="$(cat version/VERSION)"
       craftctl set version="$version"
 
   service-files:
     plugin: dump
-    source: service
+    source: ./service
+    source-type: local

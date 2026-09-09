@@ -101,6 +101,20 @@ export type AsideFormData = {
 	};
 };
 
+export type ClusterMemberEntry = {
+	name: string;
+	id: number;
+	address: string;
+	api_address?: string;
+	role: string;
+	leader: boolean;
+};
+
+export type ClusterJoinToken = {
+	server_name: string;
+	join_token: string;
+};
+
 export type ACMEServerEntry = {
 	id: number;
 	name: string;

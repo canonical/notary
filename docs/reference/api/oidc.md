@@ -23,6 +23,7 @@ Redirects to the OIDC provider's authorization endpoint.
 - If the user successfully authenticates with the OIDC provider, they will be redirected back to `/api/v1/oauth/callback`
 - New users are automatically provisioned with the `ReadOnly` role (role_id=3)
 - Email is optional - users can be provisioned using only their OIDC subject identifier
+- Login `state` is stored in dqlite. The OIDC callback can land on any cluster member. Sticky sessions at a load balancer are not required for login.
 
 ## OIDC Callback
 

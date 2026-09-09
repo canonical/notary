@@ -2,6 +2,7 @@ package db_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/canonical/notary/internal/db"
@@ -22,6 +23,9 @@ func TestEncryptionKeyEndToEnd(t *testing.T) {
 	err = database.CreateEncryptionKey([]byte("test"))
 	if !errors.Is(err, db.ErrAlreadyExists) {
 		t.Fatalf("Expected an already exists error, got %s", err)
+	}
+	if !strings.Contains(err.Error(), "UNIQUE") && !strings.Contains(err.Error(), "constraint") {
+		t.Fatalf("unique failure should keep the driver error, got %s", err)
 	}
 
 	err = database.DeleteEncryptionKey()

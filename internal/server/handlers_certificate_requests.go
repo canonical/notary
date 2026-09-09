@@ -13,6 +13,7 @@ import (
 
 	notaryacme "github.com/canonical/notary/internal/acme"
 	"github.com/canonical/notary/internal/backends/observability/log"
+	"github.com/canonical/notary/internal/cluster"
 	"github.com/canonical/notary/internal/db"
 	"go.uber.org/zap"
 )
@@ -594,6 +595,29 @@ func SignCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 				log.WithRequest(r),
 			)
 		case "acme":
+			// DNS-01 talks to the public CA; only the dqlite leader may start
+			// an order so followers do not race Let's Encrypt.
+			isLeader, leaderAddr, err := env.Database.Node.IsLeader(r.Context())
+			if err != nil {
+				env.SystemLogger.Error("failed to determine cluster leader for ACME sign", zap.Error(err))
+				writeResponse(w, http.StatusInternalServerError, "", nil, env.SystemLogger)
+				return
+			}
+			if !isLeader {
+				retryAddr := leaderAddr
+				if env.Database.Conn != nil {
+					var fallback string
+					retryAddr, fallback = cluster.LookupAPIAddress(r.Context(), env.Database.Conn.PlainDB(), leaderAddr)
+					if fallback != "" {
+						env.SystemLogger.Warn("ACME 409 falling back to dqlite leader address",
+							zap.String("dqlite_address", leaderAddr),
+							zap.String("reason", fallback),
+						)
+					}
+				}
+				writeResponse(w, http.StatusConflict, acmeNotLeaderMessage(retryAddr), nil, env.SystemLogger)
+				return
+			}
 			// DNS propagation can take minutes; extend write deadline.
 			rc := http.NewResponseController(w)
 			if err := rc.SetWriteDeadline(time.Now().Add(3 * time.Minute)); err != nil {
@@ -655,6 +679,13 @@ func SignCertificateRequest(env *HandlerDependencies) http.HandlerFunc {
 		}
 		writeResponse(w, http.StatusAccepted, "", nil, env.SystemLogger)
 	}
+}
+
+func acmeNotLeaderMessage(leaderAddr string) string {
+	if leaderAddr == "" {
+		return "ACME signing is only available on the cluster leader"
+	}
+	return fmt.Sprintf("ACME signing is only available on the cluster leader (%s)", leaderAddr)
 }
 
 func certificateRequestOwnerEmail(env *HandlerDependencies, userID *int64) (string, error) {

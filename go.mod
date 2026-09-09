@@ -10,6 +10,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/go-cmp v0.7.0
 	github.com/hashicorp/vault-client-go v0.4.3
+	github.com/mattn/go-sqlite3 v1.14.49
 	github.com/pressly/goose/v3 v3.27.3
 	github.com/prometheus/client_golang v1.24.1
 	github.com/spf13/cobra v1.10.2
@@ -24,6 +25,7 @@ require (
 	go.uber.org/zap v1.28.0
 	golang.org/x/crypto v0.54.0
 	golang.org/x/oauth2 v0.36.0
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
@@ -151,7 +153,6 @@ require (
 	github.com/liquidweb/liquidweb-go v1.6.4 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
-	github.com/mattn/go-sqlite3 v1.14.49 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/miekg/dns v1.1.72 // indirect
 	github.com/mimuret/golang-iij-dpf v0.9.1 // indirect
@@ -236,7 +237,6 @@ require (
 	google.golang.org/grpc v1.83.1 // indirect
 	gopkg.in/ini.v1 v1.67.1 // indirect
 	gopkg.in/ns1/ns1-go.v2 v2.17.2 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 

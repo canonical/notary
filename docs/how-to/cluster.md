@@ -72,11 +72,13 @@ notary start --config /etc/notary/config/config.yaml --join '<token>'
 
 You can also set `cluster.join_token` in the YAML instead of `--join`. The token is used only on first start. After `info.yaml` exists in `db_path`, the node resumes without it.
 
-If redeem succeeds but `notary start --join` then fails to reach dqlite, the token is spent. Run `cluster add` again for a new token. If redeem itself cannot list members (leadership moving at that instant), Notary restores the token and you can retry the same one.
+If redeem succeeds but `notary start --join` then fails to reach dqlite, the token is spent. Run `cluster add` again for a new token; the failed attempt leaves no dqlite state behind, so the retry can reuse the same `db_path`. If redeem itself cannot list members (leadership moving at that instant), Notary restores the token and you can retry the same one.
 
 If you set shared `cluster.tls` on the joiner, it must match the cluster certificate returned after redeeming the token. Joining with `cluster.join` addresses and no token still requires `cluster.tls` files (shared pair or CA mode).
 
 Set `external_hostname` (host or `host:port`) when joiners should redeem against a public API address. Required when `cluster.address` is a wildcard bind (`0.0.0.0` or `::`). The default `localhost` is not enough: join tokens must not tell another machine to dial loopback.
+
+A join token carries up to two redeem addresses: `external_hostname` first, then the `cluster.address` host as a fallback. A joiner tries them in order, so a hostname that only resolves inside one network (for example a cluster-internal FQDN) does not block joiners that can reach the bind address directly. When minting a token, Notary warns if the primary address does not resolve or refuses connections from the issuing node; that check cannot prove reachability from a joiner's network.
 
 ## CA mode (dedicated cluster CA)
 

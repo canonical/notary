@@ -60,13 +60,23 @@ On the new machine, set cluster.name and cluster.address, then start with the to
 		if err != nil {
 			return err
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		defer cancel()
-		apiAddr, err := cluster.JoinAPIAddress(appConfig.ClusterAddress, appConfig.Port, appConfig.ExternalHostname)
+		apiAddrs, err := cluster.JoinAPIAddresses(appConfig.ClusterAddress, appConfig.Port, appConfig.ExternalHostname)
 		if err != nil {
 			return err
 		}
-		token, err := cluster.IssueJoinTokenTLS(ctx, appConfig.DBPath, clusterTLSFromConfig(appConfig), args[0], appConfig.TLSCertificate, []string{apiAddr})
+		// The probe is advisory: give it a short detached context so a slow
+		// resolver or unresponsive address cannot consume the issuance deadline
+		// and fail token creation below.
+		probeCtx, probeCancel := context.WithTimeout(context.Background(), 4*time.Second)
+		probeErr := cluster.ProbeJoinAddress(probeCtx, apiAddrs[0])
+		probeCancel()
+		if probeErr != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Warning: join address %s is not reachable from this node (%s); joiners on other networks may fail to redeem this token (check external_hostname)\n", apiAddrs[0], probeErr) //nolint:errcheck
+		}
+		// Created after the probe so issuance always gets its full budget.
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		token, err := cluster.IssueJoinTokenTLS(ctx, appConfig.DBPath, clusterTLSFromConfig(appConfig), args[0], appConfig.TLSCertificate, apiAddrs)
 		if err != nil {
 			return err
 		}

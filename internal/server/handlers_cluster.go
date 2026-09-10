@@ -38,18 +38,28 @@ func AddClusterMember(env *HandlerDependencies) http.HandlerFunc {
 			return
 		}
 		name := params.ServerName
-		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
-		defer cancel()
-		apiAddr, err := cluster.JoinAPIAddress(env.ClusterAddress, env.Port, env.ExternalHostname)
+		apiAddrs, err := cluster.JoinAPIAddresses(env.ClusterAddress, env.Port, env.ExternalHostname)
 		if err != nil {
 			writeResponse(w, http.StatusBadRequest, err.Error(), nil, env.SystemLogger)
 			return
 		}
+		// The probe is advisory: give it a short detached context so a slow
+		// resolver or unresponsive address cannot consume the issuance deadline
+		// and fail token creation below.
+		probeCtx, probeCancel := context.WithTimeout(context.WithoutCancel(r.Context()), 4*time.Second)
+		probeErr := cluster.ProbeJoinAddress(probeCtx, apiAddrs[0])
+		probeCancel()
+		if probeErr != nil {
+			env.SystemLogger.Warn("primary join address is not reachable from this node; joiners on other networks may fail to redeem tokens (check external_hostname)", zap.String("address", apiAddrs[0]), zap.Error(probeErr))
+		}
+		// Created after the probe so issuance always gets its full budget.
+		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+		defer cancel()
 		cert, key := env.Database.TLSCert, env.Database.TLSKey
 		if env.Database.ClusterTLS != nil {
 			cert, key = cluster.PresentCertKey(env.Database.ClusterTLS)
 		}
-		token, err := cluster.IssueJoinTokenOnNode(ctx, env.Database.Node, env.Database.Conn.PlainDB(), name, cert, key, env.TLSCertificate, []string{apiAddr})
+		token, err := cluster.IssueJoinTokenOnNode(ctx, env.Database.Node, env.Database.Conn.PlainDB(), name, cert, key, env.TLSCertificate, apiAddrs)
 		if err != nil {
 			switch {
 			case errors.Is(err, cluster.ErrMemberExists), errors.Is(err, cluster.ErrInvalidMemberName), errors.Is(err, cluster.ErrUnreachableJoinAddress):
@@ -166,7 +176,13 @@ func JoinCluster(env *HandlerDependencies) http.HandlerFunc {
 
 func restoreJoinAfterRedeem(env *HandlerDependencies, ctx context.Context, token cluster.JoinToken, listErr error) {
 	env.SystemLogger.Error("failed to list cluster members after redeeming join token", zap.Error(listErr))
-	if restoreErr := cluster.RestoreJoinToken(ctx, env.Database.Conn.PlainDB(), token); restoreErr != nil {
+	// The handler ctx shares the 15s deadline with the redeem and the failed
+	// list; if the list failed because that deadline expired, reusing ctx
+	// would make the restore fail too, and the client could never retry with
+	// the same token as told. Give the restore its own budget.
+	restoreCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	defer cancel()
+	if restoreErr := cluster.RestoreJoinToken(restoreCtx, env.Database.Conn.PlainDB(), token); restoreErr != nil {
 		env.SystemLogger.Error("failed to restore join token after list failure", zap.Error(restoreErr))
 	}
 }

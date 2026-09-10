@@ -8,10 +8,12 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -47,10 +49,22 @@ type joinRedeemResponse struct {
 // the token fingerprint. Tests may replace this.
 var ExchangeJoinToken = ExchangeJoinTokenHTTPS
 
-// JoinAPIAddress is the HTTPS host:port joiners use to redeem a token.
+// JoinAPIAddress is the primary HTTPS host:port joiners use to redeem a token.
+func JoinAPIAddress(clusterAddress string, port int, externalHostname string) (string, error) {
+	addrs, err := JoinAPIAddresses(clusterAddress, port, externalHostname)
+	if err != nil {
+		return "", err
+	}
+	return addrs[0], nil
+}
+
+// JoinAPIAddresses returns the HTTPS host:port addresses a join token should
+// carry, most-preferred first: the external hostname, then the cluster bind
+// address as a fallback for joiners that cannot resolve or route to the
+// hostname (for example a name that only resolves inside one network).
 // The config default external_hostname is localhost (CRL/OIDC). That is not a
 // join URL when this node binds a wildcard or a routable cluster address.
-func JoinAPIAddress(clusterAddress string, port int, externalHostname string) (string, error) {
+func JoinAPIAddresses(clusterAddress string, port int, externalHostname string) ([]string, error) {
 	if port <= 0 {
 		port = 8000
 	}
@@ -60,13 +74,21 @@ func JoinAPIAddress(clusterAddress string, port int, externalHostname string) (s
 			clusterHost = h
 		}
 	}
+	var addrs []string
 	if h := strings.TrimSpace(externalHostname); h != "" {
 		addr := joinAddressWithPort(h, port)
 		if err := joinAddressReachable(addr, clusterHost); err == nil {
-			return addr, nil
+			addrs = append(addrs, addr)
 		}
 	}
-	return requireReachableJoinAddress(net.JoinHostPort(clusterHost, strconv.Itoa(port)), clusterHost)
+	fallback := net.JoinHostPort(clusterHost, strconv.Itoa(port))
+	if err := joinAddressReachable(fallback, clusterHost); err == nil && !slices.Contains(addrs, fallback) {
+		addrs = append(addrs, fallback)
+	}
+	if len(addrs) == 0 {
+		return nil, fmt.Errorf("%w (got %q)", ErrUnreachableJoinAddress, fallback)
+	}
+	return addrs, nil
 }
 
 func joinAddressWithPort(host string, port int) string {
@@ -76,11 +98,25 @@ func joinAddressWithPort(host string, port int) string {
 	return net.JoinHostPort(host, strconv.Itoa(port))
 }
 
-func requireReachableJoinAddress(addr, clusterHost string) (string, error) {
-	if err := joinAddressReachable(addr, clusterHost); err != nil {
-		return "", err
+// ProbeJoinAddress reports whether addr resolves and accepts a TCP connection
+// from this host. It cannot prove reachability from a joiner's network (a name
+// may resolve only inside the issuer's network, and hairpin NAT may break
+// self-dial for a valid public name), so callers should treat a failure as a
+// warning, not an error.
+func ProbeJoinAddress(ctx context.Context, addr string) error {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return fmt.Errorf("invalid join address %q: %w", addr, err)
 	}
-	return addr, nil
+	if _, err := net.DefaultResolver.LookupHost(ctx, host); err != nil {
+		return fmt.Errorf("resolve %q: %w", host, err)
+	}
+	conn, err := (&net.Dialer{Timeout: 3 * time.Second}).DialContext(ctx, "tcp", addr)
+	if err != nil {
+		return fmt.Errorf("dial %s: %w", addr, err)
+	}
+	_ = conn.Close()
+	return nil
 }
 
 func joinAddressReachable(addr, clusterHost string) error {
@@ -150,7 +186,44 @@ func ExchangeJoinTokenHTTPS(ctx context.Context, rawToken string) (JoinMaterial,
 	if len(token.Addresses) == 0 {
 		return JoinMaterial{}, fmt.Errorf("join token has no addresses")
 	}
-	return redeemAt(ctx, rawToken, token.Fingerprint, token.Addresses[0])
+	// Try every advertised address: the external hostname comes first, but a
+	// joiner on another network may only reach the cluster bind address. Each
+	// address gets its own bounded context so a server that accepts TCP and
+	// then stalls cannot consume the whole exchange deadline before the
+	// fallback is tried.
+	errs := make([]error, 0, len(token.Addresses))
+	for i, addr := range token.Addresses {
+		if err := ctx.Err(); err != nil {
+			errs = append(errs, fmt.Errorf("redeem join token at %s: %w", addr, err))
+			continue
+		}
+		attemptCtx, cancel := redeemAttemptContext(ctx, len(token.Addresses)-i)
+		material, err := redeemAt(attemptCtx, rawToken, token.Fingerprint, addr)
+		cancel()
+		if err == nil {
+			return material, nil
+		}
+		errs = append(errs, err)
+	}
+	return JoinMaterial{}, errors.Join(errs...)
+}
+
+// redeemAttemptBudget caps one address attempt when the caller's context has
+// no (or a generous) deadline, so a stalled server cannot starve the fallback
+// addresses.
+const redeemAttemptBudget = 5 * time.Second
+
+// redeemAttemptContext caps one attempt at an even share of the caller's
+// remaining deadline, or redeemAttemptBudget when the caller set none, so
+// every advertised address gets a real attempt.
+func redeemAttemptContext(ctx context.Context, attemptsLeft int) (context.Context, context.CancelFunc) {
+	budget := redeemAttemptBudget
+	if deadline, ok := ctx.Deadline(); ok {
+		if share := time.Until(deadline) / time.Duration(attemptsLeft); share < budget {
+			budget = share
+		}
+	}
+	return context.WithTimeout(ctx, budget)
 }
 
 func redeemAt(ctx context.Context, rawToken, fingerprint, addr string) (JoinMaterial, error) {
@@ -209,6 +282,7 @@ func pinnedHTTPClient(fingerprint string) *http.Client {
 	return &http.Client{
 		Timeout: 15 * time.Second,
 		Transport: &http.Transport{
+			DialContext: (&net.Dialer{Timeout: 5 * time.Second}).DialContext,
 			TLSClientConfig: &tls.Config{
 				MinVersion: tls.VersionTLS12,
 				// The joiner has no CA for this cluster yet, so the peer is pinned by

@@ -63,6 +63,21 @@ func HasState(dir string) bool {
 	return err == nil
 }
 
+// discardFreshState removes the identity files app.New wrote in a directory
+// that had no prior dqlite state, so a failed first start (for example a join
+// whose addresses never became reachable) can be retried in the same
+// directory instead of tripping "join token is only used the first time this
+// node starts" on the next attempt.
+func discardFreshState(dir string) error {
+	var errs []error
+	for _, f := range []string{infoFile, "cluster.yaml", "join"} {
+		if err := os.Remove(filepath.Join(dir, f)); err != nil && !errors.Is(err, os.ErrNotExist) {
+			errs = append(errs, fmt.Errorf("remove %s: %w", f, err))
+		}
+	}
+	return errors.Join(errs...)
+}
+
 // Start opens or creates a dqlite node. An empty directory becomes a one-node
 // cluster. A directory with info.yaml is resumed.
 func Start(opts Options) (*Node, error) {
@@ -72,6 +87,9 @@ func Start(opts Options) (*Node, error) {
 	if err := os.MkdirAll(opts.Dir, 0o700); err != nil {
 		return nil, fmt.Errorf("create database directory: %w", err)
 	}
+	// Snapshot before app.New can write info.yaml: whether this start resumes
+	// an existing node decides if a failure may clean the directory.
+	hadState := HasState(opts.Dir)
 	join := append([]string(nil), opts.Join...)
 	if opts.TLS == nil {
 		opts.TLS = tlsFromCertKey(opts.TLSCert, opts.TLSKey)
@@ -91,7 +109,7 @@ func Start(opts Options) (*Node, error) {
 		}
 	}
 	if opts.JoinToken != "" {
-		if HasState(opts.Dir) {
+		if hadState {
 			return nil, errors.New("join token is only used the first time this node starts")
 		}
 		token, err := DecodeJoinToken(opts.JoinToken)
@@ -148,7 +166,7 @@ func Start(opts Options) (*Node, error) {
 	} else if _, isCA := opts.TLS.(CAPeer); isCA {
 		// CA mode never loads or generates a shared pair.
 	} else if opts.TLS == nil {
-		if HasState(opts.Dir) {
+		if hadState {
 			if certPEM, keyPEM, err := LoadClusterTLS(opts.Dir); err == nil {
 				opts.TLS = SharedPair{Cert: certPEM, Key: keyPEM}
 			}
@@ -168,7 +186,7 @@ func Start(opts Options) (*Node, error) {
 	if opts.Address != "" {
 		appOpts = append(appOpts, app.WithAddress(opts.Address))
 	}
-	if len(join) > 0 && !HasState(opts.Dir) {
+	if len(join) > 0 && !hadState {
 		appOpts = append(appOpts, app.WithCluster(join))
 	}
 	if opts.TLS != nil {
@@ -187,6 +205,11 @@ func Start(opts Options) (*Node, error) {
 	})
 	if startErr != nil {
 		startErr = wrapJoinError(join, fmt.Errorf("start dqlite: %w", startErr))
+		if !hadState {
+			if err := discardFreshState(opts.Dir); err != nil {
+				startErr = fmt.Errorf("%w (also failed to clean up fresh state: %v)", startErr, err)
+			}
+		}
 		if opts.JoinToken != "" {
 			return nil, fmt.Errorf("%s: %w", JoinIncompleteMessage, startErr)
 		}
@@ -198,7 +221,13 @@ func Start(opts Options) (*Node, error) {
 	if err := dqliteApp.Ready(ctx); err != nil {
 		addr := dqliteApp.Address()
 		_ = dqliteApp.Close()
-		err = wrapJoinError(join, fmt.Errorf("dqlite not ready at %s: %w", addr, err))
+		readyErr := err
+		if !hadState {
+			if cleanErr := discardFreshState(opts.Dir); cleanErr != nil {
+				readyErr = fmt.Errorf("%w (also failed to clean up fresh state: %v)", readyErr, cleanErr)
+			}
+		}
+		err = wrapJoinError(join, fmt.Errorf("dqlite not ready at %s: %w", addr, readyErr))
 		if opts.JoinToken != "" {
 			return nil, fmt.Errorf("%s: %w", JoinIncompleteMessage, err)
 		}

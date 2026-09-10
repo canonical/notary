@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -979,6 +981,158 @@ func TestSpentJoinTokenAfterFailedDqliteJoin(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected second join with spent token to fail")
+	}
+}
+
+func TestJoinTokenWrongSecretIsInvalid(t *testing.T) {
+	httpsCert, _ := mustClusterCert(t)
+	db1, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      mustFreeAddress(t),
+		Name:         "node1",
+		HTTPSCert:    httpsCert,
+		APIAddress:   "127.0.0.1:8443",
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("start node1: %v", err)
+	}
+	defer db1.Close() //nolint:errcheck
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	raw, err := db1.IssueJoinToken(ctx, "node2")
+	if err != nil {
+		t.Fatalf("token: %v", err)
+	}
+	tok, err := cluster.DecodeJoinToken(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secret := []byte(tok.Secret)
+	if secret[0] == '0' {
+		secret[0] = '1'
+	} else {
+		secret[0] = '0'
+	}
+	tok.Secret = string(secret)
+
+	if _, err := cluster.RedeemJoinToken(ctx, db1.Conn.PlainDB(), tok, db1.TLSCert, db1.TLSKey); !errors.Is(err, cluster.ErrJoinTokenInvalid) {
+		t.Fatalf("got %v, want ErrJoinTokenInvalid", err)
+	}
+
+	// A wrong guess must not spend the ticket.
+	good, err := cluster.DecodeJoinToken(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cluster.RedeemJoinToken(ctx, db1.Conn.PlainDB(), good, db1.TLSCert, db1.TLSKey); err != nil {
+		t.Fatalf("redeem with correct secret after a wrong guess: %v", err)
+	}
+}
+
+func TestFailedFirstJoinLeavesNoState(t *testing.T) {
+	httpsCert, _ := mustClusterCert(t)
+	addr1, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	db1, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addr1,
+		Name:         "node1",
+		HTTPSCert:    httpsCert,
+		APIAddress:   "127.0.0.1:8443",
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("start node1: %v", err)
+	}
+	defer db1.Close() //nolint:errcheck
+	stubJoinExchange(t, db1, "127.0.0.1:1")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+	token, err := db1.IssueJoinToken(ctx, "node2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr2, err := cluster.FreeAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir2 := t.TempDir()
+	_, err = db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: dir2,
+		Address:      addr2,
+		Name:         "node2",
+		JoinToken:    token,
+		Logger:       zap.NewNop(),
+	})
+	if err == nil || !strings.Contains(err.Error(), cluster.JoinIncompleteMessage) {
+		t.Fatalf("got %v, want JoinIncompleteMessage", err)
+	}
+	for _, f := range []string{"info.yaml", "cluster.yaml", "join"} {
+		if _, statErr := os.Stat(filepath.Join(dir2, f)); !errors.Is(statErr, os.ErrNotExist) {
+			t.Fatalf("failed first join left %s behind (stat err=%v)", f, statErr)
+		}
+	}
+
+	// Retry in the same directory with working join addresses and a fresh token.
+	stubJoinExchange(t, db1, addr1)
+	token2, err := db1.IssueJoinToken(ctx, "node2")
+	if err != nil {
+		t.Fatalf("re-issue token: %v", err)
+	}
+	db2, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: dir2,
+		Address:      addr2,
+		Name:         "node2",
+		JoinToken:    token2,
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("retry join in the same directory: %v", err)
+	}
+	defer db2.Close() //nolint:errcheck
+	members, err := db2.ListClusterMembers(ctx)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(members) != 2 {
+		t.Fatalf("got %d members, want 2", len(members))
+	}
+}
+
+func TestFailedRestartKeepsExistingState(t *testing.T) {
+	dir := t.TempDir()
+	addr := mustFreeAddress(t)
+	node, err := cluster.Start(cluster.Options{Dir: dir, Address: addr})
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	if err := node.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	if !cluster.HasState(dir) {
+		t.Fatal("expected dqlite identity after bootstrap")
+	}
+
+	// Hold the address so the restart fails inside app.New.
+	l, err := net.Listen("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close() //nolint:errcheck
+
+	if _, err := cluster.Start(cluster.Options{Dir: dir, Address: addr}); err == nil {
+		t.Fatal("expected start to fail with the address in use")
+	}
+	if !cluster.HasState(dir) {
+		t.Fatal("failed restart must not remove pre-existing state")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "cluster.yaml")); err != nil {
+		t.Fatalf("failed restart removed cluster.yaml: %v", err)
 	}
 }
 

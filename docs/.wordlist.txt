@@ -6,6 +6,7 @@ CLI
 CSR
 Ctrl
 DNS
+FQDN
 frontend
 HTTPS
 JSON
@@ -73,6 +74,7 @@ ACME
 scrape
 joiner
 quorum
+reachability
 follower
 voters
 Pebble

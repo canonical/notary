@@ -16,7 +16,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: frontend-static-files
-          path: ui/out
+          path: ui/dist
       - uses: ./.github/actions/install-dqlite
       - name: Build
         run: go build ./...

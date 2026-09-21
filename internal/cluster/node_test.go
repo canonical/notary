@@ -1,6 +1,7 @@
 package cluster_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -80,6 +81,40 @@ func TestJoinRequiresTLS(t *testing.T) {
 	}
 }
 
+func TestPendingJoinStillValidatesToken(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "info.yaml"), []byte("ID: 2\nAddress: 127.0.0.1:9000\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "join"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := cluster.Start(cluster.Options{
+		Dir:       dir,
+		Address:   "127.0.0.1:9000",
+		JoinToken: "invalid",
+	})
+	if err == nil {
+		t.Fatal("pending first join ignored invalid token")
+	}
+	if _, statErr := os.Stat(filepath.Join(dir, "join")); statErr != nil {
+		t.Fatalf("pending join marker changed: %v", statErr)
+	}
+}
+
+func TestResumedJoinerWithoutClusterTLSFailsClosed(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "info.yaml"), []byte("ID: 2\nAddress: 127.0.0.1:9000\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := cluster.Start(cluster.Options{Dir: dir, Address: "127.0.0.1:9000"})
+	if err == nil || !strings.Contains(err.Error(), "load cluster TLS for resumed node") {
+		t.Fatalf("got %v, want missing resumed cluster TLS error", err)
+	}
+}
+
 func TestJoinInvalidTLSWrapsError(t *testing.T) {
 	_, err := cluster.Start(cluster.Options{
 		Dir:     t.TempDir(),
@@ -96,6 +131,51 @@ func TestJoinInvalidTLSWrapsError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "cluster TLS") {
 		t.Fatalf("expected TLS cause, got %v", err)
+	}
+}
+
+func TestInvalidTLSDoesNotOverwritePersistedCredentials(t *testing.T) {
+	dir := t.TempDir()
+	addr := mustFreeAddress(t)
+	certPEM, keyPEM := mustClusterCert(t)
+	_, mismatchedKeyPEM := mustClusterCert(t)
+
+	node, err := cluster.Start(cluster.Options{
+		Dir:     dir,
+		Address: addr,
+		TLSCert: certPEM,
+		TLSKey:  keyPEM,
+	})
+	if err != nil {
+		t.Fatalf("start with valid TLS: %v", err)
+	}
+	if err := node.Close(); err != nil {
+		t.Fatalf("stop node: %v", err)
+	}
+
+	storedCert, storedKey, err := cluster.LoadClusterTLS(dir)
+	if err != nil {
+		t.Fatalf("load persisted TLS: %v", err)
+	}
+	_, err = cluster.Start(cluster.Options{
+		Dir:     dir,
+		Address: addr,
+		TLSCert: certPEM,
+		TLSKey:  mismatchedKeyPEM,
+	})
+	if err == nil {
+		t.Fatal("expected mismatched cluster TLS to fail")
+	}
+
+	gotCert, gotKey, err := cluster.LoadClusterTLS(dir)
+	if err != nil {
+		t.Fatalf("reload persisted TLS: %v", err)
+	}
+	if !bytes.Equal(gotCert, storedCert) {
+		t.Fatal("invalid startup overwrote persisted cluster certificate")
+	}
+	if !bytes.Equal(gotKey, storedKey) {
+		t.Fatal("invalid startup overwrote persisted cluster key")
 	}
 }
 
@@ -348,6 +428,145 @@ func TestMemberAPIAddressAndLeaderLookup(t *testing.T) {
 	if got := cluster.APIAddressFor(ctx, db2.Conn.PlainDB(), "127.0.0.1:1"); got != "127.0.0.1:1" {
 		t.Fatalf("missing member should fall back, got %q", got)
 	}
+}
+
+func TestEstablishedNodeIgnoresLeftoverJoinToken(t *testing.T) {
+	httpsCert, _ := mustClusterCert(t)
+	addr1 := mustFreeAddress(t)
+	addr2 := mustFreeAddress(t)
+	dir2 := t.TempDir()
+	db1, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: t.TempDir(),
+		Address:      addr1,
+		Name:         "node1",
+		HTTPSCert:    httpsCert,
+		APIAddress:   "127.0.0.1:8443",
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("start node1: %v", err)
+	}
+	defer db1.Close() //nolint:errcheck
+	stubJoinExchange(t, db1, addr1)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	token, err := db1.IssueJoinToken(ctx, "node2")
+	if err != nil {
+		t.Fatalf("issue node2 token: %v", err)
+	}
+	db2, err := db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: dir2,
+		Address:      addr2,
+		Name:         "node2",
+		JoinToken:    token,
+		APIAddress:   "127.0.0.1:8444",
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("join node2: %v", err)
+	}
+	if _, err := db2.Conn.PlainDB().ExecContext(ctx, `CREATE TABLE restart_data (value TEXT)`); err != nil {
+		t.Fatalf("create restart data: %v", err)
+	}
+	if _, err := db2.Conn.PlainDB().ExecContext(ctx, `INSERT INTO restart_data VALUES ('preserved')`); err != nil {
+		t.Fatalf("insert restart data: %v", err)
+	}
+	identity, err := cluster.LocalNodeInfo(dir2)
+	if err != nil {
+		t.Fatalf("read joined identity: %v", err)
+	}
+	if err := db2.Close(); err != nil {
+		t.Fatalf("stop node2: %v", err)
+	}
+
+	exchangeCalls := 0
+	cluster.ExchangeJoinToken = func(context.Context, string) (cluster.JoinMaterial, error) {
+		exchangeCalls++
+		return cluster.JoinMaterial{}, errors.New("leftover token must not be exchanged")
+	}
+	db2, err = db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: dir2,
+		Address:      addr2,
+		Name:         "node2",
+		JoinToken:    token,
+		APIAddress:   "127.0.0.1:8444",
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("restart node2 with spent token: %v", err)
+	}
+	if exchangeCalls != 0 {
+		t.Fatalf("spent token exchanged %d times", exchangeCalls)
+	}
+	resumedIdentity, err := cluster.LocalNodeInfo(dir2)
+	if err != nil {
+		t.Fatalf("read resumed identity: %v", err)
+	}
+	if resumedIdentity.ID != identity.ID || resumedIdentity.Address != identity.Address {
+		t.Fatalf("identity changed from %+v to %+v", identity, resumedIdentity)
+	}
+	var value string
+	if err := db2.Conn.PlainDB().QueryRowContext(ctx, `SELECT value FROM restart_data`).Scan(&value); err != nil {
+		t.Fatalf("read restart data: %v", err)
+	}
+	if value != "preserved" {
+		t.Fatalf("restart data %q, want preserved", value)
+	}
+	if err := db2.Close(); err != nil {
+		t.Fatalf("stop resumed node2: %v", err)
+	}
+
+	leftoverToken, err := db1.IssueJoinToken(ctx, "wrong-name")
+	if err != nil {
+		t.Fatalf("issue different-name token: %v", err)
+	}
+	_, err = db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: dir2,
+		Address:      addr2,
+		Name:         "configured-wrong-name",
+		JoinToken:    leftoverToken,
+		APIAddress:   "127.0.0.1:8444",
+		Logger:       zap.NewNop(),
+	})
+	if err == nil {
+		t.Fatal("expected persisted member name conflict")
+	}
+	members, err := db1.ListClusterMembers(ctx)
+	if err != nil {
+		t.Fatalf("list members after failed resume: %v", err)
+	}
+	if len(members) != 2 {
+		t.Fatalf("failed resume changed membership to %+v", members)
+	}
+	db2, err = db.NewDatabase(&db.DatabaseOpts{
+		DatabasePath: dir2,
+		Address:      addr2,
+		Name:         "node2",
+		JoinToken:    leftoverToken,
+		APIAddress:   "127.0.0.1:8444",
+		Logger:       zap.NewNop(),
+	})
+	if err != nil {
+		t.Fatalf("restart node2 with different-name token: %v", err)
+	}
+	defer db2.Close() //nolint:errcheck
+	if exchangeCalls != 0 {
+		t.Fatalf("leftover tokens exchanged %d times", exchangeCalls)
+	}
+	members, err = db2.ListClusterMembers(ctx)
+	if err != nil {
+		t.Fatalf("list resumed members: %v", err)
+	}
+	for _, member := range members {
+		if member.Address == addr2 {
+			if member.Name != "node2" {
+				t.Fatalf("resumed member name %q, want node2", member.Name)
+			}
+			return
+		}
+	}
+	t.Fatalf("resumed member %s not found in %+v", addr2, members)
 }
 
 func TestThreeNodeVoterPromotionAndFailover(t *testing.T) {
@@ -1076,6 +1295,9 @@ func TestFailedFirstJoinLeavesNoState(t *testing.T) {
 		if _, statErr := os.Stat(filepath.Join(dir2, f)); !errors.Is(statErr, os.ErrNotExist) {
 			t.Fatalf("failed first join left %s behind (stat err=%v)", f, statErr)
 		}
+	}
+	if _, _, err := cluster.LoadClusterTLS(dir2); err != nil {
+		t.Fatalf("failed join did not persist redeemed cluster TLS: %v", err)
 	}
 
 	// Retry in the same directory with working join addresses and a fresh token.

@@ -111,7 +111,7 @@ func NewDatabase(dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
 	if name == "" {
 		name = cluster.DefaultMemberName()
 	}
-	if dbOpts.JoinToken != "" {
+	if dbOpts.JoinToken != "" && !node.Resumed() {
 		token, err := cluster.DecodeJoinToken(dbOpts.JoinToken)
 		if err != nil {
 			_ = repo.Close()
@@ -120,7 +120,7 @@ func NewDatabase(dbOpts *DatabaseOpts) (*DatabaseRepository, error) {
 		name = token.ServerName
 	}
 	if err := cluster.RegisterMember(ctx, sqlConnection, name, node.Address(), dbOpts.APIAddress); err != nil {
-		if dbOpts.JoinToken != "" || len(dbOpts.Join) > 0 {
+		if !node.Resumed() && (dbOpts.JoinToken != "" || len(dbOpts.Join) > 0) {
 			_ = cluster.RemoveMemberOnNode(ctx, node, sqlConnection, node.Address())
 		}
 		_ = repo.Close()

@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	dqlite "github.com/canonical/go-dqlite/v3"
 	"github.com/canonical/go-dqlite/v3/app"
 )
 
@@ -36,7 +37,8 @@ type Options struct {
 	Name string
 	// Join is existing node addresses, used only on first start of an empty dir.
 	Join []string
-	// JoinToken is a token from `notary cluster add`. Used only on first start.
+	// JoinToken is a token from `notary cluster add`. Used only until the
+	// dqlite node has completed its first admission.
 	JoinToken string
 	// TLS is dqlite mTLS. SharedPair is the default (one cert for the cluster).
 	// CAPeer is per-unit leaves under a dedicated CA. Nil means generate or
@@ -53,8 +55,9 @@ type Options struct {
 
 // Node is a running dqlite application node.
 type Node struct {
-	app *app.App
-	TLS TransportTLS
+	app     *app.App
+	TLS     TransportTLS
+	resumed bool
 }
 
 // HasState reports whether dir already holds dqlite identity.
@@ -63,11 +66,16 @@ func HasState(dir string) bool {
 	return err == nil
 }
 
+// Resumed reports whether this node had completed dqlite admission before
+// this invocation of Start.
+func (n *Node) Resumed() bool {
+	return n != nil && n.resumed
+}
+
 // discardFreshState removes the identity files app.New wrote in a directory
 // that had no prior dqlite state, so a failed first start (for example a join
 // whose addresses never became reachable) can be retried in the same
-// directory instead of tripping "join token is only used the first time this
-// node starts" on the next attempt.
+// directory.
 func discardFreshState(dir string) error {
 	var errs []error
 	for _, f := range []string{infoFile, "cluster.yaml", "join"} {
@@ -79,7 +87,7 @@ func discardFreshState(dir string) error {
 }
 
 // Start opens or creates a dqlite node. An empty directory becomes a one-node
-// cluster. A directory with info.yaml is resumed.
+// cluster. A directory with completed dqlite admission is resumed.
 func Start(opts Options) (*Node, error) {
 	if opts.Dir == "" {
 		return nil, errors.New("database directory is required")
@@ -90,6 +98,13 @@ func Start(opts Options) (*Node, error) {
 	// Snapshot before app.New can write info.yaml: whether this start resumes
 	// an existing node decides if a failure may clean the directory.
 	hadState := HasState(opts.Dir)
+	_, pendingJoinErr := os.Stat(filepath.Join(opts.Dir, "join"))
+	pendingJoin := pendingJoinErr == nil
+	if pendingJoinErr != nil && !errors.Is(pendingJoinErr, os.ErrNotExist) {
+		return nil, fmt.Errorf("check pending join state: %w", pendingJoinErr)
+	}
+	resumed := hadState && !pendingJoin
+	useJoinToken := opts.JoinToken != "" && !resumed
 	join := append([]string(nil), opts.Join...)
 	if opts.TLS == nil {
 		opts.TLS = tlsFromCertKey(opts.TLSCert, opts.TLSKey)
@@ -108,10 +123,7 @@ func Start(opts Options) (*Node, error) {
 			return nil, errors.New("cluster TLS certificate and key must both be set")
 		}
 	}
-	if opts.JoinToken != "" {
-		if hadState {
-			return nil, errors.New("join token is only used the first time this node starts")
-		}
+	if useJoinToken {
 		token, err := DecodeJoinToken(opts.JoinToken)
 		if err != nil {
 			return nil, err
@@ -167,8 +179,17 @@ func Start(opts Options) (*Node, error) {
 		// CA mode never loads or generates a shared pair.
 	} else if opts.TLS == nil {
 		if hadState {
-			if certPEM, keyPEM, err := LoadClusterTLS(opts.Dir); err == nil {
+			certPEM, keyPEM, err := LoadClusterTLS(opts.Dir)
+			if err == nil {
 				opts.TLS = SharedPair{Cert: certPEM, Key: keyPEM}
+			} else {
+				info, infoErr := LocalNodeInfo(opts.Dir)
+				if infoErr != nil {
+					return nil, infoErr
+				}
+				if info.ID != dqlite.BootstrapID {
+					return nil, fmt.Errorf("load cluster TLS for resumed node: %w", err)
+				}
 			}
 		} else if len(join) == 0 {
 			certPEM, keyPEM, err := generateClusterTLS()
@@ -196,6 +217,13 @@ func Start(opts Options) (*Node, error) {
 		}
 		appOpts = append(appOpts, tlsOpt)
 	}
+	// Persist validated credentials before app.New can admit a new member and
+	// remove dqlite's pending-join marker.
+	if opts.TLS != nil {
+		if err := opts.TLS.persist(opts.Dir); err != nil {
+			return nil, err
+		}
+	}
 
 	var dqliteApp *app.App
 	startErr := withNamespacedDqliteSocket(opts.Dir, func() error {
@@ -210,7 +238,7 @@ func Start(opts Options) (*Node, error) {
 				startErr = fmt.Errorf("%w (also failed to clean up fresh state: %v)", startErr, err)
 			}
 		}
-		if opts.JoinToken != "" {
+		if useJoinToken {
 			return nil, fmt.Errorf("%s: %w", JoinIncompleteMessage, startErr)
 		}
 		return nil, startErr
@@ -228,19 +256,12 @@ func Start(opts Options) (*Node, error) {
 			}
 		}
 		err = wrapJoinError(join, fmt.Errorf("dqlite not ready at %s: %w", addr, readyErr))
-		if opts.JoinToken != "" {
+		if useJoinToken {
 			return nil, fmt.Errorf("%s: %w", JoinIncompleteMessage, err)
 		}
 		return nil, err
 	}
-	if opts.TLS != nil {
-		if err := opts.TLS.persist(opts.Dir); err != nil {
-			_ = dqliteApp.Close()
-			return nil, err
-		}
-	}
-
-	return &Node{app: dqliteApp, TLS: opts.TLS}, nil
+	return &Node{app: dqliteApp, TLS: opts.TLS, resumed: resumed}, nil
 }
 
 // Open returns a *sql.DB for the Notary database.

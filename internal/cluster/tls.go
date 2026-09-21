@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/canonical/go-dqlite/v3/app"
+	"github.com/google/renameio"
 )
 
 // DefaultPeerSAN is the group DNS SAN on auto-generated shared cluster
@@ -51,11 +52,13 @@ func PersistClusterTLS(dir string, certPEM, keyPEM []byte) error {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return fmt.Errorf("create database directory: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, clusterCertFile), certPEM, 0o600); err != nil {
-		return fmt.Errorf("write cluster certificate: %w", err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, clusterKeyFile), keyPEM, 0o600); err != nil {
+	// Write the key first so cluster.crt remains the commit point for a new
+	// pair. Each replacement is atomic and synced by renameio.
+	if err := renameio.WriteFile(filepath.Join(dir, clusterKeyFile), keyPEM, 0o600); err != nil {
 		return fmt.Errorf("write cluster key: %w", err)
+	}
+	if err := renameio.WriteFile(filepath.Join(dir, clusterCertFile), certPEM, 0o600); err != nil {
+		return fmt.Errorf("write cluster certificate: %w", err)
 	}
 	return nil
 }

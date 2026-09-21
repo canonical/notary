@@ -70,7 +70,7 @@ encryption_backend:
 notary start --config /etc/notary/config/config.yaml --join '<token>'
 ```
 
-You can also set `cluster.join_token` in the YAML instead of `--join`. The token is used only on first start. After `info.yaml` exists in `db_path`, the node resumes without it.
+You can also set `cluster.join_token` in the YAML instead of `--join`. The token is used only while the node's first dqlite admission is pending. Notary validates and persists shared cluster TLS before dqlite admission can complete. After admission succeeds, restarts resume the persisted dqlite identity and cluster TLS without decoding or redeeming a token that remains in the configuration. That leftover token cannot change the member name. An `info.yaml` file alone does not prove admission succeeded: dqlite also keeps a `join` marker while the first join is incomplete, and Notary continues to treat that state as a join attempt rather than bootstrapping a new cluster. A previously admitted non-bootstrap node fails closed if its persisted shared TLS is unavailable; it does not retry without TLS.
 
 If redeem succeeds but `notary start --join` then fails to reach dqlite, the token is spent. Run `cluster add` again for a new token; the failed attempt leaves no dqlite state behind, so the retry can reuse the same `db_path`. If redeem itself cannot list members (leadership moving at that instant), Notary restores the token and you can retry the same one.
 

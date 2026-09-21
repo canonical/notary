@@ -9,6 +9,7 @@ require (
 	github.com/go-acme/lego/v4 v4.35.2
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/go-cmp v0.7.0
+	github.com/google/renameio v1.0.1
 	github.com/hashicorp/vault-client-go v0.4.3
 	github.com/mattn/go-sqlite3 v1.14.49
 	github.com/pressly/goose/v3 v3.27.3
@@ -115,7 +116,6 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/google/pprof v0.0.0-20260802141513-ef3492d7dac3 // indirect
-	github.com/google/renameio v1.0.1 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.14 // indirect

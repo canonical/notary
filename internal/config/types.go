@@ -37,7 +37,7 @@ type AppConfig struct {
 	// node starts with an empty data directory.
 	ClusterJoin []string
 
-	// ClusterJoinToken is a token from `notary cluster add`. Used only on first start.
+	// ClusterJoinToken is used only until first-start dqlite admission completes.
 	ClusterJoinToken string
 
 	// ClusterTLSCertificate and ClusterTLSPrivateKey are the shared dqlite

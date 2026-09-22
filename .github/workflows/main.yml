@@ -31,6 +31,9 @@ jobs:
   rock-scan:
     if: github.ref_name == 'main'
     needs: [rock-build]
+    permissions:
+      contents: read
+      security-events: write
     uses: ./.github/workflows/rock-scan.yaml
   rock-publish:
     if: github.ref_name == 'main'

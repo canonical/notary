@@ -71,6 +71,10 @@ loopback
 wildcard
 SHA
 ACME
+LEGO
+cloudflare
+hetzner
+route53
 scrape
 joiner
 quorum

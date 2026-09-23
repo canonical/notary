@@ -202,25 +202,14 @@ func RemoveMember(ctx context.Context, dir string, certPEM, keyPEM []byte, name 
 
 // RemoveMemberTLS evicts a member using shared or CA cluster TLS.
 func RemoveMemberTLS(ctx context.Context, dir string, t TransportTLS, name string) error {
-	cli, err := connectLeader(ctx, dir, t)
-	if err != nil {
-		return err
-	}
-	defer cli.Close() //nolint:errcheck
 	sqldb, err := OpenClientDBTLS(ctx, dir, t)
 	if err != nil {
 		return err
 	}
 	defer sqldb.Close() //nolint:errcheck
-	members, err := membersFromClient(ctx, cli)
-	if err != nil {
-		return err
-	}
-	members, err = attachNames(ctx, sqldb, members)
-	if err != nil {
-		return err
-	}
-	return removeByName(ctx, cli, sqldb, members, name)
+	return removeByName(ctx, func(ctx context.Context) (membershipClient, error) {
+		return connectLeader(ctx, dir, t)
+	}, sqldb, name)
 }
 
 // RemoveMemberOnNode evicts a named member using a running node.
@@ -228,57 +217,122 @@ func RemoveMemberOnNode(ctx context.Context, n *Node, sqldb *sql.DB, name string
 	if n == nil || n.app == nil {
 		return fmt.Errorf("dqlite node is not running")
 	}
-	cli, err := n.app.FindLeader(ctx)
-	if err != nil {
-		return fmt.Errorf("find cluster leader: %w", err)
-	}
-	defer cli.Close() //nolint:errcheck
-	members, err := n.MembersWithNames(ctx, sqldb)
-	if err != nil {
-		return err
-	}
-	return removeByName(ctx, cli, sqldb, members, name)
+	return removeByName(ctx, func(ctx context.Context) (membershipClient, error) {
+		return n.app.FindLeader(ctx)
+	}, sqldb, name)
 }
 
-func removeByName(ctx context.Context, cli *client.Client, sqldb *sql.DB, members []Member, name string) error {
+// Use the target's raft identity, not the identity of the API node. Both local
+// and remote callers must complete the same handover before eviction.
+type membershipClient interface {
+	Cluster(context.Context) ([]client.NodeInfo, error)
+	Leader(context.Context) (*client.NodeInfo, error)
+	Assign(context.Context, uint64, client.NodeRole) error
+	Transfer(context.Context, uint64) error
+	Remove(context.Context, uint64) error
+	Close() error
+}
+
+type leaderConnector func(context.Context) (membershipClient, error)
+
+func removeByName(ctx context.Context, connect leaderConnector, sqldb *sql.DB, name string) error {
 	if err := requireMemberName(name); err != nil && !strings.Contains(name, ":") {
 		return err
 	}
-	if len(members) <= 1 {
-		return ErrLastMember
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	cli, err := connect(ctx)
+	if err != nil {
+		return fmt.Errorf("find cluster leader: %w", err)
 	}
-	var target *Member
+	defer func() { _ = cli.Close() }()
+	members, err := cli.Cluster(ctx)
+	if err != nil {
+		return fmt.Errorf("list cluster members: %w", err)
+	}
+	records, err := recordsByAddress(ctx, sqldb)
+	if err != nil {
+		return fmt.Errorf("load cluster member names: %w", err)
+	}
+	address := name
+	for addr, rec := range records {
+		if rec.name == name {
+			address = addr
+			break
+		}
+	}
+	var target *client.NodeInfo
 	for i := range members {
-		if members[i].Name == name || members[i].Address == name {
+		if members[i].Address == address {
 			target = &members[i]
 			break
 		}
 	}
 	if target == nil {
-		addr, err := addressForName(ctx, sqldb, name)
-		if err == nil {
+		// A previous eviction may have committed even if its response or SQL
+		// cleanup failed. Only clean metadata; never evict the remaining member.
+		if rec, ok := records[address]; ok {
+			return deleteMemberName(ctx, sqldb, rec.name)
+		}
+		return fmt.Errorf("%w %q", ErrMemberNotFound, name)
+	}
+	if len(members) <= 1 {
+		return ErrLastMember
+	}
+	leader, err := cli.Leader(ctx)
+	if err != nil {
+		return fmt.Errorf("find cluster leader: %w", err)
+	}
+	if leader == nil {
+		return fmt.Errorf("cluster has no leader")
+	}
+	if leader.ID == target.ID {
+		// Prefer existing voters, then standbys (already replicating), then
+		// spares. Assign waits for the candidate to catch up before promotion.
+		var successor *client.NodeInfo
+		for _, role := range []client.NodeRole{client.Voter, client.StandBy, client.Spare} {
 			for i := range members {
-				if members[i].Address == addr {
-					target = &members[i]
+				if members[i].ID != target.ID && members[i].Role == role {
+					successor = &members[i]
 					break
 				}
 			}
+			if successor != nil {
+				break
+			}
 		}
-	}
-	if target == nil {
-		return fmt.Errorf("%w %q", ErrMemberNotFound, name)
+		if successor == nil {
+			return fmt.Errorf("no eligible successor for %q", name)
+		}
+		if successor.Role != client.Voter {
+			if err := cli.Assign(ctx, successor.ID, client.Voter); err != nil {
+				return fmt.Errorf("promote cluster member %q: %w", successor.Address, err)
+			}
+		}
+		if err := cli.Transfer(ctx, successor.ID); err != nil {
+			return fmt.Errorf("transfer cluster leadership: %w", err)
+		}
+		next, err := connect(ctx)
+		if err != nil {
+			return fmt.Errorf("find new cluster leader: %w", err)
+		}
+		_ = cli.Close()
+		cli = next
+		leader, err = cli.Leader(ctx)
+		if err != nil {
+			return fmt.Errorf("verify new cluster leader: %w", err)
+		}
+		if leader == nil || leader.ID == target.ID {
+			return fmt.Errorf("cluster leadership did not move away from %q", name)
+		}
 	}
 	if err := cli.Remove(ctx, target.ID); err != nil {
+		// Leave the name intact so a retry can reconcile an ambiguous result.
 		return fmt.Errorf("remove cluster member %q: %w", name, err)
 	}
-	if target.Name != "" {
-		if err := deleteMemberName(ctx, sqldb, target.Name); err != nil {
-			return fmt.Errorf("removed %q from raft but not from cluster_members: %w", target.Name, err)
-		}
-	}
-	if name != target.Name {
-		if err := deleteMemberName(ctx, sqldb, name); err != nil {
-			return fmt.Errorf("removed %q from raft but not from cluster_members: %w", name, err)
+	if rec, ok := records[address]; ok {
+		if err := deleteMemberName(ctx, sqldb, rec.name); err != nil {
+			return fmt.Errorf("removed %q from raft but not from cluster_members: %w", rec.name, err)
 		}
 	}
 	return nil

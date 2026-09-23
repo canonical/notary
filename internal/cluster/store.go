@@ -110,18 +110,6 @@ func APIAddressFor(ctx context.Context, sqldb *sql.DB, clusterAddress string) st
 	return addr
 }
 
-func addressForName(ctx context.Context, sqldb *sql.DB, name string) (string, error) {
-	var address string
-	err := sqldb.QueryRowContext(ctx, `SELECT address FROM cluster_members WHERE name = ?`, name).Scan(&address)
-	if err == sql.ErrNoRows {
-		return "", fmt.Errorf("%w %q", ErrMemberNotFound, name)
-	}
-	if err != nil {
-		return "", err
-	}
-	return address, nil
-}
-
 func memberNameExists(ctx context.Context, sqldb *sql.DB, name string) (bool, error) {
 	var n int
 	err := sqldb.QueryRowContext(ctx, `SELECT COUNT(1) FROM cluster_members WHERE name = ?`, name).Scan(&n)

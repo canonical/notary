@@ -71,6 +71,9 @@ loopback
 wildcard
 SHA
 ACME
+EAB
+HMAC
+CNAME
 LEGO
 cloudflare
 hetzner

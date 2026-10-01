@@ -235,4 +235,3 @@ func SetActiveACMEServer(env *HandlerDependencies) http.HandlerFunc {
 		writeResponse(w, http.StatusOK, "", dbACMEServerToResponse(server), env.SystemLogger)
 	}
 }
-

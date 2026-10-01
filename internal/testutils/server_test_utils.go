@@ -15,6 +15,7 @@ import (
 	"time"
 
 	internalLog "github.com/canonical/notary/internal/backends/observability/log"
+	"github.com/canonical/notary/internal/db"
 	"github.com/canonical/notary/internal/server"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -25,13 +26,21 @@ import (
 func MustPrepareServer(t *testing.T) (*httptest.Server, *observer.ObservedLogs) {
 	t.Helper()
 
-	db := MustPrepareEmptyDB(t)
+	testServer, logs, _ := MustPrepareServerWithDatabase(t)
+	return testServer, logs
+}
+
+// MustPrepareServerWithDatabase starts a test server and also returns its database.
+func MustPrepareServerWithDatabase(t *testing.T) (*httptest.Server, *observer.ObservedLogs, *db.DatabaseRepository) {
+	t.Helper()
+
+	database := MustPrepareEmptyDB(t)
 	// Attach observed audit logger
 	core, logs := observer.New(zapcore.InfoLevel)
 	auditZap := zap.New(core)
 
 	appCfg := MustCreateTestAppConfig(t)
-	appEnv := MustCreateTestAppEnvironment(t, db)
+	appEnv := MustCreateTestAppEnvironment(t, database)
 	appEnv.AuditLogger = internalLog.NewAuditLogger(auditZap)
 
 	srv, err := server.New(appCfg, appEnv)
@@ -42,7 +51,7 @@ func MustPrepareServer(t *testing.T) (*httptest.Server, *observer.ObservedLogs) 
 	t.Cleanup(func() {
 		testServer.Close()
 	})
-	return testServer, logs
+	return testServer, logs, database
 }
 
 // MustGetDefaultAdminToken creates the first admin account (no auth required when zero users exist)

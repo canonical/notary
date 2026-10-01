@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"testing"
 
@@ -8,7 +9,7 @@ import (
 )
 
 func TestACMEServersEndToEnd(t *testing.T) {
-	ts, _ := tu.MustPrepareServer(t)
+	ts, _, database := tu.MustPrepareServerWithDatabase(t)
 	adminToken := tu.MustPrepareAccount(t, ts, "acme-admin@canonical.com", tu.RoleAdmin, "")
 	requestorToken := tu.MustPrepareAccount(t, ts, "acme-requestor@canonical.com", tu.RoleCertificateRequestor, adminToken)
 	readerToken := tu.MustPrepareAccount(t, ts, "acme-reader@canonical.com", tu.RoleReadOnly, adminToken)
@@ -42,12 +43,17 @@ func TestACMEServersEndToEnd(t *testing.T) {
 	})
 
 	t.Run("3. Create ACME server - success", func(t *testing.T) {
+		const propagationWaitKey = "NOTARY_ACME_DNS_PROPAGATION_WAIT"
+		const propagationWait = "45"
 		statusCode, resp, err := tu.CreateACMEServer(ts.URL, client, adminToken, tu.CreateACMEServerParams{
 			Name:         "Let's Encrypt Staging",
 			DirectoryURL: "https://acme-staging-v02.api.letsencrypt.org/directory",
 			Email:        "admin@example.com",
 			DNSProvider:  "cloudflare",
-			EnvVars:      map[string]string{"CF_DNS_API_TOKEN": "test-token"},
+			EnvVars: map[string]string{
+				"CF_DNS_API_TOKEN": "test-token",
+				propagationWaitKey: propagationWait,
+			},
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -60,6 +66,22 @@ func TestACMEServersEndToEnd(t *testing.T) {
 		}
 		if resp.Data.Active {
 			t.Fatal("newly created server should not be active")
+		}
+		storedServer, err := database.GetDecryptedACMEServer(resp.Data.ID)
+		if err != nil {
+			t.Fatalf("get persisted ACME server: %v", err)
+		}
+		var persistedEnvVars map[string]string
+		if err := json.Unmarshal([]byte(storedServer.EnvVars), &persistedEnvVars); err != nil {
+			t.Fatalf("decode persisted ACME environment: %v", err)
+		}
+		if persistedEnvVars[propagationWaitKey] != propagationWait {
+			t.Fatalf(
+				"persisted %s = %q, want %q",
+				propagationWaitKey,
+				persistedEnvVars[propagationWaitKey],
+				propagationWait,
+			)
 		}
 		createdID = int(resp.Data.ID)
 	})

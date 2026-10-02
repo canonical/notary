@@ -17,12 +17,23 @@ needed to validate the domains in your CSR.
    `hetzner`, or `route53`.
 4. Under **Provider Environment Variables**, add the credential keys and values
    required by that provider.
-5. Save the server, then select **Set Active** for it. Only one ACME server can
+5. Optionally expand **Advanced ACME settings** to configure:
+   - Resolved EAB key ID and HMAC credentials. Set both or neither.
+   - A PEM CA bundle to add to the system trust roots used by the ACME client.
+   - A positive DNS propagation wait in seconds.
+   - Comma-separated recursive resolver IP addresses, with optional ports, such
+     as `8.8.8.8:53,8.8.4.4:53`.
+   - Whether LEGO should disable CNAME following during DNS-01 validation.
+6. Save the server, then select **Set Active** for it. Only one ACME server can
    be active at a time.
 
 Notary registers an account on first use and reuses it for the same email and
 directory URL. Registration automatically agrees to the certificate authority's
 terms of service, so review those terms before signing.
+
+Provider credentials and advanced ACME settings are encrypted by Notary and
+their values are not returned by the API. The EAB values are used only when
+registering a new account; existing account registrations are reused.
 
 ## Sign a request
 

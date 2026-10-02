@@ -265,15 +265,8 @@ export default function ACMEServersAsidePanel({
 	};
 
 	return (
-		<Panel
-			title={isEditing ? "Edit ACME Server" : "Add ACME Server"}
-			controls={
-				<Button onClick={setAsideOpen} hasIcon>
-					<i className="p-icon--close" />
-				</Button>
-			}
-		>
-			<Form stacked>
+		<Panel title={isEditing ? "Edit ACME Server" : "Add ACME Server"}>
+			<Form>
 				<div className="p-form__group row">
 					<Input
 						label="Name"

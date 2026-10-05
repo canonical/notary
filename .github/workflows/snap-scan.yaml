@@ -1,0 +1,43 @@
+name: Snap Scan
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  scan-snap:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: snap
+          path: snap-artifact
+      - name: Extract snap
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y squashfs-tools
+          unsquashfs -d snap-root snap-artifact/*.snap
+      - name: Scan packaged native and Go dependencies
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          scan-type: rootfs
+          scan-ref: snap-root
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          format: table
+      - uses: actions/checkout@v7
+        with:
+          path: source
+      - name: Scan locked frontend dependencies
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          scan-type: fs
+          scan-ref: source/ui
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          format: table

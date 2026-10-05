@@ -19,6 +19,10 @@ jobs:
     uses: ./.github/workflows/go-vet.yaml
   go-lint:
     uses: ./.github/workflows/go-lint.yaml
+  go-sec:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/go-sec.yaml
   go-build:
     needs: [frontend-build]
     uses: ./.github/workflows/go-build.yaml
@@ -45,8 +49,14 @@ jobs:
   snap-build:
     needs: [go-build, go-unit-test, go-vet, go-lint]
     uses: ./.github/workflows/snap-build.yaml
+  snap-test:
+    needs: [snap-build]
+    uses: ./.github/workflows/snap-test.yaml
+  snap-scan:
+    needs: [snap-build]
+    uses: ./.github/workflows/snap-scan.yaml
   snap-publish:
     if: github.ref_name == 'main'
-    needs: [snap-build]
+    needs: [snap-build, snap-test, snap-scan, frontend-unit-test, go-sec]
     uses: ./.github/workflows/snap-publish.yaml
     secrets: inherit

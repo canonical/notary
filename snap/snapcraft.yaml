@@ -30,7 +30,8 @@ apps:
     daemon: simple
     install-mode: disable
     command: bin/notaryd-start
-    refresh-mode: endure
+    refresh-mode: restart
+    stop-timeout: 60s
     plugs:
       - network
       - network-bind
@@ -46,12 +47,12 @@ parts:
     build-packages:
       - gcc
       - pkg-config
-      - libdqlite1.18-dev
+      - libdqlite1.18-dev=1.18.7~noble1
       - libsqlite3-dev
       - libuv1-dev
       - liblz4-dev
     stage-packages:
-      - libdqlite1.18
+      - libdqlite1.18=1.18.7~noble1
       - libsqlite3-0
       - libuv1t64
       - liblz4-1
@@ -59,8 +60,9 @@ parts:
       - GOTOOLCHAIN: local
       - CGO_ENABLED: "1"
     override-build: |
-      npm install --prefix ui
-      npm run build --prefix ui
+      npm install --global bun@1.3.14
+      bun install --cwd ui --frozen-lockfile
+      bun run --cwd ui build
       craftctl default
 
   notary-release-data:

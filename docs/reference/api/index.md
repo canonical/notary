@@ -16,7 +16,11 @@ In addition to the Notary-specific resources, the API also provides access to ge
 
 ## Authentication
 
-Almost every operation requires a client token, in the form of a Bearer Token.
+Authenticated operations require the `user_token` cookie returned by
+[`POST /login`](login.md) or OIDC login. Use a cookie jar with API clients;
+Bearer authorization headers alone are not accepted. See [Roles](../roles.md)
+for permissions. Status, metrics, CA CRLs, login, and first-account creation
+are public; cluster join redemption uses a join token.
 
 ## Responses
 
@@ -24,10 +28,14 @@ Notary's API responses are JSON objects with the following structure:
 
 ```json
 {
-  "result": "Result content",
-  "error": "Error message",
+  "data": {"id": 1},
+  "message": "Optional message"
 }
 ```
+
+`data` and `message` are omitted when absent. Successful operations with neither
+return `{}`; HTTP 204 responses have no body. Errors use the HTTP status and an
+optional top-level `message`, not an `error` field.
 
 ```{note}
 GET calls to the `/metrics` endpoint don't follow this rule; they return text response in the [Prometheus exposition format](https://prometheus.io/docs/instrumenting/exposition_formats/).
@@ -39,6 +47,7 @@ GET calls to the `/metrics` endpoint don't follow this rule; they return text re
 :maxdepth: 1
 
 accounts.md
+acme_servers.md
 certificate_authorities.md
 certificate_requests.md
 cluster.md

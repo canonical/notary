@@ -8,13 +8,23 @@ on:
 
 jobs:
   tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       GO111MODULE: on
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
 
       - uses: ./.github/actions/install-dqlite
 
       - name: Run Gosec Security Scanner
-        uses: securego/gosec@9e75c0576c9878035d4221392108d458abe10fc3 # v2.28.0
+        run: go run github.com/securego/gosec/v2/cmd/gosec@v2.28.0 -fmt=sarif -out=gosec.sarif ./...
+
+      - name: Retain security report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: gosec-report
+          path: gosec.sarif

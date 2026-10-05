@@ -11,7 +11,9 @@ Notary encrypts sensitive data at rest using AES-256 in Galois/Counter Mode (GCM
 The encryption key is stored alongside the data and can be encrypted with one of the following encryption backends:
 - **PKCS#11**: Uses a hardware security module (HSM) to manage encryption keys.
 - **HashiCorp Vault**: Utilizes Vault's Transit secrets engine for encryption.
-- **None**: Disables encryption, not recommended for production environments.
+- **None**: Leaves the data-encryption key unwrapped alongside the encrypted
+	data. It does not disable AES-GCM, but possession of the database also gives
+	access to that key. It is not recommended for production environments.
 
 ### Configuration
 
@@ -50,14 +52,23 @@ dqlite has no protocol authentication. TLS trust on the dqlite port **is** autho
 Three consequences are worth planning for:
 
 - **A join token is a bearer credential.** Until it is redeemed or expires, whoever holds it can obtain the shared cluster private key (default mode) or the current dqlite addresses (CA mode). Treat it like a password: pass it over a secure channel, do not put it in tickets or chat, and prefer `notary start --join` over storing it in a configuration file.
-- **Removing a member is not revocation.** `notary cluster remove` evicts a node from raft but does not invalidate credentials. Until you stop that process it can still reach the cluster database as a client. In shared-pair mode, genuinely revoking a member means generating a new cluster certificate and key, setting `cluster.tls` on every remaining member, and restarting them. In CA mode, stop the unit then revoke or expire its cluster leaf at your CA; until then a holder of that leaf can still speak dqlite.
+- **Removing a member is not revocation.** `notary cluster remove` evicts a node from raft but does not invalidate credentials. Until you stop that process it can still reach the cluster database as a client. In shared-pair mode, genuinely revoking a member means generating a new cluster certificate and key, setting `cluster.tls` on every remaining member, and restarting them. In CA mode, Notary does not check CRLs or OCSP, so CA-side revocation alone does not deny access. Isolate the removed host, terminate its connections, and rotate the trusted cluster CA and remaining leaves if its credentials may be compromised. Expiry prevents new handshakes but does not terminate existing connections.
 - **Backups can contain cluster keys.** In shared-pair mode `cluster.key` lives in `db_path`. In CA mode the unit key stays at `cluster.tls.key_path`; still store backups of that path with the archive. See [Back up and restore Notary](../how-to/backup_restore.md).
 
 There is no automatic rotation of the generated shared cluster certificate. That pair is valid for ten years; replacing it earlier is the manual procedure described above.
 
 ## Authentication
 
-Notary implements token-based authentication for its API and web interface. Users must provide a valid authentication token in the `Authorization` header of their requests. Notary hashes passwords using Argon2id before storage, ensuring that even if the database is compromised, user passwords remain secure.
+Notary authenticates API requests using the `user_token` session cookie set by
+`POST /login` or OIDC login. Local login sets a Secure, HttpOnly, SameSite=Strict
+cookie with a two-hour expiry. An `Authorization: Bearer` header is not a
+replacement for this cookie. Passwords are hashed using Argon2id.
+
+The first account can be created without authentication and receives the admin
+role. Restrict network access until the operator completes initialization.
+`GET /status`, `/metrics`, and CA CRL retrieval are public; restrict access to
+monitoring data at the network boundary. Cluster token redemption requires a
+valid join token rather than an administrator session.
 
 ## Authorization
 

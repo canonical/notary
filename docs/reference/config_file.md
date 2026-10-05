@@ -36,8 +36,10 @@ Admin HTTP: `GET /api/v1/cluster`, `POST /api/v1/cluster/members`, `DELETE /api/
 - `pebble_notifications` (boolean): Allow Notary to send pebble notices on certificate events (create, update, delete). Pebble needs to be running on the same system as Notary.
 - `logging` (object): Optional. Configuration for logging. If omitted, system logs go to stdout at `debug` and audit logs go to stdout.
   - `system` (object): Configuration for system logging.
-    - `level` (string): The level of logging. Options are `debug`, `info`, `warn`, `error`, and `fatal`.
+    - `level` (string): The level of logging. Options are `debug`, `info`, `warn`, `error`, `fatal`, and `panic`.
     - `output` (string): The output destination for logs. Options are `stdout`, `stderr`, or a file path.
+  - `audit` (object): Configuration for audit logging.
+    - `output` (string): `stdout`, `stderr`, or a file path. Defaults to `stdout`; there is no configurable audit level.
 - `encryption_backend` (object): Configuration for the encryption backend. **Every cluster member must use the same backend settings.** The data-encryption key lives in dqlite; a joiner that cannot decrypt it will not start.
   - `type` (string): Type of encryption backend. Options are `none`, `pkcs11`, or `vault`.
   - For `type: "pkcs11"`:
@@ -48,24 +50,25 @@ Admin HTTP: `GET /api/v1/cluster`, `POST /api/v1/cluster/members`, `DELETE /api/
     - `endpoint` (string): URL of the Vault server.
     - `mount` (string): Mount path of the Transit secrets engine.
     - `key_name` (string): Name of the key to use for encryption.
-    - `token` (string): Vault token for authentication. Either this, or `approle_role_id` and `approle_secret_id` must be provided.
-    - `approle_role_id` (string): Role ID for AppRole authentication. Either `approle_role_id` and `approle_secret_id`, or `token` must be provided.
-    - `approle_secret_id` (string): Secret ID for AppRole authentication.
+    - `token` (string): Vault token for authentication. Provide this, or the pair `approle_role_id` and `secret_role_id`.
+    - `approle_role_id` (string): Role ID for AppRole authentication.
+    - `secret_role_id` (string): Secret ID for AppRole authentication. This is the field name currently read by Notary; `approle_secret_id` is not accepted.
     - `tls_ca_cert` (string): Path to the CA certificate for TLS verification (optional).
     - `tls_skip_verify` (boolean): Whether to skip TLS certificate verification (optional, defaults to `false`). It is strongly discouraged to set this to `true` outside of development environments
 - `authentication` (object): Configuration for authenticating to Notary.
-  - `authentication` (object): Authentication configuration.
-    - `oidc` (object): Configuration for an OIDC identity provider.
-      - `domain` (string): URL of the OIDC provider not including the protocol.
-      - `client_id` (string): The client ID provided to you by the OIDC provider.
-      - `client_secret` (string): The client secret provided to you by the OIDC provider.
-      - `audience` (string): The audience value to be included in the oauth2 process.
-      - `email_scope_key` (string): The email scope and claim that will be requested as a scope and checked in the claims of the ID token. Common values: "email" (standard OIDC), or custom namespaced claims. Email is optional - users can be provisioned with only their OIDC subject identifier.
-      - `permissions_scope_key` (string): The permission scope and claim that will be requested as a scope and checked in the claims of the access token.
-      - `extra_scopes` ([]string): Extra scopes to request from the OIDC provider.
+  - `oidc` (object): Configuration for an OIDC identity provider.
+    - `domain` (string): URL of the OIDC provider not including the protocol.
+    - `client_id` (string): The client ID provided to you by the OIDC provider.
+    - `client_secret` (string): The client secret provided to you by the OIDC provider.
+    - `audience` (string): The audience value to be included in the oauth2 process.
+    - `email_scope_key` (string): Email scope and claim to request and read from the ID token. Email is optional; users can be provisioned with only their OIDC subject identifier.
+    - `permissions_scope_key` (string): Permission scope and claim to request and read from the access token.
+    - `extra_scopes` ([]string): Extra scopes to request from the OIDC provider.
 - `tracing` (object): Configuration for tracing.
+  Set all three fields explicitly when this section is present; the current
+  initializer does not apply the intended service-name and sampling defaults.
   - `service_name` (string): The name that will identify your service in the tracing system
-  - `endpoint` (string): The URL of your OpenTelemetry collector endpoint
+  - `endpoint` (string): The `host:port` of the OTLP gRPC collector. The exporter currently uses plaintext gRPC; use a trusted network or protected local collector.
   - `sampling_rate` (string): The percentage of traces to sample. Can be specified as a percentage (50%)
     or a decimal value between 0.0 and 1.0 (0.0, 0.5, 1.0).
 

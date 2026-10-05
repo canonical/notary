@@ -17,12 +17,16 @@ This path returns the current configuration of Notary excluding sensitive fields
 
 ```json
 {
-    "result":{
+    "data":{
         "port":3000,
         "pebble_notifications":false,
         "logging_level":"debug",
         "logging_output":"stdout",
-        "encryption_backend_type":"none"
+        "encryption_backend_type":"none",
+        "acme_enabled":false
     }
 }
 ```
+
+When ACME is active, `acme_server_name` is also returned. Any authenticated role
+can read this endpoint.

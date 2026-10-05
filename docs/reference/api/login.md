@@ -4,7 +4,8 @@ This section describes the RESTful API for system user authentication.
 
 ## Login
 
-This path returns a token that can be used to authenticate with Notary.
+This path sets the `user_token` session cookie used to authenticate with Notary.
+The cookie is Secure, HttpOnly, SameSite=Strict and expires after two hours.
 
 | Method | Path     |
 | :----- | :------- |
@@ -18,9 +19,12 @@ This path returns a token that can be used to authenticate with Notary.
 ### Sample Response
 
 ```json
-{
-    "result": {
-        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsImV4cCI6MTczNTU4NTk0MX0.0BsZVMLCzJ6mzCXlf3qfAR2k6Fk7aUsGfHV7Tj1Dqy4"
-    }
-}
+{}
 ```
+
+HTTP 200 includes a `Set-Cookie` header; the token is not returned in the JSON
+body. Store the cookie jar securely and submit it on subsequent requests.
+
+## Logout
+
+`POST /logout` expires the session cookie and returns HTTP 200 with `{}`.

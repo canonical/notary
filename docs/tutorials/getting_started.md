@@ -11,24 +11,39 @@ In this tutorial, you will learn how to install Notary on a Linux machine and ac
 Install the snap:
 
 ```shell
-sudo snap install notary --channel=0.0/edge
+sudo snap install notary --channel=1/stable
 ```
 
-Generate a certificate and private key to the following location:
+The stable channel must be published before installing it. For release testing,
+use `1/candidate` only after a candidate has been published.
+
+Keep the HTTPS port restricted to the operator until initialization is complete:
+the first account is created without authentication and becomes administrator.
+
+For a local tutorial, generate a certificate and private key:
 
 ```shell
-sudo openssl req -newkey rsa:2048 -nodes -keyout /var/snap/notary/common/key.pem -x509 -days 1 -out /var/snap/notary/common/cert.pem -subj "/CN=example.com"
+sudo openssl req -newkey rsa:2048 -nodes -keyout /var/snap/notary/common/key.pem -x509 -days 1 -out /var/snap/notary/common/cert.pem -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+sudo chmod 600 /var/snap/notary/common/key.pem
 ```
 
-Start the service:
+For production, provision a CA-signed certificate covering the service hostname
+at those paths and arrange renewal. Restart Notary after replacing the files.
+Choose the encryption backend before first start; the default `none` leaves the
+data-encryption key unwrapped in the database. See [Vault](../how-to/vault.md)
+and [HSM limitations](../how-to/hsm.md).
+
+Start the service and enable it on subsequent boots:
 ```shell
-sudo snap start notary.notaryd
+sudo snap start --enable notary.notaryd
 ```
 
 Navigate to `https://localhost:3000` to access the Notary UI.
 
 ```{note}
-Your browser may display a warning about the connection's security. This warning is displayed because we used a self-signed certificate to start Notary. You can safely ignore this warning.
+For this local tutorial, a browser warning is expected because the certificate is
+self-signed. Verify that it is the certificate you generated. Do not bypass
+certificate warnings for a production deployment.
 ```
 
 You should be prompted to initialize Notary.
@@ -42,8 +57,8 @@ You should be prompted to initialize Notary.
 
 Create the initial user:
 
-- **Email**: `admin@canonical.com`
-- **Password**: `NotaryAdmin123!`
+- **Email**: your administrator email address
+- **Password**: a unique password stored in your password manager
 
 Click on "Submit".
 

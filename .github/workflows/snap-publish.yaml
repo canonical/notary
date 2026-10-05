@@ -21,9 +21,12 @@ jobs:
       - name: Determine snap file name
         id: find-snap
         run: |
-          SNAP_FILE=$(ls *.snap)
+          snaps=(./*.snap)
+          test "${#snaps[@]}" -eq 1
+          test -f "${snaps[0]}"
+          SNAP_FILE="${snaps[0]}"
           echo "Found snap file: $SNAP_FILE"
-          echo "snap_file=${SNAP_FILE}" >>$GITHUB_OUTPUT
+          echo "snap_file=${SNAP_FILE}" >> "$GITHUB_OUTPUT"
 
       - name: Publish snap
         uses: canonical/action-publish@v1.2.0

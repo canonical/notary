@@ -142,4 +142,5 @@ Navigate to `http://127.0.0.1:8000` to view the documentation site.
 
 ## Reference
 
+- [Snap release checklist](snap/RELEASE.md): publication gates, candidate acceptance, and promotion to `1/stable`.
 - [Go Best Practices Guidelines](https://docs.google.com/document/d/1IbFXyeXYlfQ5GUEEScGS7pP335Cei-5cFBdAoR973pQ/edit?tab=t.0)

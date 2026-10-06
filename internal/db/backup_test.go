@@ -1,6 +1,8 @@
 package db_test
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,6 +50,66 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 	}
 	if string(got) != "extra" {
 		t.Fatalf("extra.dat: got %q", got)
+	}
+}
+
+func TestBackupSkipsSymlinks(t *testing.T) {
+	dataDir := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "secret")
+	if err := os.WriteFile(outside, []byte("outside data"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(dataDir, "link")); err != nil {
+		t.Fatal(err)
+	}
+	archive, err := db.CreateBackup(dataDir, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	restored := filepath.Join(t.TempDir(), "restored")
+	if err := db.RestoreBackup(restored, archive); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(filepath.Join(restored, "link")); !os.IsNotExist(err) {
+		t.Fatalf("symlink must not be archived: %v", err)
+	}
+}
+
+func TestRestoreBackupRejectsEscapingPaths(t *testing.T) {
+	for _, name := range []string{"../escaped", "nested/../../escaped", "/absolute"} {
+		t.Run(name, func(t *testing.T) {
+			archive := filepath.Join(t.TempDir(), "malicious.tar.gz")
+			file, err := os.Create(archive)
+			if err != nil {
+				t.Fatal(err)
+			}
+			compressed := gzip.NewWriter(file)
+			writer := tar.NewWriter(compressed)
+			if err := writer.WriteHeader(&tar.Header{Name: name, Mode: 0o600, Typeflag: tar.TypeReg}); err != nil {
+				t.Fatal(err)
+			}
+			if err := writer.Close(); err != nil {
+				t.Fatal(err)
+			}
+			if err := compressed.Close(); err != nil {
+				t.Fatal(err)
+			}
+			if err := file.Close(); err != nil {
+				t.Fatal(err)
+			}
+			dataDir := t.TempDir()
+			original := filepath.Join(dataDir, "original")
+			if err := os.WriteFile(original, []byte("preserved"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := db.RestoreBackup(dataDir, archive); err == nil {
+				t.Fatal("expected escaping archive path to be rejected")
+			}
+			contents, err := os.ReadFile(original)
+			if err != nil || string(contents) != "preserved" {
+				t.Fatalf("failed restore must preserve original data: %q, %v", contents, err)
+			}
+		})
 	}
 }
 

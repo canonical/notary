@@ -3,7 +3,7 @@ package server
 import (
 	crand "crypto/rand"
 	"crypto/rsa"
-	"crypto/sha1"
+	"crypto/sha1" // #nosec G505 -- RFC 5280 subject key identifiers use SHA-1, not for signatures or password hashing.
 	"crypto/x509"
 	"encoding/asn1"
 	"errors"
@@ -54,7 +54,7 @@ func generateSKI(priv *rsa.PrivateKey) []byte {
 	if err != nil {
 		panic(errors.Join(errors.New("failed to generate an SKI for public key"), err))
 	}
-	hash := sha1.Sum(spki.SubjectPublicKey.Bytes)
+	hash := sha1.Sum(spki.SubjectPublicKey.Bytes) // #nosec G401 -- RFC 5280 section 4.2.1.2 key identifier, not a security digest.
 	return hash[:]
 }
 

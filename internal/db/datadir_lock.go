@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"syscall"
 )
 
@@ -32,8 +31,12 @@ func rejectIfDataDirInUse(dataDir string) error {
 	if !info.IsDir() {
 		return nil
 	}
-	lockPath := filepath.Join(dataDir, dqliteLockFile)
-	f, err := os.OpenFile(lockPath, os.O_RDWR, 0)
+	root, err := os.OpenRoot(dataDir)
+	if err != nil {
+		return fmt.Errorf("cannot open database directory: %w", err)
+	}
+	defer root.Close() //nolint:errcheck
+	f, err := root.OpenFile(dqliteLockFile, os.O_RDWR, 0)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil

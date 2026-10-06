@@ -20,7 +20,7 @@ jobs:
       - uses: ./.github/actions/install-dqlite
 
       - name: Run Gosec Security Scanner
-        run: go run github.com/securego/gosec/v2/cmd/gosec@v2.28.0 -fmt=sarif -out=gosec.sarif ./...
+        run: go run github.com/securego/gosec/v2/cmd/gosec@v2.28.0 -exclude-dir=internal/testutils -fmt=sarif -out=gosec.sarif ./...
 
       - name: Retain security report
         if: always()

@@ -3,10 +3,37 @@ package server_test
 import (
 	"net/http"
 	"testing"
+	"time"
 
+	"github.com/canonical/notary/internal/server"
 	tu "github.com/canonical/notary/internal/testutils"
 	"github.com/golang-jwt/jwt/v5"
 )
+
+func TestLogoutCookieSecurity(t *testing.T) {
+	ts, _ := tu.MustPrepareServer(t)
+	response, err := ts.Client().Post(ts.URL+"/logout", "application/json", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close() //nolint:errcheck
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, response.StatusCode)
+	}
+	for _, cookie := range response.Cookies() {
+		if cookie.Name != server.CookieSessionTokenKey {
+			continue
+		}
+		if !cookie.Secure || !cookie.HttpOnly || cookie.SameSite != http.SameSiteStrictMode {
+			t.Fatalf("logout cookie lacks security attributes: %+v", cookie)
+		}
+		if cookie.Value != "" || cookie.Path != "/" || !cookie.Expires.Equal(time.Unix(0, 0)) {
+			t.Fatalf("logout cookie does not expire the session: %+v", cookie)
+		}
+		return
+	}
+	t.Fatal("logout did not set a session cookie")
+}
 
 func TestLoginEndToEnd(t *testing.T) {
 	ts, logs := tu.MustPrepareServer(t)

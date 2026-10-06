@@ -117,10 +117,13 @@ func Logout(env *HandlerDependencies) http.HandlerFunc {
 		}
 
 		http.SetCookie(w, &http.Cookie{
-			Name:    CookieSessionTokenKey,
-			Value:   "",
-			Path:    "/",
-			Expires: time.Unix(0, 0),
+			Name:     CookieSessionTokenKey,
+			Value:    "",
+			Path:     "/",
+			Expires:  time.Unix(0, 0),
+			Secure:   true,
+			HttpOnly: true,
+			SameSite: http.SameSiteStrictMode,
 		})
 
 		env.AuditLogger.Logout(username, log.WithRequest(r))

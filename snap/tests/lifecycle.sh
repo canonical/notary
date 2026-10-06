@@ -1,5 +1,6 @@
 #!/bin/bash
-set -euo pipefail
+set -Eeuo pipefail
+trap 'printf "Lifecycle check failed at line %s (exit %s)\n" "$LINENO" "$?" >&2' ERR
 
 if [[ "${GITHUB_ACTIONS:-}" != true ]]; then
     echo 'Run only on a disposable GitHub Actions runner.' >&2
@@ -14,7 +15,9 @@ artifact="$(realpath "${1:?snap artifact required}")"
 common=/var/snap/notary/common
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
-base=https://localhost:3000
+default_port=3000
+port=13000
+base="https://localhost:$port"
 cookie="$work/cookies"
 
 request() {
@@ -23,9 +26,20 @@ request() {
 }
 
 ready() {
-    curl --fail --silent --show-error --cacert "$work/cert.pem" \
-        --retry 30 --retry-all-errors --retry-delay 1 --retry-max-time 90 \
-        --connect-timeout 2 --max-time 5 "$base/status" | jq -e '.data.version | type == "string"'
+    local retries=30
+    while ((retries--)); do
+        if curl --fail --silent --show-error --cacert "$work/cert.pem" \
+            --connect-timeout 2 --max-time 5 "$base/status" >"$work/status.json" &&
+            jq -e '.data.version | type == "string"' <"$work/status.json" >/dev/null; then
+            return
+        fi
+        sleep 2
+    done
+
+    echo "Notary did not become ready at $base/status" >&2
+    sudo snap services notary >&2 || true
+    sudo journalctl -u snap.notary.notaryd.service --no-pager -n 200 >&2 || true
+    return 1
 }
 
 check_data() {
@@ -42,6 +56,7 @@ if sudo systemctl is-active --quiet snap.notary.notaryd.service; then
     echo 'Fresh installation unexpectedly started the daemon.' >&2
     exit 1
 fi
+sudo snap set notary port="$port"
 openssl req -newkey rsa:2048 -nodes -keyout "$work/key.pem" -x509 -days 2 \
     -out "$work/cert.pem" -subj /CN=localhost -addext subjectAltName=DNS:localhost
 sudo install -m 600 "$work/key.pem" "$common/key.pem"
@@ -89,6 +104,7 @@ old_pid="$(sudo systemctl show snap.notary.notaryd.service -p MainPID --value)"
 sudo snap install --dangerous "$artifact"
 check_data
 [[ "$(sudo systemctl show snap.notary.notaryd.service -p MainPID --value)" != "$old_pid" ]]
+base="https://localhost:$default_port"
 sudo snap revert notary
 check_data
 [[ "$(sudo systemctl is-enabled snap.notary.notaryd.service)" == enabled ]]

@@ -321,9 +321,9 @@ WITH RECURSIVE cas_with_chain AS (
 	// // // // // // // // // //
 	// JWT Secret SQL Strings //
 	// // // // // // // // // //
-	createJWTSecretStmt = "INSERT INTO jwt_secret (id, encrypted_secret) VALUES ($JWTSecret.id, $JWTSecret.encrypted_secret)"
-	getJWTSecretStmt    = "SELECT &JWTSecret.* FROM jwt_secret WHERE id=$JWTSecret.id"
-	deleteJWTSecretStmt = "DELETE FROM jwt_secret WHERE id=$JWTSecret.id"
+	createJWTSecretStmt = "INSERT INTO jwt_secret (id, encrypted_secret) VALUES ($JWTSecret.id, $JWTSecret.encrypted_secret)" // #nosec G101 -- Parameterized SQL; no embedded credential.
+	getJWTSecretStmt    = "SELECT &JWTSecret.* FROM jwt_secret WHERE id=$JWTSecret.id"                                        // #nosec G101 -- Parameterized SQL; no embedded credential.
+	deleteJWTSecretStmt = "DELETE FROM jwt_secret WHERE id=$JWTSecret.id"                                                     // #nosec G101 -- Parameterized SQL; no embedded credential.
 
 	// ACME Account statements
 	insertACMEAccountStmt           = "INSERT INTO acme_accounts (email, directory_url, private_key, registration_uri, registration_body) VALUES ($ACMEAccount.email, $ACMEAccount.directory_url, $ACMEAccount.private_key, $ACMEAccount.registration_uri, $ACMEAccount.registration_body)"

@@ -15,7 +15,6 @@ artifact="$(realpath "${1:?snap artifact required}")"
 common=/var/snap/notary/common
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
-default_port=3000
 port=13000
 base="https://localhost:$port"
 cookie="$work/cookies"
@@ -104,7 +103,7 @@ old_pid="$(sudo systemctl show snap.notary.notaryd.service -p MainPID --value)"
 sudo snap install --dangerous "$artifact"
 check_data
 [[ "$(sudo systemctl show snap.notary.notaryd.service -p MainPID --value)" != "$old_pid" ]]
-base="https://localhost:$default_port"
 sudo snap revert notary
+sudo snap start --enable notary.notaryd
 check_data
 [[ "$(sudo systemctl is-enabled snap.notary.notaryd.service)" == enabled ]]

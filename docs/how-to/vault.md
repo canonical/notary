@@ -12,7 +12,11 @@ Once Notary is initialized it must continue using the encryption backend configu
 
 ## 1. Configure Notary with your Vault Information
 
-* Provide a name to your backend (in the following example we call our backend vault-backend)
+For the snap, edit `/var/snap/notary/common/notary.yaml`, remove the
+`# notary-config-source: snap` marker, and restrict the file to root (`chmod 600`).
+Put any private CA file under `/var/snap/notary/common` so the confined daemon
+can read it. Configure this before the first start.
+
 * Add your Vault's information in the config file:
   * Endpoint of your Vault server
   * Mount path of the Transit secrets engine
@@ -21,22 +25,23 @@ Once Notary is initialized it must continue using the encryption backend configu
 
 ```yaml
 encryption_backend:
-  vault-backend: # name of the backend
-    vault:
-      endpoint: "https://vault.example.com"
-      mount: "transit"
-      key_name: "notary-key"
-      token: "s.xxxxxxx" # if you use a token for authentication
-      approle_role_id: "xxxxxx" # if you use AppRole for authentication
-      approle_secret_id: "xxxxxx" # if you use AppRole for authentication
-      tls_ca_cert: "/path/to/ca.crt" # optional, if your Vault server uses a CA not in your system's trust store.
-      tls_skip_verify: false # optional (defaults to false), if you want to skip TLS certificate verification. It is strongly discouraged to set this to true outside of development environments.
+  type: "vault"
+  endpoint: "https://vault.example.com"
+  mount: "transit"
+  key_name: "notary-key"
+  token: "<vault-token>"
+  tls_ca_cert: "/var/snap/notary/common/vault-ca.crt"
+  tls_skip_verify: false
 ```
+
+Omit `tls_ca_cert` when Vault uses a publicly trusted CA. To use AppRole,
+replace `token` with `approle_role_id` and `secret_role_id`. The latter is the
+field name currently accepted by Notary for the AppRole secret ID.
 
 ## 2. Start Notary
 
 ```shell
-sudo snap start notary.notaryd
+sudo snap start --enable notary.notaryd
 ```
 
 Upon successful startup, you should see the following log:

@@ -95,3 +95,15 @@ PKI
 authorisation
 file-managed
 snap-managed
+CRLs
+OCSP
+OTLP
+TCP
+gRPC
+hostnames
+initializer
+untrusted
+HttpOnly
+SameSite
+CA's
+pre

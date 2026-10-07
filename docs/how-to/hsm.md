@@ -5,19 +5,42 @@ In this guide we walk you through the required steps to configure and use a Hard
 ```{note}
 Once Notary is initialized it must continue using the encryption backend configured at the time of initialization, at the moment there is no way to switch backends.
 
-This has been tested with YubiHSM2, while this should work with any HSM that supports the PKCS11 protocol please follow any further instruction from the specific HSM vendor.
+YubiHSM2 is the documented hardware integration. This does not establish
+compatibility with every PKCS#11 device or certify the snap's hardware
+integration; the repository has no confined hardware acceptance test.
 ```
 
 ## Prerequisites
 
 * An HSM that supports the PKCS11 protocol
 * AES256 symmetric key created on the HSM with capabilities to encrypt and decrypt using the AES-CBC algorithm
-* Access to the HSM's driver/interface library file (.so or .dylib file) installed with the HSM's SDK
+* A Linux PKCS#11 shared library compatible with the runtime and CPU architecture
 * The HSM's connector up and running
+
+## Snap confinement
+
+The strict snap cannot load arbitrary libraries from the host's `/usr/lib` or
+access USB HSMs directly. It does not bundle a vendor SDK. Adding a path to the
+configuration does not grant access to the host library or hardware.
+
+A network connector is a possible integration path: install the vendor connector
+on the host, and provision a core24-compatible PKCS#11 library and its dependencies
+under `/var/snap/notary/common/hsm`. Configure the vendor library to contact that
+connector over TCP. The snap already has network access. Library dependencies,
+vendor configuration discovery, and encrypt/decrypt after restart must be tested
+with the actual device; merely copying the top-level `.so` is not sufficient.
+
+For the initial stable release, use Vault or a separately validated binary/HSM
+deployment unless that snap/device combination has passed hardware acceptance.
+Direct USB support would require additional interfaces and device-specific
+testing; it is not currently provided.
 
 ## 1. Configure Notary with your HSM Information
 
-* Provide a name to your backend (in the following example we call our backend yubihsm2-backend)
+For a validated snap integration, edit `/var/snap/notary/common/notary.yaml`,
+remove the `# notary-config-source: snap` marker, and restrict the file to root
+(`chmod 600`). Configure this before first start.
+
 * Add your HSM's information in the config file:
   * Path to the library that is installed with the SDK of your HSM
   * Pin to login on your HSM, this will be in the following format: `<auth key id><password>` 
@@ -26,17 +49,16 @@ This has been tested with YubiHSM2, while this should work with any HSM that sup
 
 ```yaml
 encryption_backend:
-  yubihsm2-backend: # name of the backend
-    pkcs11:
-      lib_path: "/usr/lib/x86_64-linux-gnu/pkcs11/yubihsm_pkcs11.so"
-      pin: "0001password"
-      aes_encryption_key_id: 0x1234
+  type: "pkcs11"
+  lib_path: "/var/snap/notary/common/hsm/yubihsm_pkcs11.so"
+  pin: "<auth-key-id><password>"
+  aes_encryption_key_id: 0x1234
 ```
 
 ## 2. Start Notary
 
 ```shell
-sudo snap start notary.notaryd
+sudo snap start --enable notary.notaryd
 ```
 
 Upon successful startup, you should see the following logs:

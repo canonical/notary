@@ -123,7 +123,12 @@ Then stop Notary on the machine you removed. You cannot remove the last remainin
 
 Stopping it is not tidiness. Removal evicts the node from raft, but its API keeps working: it still holds cluster TLS and the addresses of the other members, so it goes on serving reads and writes against the cluster as a client. Until you stop the process, that machine is a live entry point into a cluster it is no longer a member of.
 
-In **CA mode**, stopping is not enough to revoke the unit. After `cluster remove`, stop the process **then revoke or expire that unit's cluster leaf** at your CA. Until you do, a process that still has the leaf can `Add` itself on the dqlite port: TLS trust is authorisation. Shared-pair mode has the same property for anyone who holds `cluster.key`.
+In **CA mode**, stopping is not enough to revoke the unit. Notary does not check
+CRLs or OCSP; revoking the leaf at your CA alone does not deny access. Isolate the
+removed host and terminate its connections. If its credentials may be compromised,
+rotate the trusted cluster CA and remaining leaves. Certificate expiry prevents
+new handshakes, not existing connections. TLS trust is authorisation; shared-pair
+mode has the same property for anyone who holds `cluster.key`.
 
 If a join dies after dqlite has already added the node (for example `notary start --join` times out waiting for the cluster), `cluster list` may show a member with no name. Remove it by address:
 
@@ -167,7 +172,9 @@ Stop **one follower** (not the only remaining voter), take a cold `notary backup
 
 ### Recover from quorum loss
 
-When too many members are gone to elect a leader, the survivors are read-only. Force one of them back into a writable single-member cluster.
+When too many members are gone to elect a leader, normal database operations
+cannot be relied on, including reads. Recover one survivor into a writable
+single-member cluster.
 
 1. Stop Notary on **every** remaining machine. `notary cluster recover` refuses to run against a data directory that a daemon still holds.
 2. On each survivor, read its raft position:

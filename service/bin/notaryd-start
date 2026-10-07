@@ -1,5 +1,5 @@
 #!/bin/bash
 
-set -ex
+set -e
 
-"$SNAP"/bin/notary start --config "$SNAP_COMMON"/notary.yaml
+exec "$SNAP"/bin/notary start --config "$SNAP_COMMON"/notary.yaml

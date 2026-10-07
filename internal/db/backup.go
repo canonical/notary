@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -40,6 +40,11 @@ func CreateBackup(dataDir, backupDir string) (string, error) {
 	if err := rejectBackupInsideDataDir(dataAbs, backupAbs); err != nil {
 		return "", err
 	}
+	dataRoot, err := os.OpenRoot(dataAbs)
+	if err != nil {
+		return "", fmt.Errorf("failed to open database directory: %w", err)
+	}
+	defer dataRoot.Close() //nolint:errcheck
 
 	archiveFile, archivePath, err := createUniqueBackupFile(backupAbs)
 	if err != nil {
@@ -60,40 +65,50 @@ func CreateBackup(dataDir, backupDir string) (string, error) {
 	gzWriter := gzip.NewWriter(archiveFile)
 	tarWriter := tar.NewWriter(gzWriter)
 
-	err = filepath.Walk(dataAbs, func(path string, fi os.FileInfo, walkErr error) error {
+	err = fs.WalkDir(dataRoot.FS(), ".", func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
-		if fi.Mode()&os.ModeSymlink != 0 {
+		if path == "." || entry.Type()&os.ModeSymlink != 0 {
 			return nil
 		}
-		if os.SameFile(archiveInfo, fi) {
-			return nil
-		}
-		rel, err := filepath.Rel(dataAbs, path)
+		fi, err := entry.Info()
 		if err != nil {
 			return err
 		}
-		if rel == "." {
+		if os.SameFile(archiveInfo, fi) || (!fi.IsDir() && !fi.Mode().IsRegular()) {
 			return nil
+		}
+		var source *os.File
+		if fi.Mode().IsRegular() {
+			source, err = dataRoot.Open(path)
+			if err != nil {
+				return err
+			}
+			defer source.Close() //nolint:errcheck
+			fi, err = source.Stat()
+			if err != nil {
+				return err
+			}
+			if !fi.Mode().IsRegular() {
+				return fmt.Errorf("backup entry changed type: %s", path)
+			}
+			if os.SameFile(archiveInfo, fi) {
+				return nil
+			}
 		}
 		header, err := tar.FileInfoHeader(fi, "")
 		if err != nil {
 			return err
 		}
-		header.Name = filepath.ToSlash(rel)
+		header.Name = path
 		if err := tarWriter.WriteHeader(header); err != nil {
 			return err
 		}
-		if !fi.Mode().IsRegular() {
+		if source == nil {
 			return nil
 		}
-		f, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		_, copyErr := io.Copy(tarWriter, f)
-		_ = f.Close()
+		_, copyErr := io.Copy(tarWriter, source)
 		return copyErr
 	})
 	if err != nil {
@@ -136,11 +151,16 @@ func rejectBackupInsideDataDir(dataAbs, backupAbs string) error {
 }
 
 func createUniqueBackupFile(backupDir string) (*os.File, string, error) {
+	root, err := os.OpenRoot(backupDir)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to open backup directory: %w", err)
+	}
+	defer root.Close() //nolint:errcheck
 	const attempts = 100
 	for range attempts {
 		name := fmt.Sprintf("backup_%s.tar.gz", time.Now().UTC().Format("20060102_150405.000000000"))
 		archivePath := filepath.Join(backupDir, name)
-		f, err := os.OpenFile(archivePath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+		f, err := root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 		if err == nil {
 			return f, archivePath, nil
 		}
@@ -195,7 +215,7 @@ func RestoreBackup(dataDir, archivePath string) error {
 }
 
 func extractBackupArchive(archivePath, destDir string) error {
-	archiveFile, err := os.Open(archivePath)
+	archiveFile, err := os.Open(archivePath) // #nosec G304 -- The local operator explicitly selects the archive to restore.
 	if err != nil {
 		return fmt.Errorf("failed to open archive: %w", err)
 	}
@@ -228,22 +248,23 @@ func extractTarEntry(destDir string, header *tar.Header, r io.Reader) error {
 	if name == "." || name == string(filepath.Separator) {
 		return nil
 	}
-	if strings.HasPrefix(name, "..") || strings.Contains(name, "/../") {
+	if !filepath.IsLocal(name) {
 		return fmt.Errorf("invalid path in archive: %s", header.Name)
 	}
-	target := filepath.Join(destDir, name)
-	if !strings.HasPrefix(target, destDir+string(os.PathSeparator)) && target != destDir {
-		return fmt.Errorf("invalid path in archive: %s", header.Name)
+	root, err := os.OpenRoot(destDir)
+	if err != nil {
+		return err
 	}
+	defer root.Close() //nolint:errcheck
 
 	switch header.Typeflag {
 	case tar.TypeDir:
-		return os.MkdirAll(target, 0o700)
+		return root.MkdirAll(name, 0o700)
 	case tar.TypeReg:
-		if err := os.MkdirAll(filepath.Dir(target), 0o700); err != nil {
+		if err := root.MkdirAll(filepath.Dir(name), 0o700); err != nil {
 			return err
 		}
-		f, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+		f, err := root.OpenFile(name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 		if err != nil {
 			return err
 		}

@@ -66,6 +66,11 @@ notary backup \
 
 The command prints the path of the archive it created.
 
+The archive covers `db_path` only. Back up the configuration, HTTPS certificate
+and private key, external cluster TLS files, and the material needed to access
+Vault or the HSM separately. Protect these copies as secrets. A database archive
+alone is not a complete disaster-recovery backup.
+
 ## 3. Restore a backup
 
 Restore deletes the current data directory and replaces it with the archive.

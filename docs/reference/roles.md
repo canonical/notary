@@ -5,6 +5,9 @@ Notary uses a role-based access control (RBAC) system to manage permissions for 
 - **Admin**: Full access to all Notary features.
 - **Certificate Manager**: Can manage Certificate Authorities, Certificate Requests, issue and revoke certificates.
 - **Certificate Requestor**: Can create Certificate Requests and view their own requests.
-- **Read Only**: Can read everything except accounts.
+- **Read Only**: Can read certificate requests, certificate authorities, ACME
+	server metadata, and non-sensitive configuration. Cannot read other accounts
+	or cluster membership. Every authenticated role can read its own account and
+	change its own local password.
 
 Roles are assigned to accounts when they are created, either via the API (see the [API account reference](api/accounts.md#create-an-account)) or the web interface.

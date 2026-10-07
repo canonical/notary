@@ -8,18 +8,26 @@ To enable tracing in Notary, add the following configuration to your YAML config
 
 ```yaml
 tracing:
-  service_name: "notary"  # Optional, defaults to "notary"
+  service_name: "notary"
   endpoint: "tempo:4317" # Required if enabled, the OpenTelemetry gRPC endpoint
-  sampling_rate: "100%"   # Optional, defaults to 100% (1.0)
+  sampling_rate: "100%"
 ```
+
+Set all three values explicitly. The current initializer does not correctly
+apply the intended `service_name` and `sampling_rate` defaults inside the
+`tracing` section; omitting the sampling rate prevents startup.
 
 ### Configuration Options
 
 - **service_name**: The name that will identify your service in the tracing system
-- **endpoint**: The URL of your Tempo (or other OpenTelemetry collector) endpoint
+- **endpoint**: The `host:port` of your Tempo or other OTLP gRPC collector
 - **sampling_rate**: The percentage of traces to sample. Can be specified as:
   - A percentage (e.g., "10%", "50%", "100%")
   - A decimal value between 0.0 and 1.0 (e.g., "0.1", "0.5", "1.0")
+
+The exporter currently uses plaintext gRPC, not TLS. Keep the collector on a
+trusted network or use a protected local collector/proxy; do not send traces
+directly over an untrusted network.
 
 ## Viewing Traces
 

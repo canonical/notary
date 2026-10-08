@@ -6,6 +6,7 @@ Charmcraft
 APIs
 api_address
 bool
+boolean
 CAs
 CLI
 CSR

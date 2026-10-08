@@ -1,6 +1,12 @@
+# Leave a blank line at the end of this file to support concatenation
+backend
+backends
+Canonical('s)?
+Charmcraft
 APIs
 api_address
 bool
+boolean
 CAs
 CLI
 CSR
@@ -34,8 +40,6 @@ yaml
 CRL
 AppRole
 PKCS
-backend
-backends
 hsm
 yubihsm
 YubiHSM
@@ -107,3 +111,5 @@ HttpOnly
 SameSite
 CA's
 pre
+
+

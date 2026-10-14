@@ -84,7 +84,7 @@ html_theme_options = {
 }
 
 # Slug used to prefix 404 links once hosted behind the ubuntu.com/docs proxy
-slug = "docs/notary"
+slug = "juju/docs/notary"
 
 #######################
 # Sitemap configuration: https://sphinx-sitemap.readthedocs.io/

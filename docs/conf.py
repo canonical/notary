@@ -91,7 +91,7 @@ slug = "juju/docs/notary"
 #######################
 
 # Use RTD canonical URL to ensure duplicate pages have a specific canonical URL
-html_baseurl = os.environ.get("READTHEDOCS_CANONICAL_URL", "https://ubuntu.com/docs/notary/")
+html_baseurl = os.environ.get("READTHEDOCS_CANONICAL_URL", "https://canonical.com/juju/docs/notary/")
 
 # sphinx-sitemap uses html_baseurl to generate the full URL for each page:
 sitemap_url_scheme = "{link}"

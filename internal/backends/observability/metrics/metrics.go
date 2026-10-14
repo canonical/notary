@@ -32,6 +32,10 @@ type PrometheusMetrics struct {
 	ExpiredCACertificates          prometheus.Gauge
 	DisabledCACertificates         prometheus.Gauge
 	EnabledCARemainingDays         prometheus.GaugeVec
+	CertificateNotBefore           *prometheus.GaugeVec
+	CertificateNotAfter            *prometheus.GaugeVec
+	CertificateValidityConsumed    *prometheus.GaugeVec
+	CertificatesValidityConsumed   *prometheus.GaugeVec
 
 	RequestsTotal    prometheus.CounterVec
 	RequestsDuration prometheus.HistogramVec
@@ -111,6 +115,22 @@ func newPrometheusMetrics() *PrometheusMetrics {
 		ExpiredCACertificates:          expiredCACertificatesMetric(),
 		DisabledCACertificates:         disabledCACertificatesMetric(),
 		EnabledCARemainingDays:         enabledCARemainingDaysMetric(),
+		CertificateNotBefore: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "certificate_not_before_timestamp_seconds",
+			Help: "Start of leaf certificate validity as a Unix timestamp in seconds",
+		}, []string{"csr_id"}),
+		CertificateNotAfter: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "certificate_not_after_timestamp_seconds",
+			Help: "End of leaf certificate validity as a Unix timestamp in seconds",
+		}, []string{"csr_id"}),
+		CertificateValidityConsumed: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "certificate_validity_consumed_ratio",
+			Help: "Fraction of leaf certificate validity elapsed; negative before validity starts and at least one at expiry",
+		}, []string{"csr_id"}),
+		CertificatesValidityConsumed: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "certificates_validity_consumed",
+			Help: "Number of currently valid leaf certificates at or above the cumulative consumed validity threshold",
+		}, []string{"threshold"}),
 	}
 	m.registry.MustRegister(m.CertificateRequests)
 	m.registry.MustRegister(m.OutstandingCertificateRequests)
@@ -124,6 +144,10 @@ func newPrometheusMetrics() *PrometheusMetrics {
 	m.registry.MustRegister(m.ExpiredCACertificates)
 	m.registry.MustRegister(m.DisabledCACertificates)
 	m.registry.MustRegister(m.EnabledCARemainingDays)
+	m.registry.MustRegister(m.CertificateNotBefore)
+	m.registry.MustRegister(m.CertificateNotAfter)
+	m.registry.MustRegister(m.CertificateValidityConsumed)
+	m.registry.MustRegister(m.CertificatesValidityConsumed)
 
 	m.registry.MustRegister(m.RequestsTotal)
 	m.registry.MustRegister(m.RequestsDuration)
@@ -136,6 +160,22 @@ func newPrometheusMetrics() *PrometheusMetrics {
 // GenerateCertificateMetrics receives the live list of csrs to calculate the most recent values for the metrics
 // defined for prometheus
 func (pm *PrometheusMetrics) GenerateCertificateMetrics(csrs []db.CertificateRequestWithChain) {
+	pm.generateCertificateMetrics(csrs, time.Now())
+}
+
+func (pm *PrometheusMetrics) generateCertificateMetrics(csrs []db.CertificateRequestWithChain, now time.Time) {
+	pm.CertificateNotBefore.Reset()
+	pm.CertificateNotAfter.Reset()
+	pm.CertificateValidityConsumed.Reset()
+	thresholds := []struct {
+		label string
+		ratio float64
+		count float64
+	}{
+		{label: "0.65", ratio: 0.65},
+		{label: "0.90", ratio: 0.90},
+		{label: "0.95", ratio: 0.95},
+	}
 	var csrCount = float64(len(csrs))
 	var outstandingCSRCount float64
 	var certCount float64
@@ -153,8 +193,30 @@ func (pm *PrometheusMetrics) GenerateCertificateMetrics(csrs []db.CertificateReq
 			continue
 		}
 		certCount += 1
-		expiryDate := certificateExpiryDate(entry.CertificateChain)
-		daysRemaining := math.Floor(time.Until(expiryDate).Hours() / 24)
+		certBlock, _ := pem.Decode([]byte(entry.CertificateChain))
+		if certBlock == nil {
+			continue
+		}
+		certificate, err := x509.ParseCertificate(certBlock.Bytes)
+		if err != nil {
+			continue
+		}
+		csrID := fmt.Sprintf("%d", entry.CSR_ID)
+		pm.CertificateNotBefore.WithLabelValues(csrID).Set(float64(certificate.NotBefore.Unix()))
+		pm.CertificateNotAfter.WithLabelValues(csrID).Set(float64(certificate.NotAfter.Unix()))
+		validity := certificate.NotAfter.Sub(certificate.NotBefore)
+		if validity > 0 {
+			ratio := float64(now.Sub(certificate.NotBefore)) / float64(validity)
+			pm.CertificateValidityConsumed.WithLabelValues(csrID).Set(ratio)
+			if !now.Before(certificate.NotBefore) && now.Before(certificate.NotAfter) {
+				for index := range thresholds {
+					if ratio >= thresholds[index].ratio {
+						thresholds[index].count++
+					}
+				}
+			}
+		}
+		daysRemaining := math.Floor(certificate.NotAfter.Sub(now).Hours() / 24)
 		if daysRemaining < 0 {
 			expiredCertCount += 1
 		} else {
@@ -180,6 +242,9 @@ func (pm *PrometheusMetrics) GenerateCertificateMetrics(csrs []db.CertificateReq
 	pm.CertificatesExpiringIn7Days.Set(expiringIn7DaysCertCount)
 	pm.CertificatesExpiringIn30Days.Set(expiringIn30DaysCertCount)
 	pm.CertificatesExpiringIn90Days.Set(expiringIn90DaysCertCount)
+	for _, threshold := range thresholds {
+		pm.CertificatesValidityConsumed.WithLabelValues(threshold.label).Set(threshold.count)
+	}
 }
 
 func (pm *PrometheusMetrics) GenerateCACertificateMetrics(cas []db.CertificateAuthorityDenormalized) {

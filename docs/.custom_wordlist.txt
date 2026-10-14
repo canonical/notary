@@ -90,6 +90,7 @@ follower
 voters
 Pebble
 Prometheus
+PromQL
 runbooks
 VIP
 peer_san

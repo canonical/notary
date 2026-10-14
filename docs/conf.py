@@ -83,7 +83,7 @@ html_theme_options = {
     "source_edit_link": "https://github.com/canonical/notary",
 }
 
-# Slug used to prefix 404 links once hosted behind the ubuntu.com/docs proxy
+# Slug used to prefix 404 links once hosted behind the canonical.com/juju/docs proxy
 slug = "juju/docs/notary"
 
 #######################

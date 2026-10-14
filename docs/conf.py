@@ -30,7 +30,7 @@ html_title = project + " documentation"
 # Documentation website URL
 # TODO: once the ubuntu.com/docs/notary proxy is live, READTHEDOCS_CANONICAL_URL
 # (set automatically by Read the Docs) will take precedence over this fallback.
-ogp_site_url = os.environ.get("READTHEDOCS_CANONICAL_URL", "https://ubuntu.com/docs/notary/")
+ogp_site_url = os.environ.get("READTHEDOCS_CANONICAL_URL", "https://canonical.com/juju/docs/notary/")
 
 # Preview name of the documentation website
 ogp_site_name = project

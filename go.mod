@@ -2,6 +2,8 @@ module github.com/canonical/notary
 
 go 1.26.2
 
+toolchain go1.26.9
+
 require (
 	github.com/MicahParks/keyfunc/v3 v3.8.1
 	github.com/canonical/go-dqlite/v3 v3.0.4

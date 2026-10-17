@@ -99,7 +99,7 @@ export default function ClusterPageAsidePanel({ setAsideOpen }: AsideProps) {
 								<p className="p-text--small">
 									<code>
 										notary start --config /etc/notary/config/config.yaml --join
-										'{token.join_token}'
+										&apos;{token.join_token}&apos;
 									</code>
 								</p>
 								<Button appearance="positive" onClick={() => void handleCopy()}>

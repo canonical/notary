@@ -9,6 +9,7 @@
 		"test": "vitest run",
 		"format": "biome format",
 		"lint": "biome lint",
+		"lint:eslint": "eslint .",
 		"check": "biome check",
 		"ci": "biome ci"
 	},
@@ -37,6 +38,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.4.5",
+		"@eslint/js": "^9.39.5",
 		"@tailwindcss/typography": "^0.5.16",
 		"@tanstack/devtools-vite": "latest",
 		"@testing-library/dom": "^10.4.1",
@@ -45,9 +47,14 @@
 		"@types/react": "^19.2.0",
 		"@types/react-dom": "^19.2.0",
 		"@vitejs/plugin-react": "^6.0.1",
+		"eslint": "^9.39.5",
+		"eslint-plugin-react": "^7.37.5",
+		"eslint-plugin-react-hooks": "^5.2.0",
+		"globals": "^17.13.0",
 		"jsdom": "^29.0.0",
 		"sass-embedded": "^1.99.0",
 		"typescript": "^6.0.2",
+		"typescript-eslint": "^8.67.0",
 		"vite": "^8.0.0",
 		"vitest": "^4.1.5"
 	}

@@ -28,6 +28,7 @@ export default function ACMEServersTable({
 	const auth = useAuth();
 	const [confirmationModalData, setConfirmationModalData] =
 		// biome-ignore lint/suspicious/noExplicitAny: generic modal accepts any data type
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		useState<NotaryConfirmationModalData<any> | null>(null);
 	const [expandedID, setExpandedID] = useState<number | null>(null);
 

@@ -21,6 +21,7 @@ export type NotaryConfirmationModalData<T> = {
 
 export function NotaryConfirmationModal(
 	// biome-ignore lint/suspicious/noExplicitAny: generic modal accepts any data type
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	data: NotaryConfirmationModalData<any>,
 ) {
 	const [errorText, setErrorText] = useState<string>("");

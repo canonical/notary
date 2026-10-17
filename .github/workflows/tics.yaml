@@ -15,6 +15,16 @@ jobs:
         with:
           go-version-file: "go.mod"
       - uses: ./.github/actions/install-dqlite
+      # TiCS runs the project's own ESLint (ui/node_modules) with ui/eslint.config.mjs
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - name: install frontend dependencies
+        working-directory: ui
+        run: bun install --frozen-lockfile
       - name: generate coverage
         run: |
           go install github.com/t-yuki/gocover-cobertura@latest

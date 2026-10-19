@@ -21,7 +21,7 @@ jobs:
           sudo apt-get install -y squashfs-tools
           unsquashfs -d snap-root snap-artifact/*.snap
       - name: Scan packaged native and Go dependencies
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: rootfs
           scan-ref: snap-root
@@ -33,7 +33,7 @@ jobs:
         with:
           path: source
       - name: Scan locked frontend dependencies
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: source/ui

@@ -7,7 +7,7 @@ on:
 jobs:
   update:
     name: Update Issue
-    uses: canonical/identity-credentials-workflows/.github/workflows/jira-sync.yaml@v3.1.3
+    uses: canonical/identity-credentials-workflows/.github/workflows/jira-sync.yaml@v3.1.8
     secrets:
       JIRA_WEBHOOK_URL: ${{ secrets.JIRA_WEBHOOK_URL }}
       JIRA_WEBHOOK_TOKEN: ${{ secrets.JIRA_WEBHOOK_TOKEN }}

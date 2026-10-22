@@ -40,8 +40,9 @@ parts:
       - GOTOOLCHAIN: local
       - CGO_ENABLED: "1"
     override-build: |
-      npm install --prefix ui
-      npm run build --prefix ui
+      npm install --global bun@1.3.14
+      bun install --cwd ui --frozen-lockfile
+      bun run --cwd ui build
       craftctl default
     stage-packages:
       - ca-certificates_data

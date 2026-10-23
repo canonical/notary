@@ -36,6 +36,15 @@ func extractCommonName(certPEM string) string {
 	return cert.Subject.CommonName
 }
 
+// optionalAttribute returns nil for an empty value so the attribute is left
+// out of the subject instead of being encoded with an empty value.
+func optionalAttribute(value string) []string {
+	if value == "" {
+		return nil
+	}
+	return []string{value}
+}
+
 type CertificateAuthority struct {
 	ID             int64  `json:"id"`
 	Enabled        bool   `json:"enabled"`
@@ -145,17 +154,17 @@ func createCertificateAuthority(fields CreateCertificateAuthorityParams) (string
 		return "", "", "", "", fmt.Errorf("error creating certificate authority: %w", err)
 	}
 	skiHash := generateSKI(priv)
+	subject := pkix.Name{
+		CommonName:         fields.CommonName,
+		Country:            optionalAttribute(fields.CountryName),
+		Province:           optionalAttribute(fields.StateOrProvinceName),
+		Locality:           optionalAttribute(fields.LocalityName),
+		Organization:       optionalAttribute(fields.OrganizationName),
+		OrganizationalUnit: optionalAttribute(fields.OrganizationalUnit),
+	}
 	// Create the certificate request for the CA
 	csrTemplate := &x509.CertificateRequest{
-		Subject: pkix.Name{
-			CommonName:         fields.CommonName,
-			Country:            []string{fields.CountryName},
-			Province:           []string{fields.StateOrProvinceName},
-			Locality:           []string{fields.LocalityName},
-			Organization:       []string{fields.OrganizationName},
-			OrganizationalUnit: []string{fields.OrganizationalUnit},
-		},
-		DNSNames: []string{fields.SANsDNS},
+		Subject: subject,
 	}
 	if fields.SANsDNS != "" {
 		csrTemplate.DNSNames = []string{fields.SANsDNS}
@@ -177,15 +186,8 @@ func createCertificateAuthority(fields CreateCertificateAuthorityParams) (string
 		return csrPEM.String(), privPEM.String(), "", "", nil
 	}
 	template := &x509.Certificate{
-		SerialNumber: big.NewInt(time.Now().UnixNano()),
-		Subject: pkix.Name{
-			CommonName:         fields.CommonName,
-			Country:            []string{fields.CountryName},
-			Province:           []string{fields.StateOrProvinceName},
-			Locality:           []string{fields.LocalityName},
-			Organization:       []string{fields.OrganizationName},
-			OrganizationalUnit: []string{fields.OrganizationalUnit},
-		},
+		SerialNumber:          big.NewInt(time.Now().UnixNano()),
+		Subject:               subject,
 		SubjectKeyId:          skiHash,
 		NotBefore:             time.Now(),
 		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,

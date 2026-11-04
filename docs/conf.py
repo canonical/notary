@@ -1,5 +1,4 @@
 import datetime
-import os
 
 # Configuration for the Sphinx documentation builder.
 # All configuration specific to your project should be done in this file.
@@ -28,9 +27,7 @@ copyright = f"{datetime.date.today().year}"
 html_title = project + " documentation"
 
 # Documentation website URL
-# TODO: once the ubuntu.com/docs/notary proxy is live, READTHEDOCS_CANONICAL_URL
-# (set automatically by Read the Docs) will take precedence over this fallback.
-ogp_site_url = os.environ.get("READTHEDOCS_CANONICAL_URL", "https://canonical.com/juju/docs/notary/")
+ogp_site_url = "https://canonical.com/juju/docs/notary/en/latest/"
 
 # Preview name of the documentation website
 ogp_site_name = project
@@ -90,8 +87,9 @@ slug = "juju/docs/notary"
 # Sitemap configuration: https://sphinx-sitemap.readthedocs.io/
 #######################
 
-# Use RTD canonical URL to ensure duplicate pages have a specific canonical URL
-html_baseurl = os.environ.get("READTHEDOCS_CANONICAL_URL", "https://canonical.com/juju/docs/notary/")
+# Public URL behind the canonical.com proxy; Read the Docs' canonical URL
+# points at readthedocs-hosted.com, so it can't be used here
+html_baseurl = "https://canonical.com/juju/docs/notary/en/latest/"
 
 # sphinx-sitemap uses html_baseurl to generate the full URL for each page:
 sitemap_url_scheme = "{link}"

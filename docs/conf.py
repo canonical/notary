@@ -87,8 +87,7 @@ slug = "juju/docs/notary"
 # Sitemap configuration: https://sphinx-sitemap.readthedocs.io/
 #######################
 
-# Public URL behind the canonical.com proxy; Read the Docs' canonical URL
-# points at readthedocs-hosted.com, so it can't be used here
+# Public URL behind the canonical.com proxy
 html_baseurl = "https://canonical.com/juju/docs/notary/en/latest/"
 
 # sphinx-sitemap uses html_baseurl to generate the full URL for each page:

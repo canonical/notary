@@ -36,6 +36,7 @@ export function CertificateAuthoritiesTable({
 		useState<boolean>(false);
 	const [confirmationModalData, setConfirmationModalData] =
 		// biome-ignore lint/suspicious/noExplicitAny: generic modal accepts any data type
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		useState<NotaryConfirmationModalData<any> | null>(null);
 	const [selectedCA, setSelectedCA] =
 		useState<CertificateAuthorityEntry | null>(null);

@@ -57,13 +57,17 @@ parts:
       - libuv1t64
       - liblz4-1
     build-environment:
+      # Keeps snapcraft's `go version` check quiet; the build below opts into go.mod's toolchain.
       - GOTOOLCHAIN: local
       - CGO_ENABLED: "1"
     override-build: |
       npm install --global bun@1.3.14
       bun install --cwd ui --frozen-lockfile
       bun run --cwd ui build
-      craftctl default
+      # Same steps as the go plugin, but using the toolchain directive from go.mod.
+      export GOTOOLCHAIN=auto
+      go mod download all
+      go install -p "${CRAFT_PARALLEL_BUILD_COUNT}" ./...
 
   notary-release-data:
     plugin: nil

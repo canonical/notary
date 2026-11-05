@@ -2,6 +2,8 @@ module github.com/canonical/notary
 
 go 1.26.2
 
+toolchain go1.26.9
+
 require (
 	github.com/MicahParks/keyfunc/v3 v3.8.1
 	github.com/canonical/go-dqlite/v3 v3.0.4
@@ -101,7 +103,7 @@ require (
 	github.com/go-acme/tencentclouddnspod v1.3.24 // indirect
 	github.com/go-acme/tencentedgdeone v1.3.38 // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.6 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0 // indirect

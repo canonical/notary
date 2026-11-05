@@ -1,6 +1,8 @@
 package server_test
 
 import (
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -1211,4 +1213,62 @@ func TestCertificateRevocationListsEndToEnd(t *testing.T) {
 			t.Fatalf("expected CRL to be available")
 		}
 	})
+}
+
+func TestSignedIntermediateCAWithOnlyCommonName(t *testing.T) {
+	ts, _ := tu.MustPrepareServer(t)
+	adminToken := tu.MustPrepareAccount(t, ts, "admin@canonical.com", tu.RoleAdmin, "")
+	client := ts.Client()
+
+	for _, params := range []tu.CreateCertificateAuthorityParams{
+		{SelfSigned: true, CommonName: "Root CA"},
+		{SelfSigned: false, CommonName: "Intermediate CA"},
+	} {
+		statusCode, createCAResponse, err := tu.CreateCertificateAuthority(ts.URL, client, adminToken, params)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if statusCode != http.StatusCreated {
+			t.Fatalf("expected status %d, got %d", http.StatusCreated, statusCode)
+		}
+		if createCAResponse.Message != "" {
+			t.Fatalf("expected success, got %s", createCAResponse.Message)
+		}
+	}
+
+	statusCode, signCAResponse, err := tu.SignCertificateAuthority(ts.URL, client, adminToken, 2, server.SignCertificateAuthorityParams{CertificateAuthorityID: "1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if statusCode != http.StatusAccepted {
+		t.Fatalf("expected status %d, got %d", http.StatusAccepted, statusCode)
+	}
+	if signCAResponse.Message != "" {
+		t.Fatalf("expected success, got %s", signCAResponse.Message)
+	}
+
+	statusCode, getCAResponse, err := tu.GetCertificateAuthority(ts.URL, client, adminToken, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if statusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, statusCode)
+	}
+	block, _ := pem.Decode([]byte(getCAResponse.Data.CertificatePEM))
+	if block == nil {
+		t.Fatalf("expected the intermediate CA to have a certificate")
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cert.Subject.String(); got != "CN=Intermediate CA" {
+		t.Fatalf("expected subject CN=Intermediate CA, got %s", got)
+	}
+	if got := cert.Issuer.String(); got != "CN=Root CA" {
+		t.Fatalf("expected issuer CN=Root CA, got %s", got)
+	}
+	if len(cert.DNSNames) != 0 {
+		t.Fatalf("expected no DNS SANs, got %q", cert.DNSNames)
+	}
 }

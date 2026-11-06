@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"crypto/x509"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -759,6 +760,18 @@ func TestSignCertificatesEndToEnd(t *testing.T) {
 		}
 		if strings.Count(listCSRsResponse.Data[1].CertificateChain, "BEGIN CERTIFICATE") != 3 {
 			t.Fatalf("expected second csr to have a chain with 3 certificates")
+		}
+		chain, err := db.ParseCertificateChain(listCSRsResponse.Data[1].CertificateChain)
+		if err != nil {
+			t.Fatal(err)
+		}
+		roots := x509.NewCertPool()
+		roots.AddCert(chain[2])
+		intermediates := x509.NewCertPool()
+		intermediates.AddCert(chain[1])
+		_, err = chain[0].Verify(x509.VerifyOptions{Roots: roots, Intermediates: intermediates, KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}})
+		if err != nil {
+			t.Fatalf("expected second certificate to verify as a client certificate: %s", err)
 		}
 	})
 }

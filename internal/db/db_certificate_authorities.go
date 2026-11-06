@@ -241,7 +241,7 @@ func (db *DatabaseRepository) SignCertificateRequest(csrFilter CSRFilter, caFilt
 
 	if CSRIsForACertificateAuthority {
 		certTemplate.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageCRLSign
-		certTemplate.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
+		certTemplate.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
 		certTemplate.BasicConstraintsValid = true
 		certTemplate.IsCA = true
 	}

@@ -189,7 +189,7 @@ func createCertificateAuthority(fields CreateCertificateAuthorityParams) (string
 		SubjectKeyId:          skiHash,
 		NotBefore:             time.Now(),
 		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 		BasicConstraintsValid: true,
 		IsCA:                  true,
 	}
